@@ -4,6 +4,7 @@ import fly.compiler.sema.*
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenModule
 import fly.compiler.codegen.CodeGenLLVM
+import fly.compiler.codegen.CodeGenTrace
 import llvm.api.*
 import fly.mem
 import fly.data.List
@@ -74,6 +75,7 @@ public class CodeGenError {
             // fail inside the handle's own frame: skip the rest of the block
             cge.br(safe)
         } else {
+            CodeGenTrace.emitExitFail(cge)
             pointer r
             llvm.buildRetVoid(b, r)
             cge.setTerminated(true)
@@ -83,6 +85,39 @@ public class CodeGenError {
         // terminator (the block itself gets closed by the surrounding flow).
         pointer deadBB = cge.newBlock("afterfail")
         cge.position(deadBB)
+    }
+
+    // failWithCode — a failure raised BY THE COMPILER rather than by a `fail`
+    // statement: store a fixed integer code, then take the same exit emitFail
+    // takes — jump to the enclosing handle's safe block, or return. The array
+    // bounds check needs this: there is no SemaFailStmt to carry the code.
+    //
+    // Unlike emitFail it does NOT park the builder in a dead block: the caller is
+    // mid-expression and goes on emitting into the in-range block it created, so
+    // parking here would strand that block.
+    public static void failWithCode(const CodeGenExpr cge, const int code) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        pointer errTy = cgm.getErrorTy()
+        pointer errPtr = cge.getErrPtr()
+        pointer i32
+        llvm.int32TypeInContext(cgm.getCtx(), i32)
+        pointer cv
+        llvm.constInt(i32, (long)code, true, cv)
+        pointer cp
+        llvm.buildStructGEP2(b, errTy, errPtr, 0, "ecode", cp)
+        llvm.buildStore(b, cv, cp)
+
+        pointer safe = cge.getHandleSafe()
+        if safe != 0 {
+            cge.br(safe)
+        } else {
+            CodeGenTrace.emitExitFail(cge)
+            pointer r
+            llvm.buildRetVoid(b, r)
+            cge.setTerminated(true)
+        }
     }
 
     // writeField — store one fail operand into its slot: int/enum/bool → code (0),

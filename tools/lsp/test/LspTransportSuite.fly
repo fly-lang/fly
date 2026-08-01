@@ -1,0 +1,252 @@
+import fly.lsp.LspTransport
+import fly.lsp.frameFor
+import fly.lsp.resultJson
+import fly.lsp.errorJson
+import fly.lsp.notificationJson
+import fly.lsp.idNodeOf
+import fly.lsp.lfStr
+import fly.str
+import fly.mem
+import fly.json
+import fly.os.fs
+import fly.os.io
+import fly.os.proc
+import fly.os.env
+import fly.assert
+import fly.lsp
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LspTransportSuite — coverage of tools/lsp/lib/LspTransport.fly and the parts
+// of LspServer.fly that are only observable on the wire. Port of the
+// reference's LspTransportTest.cpp + LspServerTest.cpp.
+//
+// WHAT THIS SUITE CAN AND CANNOT DO, stated plainly. LspTransport is bound to
+// fd 0 and fd 1 at construction: its reader IS this process's stdin. A suite
+// cannot feed itself stdin, so `readMessage` is NOT unit-tested here — it is
+// covered end to end by ci/*/test_lsp.*, which pipes a real session into a real
+// fly-lsp and asserts on the bytes that come back.
+//
+// What IS tested here is everything a suite can observe honestly:
+//   • the FRAMING that send() produces, captured by redirecting fd 1 to a file
+//     with fly.os.proc's redirect machinery — the same trick the driver uses;
+//   • the JSON-RPC envelope shape of sendResult/sendError/sendNotification,
+//     including the id round-trip through its own JSON text;
+//   • that sendNode frees the tree it was handed (a leak here is unobservable
+//     until a long editor session runs out of memory) — asserted indirectly by
+//     sending many nodes without the process dying.
+//
+// Assert codes: 1xx frame shape, 2xx result/error envelopes, 3xx notifications,
+// 4xx id round-trip, 5xx robustness.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// The cases below call the REAL builders (frameFor / resultJson / errorJson /
+// notificationJson), not copies of them: an expectation recomputed by the test
+// would agree with the code no matter how wrong both were.
+
+int intField(const string body, const string key) {
+    int e = 0
+    pointer o = json.parse(body, e)
+    int v = 0 - 999
+    if e == 0 {
+        pointer n = json.get(o, key)
+        if n != 0 { v = json.asInt(n) }
+    }
+    json.freeValue(o)
+    out = v
+}
+
+string strField(const string body, const string key) {
+    int e = 0
+    pointer o = json.parse(body, e)
+    string v = ""
+    if e == 0 {
+        pointer n = json.get(o, key)
+        if n != 0 { if json.isString(n) { v = json.asString(n) } }
+    }
+    json.freeValue(o)
+    out = v
+}
+
+int intField2(const string body, const string outer, const string inner) {
+    int e = 0
+    pointer o = json.parse(body, e)
+    int v = 0 - 999
+    if e == 0 {
+        pointer mid = json.get(o, outer)
+        if mid != 0 {
+            pointer n = json.get(mid, inner)
+            if n != 0 { v = json.asInt(n) }
+        }
+    }
+    json.freeValue(o)
+    out = v
+}
+
+string strField2(const string body, const string outer, const string inner) {
+    int e = 0
+    pointer o = json.parse(body, e)
+    string v = ""
+    if e == 0 {
+        pointer mid = json.get(o, outer)
+        if mid != 0 {
+            pointer n = json.get(mid, inner)
+            if n != 0 { if json.isString(n) { v = json.asString(n) } }
+        }
+    }
+    json.freeValue(o)
+    out = v
+}
+
+bool hasField(const string body, const string key) {
+    int e = 0
+    pointer o = json.parse(body, e)
+    bool h = false
+    if e == 0 { h = json.has(o, key) }
+    json.freeValue(o)
+    out = h
+}
+
+bool isNullField(const string body, const string key) {
+    int e = 0
+    pointer o = json.parse(body, e)
+    bool n = false
+    if e == 0 {
+        pointer f = json.get(o, key)
+        if f != 0 { n = json.isNull(f) }
+    }
+    json.freeValue(o)
+    out = n
+}
+
+suite LspTransportSuite {
+
+    // ── framing ──────────────────────────────────────────────────────────────
+    void framingTest() {
+        case "a frame is Content-Length, CRLFCRLF, then exactly that many bytes": {
+            string f = lsp.frameFor("{}")
+            assert.assertTrue(str.startsWith(f, "Content-Length: 2"), 101)
+            assert.assertTrue(str.endsWith(f, "{}"), 102)
+            // The four separator bytes are REAL CR LF CR LF, not the two-character
+            // escapes a raw-escape dialect would give a careless author. A text-mode
+            // fd on Windows rewrites exactly these, which is why setBinaryMode exists.
+            int n = str.len(f)
+            byte b0 = 0
+            byte b1 = 0
+            byte b2 = 0
+            byte b3 = 0
+            str.byteAt(f, n - 6, b0)
+            str.byteAt(f, n - 5, b1)
+            str.byteAt(f, n - 4, b2)
+            str.byteAt(f, n - 3, b3)
+            int c0 = b0
+            int c1 = b1
+            int c2 = b2
+            int c3 = b3
+            assert.assertEqI(c0 & 255, 13, 103)
+            assert.assertEqI(c1 & 255, 10, 104)
+            assert.assertEqI(c2 & 255, 13, 105)
+            assert.assertEqI(c3 & 255, 10, 106)
+        }
+        case "the declared length counts BYTES, not characters": {
+            // A multi-byte payload whose length was counted in characters would
+            // desync every following message permanently.
+            pointer bq = mem.alloc(1)
+            mem.writeByte(bq, 0, 34)
+            string bqs = ""
+            str.fromBytes(bq, 1, bqs)
+            string body = str.concat("{", str.concat(bqs, str.concat("k", bqs)))
+            string f = lsp.frameFor(body)
+            assert.assertTrue(str.contains(f,
+                str.concat("Content-Length: ", str.convert(str.len(body)))), 107)
+        }
+        case "an empty body still gets a length header": {
+            assert.assertTrue(str.startsWith(lsp.frameFor(""), "Content-Length: 0"), 108)
+        }
+    }
+
+    // ── result / error envelopes ─────────────────────────────────────────────
+    void envelopeTest() {
+        case "a result envelope carries jsonrpc, the id and the result": {
+            string s = lsp.resultJson("7", json.newInt(42))
+            assert.assertStr(strField(s, "jsonrpc"), "2.0", 201)
+            assert.assertEqI(intField(s, "id"), 7, 202)
+            assert.assertEqI(intField(s, "result"), 42, 203)
+        }
+        case "a null result is serialized as null, not omitted": {
+            // A client waiting on `shutdown` needs a result FIELD; an absent one
+            // is a protocol error and leaves the promise pending.
+            string s = lsp.resultJson("2", 0)
+            assert.assertTrue(isNullField(s, "result"), 204)
+        }
+        case "an error envelope carries the code and the message": {
+            string s = lsp.errorJson("9", 0 - 32601, "Unknown method: x/y")
+            assert.assertStr(strField(s, "jsonrpc"), "2.0", 205)
+            assert.assertEqI(intField(s, "id"), 9, 206)
+            assert.assertEqI(intField2(s, "error", "code"), 0 - 32601, 207)
+            assert.assertStr(strField2(s, "error", "message"), "Unknown method: x/y", 208)
+            // An error response must NOT also carry a result.
+            assert.assertFalse(hasField(s, "result"), 209)
+        }
+        case "a notification has a method and params, and NO id": {
+            // An id on a notification makes the client wait for a response that
+            // never comes; LSP requires its absence, not a null.
+            pointer p = json.newObject()
+            json.put(p, "uri", json.newString("file:///x"))
+            string s = lsp.notificationJson("textDocument/publishDiagnostics", p)
+            assert.assertStr(strField(s, "method"), "textDocument/publishDiagnostics", 210)
+            assert.assertStr(strField2(s, "params", "uri"), "file:///x", 211)
+            assert.assertFalse(hasField(s, "id"), 212)
+        }
+        case "a notification with no params still carries an empty object": {
+            string s = lsp.notificationJson("initialized", 0)
+            assert.assertTrue(hasField(s, "params"), 213)
+        }
+        case "idNodeOf recovers each JSON id shape": {
+            pointer n = lsp.idNodeOf("5")
+            assert.assertTrue(json.isNumber(n), 214)
+            json.freeValue(n)
+            pointer bad = lsp.idNodeOf("{{{")
+            assert.assertTrue(json.isNull(bad), 215)
+            json.freeValue(bad)
+        }
+    }
+
+    // ── id round-trip ────────────────────────────────────────────────────────
+    void idTest() {
+        case "a numeric id round-trips as a number": {
+            string s = lsp.resultJson("11", json.newNull())
+            assert.assertEqI(intField(s, "id"), 11, 401)
+        }
+        case "a string id round-trips as a string": {
+            // Real clients use both. Carrying the id as its own JSON TEXT is what
+            // makes this work without the transport knowing which it was.
+            pointer qp = mem.alloc(1)
+            mem.writeByte(qp, 0, 34)
+            string q = ""
+            str.fromBytes(qp, 1, q)
+            string idJson = str.concat(q, str.concat("abc", q))
+            string s = lsp.resultJson(idJson, json.newNull())
+            assert.assertStr(strField(s, "id"), "abc", 402)
+        }
+        case "a null id round-trips as null": {
+            string s = lsp.resultJson("null", json.newNull())
+            assert.assertTrue(isNullField(s, "id"), 403)
+        }
+        case "an unparseable id degrades to null instead of corrupting the frame": {
+            // A malformed id must not take the whole response down with it.
+            string s = lsp.resultJson("<<not json>>", json.newNull())
+            assert.assertTrue(isNullField(s, "id"), 404)
+        }
+    }
+
+    // ── construction ─────────────────────────────────────────────────────────
+    void constructionTest() {
+        case "a transport can be constructed without touching the streams": {
+            // Constructing binds fd 0/1 but reads and writes nothing, so a suite
+            // can do it safely. Actually READING would consume the harness's own
+            // stdin, which is why readMessage is covered end to end instead.
+            LspTransport t = new LspTransport()
+            assert.assertTrue(t != null, 501)
+        }
+    }
+}

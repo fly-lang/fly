@@ -37,8 +37,8 @@ public class CodeGenBridge {
     // dotted path flattened with '_'). No downcasts, no new virtuals.
     public static bool isCLangClass(const SemaClassType cls) {
         if cls == null { out = false  return }
-        if fly.str.equals(cls.getName(), "CLang") == false { out = false  return }
-        out = fly.str.equals(SemaBuilder.classNsFlat(cls), "fly_bridge")
+        if str.equals(cls.getName(), "CLang") == false { out = false  return }
+        out = str.equals(SemaBuilder.classNsFlat(cls), "fly_bridge")
     }
 
     // isBridgeCall — `<CLang instance>.call(…)`: intercept instead of dispatching
@@ -46,7 +46,7 @@ public class CodeGenBridge {
     public static bool isBridgeCall(const SemaCall node) {
         SemaFunctionBase fn = node.getFunction()
         if fn == null { out = false  return }
-        if fly.str.equals(fn.getName(), "call") == false { out = false  return }
+        if str.equals(fn.getName(), "call") == false { out = false  return }
         SemaExpr parent = node.getParent()
         if parent == null { out = false  return }
         SemaType pt = parent.getType()
@@ -66,7 +66,7 @@ public class CodeGenBridge {
         if t0 == null { return }
         if t0.isString() == false { return }
         string lib = cge.getLastStrLit()
-        if fly.str.isEmpty(lib) { return }
+        if str.isEmpty(lib) { return }
         CodeGenModule cgm = cge.getCgm()
         cgm.addLinkerOption(CodeGenBridge.normalizeLibFlag(lib))
     }
@@ -75,16 +75,16 @@ public class CodeGenBridge {
     // absolute path as-is; `.a` archive → -l:<name>; else strip the extension
     // and the `lib` prefix → -l<name> ("libm.so.6" → "-lm").
     public static string normalizeLibFlag(const string lib) {
-        if fly.str.startsWith(lib, "/") { out = lib  return }
-        if fly.str.endsWith(lib, ".a") { out = fly.str.concat("-l:", lib)  return }
+        if str.startsWith(lib, "/") { out = lib  return }
+        if str.endsWith(lib, ".a") { out = str.concat("-l:", lib)  return }
         string name = lib
-        int dot = fly.str.indexOf(name, ".")
-        if dot >= 0 { name = fly.str.substring(name, 0, dot) }
-        if fly.str.startsWith(name, "lib") {
-            int L = fly.str.len(name)
-            name = fly.str.substring(name, 3, L)
+        int dot = str.indexOf(name, ".")
+        if dot >= 0 { name = str.substring(name, 0, dot) }
+        if str.startsWith(name, "lib") {
+            int L = str.len(name)
+            name = str.substring(name, 3, L)
         }
-        out = fly.str.concat("-l", name)
+        out = str.concat("-l", name)
     }
 
     // genCall — emit the direct C call for `<CLang>.call(sym, args [, out])`.
@@ -97,7 +97,7 @@ public class CodeGenBridge {
         List<SemaExpr> args = node.getArgs()
 
         if args.size() < 2 {
-            fly.os.io.printErrLn("error: CLang.call needs (sym, args[, out])")
+            io.printErrLn("error: CLang.call needs (sym, args[, out])")
             node.setLlvmValue(0)
             return
         }
@@ -105,7 +105,7 @@ public class CodeGenBridge {
         // 0) the C symbol must be a compile-time string literal
         SemaExpr symE = args.get(0)
         if symE.getKind() != SemaKind.VALUE {
-            fly.os.io.printErrLn("error: CLang.call symbol must be a string literal")
+            io.printErrLn("error: CLang.call symbol must be a string literal")
             node.setLlvmValue(0)
             return
         }
@@ -118,7 +118,7 @@ public class CodeGenBridge {
         SemaType at = argsE.getType()
         SemaClassType acls = at.asClass()
         if acls == null {
-            fly.os.io.printErrLn("error: CLang.call args must be an Args struct")
+            io.printErrLn("error: CLang.call args must be an Args struct")
             node.setLlvmValue(0)
             return
         }
@@ -167,7 +167,7 @@ public class CodeGenBridge {
                 cargs.add(buf)
                 cargTys.add(ptrTy)
             } elsif ft.isInteger() {
-                if fly.str.equals(ft.getName(), "pointer") {
+                if str.equals(ft.getName(), "pointer") {
                     // raw C address carried as an integer → real pointer arg
                     pointer pv
                     llvm.buildIntToPtr(b, fv, ptrTy, "bpp", pv)

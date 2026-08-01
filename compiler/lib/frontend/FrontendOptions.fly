@@ -121,11 +121,11 @@ public class FrontendOptions {
     public string srcDirAt(const int idx) { out = segAt(this.srcDirs, idx) }
 
     public void addInputFile(const string f) {
-        this.inputFiles = fly.str.concat(this.inputFiles, fly.str.concat(f, ";"))
+        this.inputFiles = str.concat(this.inputFiles, str.concat(f, ";"))
     }
 
     // inputCount — number of input paths stored ("a;b;" boundaries → segments).
-    public int inputCount() { out = fly.str.count(this.inputFiles, ";") - 1 }
+    public int inputCount() { out = str.count(this.inputFiles, ";") - 1 }
 
     // inputAt — the idx-th input path. Uses only fresh substrings of the immutable
     // backing string (never `x = substring(x,…)`, which the self-host miscompiles).
@@ -136,14 +136,14 @@ public class FrontendOptions {
         string result = ""
         bool go = true
         while go {
-            string tail = fly.str.substring(s, from, fly.str.len(s))
-            int rel = fly.str.indexOf(tail, ";")
+            string tail = str.substring(s, from, str.len(s))
+            int rel = str.indexOf(tail, ";")
             if rel < 0 {
                 go = false
             } else {
                 int end = from + rel
                 if seg == idx {
-                    result = fly.str.substring(s, from, end)
+                    result = str.substring(s, from, end)
                     go = false
                 } else {
                     seg = seg + 1

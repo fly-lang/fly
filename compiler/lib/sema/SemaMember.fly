@@ -8,19 +8,27 @@ import fly.compiler.ast.ASTMember
 
 // SemaMember — resolved member access (obj.field / namespace.x). 1:1 with C++
 // SemaMember. `ref` is the resolved referent (attribute, enum entry, …).
+// `staticAttr` is set ONLY for `ClassName.field` STATIC access (B030): it
+// carries the typed attribute so codegen can reach its module global without a
+// SemaExpr→SemaVar narrowing (a new base virtual would vtable-shift the
+// bootstrap); null for every instance access.
 public class SemaMember : SemaExpr {
 
     ASTMember memberAst
     SemaExpr ref
+    SemaClassAttribute staticAttr
 
     public SemaMember(const ASTMember memberAst, const SemaExpr ref, const SemaExpr parent, const SemaType type) {
         super(SemaKind.MEMBER, type)
         this.memberAst = memberAst
         this.ref = ref
+        this.staticAttr = null
         if parent != null { this.setParent(parent) }
     }
 
     public ASTMember getAST() { out = this.memberAst }
     public SemaExpr getRef() { out = this.ref }
+    public SemaClassAttribute getStaticAttr() { out = this.staticAttr }
+    public void setStaticAttr(const SemaClassAttribute a) { this.staticAttr = a }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }

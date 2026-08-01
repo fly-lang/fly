@@ -3,6 +3,7 @@ import fly.compiler.ast.*
 import fly.compiler.parser.*
 import fly.data.*
 import fly.assert
+import fly.str
 
 // Module with a namespace, a plain import, and a wildcard import.
 suite ParserModuleSuite {
@@ -22,7 +23,7 @@ suite ParserModuleSuite {
         case "module name preserved": {
             Parser p = new Parser("void m() { }")
             ASTModule m = p.parseModule("mymod")
-            assert.assertTrue(fly.str.equals(m.getName(), "mymod"), 5)
+            assert.assertTrue(str.equals(m.getName(), "mymod"), 5)
         }
     }
 }

@@ -69,7 +69,7 @@ public class FlyManifestReader {
                 List<ASTName> names = nt.getNames()
                 if names.size() > 0 {
                     string last = names.get(names.size() - 1).getName()
-                    if fly.str.equals(last, "Manifest") { out = true  return }
+                    if str.equals(last, "Manifest") { out = true  return }
                 }
             }
             i = i + 1
@@ -92,21 +92,21 @@ public class FlyManifestReader {
         ASTExpr init = v.getExpr()
         if init == null { return }
         // [package] scalars
-        if fly.str.equals(name, "name")        { m.setName(this.strOf(init))         return }
-        if fly.str.equals(name, "version")     { m.setVersion(this.strOf(init))      return }
-        if fly.str.equals(name, "description") { m.setDescription(this.strOf(init))  return }
-        if fly.str.equals(name, "license")     { m.setLicense(this.strOf(init))      return }
-        if fly.str.equals(name, "flyVersion")  { m.setFlyVersion(this.strOf(init))   return }
-        if fly.str.equals(name, "homepage")    { m.setHomepage(this.strOf(init))     return }
-        if fly.str.equals(name, "repository")  { m.setRepository(this.strOf(init))   return }
-        if fly.str.equals(name, "registry")    { m.setDefaultRegistry(this.strOf(init)) return }
+        if str.equals(name, "name")        { m.setName(this.strOf(init))         return }
+        if str.equals(name, "version")     { m.setVersion(this.strOf(init))      return }
+        if str.equals(name, "description") { m.setDescription(this.strOf(init))  return }
+        if str.equals(name, "license")     { m.setLicense(this.strOf(init))      return }
+        if str.equals(name, "flyVersion")  { m.setFlyVersion(this.strOf(init))   return }
+        if str.equals(name, "homepage")    { m.setHomepage(this.strOf(init))     return }
+        if str.equals(name, "repository")  { m.setRepository(this.strOf(init))   return }
+        if str.equals(name, "registry")    { m.setDefaultRegistry(this.strOf(init)) return }
         // string arrays
-        if fly.str.equals(name, "authors")  { this.readStrArray(init, m, 0)  return }
-        if fly.str.equals(name, "linkLibs") { this.readStrArray(init, m, 1)  return }
+        if str.equals(name, "authors")  { this.readStrArray(init, m, 0)  return }
+        if str.equals(name, "linkLibs") { this.readStrArray(init, m, 1)  return }
         // object arrays (array of `new T(...)`)
-        if fly.str.equals(name, "dependencies")    { this.readDeps(init, m, false)  return }
-        if fly.str.equals(name, "devDependencies") { this.readDeps(init, m, true)   return }
-        if fly.str.equals(name, "targets")         { this.readTargets(init, m)      return }
+        if str.equals(name, "dependencies")    { this.readDeps(init, m, false)  return }
+        if str.equals(name, "devDependencies") { this.readDeps(init, m, true)   return }
+        if str.equals(name, "targets")         { this.readTargets(init, m)      return }
     }
 
     // strOf — the string value of a scalar initializer ("" if not a string literal).
@@ -157,13 +157,13 @@ public class FlyManifestReader {
                 if args.size() > 6 { drev = this.argStr(args, 6) }
                 if args.size() > 7 { dpath = this.argStr(args, 7) }
                 GitDep g = new GitDep()
-                if fly.str.isEmpty(dpath) == false {
+                if str.isEmpty(dpath) == false {
                     g.setPath(dpath)
-                } elsif fly.str.isEmpty(dgit) == false {
+                } elsif str.isEmpty(dgit) == false {
                     g.setGitUrl(dgit)
-                    if fly.str.isEmpty(dtag) == false { g.setRef(0, dtag) }
-                    elsif fly.str.isEmpty(dbr) == false { g.setRef(1, dbr) }
-                    elsif fly.str.isEmpty(drev) == false { g.setRef(2, drev) }
+                    if str.isEmpty(dtag) == false { g.setRef(0, dtag) }
+                    elsif str.isEmpty(dbr) == false { g.setRef(1, dbr) }
+                    elsif str.isEmpty(drev) == false { g.setRef(2, drev) }
                 } else {
                     g.setRegistry(dreg, dn, dv)
                 }

@@ -31,12 +31,12 @@ suite CodeGenEnumSuite {
                     if c == Color.GREEN { r = 22 } elsif c == Color.BLUE { r = 33 }
                     out = r
                 }
-                int main() { Color c = Color.BLUE
-                    out = classify(c)
+                void main() { Color c = Color.BLUE
+                    fail classify(c)
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "store i32 3"), 11)        // c = Color.BLUE
-            assert.assertTrue(fly.str.contains(ir, "icmp eq i32"), 12)        // c == Color.GREEN/BLUE
+            assert.assertTrue(str.contains(ir, "store i32 3"), 11)        // c = Color.BLUE
+            assert.assertTrue(str.contains(ir, "icmp eq i32"), 12)        // c == Color.GREEN/BLUE
         }
     }
 }

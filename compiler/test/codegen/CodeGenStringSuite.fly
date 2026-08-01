@@ -32,13 +32,13 @@ suite CodeGenStringSuite {
     void literalTest() {
         case "string literal → %string type + private byte global": {
             string Q = dquote()
-            string a = fly.str.concat("void main() { string s = ", Q)
-            string b = fly.str.concat(a, "hello")
-            string c = fly.str.concat(b, Q)
-            string src = fly.str.concat(c, " }")
+            string a = str.concat("void main() { string s = ", Q)
+            string b = str.concat(a, "hello")
+            string c = str.concat(b, Q)
+            string src = str.concat(c, " }")
             string ir = cgIR(src)
-            assert.assertTrue(fly.str.contains(ir, "%string = type { ptr, i32 }"), 11)
-            assert.assertTrue(fly.str.contains(ir, "hello"), 12)
+            assert.assertTrue(str.contains(ir, "%string = type { ptr, i32 }"), 11)
+            assert.assertTrue(str.contains(ir, "hello"), 12)
         }
     }
 }

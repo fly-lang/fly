@@ -1,0 +1,542 @@
+namespace fly.lsp
+
+import fly.str
+import fly.data.List
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.sema.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LspNav — the position machinery under every navigation feature. Port of the
+// walker half of tools/lsp/LspAnalyzer.cpp, reshaped for one structural
+// difference in the self-host: THE RESOLVED TREE HAS NO PER-USE IDENTIFIER
+// NODES. Where the C++ AST carries `getSymbol()` on every identifier, here the
+// Resolver collapses an identifier use to the DECLARATION's Sema node
+// (sym.getExprRef()), so use-site positions survive only in the AST. Navigation
+// therefore walks the AST (which has every use site's location) and re-resolves
+// names through the same SymbolTable scopes Sema built — the same lookup the
+// Resolver itself performed.
+//
+// The walker is ONE ASTVisitor implementation with a mode switch rather than a
+// visitor per feature: the recursion (the bulk of 46 methods) is identical, and
+// the per-node work is three lines per mode. Cross-namespace visitor dispatch
+// was probed before this file was written: a fly.lsp class receiving accept()
+// callbacks from compiler-built nodes visits exactly the right overloads.
+//
+// Coordinates are 1-BASED COMPILER coordinates throughout this file; the 0-based
+// LSP conversion happens once, in LspProtocol.mkPosition.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// LspUse — one use site of a name.
+public class LspUse {
+    public string name
+    public int line
+    public int col
+    public int len
+    public bool isCall
+
+    public LspUse(const string name, const int line, const int col, const int len, const bool isCall) {
+        this.name = name
+        this.line = line
+        this.col = col
+        this.len = len
+        this.isCall = isCall
+    }
+}
+
+// LspTarget — what the cursor is on, after resolution.
+//   kind: 0 nothing | 1 function | 2 variable (local/param/field) | 3 type | 4 other
+public class LspTarget {
+    public int kind
+    public string name
+    public int useLine        // where the cursor hit (the USE site)
+    public int useCol
+    public int useLen
+    public SemaFunctionBase fn        // kind 1 (free function OR method)
+    public SemaClassType cls          // kind 3
+    public string varTypeName         // kind 2: the declared type, for hover
+    public SemaClassAttribute attr    // kind 2 via a receiver: the field itself
+
+    public LspTarget() {
+        this.kind = 0
+        this.name = ""
+        this.useLine = 0
+        this.useCol = 0
+        this.useLen = 0
+        this.fn = null
+        this.cls = null
+        this.varTypeName = ""
+        this.attr = null
+    }
+}
+
+// LspCallInfo — one call site with its argument positions (for inlay hints).
+public class LspCallInfo {
+    public string name
+    public int line
+    public int col
+    public List<LspUse> args      // per-argument start positions
+    public ASTCall node           // the call itself — parent = receiver chain
+
+    public LspCallInfo(const string name, const int line, const int col) {
+        this.name = name
+        this.line = line
+        this.col = col
+        this.args = new List<LspUse>()
+        this.node = null
+    }
+}
+
+// Walk modes.
+public int navModeFind()     { out = 1 }   // name at (targetLine, targetCol)
+public int navModeCollect()  { out = 2 }   // every use of wantName ("" = all)
+public int navModeCallAt()   { out = 3 }   // innermost call at/before the cursor
+public int navModeCalls()    { out = 4 }   // every call site with arg positions
+
+public class LspNavVisitor : ASTVisitor {
+    public SourceManager sm
+    public int mode
+    public int targetLine
+    public int targetCol
+    public string wantName
+
+    // find results
+    public int foundKind          // 0 none, 1 identifier, 2 call, 3 member
+    public string foundName
+    public int foundLine
+    public int foundCol
+    public ASTExpr foundExpr      // the hit node itself — its getParent() is the
+                                  // RECEIVER chain, which is what method
+                                  // resolution types
+
+    // collect results
+    public List<LspUse> uses
+
+    // call-at results
+    public ASTCall callAt
+    public int callActiveParam
+
+    // calls-collection results (mode 4)
+    public List<LspCallInfo> calls
+
+    public LspNavVisitor(const SourceManager sm) {
+        this.sm = sm
+        this.mode = 0
+        this.targetLine = 0
+        this.targetCol = 0
+        this.wantName = ""
+        this.foundKind = 0
+        this.foundName = ""
+        this.foundLine = 0
+        this.foundCol = 0
+        this.foundExpr = null
+        this.uses = new List<LspUse>()
+        this.callAt = null
+        this.callActiveParam = 0
+        this.calls = new List<LspCallInfo>()
+    }
+
+    // hit — does (targetLine, targetCol) fall inside [col, col+len) on `line`?
+    bool hit(const int line, const int col, const int len) {
+        if line != this.targetLine { out = false  return }
+        if this.targetCol < col { out = false  return }
+        out = this.targetCol < col + len
+    }
+
+    // nameUse — the shared per-name-site work for every mode.
+    void nameUse(const SourceLocation loc, const string name, const int kindTag) {
+        if loc == null { return }
+        if loc.isValid() == false { return }
+        int line = this.sm.getLineNumber(loc)
+        int col = this.sm.getColumnNumber(loc)
+        this.namedUseAt(line, col, name, kindTag)
+    }
+
+    // ── expressions ──────────────────────────────────────────────────────────
+
+    public void visit(const ASTIdentifier node) {
+        int before = this.foundKind
+        this.nameUse(node.getLoc(), node.getName(), 1)
+        if before == 0 { if this.foundKind != 0 { this.foundExpr = node } }
+    }
+
+    public void visit(const ASTMember node) {
+        int before = this.foundKind
+        this.nameUse(node.getLoc(), node.getName(), 3)
+        if before == 0 { if this.foundKind != 0 { this.foundExpr = node } }
+        // The receiver chain hangs off getParent(), exactly as the reference
+        // walks it: `a.b.c` enters at the outermost member.
+        ASTExpr p = node.getParent()
+        if p != null { p.accept(this) }
+    }
+
+    public void visit(const ASTCall node) {
+        int beforeCall = this.foundKind
+        this.nameUse(node.getLoc(), node.getName(), 2)
+        if beforeCall == 0 { if this.foundKind != 0 { this.foundExpr = node } }
+        if this.mode == 3 {
+            SourceLocation loc = node.getLoc()
+            if loc != null {
+                if loc.isValid() {
+                    int line = this.sm.getLineNumber(loc)
+                    int col = this.sm.getColumnNumber(loc)
+                    // The cursor must be at or after the call name; the DEEPEST
+                    // candidate wins because arguments are visited after the
+                    // candidate is recorded, and an inner call overwrites it.
+                    bool before = line < this.targetLine
+                    if before == false {
+                        if line == this.targetLine { before = col <= this.targetCol }
+                    }
+                    if before {
+                        this.callAt = node
+                        // Active parameter: arguments whose start is at or
+                        // before the cursor, minus one (reference parity).
+                        int active = 0
+                        List<ASTArg> cargs = node.getArgs()
+                        int ai = 0
+                        while ai < cargs.size() {
+                            ASTArg a = cargs.get(ai)
+                            ASTExpr ae = a.getExpr()
+                            if ae != null {
+                                SourceLocation al = ae.getLoc()
+                                if al != null {
+                                    if al.isValid() {
+                                        int aline = this.sm.getLineNumber(al)
+                                        int acol = this.sm.getColumnNumber(al)
+                                        bool argBefore = aline < this.targetLine
+                                        if argBefore == false {
+                                            if aline == this.targetLine { argBefore = acol <= this.targetCol }
+                                        }
+                                        if argBefore { active = active + 1 }
+                                    }
+                                }
+                            }
+                            ai = ai + 1
+                        }
+                        if active > 0 { active = active - 1 }
+                        this.callActiveParam = active
+                    }
+                }
+            }
+        }
+        if this.mode == 4 {
+            SourceLocation cl = node.getLoc()
+            if cl != null {
+                if cl.isValid() {
+                    LspCallInfo info = new LspCallInfo(node.getName(),
+                        this.sm.getLineNumber(cl), this.sm.getColumnNumber(cl))
+                    info.node = node
+                    List<ASTArg> margs = node.getArgs()
+                    int mi = 0
+                    while mi < margs.size() {
+                        ASTArg ma = margs.get(mi)
+                        ASTExpr me = ma.getExpr()
+                        if me != null {
+                            SourceLocation al = me.getLoc()
+                            if al != null {
+                                if al.isValid() {
+                                    info.args.add(new LspUse("",
+                                        this.sm.getLineNumber(al),
+                                        this.sm.getColumnNumber(al), 0, false))
+                                }
+                            }
+                        }
+                        mi = mi + 1
+                    }
+                    this.calls.add(info)
+                }
+            }
+        }
+        ASTExpr parent = node.getParent()
+        if parent != null { parent.accept(this) }
+        List<ASTArg> args = node.getArgs()
+        int i = 0
+        while i < args.size() {
+            ASTArg a = args.get(i)
+            ASTExpr e = a.getExpr()
+            if e != null { e.accept(this) }
+            i = i + 1
+        }
+    }
+
+    public void visit(const ASTUnary node) {
+        ASTExpr e = node.getExpr()
+        if e != null { e.accept(this) }
+    }
+
+    public void visit(const ASTBinary node) {
+        ASTExpr l = node.getLeftExpr()
+        if l != null { l.accept(this) }
+        ASTExpr r = node.getRightExpr()
+        if r != null { r.accept(this) }
+    }
+
+    public void visit(const ASTTernary node) {
+        ASTExpr c = node.getConditionExpr()
+        if c != null { c.accept(this) }
+        ASTExpr t = node.getTrueExpr()
+        if t != null { t.accept(this) }
+        ASTExpr f = node.getFalseExpr()
+        if f != null { f.accept(this) }
+    }
+
+    public void visit(const ASTCast node) {
+        ASTExpr e = node.getExpr()
+        if e != null { e.accept(this) }
+    }
+
+    // ── statements ───────────────────────────────────────────────────────────
+
+    public void visit(const ASTBlockStmt node) {
+        List<ASTStmt> content = node.getContent()
+        int i = 0
+        while i < content.size() {
+            ASTStmt st = content.get(i)
+            if st != null { st.accept(this) }
+            i = i + 1
+        }
+    }
+
+    public void visit(const ASTExprStmt node) {
+        ASTExpr e = node.getExpr()
+        if e != null { e.accept(this) }
+    }
+
+    public void visit(const ASTDeclStmt node) {
+        // The declared name itself is a use site (its own declaration) — but
+        // the AST records the DECLARATION's location at the TYPE ("int base"
+        // carries the loc of `int`), so the name column is recovered by
+        // scanning the source line to the right of that loc. Without this, a
+        // decl-site highlight underlines the type and a decl-site click misses.
+        ASTLocalVar lv = node.getLocalVar()
+        if lv != null {
+            SourceLocation loc = lv.getLoc()
+            if loc != null {
+                if loc.isValid() {
+                    int line = this.sm.getLineNumber(loc)
+                    int col = this.sm.getColumnNumber(loc)
+                    int nameCol = this.nameColAfter(line, col, lv.getName())
+                    this.namedUseAt(line, nameCol, lv.getName(), 1)
+                }
+            }
+        }
+        ASTExpr e = node.getExpr()
+        if e != null { e.accept(this) }
+    }
+
+    // nameColAfter — the 1-based column of the first occurrence of `name` on
+    // `line` at or after `fromCol`; falls back to fromCol when not found.
+    int nameColAfter(const int line, const int fromCol, const string name) {
+        string src = this.sm.getBufferData()
+        int n = str.len(src)
+        // find the byte offset of the line start
+        int cur = 1
+        int i = 0
+        while cur < line {
+            if i >= n { out = fromCol  return }
+            byte b = 0
+            str.byteAt(src, i, b)
+            int c = b
+            c = c & 255
+            if c == 10 { cur = cur + 1 }
+            i = i + 1
+        }
+        // slice to the end of the line
+        int lineStart = i
+        int j = i
+        bool go = true
+        while go {
+            if j >= n { go = false } else {
+                byte b2 = 0
+                str.byteAt(src, j, b2)
+                int c2 = b2
+                c2 = c2 & 255
+                if c2 == 10 { go = false } else { j = j + 1 }
+            }
+        }
+        string lineText = str.substring(src, lineStart, j)
+        string tail = str.substring(lineText, fromCol - 1, str.len(lineText))
+        // Word-boundary search: `int in = 1` must not match the "in" inside
+        // "int". Advance past non-boundary hits.
+        int nameLen = str.len(name)
+        int tailLen = str.len(tail)
+        int from = 0
+        while from < tailLen {
+            string rest = str.substring(tail, from, tailLen)
+            int rel = str.indexOf(rest, name)
+            if rel < 0 { out = fromCol  return }
+            int at = from + rel
+            bool leftOk = at == 0
+            if leftOk == false { leftOk = this.isBoundary(tail, at - 1) }
+            bool rightOk = at + nameLen >= tailLen
+            if rightOk == false { rightOk = this.isBoundary(tail, at + nameLen) }
+            if leftOk { if rightOk { out = fromCol + at  return } }
+            from = at + 1
+        }
+        out = fromCol
+    }
+
+    // isBoundary — is the byte at i NOT an identifier character?
+    bool isBoundary(const string s, const int i) {
+        byte b = 0
+        str.byteAt(s, i, b)
+        int c = b
+        c = c & 255
+        bool ident = c >= 97 && c <= 122
+        if ident == false { ident = c >= 65 && c <= 90 }
+        if ident == false { ident = c >= 48 && c <= 57 }
+        if ident == false { ident = c == 95 }
+        out = ident == false
+    }
+
+    // namedUseAt — nameUse with an explicit position (already decoded).
+    void namedUseAt(const int line, const int col, const string name, const int kindTag) {
+        int len = str.len(name)
+        if this.mode == 1 {
+            if this.foundKind == 0 {
+                if this.hit(line, col, len) {
+                    this.foundKind = kindTag
+                    this.foundName = name
+                    this.foundLine = line
+                    this.foundCol = col
+                }
+            }
+        } elsif this.mode == 2 {
+            bool take = str.isEmpty(this.wantName)
+            if take == false { take = str.equals(name, this.wantName) }
+            if take {
+                this.uses.add(new LspUse(name, line, col, len, kindTag == 2))
+            }
+        }
+    }
+
+    public void visit(const ASTRuleStmt node) {
+        ASTExpr e = node.getExpr()
+        if e != null { e.accept(this) }
+        ASTStmt st = node.getStmt()
+        if st != null { st.accept(this) }
+    }
+
+    public void visit(const ASTIfStmt node) {
+        ASTExpr e = node.getExpr()
+        if e != null { e.accept(this) }
+        ASTStmt st = node.getStmt()
+        if st != null { st.accept(this) }
+        List<ASTRuleStmt> elsifs = node.getElsif()
+        int i = 0
+        while i < elsifs.size() {
+            ASTRuleStmt r = elsifs.get(i)
+            if r != null { r.accept(this) }
+            i = i + 1
+        }
+        ASTStmt els = node.getElse()
+        if els != null { els.accept(this) }
+    }
+
+    public void visit(const ASTSwitchStmt node) {
+        ASTExpr e = node.getExpr()
+        if e != null { e.accept(this) }
+        List<ASTCaseStmt> cases = node.getCases()
+        int i = 0
+        while i < cases.size() {
+            ASTCaseStmt c = cases.get(i)
+            if c != null { c.accept(this) }
+            i = i + 1
+        }
+        ASTStmt d = node.getDefault()
+        if d != null { d.accept(this) }
+    }
+
+    public void visit(const ASTCaseStmt node) {
+        ASTExpr e = node.getExpr()
+        if e != null { e.accept(this) }
+        ASTBlockStmt b = node.getStmt()
+        if b != null { b.accept(this) }
+    }
+
+    public void visit(const ASTLoopStmt node) {
+        List<ASTStmt> init = node.getInit()
+        int i = 0
+        while i < init.size() {
+            ASTStmt st = init.get(i)
+            if st != null { st.accept(this) }
+            i = i + 1
+        }
+        ASTExpr e = node.getExpr()
+        if e != null { e.accept(this) }
+        ASTStmt body = node.getLoop()
+        if body != null { body.accept(this) }
+        List<ASTStmt> post = node.getPost()
+        int j = 0
+        while j < post.size() {
+            ASTStmt st2 = post.get(j)
+            if st2 != null { st2.accept(this) }
+            j = j + 1
+        }
+    }
+
+    public void visit(const ASTLoopInStmt node) {
+        ASTExpr item = node.getItem()
+        if item != null { item.accept(this) }
+        ASTExpr listE = node.getList()
+        if listE != null { listE.accept(this) }
+        ASTStmt st = node.getStmt()
+        if st != null { st.accept(this) }
+    }
+
+    public void visit(const ASTHandleStmt node) {
+        ASTBlockStmt b = node.getHandle()
+        if b != null { b.accept(this) }
+    }
+
+    public void visit(const ASTFailStmt node) {
+        ASTExpr e1 = node.getFirstExpr()
+        if e1 != null { e1.accept(this) }
+        ASTExpr e2 = node.getSecondExpr()
+        if e2 != null { e2.accept(this) }
+        ASTExpr e3 = node.getThirdExpr()
+        if e3 != null { e3.accept(this) }
+    }
+
+    public void visit(const ASTTestStmt node) {
+        ASTBlockStmt b = node.getBody()
+        if b != null { b.accept(this) }
+    }
+
+    public void visit(const ASTReturnStmt node) { }      // return carries no value in Fly
+    public void visit(const ASTBreakStmt node) { }
+    public void visit(const ASTContinueStmt node) { }
+    public void visit(const ASTDeleteStmt node) { }
+
+    // ── declarations and leaves (walked from the analyzer, not here) ─────────
+
+    public void visit(const ASTModule node) { }
+    public void visit(const ASTNameSpace node) { }
+    public void visit(const ASTImport node) { }
+    public void visit(const ASTFunction node) {
+        ASTBlockStmt b = node.getBody()
+        if b != null { b.accept(this) }
+    }
+    public void visit(const ASTClass node) { }
+    public void visit(const ASTAttribute node) { }
+    public void visit(const ASTMethod node) {
+        ASTBlockStmt b = node.getBody()
+        if b != null { b.accept(this) }
+    }
+    public void visit(const ASTEnum node) { }
+    public void visit(const ASTLocalVar node) { }
+    public void visit(const ASTParam node) { }
+    public void visit(const ASTComment node) { }
+    public void visit(const ASTBuiltinType node) { }
+    public void visit(const ASTNamedType node) { }
+    public void visit(const ASTArrayType node) { }
+    public void visit(const ASTTypeParam node) { }
+    public void visit(const ASTBoolValue node) { }
+    public void visit(const ASTNumberValue node) { }
+    public void visit(const ASTStringValue node) { }
+    public void visit(const ASTArrayValue node) { }
+    public void visit(const ASTStructValue node) { }
+    public void visit(const ASTNullValue node) { }
+    public void visit(const ASTUnsetValue node) { }
+    public void visit(const ASTEnumEntry node) { }
+}

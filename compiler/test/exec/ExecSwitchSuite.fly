@@ -1,0 +1,174 @@
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExecSwitchSuite — EXECUTED switch/case semantics (bug-hunt Phase 1).
+// B021 and B023 are FIXED: braced case bodies lower (nested-block adoption in
+// the Resolver) and an open case body falls through C-style to the next body
+// (doc 9.4, aligned with the reference after its B024 fix) — the 2xx/6xx cases
+// below are the regression pins. STAGE=0 needs the re-cut seed (the pinned one
+// cannot parse this switch form).
+//
+// Assert codes: 1xx dispatch, 2xx fallthrough, 3xx stacked/empty cases,
+// 4xx default, 5xx interactions, 6xx braced bodies.
+// ─────────────────────────────────────────────────────────────────────────────
+
+int execSwitchPick(const int v) {
+    int r = 0
+    switch v {
+        case 1:
+            r = 10
+            break
+        case 2:
+            r = 20
+            break
+        default:
+            r = 99
+            break
+    }
+    out = r
+}
+
+suite ExecSwitchSuite {
+
+    void dispatchTest() {
+        case "each case selects its own body": {
+            assert.assertEqI(execSwitchPick(1), 10, 101)
+            assert.assertEqI(execSwitchPick(2), 20, 102)
+        }
+        case "no match lands in default": {
+            assert.assertEqI(execSwitchPick(7), 99, 111)
+            assert.assertEqI(execSwitchPick(0 - 1), 99, 112)
+        }
+    }
+
+    void fallthroughTest() {
+        case "case without break falls through to the next body": {
+            int hits = 0
+            int v = 1
+            switch v {
+                case 1:
+                    hits = hits + 1
+                case 2:
+                    hits = hits + 10
+                    break
+                case 3:
+                    hits = hits + 100
+                    break
+            }
+            assert.assertEqI(hits, 11, 201)              // doc 9.4: C fallthrough
+        }
+        case "last open case falls into default": {
+            int hits = 0
+            int v = 3
+            switch v {
+                case 3:
+                    hits = hits + 1
+                default:
+                    hits = hits + 10
+            }
+            assert.assertEqI(hits, 11, 211)
+        }
+    }
+
+    void stackedCasesTest() {
+        case "stacked empty cases share the body": {
+            int r = 0
+            int v = 3
+            switch v {
+                case 3:
+                case 4:
+                    r = 34
+                    break
+                case 5:
+                    r = 5
+                    break
+            }
+            assert.assertEqI(r, 34, 301)
+        }
+        case "second of the stacked labels matches too": {
+            int r = 0
+            int v = 4
+            switch v {
+                case 3:
+                case 4:
+                    r = 34
+                    break
+                default:
+                    r = 9
+                    break
+            }
+            assert.assertEqI(r, 34, 311)
+        }
+    }
+
+    void defaultOnlyTest() {
+        case "switch with only default always runs it": {
+            int r = 0
+            int v = 42
+            switch v {
+                default:
+                    r = 1
+                    break
+            }
+            assert.assertEqI(r, 1, 401)
+        }
+    }
+
+    void interactionTest() {
+        case "break inside switch binds to the switch": {
+            int total = 0
+            for int i = 0; i < 3; i++ {
+                switch i {
+                    case 1:
+                        total = total + 10
+                        break
+                    default:
+                        total = total + 1
+                        break
+                }
+            }
+            assert.assertEqI(total, 12, 501)             // 1 + 10 + 1: loop completes
+        }
+        case "switch on a long discriminant": {
+            long v = 4294967296                          // 2^32: needs 64-bit compare
+            int r = 0
+            switch v {
+                case 4294967296:
+                    r = 1
+                    break
+                default:
+                    r = 2
+                    break
+            }
+            assert.assertEqI(r, 1, 511)
+        }
+    }
+
+    void bracedBodyTest() {
+        case "braced case body runs": {
+            int r = 0
+            int v = 1
+            switch v {
+                case 1: { r = 10  break }
+                default: { r = 99  break }
+            }
+            assert.assertEqI(r, 10, 601)
+        }
+        case "braced default runs": {
+            int r = 0
+            int v = 7
+            switch v {
+                case 1: { r = 10  break }
+                default: { r = 99  break }
+            }
+            assert.assertEqI(r, 99, 611)
+        }
+        case "bare scoping block runs its statements": {
+            int r = 0
+            {
+                r = 5
+            }
+            assert.assertEqI(r, 5, 621)                  // nested-block adoption (B021 root cause)
+        }
+    }
+}

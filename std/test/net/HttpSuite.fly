@@ -1,0 +1,822 @@
+import fly.net
+import fly.net.http
+import fly.str
+import fly.mem
+import fly.hash
+import fly.os.env
+import fly.os.fs
+import fly.assert
+
+// crlfStr — the two bytes 13, 10. Fly literals keep escapes RAW, so a real CRLF
+// cannot be written inline; the whole point of the 4xx band is that http.fly
+// gets this right, so the suite must build it independently.
+string crlfStr() {
+    pointer b = mem.alloc(2)
+    mem.writeByte(b, 0, 13)
+    mem.writeByte(b, 1, 10)
+    str.fromBytes(b, 2, out)
+}
+
+// mkHttp — expand a readable one-line template into a real HTTP message:
+// '~' becomes a CRLF and '|' becomes a double quote. So
+// "GET / HTTP/1.1~Host: x~~body" is a complete request.
+string mkHttp(const string tpl) {
+    pointer q = mem.alloc(1)
+    mem.writeByte(q, 0, 34)
+    string dq = ""
+    str.fromBytes(q, 1, dq)
+    string s = str.replace(tpl, "~", crlfStr())
+    out = str.replace(s, "|", dq)
+}
+
+// skipSockets — see NetSuite; gates every case that opens a socket.
+bool skipSockets() {
+    out = str.isEmpty(env.get("FLY_SKIP_NET_TESTS")) == false
+}
+
+// byteOfStr — the i-th byte of s as a masked int (byte widening differs per platform).
+int byteOfStr(const string s, const int i) {
+    byte b = 0
+    str.byteAt(s, i, b)
+    int v = b
+    out = v & 255
+}
+
+// bytesOf — a 3-byte string from explicit byte values, for payloads a literal
+// cannot hold.
+string bytesOf(const int a, const int b, const int c) {
+    pointer p = mem.alloc(3)
+    mem.writeByte(p, 0, (byte)a)
+    mem.writeByte(p, 1, (byte)b)
+    mem.writeByte(p, 2, (byte)c)
+    str.fromBytes(p, 3, out)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HttpSuite — fly.net.http (std/lib/net/http.fly).
+//
+// Bands 1xx-6xx are PURE STRING tests: no socket, no port, nothing to flake.
+// That is the point of the stateless string-in/string-out design — the entire
+// wire format is exercised deterministically, and only the 7xx band needs a
+// live connection (via the same loopback self-connect NetSuite documents).
+//
+// The 4xx band is the CRLF regression test. Fly string literals keep escapes
+// raw, so a "\r\n" in http.fly would be four ordinary characters and every
+// message it emits would be malformed on the wire while looking correct in the
+// source. mkHttp above builds its terminators from bytes, independently of the
+// helpers in http.fly, so the two cannot be wrong together.
+//
+// STAGE=0 cannot run the 7xx case on Windows (no -lws2_32 in the seed's C++
+// ToolChain) — run at STAGE=1 or STAGE=2.
+//
+// Assert codes: 1xx request line, 2xx headers, 3xx body/length/completeness,
+// 4xx response serialization, 5xx URL splitting, 6xx response parsing,
+// 7xx end-to-end over loopback.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite HttpSuite {
+
+    // ── the request line ─────────────────────────────────────────────────────
+    void requestLineTest() {
+        case "method, target, path, query and version": {
+            string req = mkHttp("GET /v1/pkg?a=1 HTTP/1.1~Host: x~~")
+            assert.assertStr(http.method(req), "GET", 101)
+            assert.assertStr(http.target(req), "/v1/pkg?a=1", 102)
+            assert.assertStr(http.path(req), "/v1/pkg", 103)
+            assert.assertStr(http.query(req), "a=1", 104)
+            assert.assertStr(http.version(req), "HTTP/1.1", 105)
+        }
+        case "a target with no query has an empty query": {
+            string req = mkHttp("POST /v1/pkg/1.0.0 HTTP/1.1~Host: x~~")
+            assert.assertStr(http.method(req), "POST", 106)
+            assert.assertStr(http.path(req), "/v1/pkg/1.0.0", 107)
+            assert.assertEmpty(http.query(req), 108)
+        }
+        case "an unterminated request line yields empty fields": {
+            assert.assertEmpty(http.method("GET / HTTP/1.1"), 109)
+            assert.assertEmpty(http.target("GET / HTTP/1.1"), 110)
+            assert.assertEmpty(http.path(""), 111)
+        }
+        case "a request line with too few fields": {
+            string req = mkHttp("GET~~")
+            assert.assertStr(http.method(req), "GET", 112)
+            assert.assertEmpty(http.target(req), 113)
+            assert.assertEmpty(http.version(req), 114)
+        }
+        case "queryParam picks values out of the query string": {
+            string req = mkHttp("GET /search?q=fly&limit=10 HTTP/1.1~Host: x~~")
+            assert.assertStr(http.queryParam(req, "q"), "fly", 115)
+            assert.assertStr(http.queryParam(req, "limit"), "10", 116)
+            assert.assertEmpty(http.queryParam(req, "missing"), 117)
+        }
+        case "queryParam on a request with no query": {
+            string req = mkHttp("GET /x HTTP/1.1~Host: x~~")
+            assert.assertEmpty(http.queryParam(req, "q"), 118)
+        }
+    }
+
+    // ── headers ──────────────────────────────────────────────────────────────
+    void headerTest() {
+        case "header lookup is case-insensitive and trims the value": {
+            string req = mkHttp("GET / HTTP/1.1~Host: example.org~X-Tok:   abc   ~~")
+            assert.assertStr(http.header(req, "Host"), "example.org", 201)
+            assert.assertStr(http.header(req, "host"), "example.org", 202)
+            assert.assertStr(http.header(req, "HOST"), "example.org", 203)
+            assert.assertStr(http.header(req, "X-Tok"), "abc", 204)
+        }
+        case "an absent header is empty": {
+            string req = mkHttp("GET / HTTP/1.1~Host: x~~")
+            assert.assertEmpty(http.header(req, "Authorization"), 205)
+        }
+        case "a value containing a colon is not truncated": {
+            string req = mkHttp("GET / HTTP/1.1~Authorization: Bearer a:b:c~~")
+            assert.assertStr(http.header(req, "Authorization"), "Bearer a:b:c", 206)
+        }
+        case "the last header before the blank line is still found": {
+            string req = mkHttp("GET / HTTP/1.1~A: 1~B: 2~C: 3~~body")
+            assert.assertStr(http.header(req, "C"), "3", 207)
+        }
+        case "a header-shaped line in the BODY is not picked up": {
+            string req = mkHttp("GET / HTTP/1.1~A: 1~~X-Fake: 9")
+            assert.assertEmpty(http.header(req, "X-Fake"), 208)
+        }
+        case "an incomplete header block still answers what has arrived": {
+            string req = mkHttp("GET / HTTP/1.1~Host: x~")
+            assert.assertStr(http.header(req, "Host"), "x", 209)
+        }
+    }
+
+    // ── body, length, completeness ───────────────────────────────────────────
+    void bodyTest() {
+        case "headerEnd is -1 before the terminator and the body index after": {
+            assert.assertEqI(http.headerEnd(mkHttp("GET / HTTP/1.1~Host: x~")), 0 - 1, 301)
+            string req = mkHttp("GET / HTTP/1.1~~ab")
+            int he = http.headerEnd(req)
+            assert.assertEqI(he, str.len(req) - 2, 302)
+        }
+        case "body is the exact bytes after the blank line": {
+            string req = mkHttp("POST / HTTP/1.1~Content-Length: 3~~abc")
+            assert.assertStr(http.body(req), "abc", 303)
+        }
+        case "an empty body": {
+            string req = mkHttp("GET / HTTP/1.1~Host: x~~")
+            assert.assertEmpty(http.body(req), 304)
+        }
+        case "contentLength reads the header, or -1": {
+            assert.assertEqI(http.contentLength(mkHttp("POST / HTTP/1.1~Content-Length: 42~~")), 42, 305)
+            assert.assertEqI(http.contentLength(mkHttp("GET / HTTP/1.1~Host: x~~")), 0 - 1, 306)
+            assert.assertEqI(http.contentLength(mkHttp("POST / HTTP/1.1~Content-Length: abc~~")), 0 - 1, 307)
+            assert.assertEqI(http.contentLength(mkHttp("POST / HTTP/1.1~Content-Length: 0~~")), 0, 308)
+        }
+        case "isComplete is the receive loop's stop condition": {
+            // header block not terminated yet
+            assert.assertFalse(http.isComplete(mkHttp("POST / HTTP/1.1~Content-Length: 3~")), 309)
+            // terminated but the body is short
+            assert.assertFalse(http.isComplete(mkHttp("POST / HTTP/1.1~Content-Length: 3~~ab")), 310)
+            // full body
+            assert.assertTrue(http.isComplete(mkHttp("POST / HTTP/1.1~Content-Length: 3~~abc")), 311)
+            // no Content-Length at all: the headers are the whole message
+            assert.assertTrue(http.isComplete(mkHttp("GET / HTTP/1.1~Host: x~~")), 312)
+        }
+    }
+
+    // ── response serialization (the CRLF regression band) ────────────────────
+    void responseTest() {
+        case "a response starts with the status line and carries both headers": {
+            string r = http.response(200, "text/plain", "hi")
+            assert.assertTrue(str.startsWith(r, "HTTP/1.1 200 OK"), 401)
+            assert.assertTrue(str.contains(r, "Content-Length: 2"), 402)
+            assert.assertTrue(str.contains(r, "Content-Type: text/plain"), 403)
+            assert.assertTrue(str.contains(r, "Connection: close"), 404)
+        }
+        case "the emitted terminators are real CRLFs, so it parses back": {
+            string r = http.response(200, "text/plain", "hi")
+            assert.assertStr(http.body(r), "hi", 405)
+            assert.assertEqI(http.contentLength(r), 2, 406)
+            assert.assertStr(http.header(r, "Content-Type"), "text/plain", 407)
+            // byte-level: the status line must end with 13 10, not with '\' 'r'
+            int e = str.len(str.concat("HTTP/1.1 200 OK", ""))
+            byte b0 = 0
+            byte b1 = 0
+            str.byteAt(r, e, b0)
+            str.byteAt(r, e + 1, b1)
+            assert.assertEqI(b0, 13, 408)
+            assert.assertEqI(b1, 10, 409)
+        }
+        case "statusText covers the codes the registry uses": {
+            assert.assertStr(http.statusText(200), "OK", 410)
+            assert.assertStr(http.statusText(201), "Created", 411)
+            assert.assertStr(http.statusText(401), "Unauthorized", 412)
+            assert.assertStr(http.statusText(404), "Not Found", 413)
+            assert.assertStr(http.statusText(500), "Internal Server Error", 414)
+            assert.assertStr(http.statusText(599), "Unknown", 415)
+        }
+        case "an empty content type falls back to octet-stream": {
+            string r = http.response(204, "", "")
+            assert.assertTrue(str.contains(r, "Content-Type: application/octet-stream"), 416)
+            assert.assertEqI(http.contentLength(r), 0, 417)
+        }
+        case "responseWith adds each joined extra header": {
+            string r = http.responseWith(200, "text/plain", http.joinHeaders("X-A: 1", "X-B: 2"), "ok")
+            assert.assertStr(http.header(r, "X-A"), "1", 418)
+            assert.assertStr(http.header(r, "X-B"), "2", 419)
+            assert.assertStr(http.body(r), "ok", 420)
+        }
+        case "an extra header may contain a SEMICOLON in its value": {
+            // The separator used to be ';', which silently split exactly the
+            // header that matters most here — multipart's Content-Type carries
+            // "; boundary=…". An LF cannot appear inside a header value at all,
+            // so it is the one safe separator.
+            string r = http.responseWith(200, "text/plain", "X-Sub: a; b=c", "ok")
+            assert.assertStr(http.header(r, "X-Sub"), "a; b=c", 430)
+            assert.assertEmpty(http.header(r, "b"), 431)
+        }
+        case "responseConn chooses the connection disposition": {
+            string ka = http.responseConn(200, "text/plain", "", true, "x")
+            assert.assertStr(http.header(ka, "Connection"), "keep-alive", 432)
+            assert.assertFalse(http.connIsClosing(ka), 433)
+            string cl = http.responseConn(200, "text/plain", "", false, "x")
+            assert.assertStr(http.header(cl, "Connection"), "close", 434)
+            assert.assertTrue(http.connIsClosing(cl), 435)
+        }
+        case "buildRequest produces a parseable request": {
+            string q = http.buildRequest("GET", "/v1/pkg", "example.org", "", "")
+            assert.assertStr(http.method(q), "GET", 421)
+            assert.assertStr(http.path(q), "/v1/pkg", 422)
+            assert.assertStr(http.header(q, "Host"), "example.org", 423)
+            // no body → no Content-Length
+            assert.assertEqI(http.contentLength(q), 0 - 1, 424)
+        }
+        case "buildRequest with a body sets Content-Length and extras": {
+            string q = http.buildRequest("POST", "/v1/pkg/1.0.0", "example.org",
+                                         "Authorization: Bearer tok", "payload")
+            assert.assertStr(http.method(q), "POST", 425)
+            assert.assertEqI(http.contentLength(q), 7, 426)
+            assert.assertStr(http.body(q), "payload", 427)
+            assert.assertStr(http.header(q, "Authorization"), "Bearer tok", 428)
+            assert.assertTrue(http.isComplete(q), 429)
+        }
+    }
+
+    // ── URL splitting ────────────────────────────────────────────────────────
+    void urlTest() {
+        case "a full URL splits into scheme, host, port and path": {
+            string u = "http://a.b:8080/x?y=1"
+            assert.assertStr(http.urlScheme(u), "http", 501)
+            assert.assertStr(http.urlHost(u), "a.b", 502)
+            assert.assertEqI(http.urlPort(u), 8080, 503)
+            assert.assertStr(http.urlPath(u), "/x?y=1", 504)
+        }
+        case "the port defaults by scheme": {
+            assert.assertEqI(http.urlPort("http://a.b/x"), 80, 505)
+            assert.assertEqI(http.urlPort("https://a.b/x"), 443, 506)
+            assert.assertEqI(http.urlPort("a.b/x"), 80, 507)
+        }
+        case "a URL with no path is /": {
+            assert.assertStr(http.urlPath("http://a.b"), "/", 508)
+            assert.assertStr(http.urlHost("http://a.b"), "a.b", 509)
+        }
+        case "a scheme-less URL still yields a host": {
+            assert.assertEmpty(http.urlScheme("a.b/x"), 510)
+            assert.assertStr(http.urlHost("a.b/x"), "a.b", 511)
+            assert.assertStr(http.urlPath("a.b/x"), "/x", 512)
+        }
+        case "the scheme is lowercased": {
+            assert.assertStr(http.urlScheme("HTTP://a.b/"), "http", 513)
+        }
+        case "a non-numeric port is -1": {
+            assert.assertEqI(http.urlPort("http://a.b:xy/"), 0 - 1, 514)
+            assert.assertEqI(http.urlPort("http://a.b:/"), 0 - 1, 515)
+        }
+        case "an empty URL": {
+            assert.assertEmpty(http.urlHost(""), 516)
+            assert.assertStr(http.urlPath(""), "/", 517)
+        }
+        case "a loopback URL with a port": {
+            string u = "http://127.0.0.1:9418/v1/pkg"
+            assert.assertStr(http.urlHost(u), "127.0.0.1", 518)
+            assert.assertEqI(http.urlPort(u), 9418, 519)
+            assert.assertStr(http.urlPath(u), "/v1/pkg", 520)
+        }
+    }
+
+    // ── response parsing ─────────────────────────────────────────────────────
+    void respTest() {
+        case "respStatus, respHeader and respBody read a raw response": {
+            string r = mkHttp("HTTP/1.1 404 Not Found~Content-Type: text/plain~Content-Length: 3~~nope")
+            assert.assertEqI(http.respStatus(r), 404, 601)
+            assert.assertStr(http.respHeader(r, "content-type"), "text/plain", 602)
+            assert.assertStr(http.respBody(r), "nope", 603)
+        }
+        case "a response built here parses back": {
+            string r = http.response(201, "application/json", "{}")
+            assert.assertEqI(http.respStatus(r), 201, 604)
+            assert.assertStr(http.respBody(r), "{}", 605)
+        }
+        case "an unparseable status line is -1": {
+            assert.assertEqI(http.respStatus(""), 0 - 1, 606)
+            assert.assertEqI(http.respStatus(mkHttp("garbage~~")), 0 - 1, 607)
+            assert.assertEqI(http.respStatus(mkHttp("HTTP/1.1 abc Bad~~")), 0 - 1, 608)
+        }
+    }
+
+    // ── chunked transfer-encoding ────────────────────────────────────────────
+    //
+    // Pure string tests. The chunk sizes are HEX, which is the classic mistake:
+    // a decimal reader gets "e" wrong and, worse, gets "10" wrong by reading 10
+    // instead of 16 — silently truncating every chunk of that size.
+    void chunkedTest() {
+        case "isChunked reads the Transfer-Encoding header": {
+            assert.assertTrue(http.isChunked(mkHttp("HTTP/1.1 200 OK~Transfer-Encoding: chunked~~")), 801)
+            assert.assertTrue(http.isChunked(mkHttp("HTTP/1.1 200 OK~Transfer-Encoding: gzip, chunked~~")), 802)
+            assert.assertTrue(http.isChunked(mkHttp("HTTP/1.1 200 OK~transfer-encoding: CHUNKED~~")), 803)
+            assert.assertFalse(http.isChunked(mkHttp("HTTP/1.1 200 OK~Content-Length: 2~~ab")), 804)
+            assert.assertFalse(http.isChunked(mkHttp("HTTP/1.1 200 OK~~")), 805)
+        }
+        case "a two-chunk body decodes and joins": {
+            string b = mkHttp("5~hello~6~ world~0~~")
+            assert.assertStr(http.dechunk(b), "hello world", 806)
+        }
+        case "chunk sizes are HEX, not decimal": {
+            // 0x10 = 16 bytes. A decimal reader would take 10 and truncate.
+            string b = mkHttp("10~0123456789abcdef~0~~")
+            assert.assertStr(http.dechunk(b), "0123456789abcdef", 807)
+            // 0xe = 14
+            string b2 = mkHttp("e~aaaaaaaaaaaaaa~0~~")
+            assert.assertEqI(str.len(http.dechunk(b2)), 14, 808)
+        }
+        case "a chunk extension after the size is ignored": {
+            string b = mkHttp("5;name=value~hello~0~~")
+            assert.assertStr(http.dechunk(b), "hello", 809)
+        }
+        case "an immediately-terminated body decodes to empty": {
+            assert.assertEmpty(http.dechunk(mkHttp("0~~")), 810)
+        }
+        case "an INCOMPLETE chunked body decodes to empty, not to a partial": {
+            // Returning the bytes that happened to arrive would hand a caller a
+            // truncated payload it has no way to detect.
+            assert.assertEmpty(http.dechunk(mkHttp("5~hel")), 811)
+            assert.assertEmpty(http.dechunk(mkHttp("5~hello~6~ wor")), 812)
+            assert.assertEmpty(http.dechunk("5"), 813)
+        }
+        case "a malformed size line decodes to empty": {
+            assert.assertEmpty(http.dechunk(mkHttp("zz~hello~0~~")), 814)
+        }
+        case "isComplete UNDERSTANDS chunking": {
+            // This is the bug the chunked support fixed: with no Content-Length,
+            // isComplete used to answer true the moment the headers landed, so a
+            // receive loop stopped mid-transfer.
+            assert.assertFalse(http.isComplete(mkHttp("HTTP/1.1 200 OK~Transfer-Encoding: chunked~~5~hel")), 815)
+            assert.assertFalse(http.isComplete(mkHttp("HTTP/1.1 200 OK~Transfer-Encoding: chunked~~5~hello~")), 816)
+            assert.assertTrue(http.isComplete(mkHttp("HTTP/1.1 200 OK~Transfer-Encoding: chunked~~5~hello~0~~")), 817)
+            assert.assertTrue(http.isComplete(mkHttp("HTTP/1.1 200 OK~Transfer-Encoding: chunked~~0~~")), 818)
+        }
+        case "bodyDecoded strips the coding, or does not when there is none": {
+            assert.assertStr(http.bodyDecoded(mkHttp("HTTP/1.1 200 OK~Transfer-Encoding: chunked~~3~abc~0~~")), "abc", 819)
+            assert.assertStr(http.bodyDecoded(mkHttp("HTTP/1.1 200 OK~Content-Length: 3~~abc")), "abc", 820)
+        }
+        case "a chunked body carrying high bytes survives": {
+            // Every byte passes through a poke here, so a sign-extended byte
+            // would corrupt it on one platform only.
+            string payload = mkHttp("2~")
+            string b = str.concat(mkHttp("3~"), str.concat(bytesOf(255, 128, 1), mkHttp("~0~~")))
+            string got = http.dechunk(b)
+            assert.assertEqI(str.len(got), 3, 821)
+            assert.assertEqI(byteOfStr(got, 0), 255, 822)
+            assert.assertEqI(byteOfStr(got, 1), 128, 823)
+        }
+    }
+
+    // ── redirects and URL resolution ─────────────────────────────────────────
+    void redirectTest() {
+        case "isRedirect covers 3xx but NOT 304": {
+            assert.assertTrue(http.isRedirect(301), 901)
+            assert.assertTrue(http.isRedirect(302), 902)
+            assert.assertTrue(http.isRedirect(303), 903)
+            assert.assertTrue(http.isRedirect(307), 904)
+            assert.assertTrue(http.isRedirect(308), 905)
+            // 304 is a CACHE answer. Following it would loop a conditional request.
+            assert.assertFalse(http.isRedirect(304), 906)
+            assert.assertFalse(http.isRedirect(200), 907)
+            assert.assertFalse(http.isRedirect(404), 908)
+        }
+        case "an absolute Location is used as-is": {
+            assert.assertStr(http.resolveUrl("http://a.b/x", "http://c.d/y"), "http://c.d/y", 909)
+            assert.assertStr(http.resolveUrl("http://a.b/x", "https://c.d/y"), "https://c.d/y", 910)
+        }
+        case "a root-relative Location keeps scheme, host and port": {
+            assert.assertStr(http.resolveUrl("http://a.b/x/y", "/z"), "http://a.b/z", 911)
+            assert.assertStr(http.resolveUrl("http://a.b:8080/x", "/z"), "http://a.b:8080/z", 912)
+            // a DEFAULT port is not re-emitted
+            assert.assertStr(http.resolveUrl("http://a.b:80/x", "/z"), "http://a.b/z", 913)
+            assert.assertStr(http.resolveUrl("https://a.b:443/x", "/z"), "https://a.b/z", 914)
+        }
+        case "a path-relative Location resolves against the base DIRECTORY": {
+            assert.assertStr(http.resolveUrl("http://a.b/dir/page", "next"), "http://a.b/dir/next", 915)
+            assert.assertStr(http.resolveUrl("http://a.b/dir/", "next"), "http://a.b/dir/next", 916)
+            assert.assertStr(http.resolveUrl("http://a.b/page", "next"), "http://a.b/next", 917)
+            assert.assertStr(http.resolveUrl("http://a.b", "next"), "http://a.b/next", 918)
+        }
+        case "resolveUrl fails on the degenerate inputs": {
+            assert.assertEmpty(http.resolveUrl("http://a.b/x", ""), 919)
+            assert.assertEmpty(http.resolveUrl("", "/z"), 920)
+        }
+        case "redirectTarget only fires for a real redirect with a Location": {
+            string r301 = mkHttp("HTTP/1.1 301 Moved Permanently~Location: /new~~")
+            assert.assertStr(http.redirectTarget(r301, "http://a.b/old"), "http://a.b/new", 921)
+            string r200 = mkHttp("HTTP/1.1 200 OK~Location: /new~~")
+            assert.assertEmpty(http.redirectTarget(r200, "http://a.b/old"), 922)
+            string noLoc = mkHttp("HTTP/1.1 302 Found~~")
+            assert.assertEmpty(http.redirectTarget(noLoc, "http://a.b/old"), 923)
+        }
+        case "getFollow refuses https and gives up at the hop limit": {
+            // No TLS, so an https target fails rather than downgrading.
+            assert.assertEmpty(http.getFollow("https://example.org/x", 3), 924)
+            if skipSockets() { assert.assertTrue(true, 925) } else {
+                assert.assertEmpty(http.getFollow("http://fly-no-such-host-xyzabc.invalid/x", 3), 925)
+            }
+        }
+    }
+
+    // ── multipart bodies and Basic auth ──────────────────────────────────────
+    void multipartTest() {
+        case "the content type carries the builder's boundary": {
+            pointer h = http.mpNew("XYZ")
+            assert.assertStr(http.mpContentType(h), "multipart/form-data; boundary=XYZ", 1001)
+            http.mpFree(h)
+        }
+        case "an empty boundary asks for the default": {
+            pointer h = http.mpNew("")
+            assert.assertTrue(str.startsWith(http.mpContentType(h), "multipart/form-data; boundary="), 1002)
+            assert.assertTrue(str.len(http.mpContentType(h)) > 30, 1003)
+            http.mpFree(h)
+        }
+        case "a single field produces a parseable part": {
+            pointer h = http.mpNew("BB")
+            http.mpAddField(h, "name", "value")
+            string body = http.mpFinish(h)
+            assert.assertTrue(str.startsWith(body, "--BB"), 1004)
+            assert.assertTrue(str.contains(body, mkHttp("Content-Disposition: form-data; name=|name|")), 1005)
+            assert.assertTrue(str.contains(body, "value"), 1006)
+            assert.assertTrue(str.endsWith(body, mkHttp("--BB--~")), 1007)
+            http.mpFree(h)
+        }
+        case "several fields and a file, in order": {
+            pointer h = http.mpNew("BB")
+            http.mpAddField(h, "a", "1")
+            http.mpAddField(h, "b", "2")
+            http.mpAddFile(h, "f", "x.txt", "text/plain", "FILEDATA")
+            string body = http.mpFinish(h)
+            assert.assertEqI(str.count(body, "--BB"), 4, 1008)   // 3 parts + closer
+            assert.assertTrue(str.contains(body, mkHttp("filename=|x.txt|")), 1009)
+            assert.assertTrue(str.contains(body, "Content-Type: text/plain"), 1010)
+            assert.assertTrue(str.contains(body, "FILEDATA"), 1011)
+            // field order preserved
+            assert.assertTrue(str.indexOf(body, mkHttp("name=|a|")) < str.indexOf(body, mkHttp("name=|b|")), 1012)
+            http.mpFree(h)
+        }
+        case "a file part defaults to octet-stream": {
+            pointer h = http.mpNew("BB")
+            http.mpAddFile(h, "f", "blob.bin", "", "xx")
+            string body = http.mpFinish(h)
+            assert.assertTrue(str.contains(body, "Content-Type: application/octet-stream"), 1013)
+            http.mpFree(h)
+        }
+        case "the builder grows past its initial 256 bytes": {
+            pointer h = http.mpNew("BB")
+            int i = 0
+            while i < 40 {
+                http.mpAddField(h, "field", "0123456789012345678901234567890123456789")
+                i = i + 1
+            }
+            string body = http.mpFinish(h)
+            assert.assertTrue(str.len(body) > 2000, 1014)
+            assert.assertTrue(str.endsWith(body, mkHttp("--BB--~")), 1015)
+            http.mpFree(h)
+        }
+        case "a multipart request is a complete, parseable message": {
+            pointer h = http.mpNew("BB")
+            http.mpAddField(h, "k", "v")
+            string body = http.mpFinish(h)
+            string ct = str.concat("Content-Type: ", http.mpContentType(h))
+            string req = http.buildRequest("POST", "/upload", "example.org", ct, body)
+            assert.assertStr(http.method(req), "POST", 1016)
+            assert.assertEqI(http.contentLength(req), str.len(body), 1017)
+            assert.assertTrue(http.isComplete(req), 1018)
+            assert.assertStr(http.body(req), body, 1019)
+            assert.assertTrue(str.startsWith(http.header(req, "Content-Type"), "multipart/form-data;"), 1020)
+            http.mpFree(h)
+        }
+        case "the builder tolerates a null handle": {
+            assert.assertEmpty(http.mpContentType(0), 1021)
+            assert.assertEmpty(http.mpFinish(0), 1022)
+            http.mpAddField(0, "a", "b")
+            http.mpAddFile(0, "a", "b", "c", "d")
+            http.mpFree(0)
+            assert.assertTrue(true, 1023)
+        }
+        case "basicAuth is the base64 of user:password": {
+            // RFC 7617's own example.
+            assert.assertStr(http.basicAuth("Aladdin", "open sesame"),
+                "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==", 1024)
+            assert.assertTrue(str.startsWith(http.basicAuth("u", "p"), "Basic "), 1025)
+        }
+        case "basicAuth travels as an ordinary extra header": {
+            string req = http.buildRequest("GET", "/x", "a.b",
+                str.concat("Authorization: ", http.basicAuth("u", "p")), "")
+            assert.assertStr(http.header(req, "Authorization"), http.basicAuth("u", "p"), 1026)
+        }
+    }
+
+    // ── end to end over loopback ─────────────────────────────────────────────
+    void exchangeTest() {
+        case "a client request reaches a hand-rolled server and the reply comes back": {
+            if skipSockets() { assert.assertTrue(true, 701) } else {
+                long srv = net.listenOn(net.loopback(), 0, 4)
+                assert.assertTrue(srv >= 0, 701)
+                int port = net.localPort(srv)
+
+                // Client side: connect and send, then half-close so the server's
+                // read-to-EOF terminates. Single-threaded — the connection is
+                // queued by the kernel and accept() picks it up below.
+                string req = http.buildRequest("GET", "/ping", "localhost", "", "")
+                long cli = net.socket()
+                // GUARDED: a failed assert does not abort the case (Fly's `fail` is
+                // not stack unwinding), so without this branch a failed connect
+                // would fall into an accept() with nothing queued and HANG the
+                // suite instead of failing it.
+                bool ok = net.connect(cli, net.loopback(), port)
+                assert.assertTrue(ok, 702)
+                if ok {
+                    assert.assertTrue(net.sendStr(cli, req), 703)
+                    net.shutdownWrite(cli)
+
+                    // Server side.
+                    long acc = net.accept(srv)
+                    assert.assertTrue(acc >= 0, 704)
+                    string got = net.recvAll(acc)
+                    assert.assertStr(http.method(got), "GET", 705)
+                    assert.assertStr(http.path(got), "/ping", 706)
+                    assert.assertStr(http.header(got, "Host"), "localhost", 707)
+                    assert.assertTrue(http.isComplete(got), 708)
+                    assert.assertTrue(net.sendStr(acc, http.response(200, "text/plain", "pong")), 709)
+                    net.close(acc)
+
+                    // Back on the client.
+                    string resp = net.recvAll(cli)
+                    assert.assertEqI(http.respStatus(resp), 200, 710)
+                    assert.assertStr(http.respBody(resp), "pong", 711)
+                }
+                net.close(srv)
+                net.close(cli)
+            }
+        }
+        case "a binary body survives the wire AND the trip to disk": {
+            // This is the whole point of the binary-I/O work: download() is
+            // exactly "exchange, then write respBody to a file", and until
+            // writeBytes existed that last step ran through the Windows CRT's
+            // text mode — so every fetched tarball arrived with its CR LF pairs
+            // rewritten and its tail cut at the first 0x1A. The digest at the end
+            // is the assertion that actually catches it; the length alone would
+            // not, since a byte can be mangled without changing the count.
+            //
+            // download() itself cannot be exercised here: it drives a full
+            // exchange internally, and this suite is single-threaded, so there is
+            // nobody to accept. The wire half is spelled out instead, which is
+            // strictly more than download() does before the write.
+            if skipSockets() { assert.assertTrue(true, 1201) } else {
+                pointer b = mem.alloc(7)
+                mem.writeByte(b, 0, 31)      // \  the real gzip magic:
+                mem.writeByte(b, 1, 139)     // /  0x1F 0x8B, and 139 > 127
+                mem.writeByte(b, 2, 13)      // CR \ a text-mode write turns
+                mem.writeByte(b, 3, 10)      // LF / this pair into CR CR LF
+                mem.writeByte(b, 4, 26)      // 0x1A — a text-mode read stops
+                mem.writeByte(b, 5, 0)       // an embedded NUL
+                mem.writeByte(b, 6, 255)
+                string payload = ""
+                str.fromBytes(b, 7, payload)
+                string want = hash.sha256String(payload)
+
+                long srv = net.listenOn(net.loopback(), 0, 4)
+                assert.assertTrue(srv >= 0, 1201)
+                int port = net.localPort(srv)
+                long cli = net.socket()
+                bool ok = net.connect(cli, net.loopback(), port)
+                assert.assertTrue(ok, 1202)
+                if ok {
+                    net.sendStr(cli, http.buildRequest("GET", "/pkg.tar.gz", "localhost", "", ""))
+                    net.shutdownWrite(cli)
+
+                    long acc = net.accept(srv)
+                    assert.assertTrue(acc >= 0, 1203)
+                    if acc >= 0 {
+                        net.recvAll(acc)
+                        net.sendStr(acc, http.response(200, "application/gzip", payload))
+                        net.close(acc)
+                    }
+
+                    string resp = net.recvAll(cli)
+                    assert.assertEqI(http.respStatus(resp), 200, 1204)
+                    string body = http.respBody(resp)
+                    assert.assertEqI(str.len(body), 7, 1205)
+                    assert.assertStr(body, payload, 1206)
+
+                    // …and now the half that was broken.
+                    string dest = "fly_http_bin_dl.bin"
+                    fs.writeBytes(dest, body, 420)
+                    assert.assertEqL((long)fs.size(dest), 7, 1207)
+                    assert.assertStr(hash.sha256File(dest), want, 1208)
+                    assert.assertStr(fs.readBytes(dest), payload, 1209)
+                    fs.delete(dest)
+                }
+                net.close(srv)
+                net.close(cli)
+            }
+        }
+        case "TWO exchanges on ONE keep-alive connection": {
+            // The point of keep-alive, and the reason the chunked branch of
+            // isComplete had to exist first: the server does NOT close, so
+            // connExchange cannot read to EOF — it must stop at the end of the
+            // message. If the framing were wrong this case would hang, not fail,
+            // which is why both responses carry a Content-Length.
+            if skipSockets() { assert.assertTrue(true, 1101) } else {
+                long srv = net.listenOn(net.loopback(), 0, 4)
+                int port = net.localPort(srv)
+
+                long cli = http.connOpen("127.0.0.1", port, 3000)
+                assert.assertTrue(cli >= 0, 1101)
+                if cli >= 0 {
+                    long acc = net.accept(srv)
+                    assert.assertTrue(acc >= 0, 1102)
+                    net.setRecvTimeout(acc, 3000)
+
+                    // ── first exchange ────────────────────────────────────────
+                    string q1 = http.buildRequestConn("GET", "/one", "localhost", "", "", true)
+                    assert.assertTrue(net.sendStr(cli, q1), 1103)
+                    string got1 = net.recvStr(acc, 4096)
+                    assert.assertStr(http.path(got1), "/one", 1104)
+                    assert.assertStr(http.header(got1, "Connection"), "keep-alive", 1105)
+                    // keep-alive on the RESPONSE too, or the client would be
+                    // told to reconnect and the second exchange below would be
+                    // testing nothing.
+                    net.sendStr(acc, http.responseConn(200, "text/plain", "", true, "first"))
+                    string r1 = http.connExchange(0 - 1, "")     // guard: bad handle
+                    assert.assertEmpty(r1, 1106)
+
+                    // Read the first response through the framing path.
+                    string resp1 = ""
+                    bool go1 = true
+                    while go1 {
+                        if http.isComplete(resp1) { go1 = false } else {
+                            string c = net.recvStr(cli, 4096)
+                            if str.isEmpty(c) { go1 = false } else {
+                                string g = str.concat(resp1, c)
+                                resp1 = g
+                            }
+                        }
+                    }
+                    assert.assertEqI(http.respStatus(resp1), 200, 1107)
+                    assert.assertStr(http.respBody(resp1), "first", 1108)
+                    assert.assertFalse(http.connIsClosing(resp1), 1109)
+
+                    // ── second exchange, SAME socket ──────────────────────────
+                    string q2 = http.buildRequestConn("GET", "/two", "localhost", "", "", true)
+                    assert.assertTrue(net.sendStr(cli, q2), 1110)
+                    string got2 = net.recvStr(acc, 4096)
+                    assert.assertStr(http.path(got2), "/two", 1111)
+                    net.sendStr(acc, http.responseWith(200, "text/plain", "Connection: close", "second"))
+
+                    string resp2 = ""
+                    bool go2 = true
+                    while go2 {
+                        if http.isComplete(resp2) { go2 = false } else {
+                            string c = net.recvStr(cli, 4096)
+                            if str.isEmpty(c) { go2 = false } else {
+                                string g = str.concat(resp2, c)
+                                resp2 = g
+                            }
+                        }
+                    }
+                    assert.assertStr(http.respBody(resp2), "second", 1112)
+                    // the server said it is done with this connection
+                    assert.assertTrue(http.connIsClosing(resp2), 1113)
+
+                    net.close(acc)
+                }
+                http.connClose(cli)
+                net.close(srv)
+            }
+        }
+        case "connExchange frames a chunked response on a live connection": {
+            // A chunked reply has no Content-Length, so this is the case that
+            // would read forever if isComplete did not understand chunking.
+            if skipSockets() { assert.assertTrue(true, 1114) } else {
+                long srv = net.listenOn(net.loopback(), 0, 4)
+                int port = net.localPort(srv)
+                long cli = http.connOpen("127.0.0.1", port, 3000)
+                assert.assertTrue(cli >= 0, 1114)
+                if cli >= 0 {
+                    long acc = net.accept(srv)
+                    net.setRecvTimeout(acc, 3000)
+                    string q = http.buildRequestConn("GET", "/c", "localhost", "", "", true)
+                    net.sendStr(cli, q)
+                    net.recvStr(acc, 4096)
+
+                    string reply = mkHttp("HTTP/1.1 200 OK~Transfer-Encoding: chunked~~5~hello~6~ world~0~~")
+                    net.sendStr(acc, reply)
+
+                    string resp = http.connExchange(cli, http.buildRequestConn("GET", "/c2", "localhost", "", "", true))
+                    // connExchange sent a second request the server ignores, but
+                    // it still reads the pending chunked reply to its terminator.
+                    assert.assertEqI(http.respStatus(resp), 200, 1115)
+                    assert.assertStr(http.bodyDecoded(resp), "hello world", 1116)
+                    net.close(acc)
+                }
+                http.connClose(cli)
+                net.close(srv)
+            }
+        }
+        case "https fails CLOSED when no backend exists, and is attempted when one does": {
+            // The scheme dispatch, not the network. With no HTTPS backend an
+            // https URL must fail rather than silently downgrade to plaintext;
+            // with one (WinHTTP on Windows, fly.net.tls on a --tls Linux build)
+            // it is attempted, so only the no-backend direction can be asserted
+            // without reaching the internet.
+            if http.httpsSupported() {
+                assert.assertTrue(true, 712)
+                assert.assertTrue(true, 713)
+                assert.assertTrue(true, 714)
+            } else {
+                assert.assertEmpty(http.get("https://example.org/x"), 712)
+                assert.assertFalse(http.download("https://example.org/x", "no_such_dest"), 713)
+                assert.assertEqI(http.getSecureStatus("https://example.org/x"), 0 - 1, 714)
+            }
+            // A missing local file is refused before any network work, whatever
+            // the scheme or the backend.
+            assert.assertFalse(http.postFileSecure("https://example.org/x", "no_such_file", ""), 718)
+            if skipSockets() { assert.assertTrue(true, 715) } else {
+                assert.assertEmpty(http.get("http://fly-no-such-host-xyzabc.invalid/x"), 715)
+                assert.assertEqI(http.getStatus("http://fly-no-such-host-xyzabc.invalid/x"), 0 - 1, 716)
+            }
+            assert.assertFalse(http.postFile("http://127.0.0.1:1/x", "no_such_file_here", ""), 717)
+        }
+        case "exchange and downloadSecure fail cleanly, not noisily": {
+            // exchange()'s SUCCESS path cannot run in this suite: it connects,
+            // sends and then blocks in recvAll until the peer answers — and the
+            // peer would be this same single thread. Its parts (connectTo,
+            // sendStr, shutdownWrite, recvAll) each have their own end-to-end
+            // cases; what is pinned here is the composition's failure contract:
+            // "" on any failure, never a hang, never a partial result.
+            if skipSockets() { assert.assertTrue(true, 719) } else {
+                // A port that was just bound and released: deterministic refusal
+                // without picking a magic number and hoping it is closed.
+                long tmp = net.listenOn(net.loopback(), 0, 1)
+                int deadPort = net.localPort(tmp)
+                net.close(tmp)
+                assert.assertEmpty(http.exchange("127.0.0.1", deadPort, "GET / HTTP/1.1"), 719)
+                assert.assertEmpty(http.exchange("fly-no-such-host-xyzabc.invalid", 80, "x"), 720)
+
+                // downloadSecure: an unresolvable host fails whatever backend is
+                // linked, and MUST NOT leave a destination file behind — a
+                // half-written file that exists is how a failed download gets
+                // mistaken for a cached one.
+                string dest = "fly_http_dlsec_none.bin"
+                fs.delete(dest)
+                assert.assertFalse(http.downloadSecure("https://fly-no-such-host-xyzabc.invalid/p.tar.gz", dest), 721)
+                assert.assertFalse(fs.exists(dest), 722)
+            }
+        }
+        case "httpsAvailable and httpsSupported agree with the platform": {
+            // httpsAvailable is the whole-client (WinHTTP) backend; httpsSupported
+            // also counts a real TLS transport. So supported implies at least one,
+            // and on Windows available must be true.
+            bool avail = http.httpsAvailable()
+            bool sup = http.httpsSupported()
+            if avail { assert.assertTrue(sup, 719) } else { assert.assertTrue(true, 719) }
+            if str.equals(env.osname(), "windows") {
+                assert.assertTrue(avail, 720)
+            } else {
+                assert.assertFalse(avail, 720)
+            }
+        }
+        case "a REAL https request (FLY_NET_ONLINE_TESTS=1)": {
+            // Off by default: it needs the internet and a working trust store.
+            // This is the only case that actually exercises WinHTTP end to end, so
+            // a green board does NOT prove https works — run it deliberately.
+            bool run = str.isEmpty(env.get("FLY_NET_ONLINE_TESTS")) == false
+            if http.httpsSupported() == false { run = false }
+            if skipSockets() { run = false }
+            if run == false { assert.assertTrue(true, 721) } else {
+                int st = http.getSecureStatus("https://example.org/")
+                assert.assertTrue(st > 0, 721)
+                assert.assertTrue(st < 600, 722)
+                string body = http.getSecure("https://example.org/")
+                if st >= 200 && st < 300 {
+                    assert.assertNotEmpty(body, 723)
+                } else {
+                    assert.assertTrue(true, 723)
+                }
+            }
+        }
+    }
+}

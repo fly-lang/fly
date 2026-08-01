@@ -29,7 +29,7 @@ public class SourceManager {
     public SourceManager(const string filename, const string buffer) {
         this.filename = filename
         this.buffer = buffer
-        this.len = fly.str.len(buffer)
+        this.len = str.len(buffer)
     }
 
     // byteAt — byte code at index i, or 256 past end (mirrors Lexer.byteAt).
@@ -39,7 +39,7 @@ public class SourceManager {
             return
         }
         byte b = 0
-        fly.str.byteAt(this.buffer, i, b)
+        str.byteAt(this.buffer, i, b)
         out = b
     }
 
@@ -106,7 +106,7 @@ public class SourceManager {
         while end < this.len && this.byteAt(end) != 10 {
             end = end + 1
         }
-        out = fly.str.substring(this.buffer, start, end)
+        out = str.substring(this.buffer, start, end)
     }
 
     // getPresumedLoc — filename + decoded line/col for display. FileID is the

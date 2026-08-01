@@ -22,6 +22,10 @@ public class ASTCall : ASTExpr {
     string name
     List<ASTArg> args
     List<ASTType> typeArgs
+    int multiRecvCount       // B027: `q, r = f(x)` — the parser appends the N
+                             // receiver vars as trailing args (full call form)
+                             // and records N here so the resolver can verify
+                             // they match the callee's out slots. 0 = plain call.
 
     public ASTCall(const SourceLocation loc, const string name, const ASTCallKind callKind) {
         super(loc, ASTExprKind.EXPR_CALL)
@@ -29,6 +33,7 @@ public class ASTCall : ASTExpr {
         this.callKind = callKind
         this.args = new List<ASTArg>()
         this.typeArgs = new List<ASTType>()
+        this.multiRecvCount = 0
     }
 
     public string getName() { out = this.name }
@@ -38,6 +43,8 @@ public class ASTCall : ASTExpr {
     public ASTCallKind getCallKind() { out = this.callKind }
     public void addArg(const ASTArg a) { this.args.add(a) }
     public ASTCall asCall() { out = this }
+    public int getMultiRecvCount() { out = this.multiRecvCount }
+    public void setMultiRecvCount(const int n) { this.multiRecvCount = n }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

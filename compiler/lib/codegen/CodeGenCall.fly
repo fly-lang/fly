@@ -32,11 +32,11 @@ public class CodeGenCall {
         // fly.llvm.* calls lower to INLINE IR (no archive symbol exists) and
         // fly.runtime.* to DIRECT C calls — mirrors the reference's
         // CodeGenStdLibLLVM / CodeGenStdLibRuntime dispatch (audit V4 fase 2).
-        if fly.str.equals(fn.getNamespaceName(), "fly_llvm") {
+        if str.equals(fn.getNamespaceName(), "fly_llvm") {
             CodeGenIntrinsics.genLLVM(cge, node)
             return
         }
-        if fly.str.equals(fn.getNamespaceName(), "fly_runtime") {
+        if str.equals(fn.getNamespaceName(), "fly_runtime") {
             CodeGenIntrinsics.genRuntime(cge, node)
             return
         }

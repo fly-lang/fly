@@ -1,0 +1,295 @@
+namespace fly.log
+
+import fly.llvm
+import fly.runtime
+import fly.mem
+import fly.str
+import fly.os.io
+import fly.os.fs
+import fly.os.time
+import fly.os.env
+
+// ─────────────────────────────────────────────────────────────────────────────
+// fly.log — leveled logging with timestamps and function-call tracing.
+//
+// Lines go to stderr as `YYYY-MM-DD HH:MM:SS [LEVEL] message`; setFile() adds
+// an append-mode file sink on top. The level ladder is the LogLevel enum,
+// severity-ordered (ERROR=1 … TRACE=5): a message prints when its level value
+// is <= the configured one. The first emission (or getLevel/isOff) reads
+// FLY_LOG_LEVEL from the environment — a level name, or "off" to silence
+// everything; unset or unknown falls back to INFO. setLevel/setLevelName win
+// over the environment and stop it from being consulted.
+//
+// enter()/exit()/exitFail() are the function-trace hooks: they print at TRACE
+// with two spaces of indentation per call depth. The compiler's --trace-calls
+// option injects calls to them at every user-function entry and exit (exitFail
+// on an unhandled `fail`), so their MANGLED SYMBOLS ARE ABI: renaming them or
+// changing their signatures breaks codegen/CodeGenTrace.fly.
+//
+// State lives in LogState static attributes (module globals, zero-initialized
+// — 0 therefore means "environment not read yet"). The depth counter is not
+// thread-safe; tracing assumes a single-threaded program.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public enum LogLevel { ERROR, WARN, INFO, DEBUG, TRACE }
+
+// LogState — the module state. Static attributes lower to zero-initialized
+// module globals; any declared initializer is decorative, so every field's
+// "empty" state MUST be the zero value (level 0 = uninitialized, hasFile 0 =
+// stderr only). The file path is held as a RAW byte buffer, not a `static
+// string`: a static string field with an initializer crashes the 0.13.14 seed
+// outright, and reading one into a local aliases the global's buffer, which
+// the local's scope-exit auto-free then corrupts. pointer+len statics with
+// explicit copies sidestep both.
+class LogState {
+    static int inited = 0
+    static int level = 0
+    static int depth = 0
+    static int hasFile = 0
+    static pointer fpPtr = 0
+    static int fpLen = 0
+    public LogState() { }
+}
+
+// ── private helpers ───────────────────────────────────────────────────────────
+
+// parseValue — level name (case-insensitive) to its LogLevel value; 0 = unknown.
+int parseValue(const string name) {
+    if str.equalsIgnoreCase(name, LogLevel.ERROR.name) { out = LogLevel.ERROR.value  return }
+    if str.equalsIgnoreCase(name, LogLevel.WARN.name)  { out = LogLevel.WARN.value   return }
+    if str.equalsIgnoreCase(name, LogLevel.INFO.name)  { out = LogLevel.INFO.value   return }
+    if str.equalsIgnoreCase(name, LogLevel.DEBUG.name) { out = LogLevel.DEBUG.value  return }
+    if str.equalsIgnoreCase(name, LogLevel.TRACE.name) { out = LogLevel.TRACE.value  return }
+    out = 0
+}
+
+// levelFromValue — 1..5 back to the enum entry; anything else maps to ERROR
+// (the least verbose defined level; callers gate the 0/off case via isOff).
+LogLevel levelFromValue(const int v) {
+    if v == 2 { out = LogLevel.WARN   return }
+    if v == 3 { out = LogLevel.INFO   return }
+    if v == 4 { out = LogLevel.DEBUG  return }
+    if v == 5 { out = LogLevel.TRACE  return }
+    out = LogLevel.ERROR
+}
+
+// tagOf — the bracket tag as a string LITERAL. Deliberately not the enum
+// `.name` accessor: storing an entry's .name in a local aliases the generated
+// names table, and the local's scope-exit auto-free corrupts the heap.
+string tagOf(const int v) {
+    if v == 1 { out = "ERROR"  return }
+    if v == 2 { out = "WARN"   return }
+    if v == 3 { out = "INFO"   return }
+    if v == 4 { out = "DEBUG"  return }
+    out = "TRACE"
+}
+
+// filePathStr — a FRESH copy of the configured path (strMake owns the copy, so
+// the caller's scope-exit free releases the copy, never the stored buffer).
+string filePathStr() {
+    int n = LogState.fpLen
+    pointer src = LogState.fpPtr
+    pointer buf = 0
+    fly.runtime.mem_alloc(n, buf)
+    mem.copy(buf, src, n)
+    fly.llvm.strMake(buf, n, out)
+}
+
+// nl — a real newline string. Fly string escapes are RAW ("\n" is backslash+n),
+// so the byte is poked into a buffer; strMake takes ownership, no free.
+string nl() {
+    pointer buf = 0
+    fly.runtime.mem_alloc(1, buf)
+    fly.llvm.strPoke(buf, 0, 10)
+    fly.llvm.strMake(buf, 1, out)
+}
+
+// indent — two spaces per call-depth level (fresh temp per step: a
+// self-reassigning concat corrupts the string).
+string indent() {
+    string r = ""
+    int i = 0
+    while i < LogState.depth {
+        string c = str.concat(r, "  ")
+        r = c
+        i = i + 1
+    }
+    out = r
+}
+
+// ensureInit — lazy one-shot environment read; explicit setters preempt it.
+void ensureInit() {
+    if LogState.inited == 1 { return }
+    LogState.inited = 1
+    LogState.level = LogLevel.INFO.value
+    string v = env.get("FLY_LOG_LEVEL")
+    if str.isEmpty(v) { return }
+    if str.equalsIgnoreCase(v, "off") { LogState.level = 0  return }
+    int pv = parseValue(v)
+    if pv != 0 { LogState.level = pv }
+}
+
+// emit — the single sink: filter, timestamp+tag prefix, stderr, optional file.
+void emit(const int lvl, const string msg) {
+    ensureInit()
+    if lvl > LogState.level { return }
+    string tag = tagOf(lvl)
+    long nowS = time.nowSec()
+    string ts = time.formatSec(nowS, "2006-01-02 15:04:05")
+    string p1 = str.concat(ts, " [")
+    string p2 = str.concat(p1, tag)
+    string p3 = str.concat(p2, "] ")
+    string full = str.concat(p3, msg)
+    io.printErrLn(full)
+    if LogState.hasFile == 1 {
+        string n = nl()
+        string line = str.concat(full, n)
+        string fp = filePathStr()
+        fs.appendStr(fp, line, 420)
+    }
+}
+
+// emitL — level entry to its value then emit.
+void emitL(const LogLevel lv, const string msg) {
+    int v = lv.value
+    emit(v, msg)
+}
+
+// ── configuration ─────────────────────────────────────────────────────────────
+
+// setLevel — set the threshold; messages at level.value <= it will print.
+public void setLevel(const LogLevel level) {
+    int v = level.value
+    if v < 1 { return }
+    if v > 5 { return }
+    LogState.level = v
+    LogState.inited = 1
+}
+
+// setLevelName — setLevel by name ("error".."trace", any case); "off" silences
+// everything; an unknown name is ignored.
+public void setLevelName(const string name) {
+    if str.equalsIgnoreCase(name, "off") { setOff()  return }
+    int v = parseValue(name)
+    if v == 0 { return }
+    LogState.level = v
+    LogState.inited = 1
+}
+
+// setOff — silence every level (there is no OFF enum entry; isOff() reports it).
+public void setOff() {
+    LogState.level = 0
+    LogState.inited = 1
+}
+
+public bool isOff() {
+    ensureInit()
+    out = LogState.level == 0
+}
+
+// getLevel — the effective threshold. When isOff() it returns ERROR (the
+// least verbose defined entry); check isOff() first to distinguish.
+public LogLevel getLevel() {
+    ensureInit()
+    int v = LogState.level
+    out = levelFromValue(v)
+}
+
+// parseLevel — name to entry, unknown maps to INFO; isLevelName tells whether
+// the name is one of the five entries.
+public LogLevel parseLevel(const string name) {
+    int v = parseValue(name)
+    if v == 0 { out = LogLevel.INFO  return }
+    out = levelFromValue(v)
+}
+
+public bool isLevelName(const string name) {
+    out = parseValue(name) != 0
+}
+
+// setFile — mirror every printed line into an append-mode file (created on
+// first write). The stderr sink stays active. The path bytes are copied into
+// an owned buffer (see LogState).
+public void setFile(const string path) {
+    int n = str.len(path)
+    if n < 1 { return }
+    pointer buf = 0
+    fly.runtime.mem_alloc(n, buf)
+    int i = 0
+    while i < n {
+        byte b = 0
+        fly.llvm.strByteAt(path, i, b)
+        fly.llvm.strPoke(buf, i, b)
+        i = i + 1
+    }
+    if LogState.fpPtr != 0 {
+        pointer old = LogState.fpPtr
+        int oldLen = LogState.fpLen
+        fly.runtime.mem_free(old, oldLen)
+    }
+    LogState.fpPtr = buf
+    LogState.fpLen = n
+    LogState.hasFile = 1
+}
+
+// reset — back to the pristine zero state (mainly for tests: the next emission
+// re-reads FLY_LOG_LEVEL).
+public void reset() {
+    LogState.inited = 0
+    LogState.level = 0
+    LogState.depth = 0
+    LogState.hasFile = 0
+    if LogState.fpPtr != 0 {
+        pointer old = LogState.fpPtr
+        int oldLen = LogState.fpLen
+        fly.runtime.mem_free(old, oldLen)
+    }
+    LogState.fpPtr = 0
+    LogState.fpLen = 0
+}
+
+// ── message API ───────────────────────────────────────────────────────────────
+
+public void trace(const string msg) { emitL(LogLevel.TRACE, msg) }
+public void debug(const string msg) { emitL(LogLevel.DEBUG, msg) }
+public void info(const string msg)  { emitL(LogLevel.INFO, msg) }
+public void warn(const string msg)  { emitL(LogLevel.WARN, msg) }
+
+// err — the ERROR-level message; `error` is a reserved type keyword, so the
+// io.printErr naming precedent applies.
+public void err(const string msg)   { emitL(LogLevel.ERROR, msg) }
+
+// ── function-trace hooks (ABI for --trace-calls, also callable by hand) ──────
+
+// enter — `> name` at TRACE, then one level deeper.
+public void enter(const string name) {
+    ensureInit()
+    if LogState.level < 5 { return }
+    string ind = indent()
+    string p = str.concat(ind, "> ")
+    string full = str.concat(p, name)
+    emit(5, full)
+    LogState.depth = LogState.depth + 1
+}
+
+// exit — one level back up, then `< name` at TRACE.
+public void exit(const string name) {
+    ensureInit()
+    if LogState.level < 5 { return }
+    if LogState.depth > 0 { LogState.depth = LogState.depth - 1 }
+    string ind = indent()
+    string p = str.concat(ind, "< ")
+    string full = str.concat(p, name)
+    emit(5, full)
+}
+
+// exitFail — like exit but marks a function left through an unhandled `fail`.
+public void exitFail(const string name) {
+    ensureInit()
+    if LogState.level < 5 { return }
+    if LogState.depth > 0 { LogState.depth = LogState.depth - 1 }
+    string ind = indent()
+    string p = str.concat(ind, "<! ")
+    string full = str.concat(p, name)
+    emit(5, full)
+}

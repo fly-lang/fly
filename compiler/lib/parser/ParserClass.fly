@@ -4,6 +4,7 @@ import fly.compiler.basic.*
 import fly.compiler.ast.*
 import fly.compiler.parser.*
 import fly.data.*
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ParserClass — class/struct/interface/suite declaration parsing, split out of
@@ -61,7 +62,7 @@ public class ParserClass {
         List<ASTModifier> mmods = p.parseModifiers()
         SourceLocation loc = p.curLoc()
         // Constructor: ClassName ( ... ) { ... }  (name == class, no return type)
-        if p.curIsNamePart() && fly.str.equals(p.curText(), className) && p.nxtIsPunct("(") {
+        if p.curIsNamePart() && str.equals(p.curText(), className) && p.nxtIsPunct("(") {
             p.bump()  // class name
             List<ASTParam> params = p.parseParams()
             ASTBlockStmt cbody = null

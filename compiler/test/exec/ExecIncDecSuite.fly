@@ -1,0 +1,78 @@
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExecIncDecSuite — EXECUTED pre/post increment/decrement semantics (bug-hunt
+// Phase 1): value-of-expression vs side effect, statement forms, fields, and
+// loop-condition usage. Pins the C model; the oracle (STAGE=0) arbitrates.
+//
+// Assert codes: 1xx statement forms, 2xx expression values, 4xx loop
+// conditions.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite ExecIncDecSuite {
+
+    void statementFormTest() {
+        case "postfix statement increments and decrements": {
+            int a = 5
+            a++
+            assert.assertEqI(a, 6, 101)
+            a--
+            a--
+            assert.assertEqI(a, 4, 102)
+        }
+        case "prefix statements work; postfix never crosses lines": {
+            // B014 fix: postfix binds SAME-LINE only, so a leading ++/-- on the
+            // next line is a prefix statement, never the previous operand's
+            // postfix (`int a = 5` + `++a` used to parse as `5++` + garbage).
+            int a = 5
+            ++a
+            assert.assertEqI(a, 6, 111)
+            --a
+            --a
+            assert.assertEqI(a, 4, 112)
+            ++a
+            a++
+            assert.assertEqI(a, 6, 113)
+        }
+    }
+
+    void expressionValueTest() {
+        case "postfix yields the old value": {
+            int a = 5
+            int b = a++
+            assert.assertEqI(b, 5, 201)
+            assert.assertEqI(a, 6, 202)
+        }
+        case "prefix yields the new value": {
+            int a = 5
+            int b = ++a
+            assert.assertEqI(b, 6, 211)
+            assert.assertEqI(a, 6, 212)
+        }
+        case "postfix decrement in a larger expression": {
+            int a = 10
+            int r = a-- + 1
+            assert.assertEqI(r, 11, 221)                 // old value 10, then a = 9
+            assert.assertEqI(a, 9, 222)
+        }
+    }
+
+    void loopConditionTest() {
+        case "postfix in a while condition": {
+            int i = 0
+            int body = 0
+            while i++ < 3 {
+                body = body + 1
+            }
+            assert.assertEqI(body, 3, 401)               // runs for i = 0,1,2
+            assert.assertEqI(i, 4, 402)                  // last test incremented 3 → 4
+        }
+        case "for post-expression increment": {
+            int sum = 0
+            for int i = 0; i < 4; i++ {
+                sum = sum + i
+            }
+            assert.assertEqI(sum, 6, 411)
+        }
+    }
+}

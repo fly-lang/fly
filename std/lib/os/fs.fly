@@ -871,6 +871,83 @@ public void writeStr(const string path, const string content, const int perm) {
     fly.runtime.fs_close(fd)
 }
 
+// ── Binary-safe file I/O ──────────────────────────────────────────────────────
+//
+// readStr/writeStr go through the platform's TEXT-mode descriptors. On POSIX that
+// is the same as binary, but on Windows the UCRT rewrites bytes both ways:
+// reading collapses \r\n into \n and stops dead at a 0x1A byte, writing expands
+// every \n into \r\n. For source text that is exactly what you want. For a
+// tarball, an image or any other byte-exact payload it is silent corruption.
+//
+// readBytes/writeBytes switch the descriptor to binary mode immediately after
+// opening, before a single byte moves, using the same fly.runtime.io_set_binary
+// that fly.os.io.setBinaryMode exposes for stdio. It is a no-op on POSIX.
+//
+// The alternative — making winOpenFlags open EVERYTHING in binary — was
+// deliberately not taken: it would change how the compiler reads its own .fly
+// sources on a CRLF checkout, so a whole-toolchain risk for a problem that is
+// local to the few callers handling binary data.
+
+// writeBytes writes content to path VERBATIM, with no newline translation.
+// Use this for any payload that is not source text.
+public void writeBytes(const string path, const string content, const int perm) {
+    pointer cpath = strToCstr(path)
+    pointer ptr = 0
+    int sz = 0
+    fly.llvm.strGetPtr(content, ptr)
+    fly.llvm.strSize(content, sz)
+    int flags = 577
+    int fd = 0
+    fly.runtime.fs_open(cpath, flags, perm, fd)
+    if fd < 0 { return }
+    int bm = 0
+    fly.runtime.io_set_binary(fd, bm)
+    long nwritten = 0
+    fly.runtime.fs_write(fd, ptr, sz, nwritten)
+    fly.runtime.fs_close(fd)
+}
+
+// readBytes reads the whole file VERBATIM, with no newline translation and no
+// early stop at 0x1A. Empty when the file is empty or missing.
+public string readBytes(const string path) {
+    ulong fsize = size(path)
+    if fsize == 0 {
+        pointer empty = 0
+        fly.runtime.mem_alloc(1, empty)
+        fly.llvm.strMake(empty, 0, out)
+        return
+    }
+    pointer buf = 0
+    fly.runtime.mem_alloc(fsize, buf)
+    pointer cpath = strToCstr(path)
+    int fd = 0
+    fly.runtime.fs_open(cpath, 0, 0, fd)
+    if fd < 0 {
+        fly.llvm.strMake(buf, 0, out)
+        return
+    }
+    int bm = 0
+    fly.runtime.io_set_binary(fd, bm)
+    // A binary read still may come back short, so loop until the file is drained.
+    int total = 0
+    bool go = true
+    while go {
+        ulong want = fsize - total
+        if want == 0 { go = false } else {
+            pointer at = buf + total
+            long n = 0
+            fly.runtime.fs_read(fd, at, want, n)
+            if n <= 0 { go = false } else {
+                int adv = 0
+                fly.llvm.longToInt(n, adv)
+                total = total + adv
+            }
+        }
+    }
+    fly.runtime.fs_close(fd)
+    fly.llvm.strMake(buf, total, out)
+}
+
 // readStr reads the entire file at path into a Fly string.
 // Returns an empty string if the file is empty or does not exist.
 public string readStr(const string path) {

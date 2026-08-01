@@ -29,12 +29,12 @@ suite CodeGenGenericsSuite {
                     public Wrapper(const T v) { this.value = v }
                     public T get() { out = this.value }
                 }
-                int main() { Wrapper<int> w = new Wrapper<int>(42)
-                    out = w.get()
+                void main() { Wrapper<int> w = new Wrapper<int>(42)
+                    fail w.get()
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "%.Wrapper_int = type { ptr, i32 }"), 11)
-            assert.assertTrue(fly.str.contains(ir, "@Wrapper_int_F0"), 12)
+            assert.assertTrue(str.contains(ir, "%.Wrapper_int = type { ptr, i32 }"), 11)
+            assert.assertTrue(str.contains(ir, "@Wrapper_int_F0"), 12)
         }
     }
 }

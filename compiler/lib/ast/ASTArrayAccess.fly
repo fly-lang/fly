@@ -1,0 +1,36 @@
+namespace fly.compiler.ast
+
+import fly.compiler.basic.SourceLocation
+import fly.compiler.ast.ASTExpr
+import fly.compiler.ast.ASTExprKind
+import fly.compiler.ast.ASTVisitor
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ASTArrayAccess — the array subscript `base[index]`.
+//
+// Both positions are expressions: the base evaluates to an array (its %array fat
+// pointer carries data + len) and the index to an integer. ONE node serves reads
+// and writes — an assignment simply puts it on the left of `=` — which is why it
+// holds the two operands and nothing about direction.
+//
+// The base is kept in its own field rather than through ASTExpr's parent/child
+// links: those model the receiver chain of a member access (`a.b.c`), and a
+// subscript is not a member of its base.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class ASTArrayAccess : ASTExpr {
+
+    ASTExpr base
+    ASTExpr index
+
+    public ASTArrayAccess(const SourceLocation loc, const ASTExpr base, const ASTExpr index) {
+        super(loc, ASTExprKind.EXPR_ARRAY_ACCESS)
+        this.base = base
+        this.index = index
+    }
+
+    public ASTExpr getBase() { out = this.base }
+    public ASTExpr getIndex() { out = this.index }
+
+    public void accept(const ASTVisitor v) { v.visit(this) }
+}

@@ -12,10 +12,15 @@ import fly.compiler.sema.SemaTypeParam
 import fly.compiler.sema.SemaModule
 import fly.compiler.sema.SemaVisibilityKind
 import fly.compiler.sema.SymbolTable
+import fly.compiler.sema.SemaNameSpace
 import fly.compiler.ast.ASTClass
 import fly.compiler.ast.ASTClassKind
+import fly.compiler.ast.ASTModule
+import fly.compiler.ast.ASTNameSpace
+import fly.compiler.ast.ASTName
 import fly.data.List
 import fly.data.Map
+import fly.str
 
 // SemaClassKind — class/interface/struct/suite. 1:1 with C++ SemaClassKind.
 public enum SemaClassKind {
@@ -113,6 +118,55 @@ public class SemaClassType : SemaType {
     public bool isFromHeader() { out = this.fromHeader }
     public void setFromHeader(const bool fromHeader) { this.fromHeader = fromHeader }
     public SemaClassKind getClassKind() { out = this.classKind }
+
+    // matchesSuiteSel — true when `sel` selects this SUITE (--suite=<sel>):
+    // empty = every suite; the bare suite name; the qualified `ns.SuiteName`;
+    // the suite's own namespace; or an ANCESTOR namespace (prefix match) — so
+    // `--suite=fly.driver.test` runs every suite under that namespace tree.
+    // The catch-all "default" namespace never qualifies: namespace-less suites
+    // match by bare name only.
+    // str calls fully-qualified: the inherited SemaType.str() method shadows the
+    // short `str.` prefix throughout this class (reference-compiler behavior).
+    public bool matchesSuiteSel(const string sel) {
+        if fly.str.isEmpty(sel) { out = true  return }
+        string nm = this.getName()
+        if fly.str.equals(nm, sel) { out = true  return }
+        // Full DOTTED namespace from the module's AST decl — SemaNameSpace only
+        // carries its LEAF segment ("alloc", not "fly.compiler...test.alloc").
+        // A namespace-less module leaves ns empty: bare-name matching only.
+        string ns = ""
+        SemaModule m = this.getModule()
+        if m != null {
+            ASTModule ma = m.getAST()
+            if ma != null {
+                ASTNameSpace ans = ma.getNameSpace()
+                if ans != null {
+                    List<ASTName> parts = ans.getNames()
+                    int pi = 0
+                    while pi < parts.size() {
+                        ASTName pn = parts.get(pi)
+                        if fly.str.isEmpty(ns) {
+                            ns = pn.getName()
+                        } else {
+                            string nd = fly.str.concat(ns, ".")
+                            ns = nd
+                            string n2 = fly.str.concat(ns, pn.getName())
+                            ns = n2
+                        }
+                        pi = pi + 1
+                    }
+                }
+            }
+        }
+        if fly.str.isEmpty(ns) { out = false  return }
+        if fly.str.equals(ns, sel) { out = true  return }
+        string dotNm = fly.str.concat(".", nm)
+        string qual = fly.str.concat(ns, dotNm)
+        if fly.str.equals(qual, sel) { out = true  return }
+        string pfx = fly.str.concat(sel, ".")
+        if fly.str.startsWith(ns, pfx) { out = true  return }
+        out = false
+    }
     public SemaClassInstance getThis() { out = this.thisInstance }
     public void setThis(const SemaClassInstance thisInstance) { this.thisInstance = thisInstance }
     public List<SemaClassType> getBaseClasses() { out = this.baseClasses }

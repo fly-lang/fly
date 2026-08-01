@@ -4,7 +4,7 @@ import fly.driver.*
 
 import fly.assert
 
-// Port of fly/tools/flyp/test/SemVerRangeTest.cpp — SemVer range matching.
+// Port of the reference C++ package manager test/SemVerRangeTest.cpp — SemVer range matching.
 // rangeMatchesStr(range, version) mirrors the gtest `matches(...)` helper.
 
 suite SemVerRangeSuite {

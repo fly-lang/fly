@@ -15,7 +15,7 @@ import fly.assert
 // dq — a real double-quote char (the self-host lexer keeps `\"` raw, so string
 // literals inside a parsed source are built at runtime). Same trick as dquote().
 string dq() {
-    pointer buf = fly.mem.alloc(1)
+    pointer buf = mem.alloc(1)
     byte q = 34
     fly.llvm.strPoke(buf, 0, q)
     string s = ""
@@ -83,10 +83,10 @@ suite ParserArraySuite {
         case "string elements": {
             string Q = dq()
             // build:  {"a", "b", ""}
-            string src = fly.str.concat("{", fly.str.concat(Q, fly.str.concat("a", Q)))
-            src = fly.str.concat(src, ", ")
-            src = fly.str.concat(src, fly.str.concat(Q, fly.str.concat("b", Q)))
-            src = fly.str.concat(src, "}")
+            string src = str.concat("{", str.concat(Q, str.concat("a", Q)))
+            src = str.concat(src, ", ")
+            src = str.concat(src, str.concat(Q, str.concat("b", Q)))
+            src = str.concat(src, "}")
             Parser p = new Parser(src)
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 18)
@@ -136,6 +136,96 @@ suite ParserArraySuite {
             Parser p = new Parser("void f() { int[] a = {1, 2, 3}  for x in a { } }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 26)
+        }
+    }
+
+    // ── subscript `base[index]` ───────────────────────────────────────────────
+    // The '[' suffix lives inside parsePostfix's loop, so it chains with itself
+    // and with '.'; and `Ident [` at statement start is ambiguous between a
+    // declaration and a subscript expression, decided by bracketDeclAhead.
+    void subscriptTest() {
+        case "read k[1]": {
+            Parser p = new Parser("void f() { int[] k = {1, 2}  int x = k[1] }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 31)
+        }
+        case "write k[0] = 9 stays an expression statement": {
+            Parser p = new Parser("void f() { int[] k = {1, 2}  k[0] = 9 }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 32)
+        }
+        case "computed index k[i + 1]": {
+            Parser p = new Parser("void f() { int[] k = {1, 2}  int i = 0  int x = k[i + 1] }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 33)
+        }
+        case "chained m[i][j]": {
+            Parser p = new Parser("void f() { int[][] m = {{1}}  int x = m[0][0] }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 34)
+        }
+        case "nested index m[k[0]]": {
+            Parser p = new Parser("void f() { int[] k = {0}  int[] m = {5}  int x = m[k[0]] }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 35)
+        }
+    }
+
+    // The declaration/expression fork. Both start `Ident [`; only what follows
+    // the closing bracket run tells them apart.
+    void bracketDeclTest() {
+        case "C[3] cs is a declaration": {
+            Parser p = new Parser("class C { } void f() { C[3] cs }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 41)
+        }
+        case "C[] cs = {} is a declaration": {
+            Parser p = new Parser("class C { } void f() { C[] cs = {} }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 42)
+        }
+        case "C[2][3] grid — consecutive groups are one run": {
+            Parser p = new Parser("class C { } void f() { C[2][3] grid }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 43)
+        }
+        case "k[0].m() is an expression, not a declaration": {
+            Parser p = new Parser("class C { public void m() { } } void f() { C[1] k  k[0].m() }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 44)
+        }
+    }
+
+    // The probe walks the token stream ahead of the parser and must push every
+    // token it consumed back into `pending`. If it drops even one, the stream
+    // desynchronises SILENTLY — the parse keeps going and produces a wrong tree
+    // rather than an error. These cases put a subscript-or-decl fork in the
+    // middle of a function and check the statements AFTER it still parse.
+    void probeNeutralityTest() {
+        case "statements after a decl fork are intact": {
+            Parser p = new Parser("class C { } void f() { C[2] cs  int a = 1  int b = a + 1  return }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 51)
+        }
+        case "statements after an expression fork are intact": {
+            Parser p = new Parser("void f() { int[] k = {1, 2}  k[0] = 9  int a = 1  int b = a + 1  return }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 52)
+        }
+        case "an unterminated bracket run still reports, not hangs": {
+            Parser p = new Parser("void f() { int[] k = {1}  k[0 }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertFalse(p.isSuccess(), 53)
+        }
+    }
+
+    // `out[N] = expr` is intercepted by parseExprStmt BEFORE parseExpr runs, so
+    // the new '[' suffix must not disturb multi-return assignment.
+    void outSlotTest() {
+        case "out[0] = x in a multi-return function": {
+            Parser p = new Parser("int,int g() { out[0] = 1  out[1] = 2 } void f() { }")
+            ASTModule mod = p.parseModule("t")
+            assert.assertTrue(p.isSuccess(), 61)
         }
     }
 }

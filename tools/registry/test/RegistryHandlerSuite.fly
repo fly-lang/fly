@@ -1,0 +1,426 @@
+import fly.registry.RegistryHandler
+import fly.registry.RegResponse
+import fly.registry.safeSegment
+import fly.registry.urlDecode
+import fly.registry.jsonStringArray
+import fly.registry.strLess
+import fly.registry.dirNames
+import fly.str
+import fly.mem
+import fly.targz
+import fly.os.fs
+import fly.os.path
+import fly.data.List
+import fly.assert
+import fly.registry
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RegistryHandlerSuite — coverage of tools/registry/lib/RegistryHandler.fly.
+// Port of the reference's tools/registry/test/RegistryHandlerTest.cpp, adapted
+// to the differences the Fly port made deliberate: metadata is Manifest.fly,
+// extraction is in-process, and both path segments are validated.
+//
+// Every public symbol of the module is exercised: the five free functions
+// (safeSegment, urlDecode, jsonStringArray, strLess, dirNames), RegResponse
+// (fields + toHttp), and every RegistryHandler entry point — the storage-layout
+// helpers, requiresAuth, and handle() across all five routes plus the failure
+// paths. THE SOCKET LAYER IS NOT HERE: handle() takes a parsed request, so this
+// suite is pure logic. The wire is covered end to end by ci/*/test_registry.*.
+//
+// Each case builds its own storage directory under the CWD and removes it
+// afterwards, so cases never see each other's packages and the suite can be
+// re-run without cleaning.
+//
+// Assert codes: 1xx safeSegment, 2xx urlDecode, 3xx jsonStringArray/strLess,
+// 4xx RegResponse, 5xx storage layout + auth, 6xx dirNames, 7xx routing,
+// 8xx publish/extract, 9xx download/metadata/search.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// gzipFixture — the checked-in package tarball (mypkg/Manifest.fly + a source).
+// Read as BYTES: it is gzip, and a text-mode read on Windows corrupts it.
+string gzipFixture() {
+    out = fs.readBytes("std/test/fixtures/regpkg.tar.gz")
+}
+
+// quoted / arr1 / arr2 / arr3 — expected JSON built from RAW BYTES, not from
+// jsonStringArray: an expectation computed by the code under test would agree
+// with it no matter how wrong both were. String literals keep escapes raw in
+// this dialect, so the quote byte (34) has to be assembled by hand.
+string quoted(const string x) {
+    pointer p = mem.alloc(1)
+    mem.writeByte(p, 0, 34)
+    string q = ""
+    str.fromBytes(p, 1, q)
+    out = str.concat(q, str.concat(x, q))
+}
+string arr1(const string a) {
+    out = str.concat("[", str.concat(quoted(a), "]"))
+}
+string arr2(const string a, const string b) {
+    out = str.concat("[", str.concat(quoted(a),
+          str.concat(",", str.concat(quoted(b), "]"))))
+}
+string arr3(const string a, const string b, const string c) {
+    out = str.concat("[", str.concat(quoted(a),
+          str.concat(",", str.concat(quoted(b),
+          str.concat(",", str.concat(quoted(c), "]"))))))
+}
+
+// freshStorage — an empty directory named after the caller, removed first so a
+// previous run cannot leak state into this one.
+string freshStorage(const string tag) {
+    string d = str.concat("reg_suite_", tag)
+    fs.dirDeleteAll(d)
+    fs.dirCreateAll(d, 493)
+    out = d
+}
+
+suite RegistryHandlerSuite {
+
+    // ── safeSegment: the hardening the reference lacks ───────────────────────
+    void safeSegmentTest() {
+        case "ordinary package and version names are accepted": {
+            assert.assertTrue(registry.safeSegment("mypkg"), 101)
+            assert.assertTrue(registry.safeSegment("1.0.0"), 102)
+            assert.assertTrue(registry.safeSegment("a-b_c.d"), 103)
+            assert.assertTrue(registry.safeSegment("x"), 104)
+        }
+        case "anything that could escape the storage directory is rejected": {
+            // These are the whole reason the function exists: each one becomes a
+            // filesystem path component, so a separator or a dot-dot walks out
+            // of the storage root.
+            assert.assertFalse(registry.safeSegment(""), 105)
+            assert.assertFalse(registry.safeSegment(".."), 106)
+            assert.assertFalse(registry.safeSegment("."), 107)
+            assert.assertFalse(registry.safeSegment(".hidden"), 108)
+            assert.assertFalse(registry.safeSegment("a/b"), 109)
+            assert.assertFalse(registry.safeSegment("a\\b"), 110)
+            assert.assertFalse(registry.safeSegment("/abs"), 111)
+        }
+    }
+
+    // ── urlDecode ────────────────────────────────────────────────────────────
+    void urlDecodeTest() {
+        case "percent escapes and plus signs decode": {
+            assert.assertStr(registry.urlDecode("plain"), "plain", 201)
+            assert.assertStr(registry.urlDecode("a%2Fb"), "a/b", 202)
+            assert.assertStr(registry.urlDecode("a+b"), "a b", 203)
+            assert.assertStr(registry.urlDecode("%2e%2e"), "..", 204)
+            // Lowercase hex must decode too — clients emit both cases.
+            assert.assertStr(registry.urlDecode("%7bx%7d"), "{x}", 205)
+        }
+        case "an empty or escape-free string is returned unchanged": {
+            assert.assertEmpty(registry.urlDecode(""), 206)
+            assert.assertStr(registry.urlDecode("1.0.0"), "1.0.0", 207)
+        }
+    }
+
+    // ── jsonStringArray / strLess ────────────────────────────────────────────
+    void jsonAndSortTest() {
+        case "an empty list serializes to []": {
+            List<string> xs = new List<string>()
+            assert.assertStr(registry.jsonStringArray(xs), "[]", 301)
+        }
+        case "one and many elements are quoted and comma-separated": {
+            List<string> one = new List<string>()
+            one.add("1.0.0")
+            assert.assertStr(registry.jsonStringArray(one), arr1("1.0.0"), 302)
+            List<string> two = new List<string>()
+            two.add("a")
+            two.add("b")
+            assert.assertStr(registry.jsonStringArray(two), arr2("a", "b"), 303)
+            List<string> three = new List<string>()
+            three.add("x")
+            three.add("y")
+            three.add("z")
+            assert.assertStr(registry.jsonStringArray(three), arr3("x", "y", "z"), 304)
+        }
+        case "strLess orders by bytes, shorter prefix first": {
+            assert.assertTrue(registry.strLess("a", "b"), 305)
+            assert.assertFalse(registry.strLess("b", "a"), 306)
+            assert.assertFalse(registry.strLess("a", "a"), 307)
+            assert.assertTrue(registry.strLess("ab", "abc"), 308)
+            assert.assertFalse(registry.strLess("abc", "ab"), 309)
+            assert.assertTrue(registry.strLess("1.0.0", "1.0.1"), 310)
+        }
+    }
+
+    // ── RegResponse ──────────────────────────────────────────────────────────
+    void responseTest() {
+        case "the fields survive construction": {
+            RegResponse r = new RegResponse(201, "text/plain", "published")
+            assert.assertEqI(r.status, 201, 401)
+            assert.assertStr(r.contentType, "text/plain", 402)
+            assert.assertStr(r.body, "published", 403)
+        }
+        case "toHttp writes a well-formed response with the right length": {
+            RegResponse r = new RegResponse(200, "application/json", "[]")
+            string http = r.toHttp()
+            assert.assertTrue(str.startsWith(http, "HTTP/1.1 200"), 404)
+            assert.assertTrue(str.contains(http, "Content-Type: application/json"), 405)
+            // The declared length must match the body, or every client desyncs.
+            assert.assertTrue(str.contains(http, "Content-Length: 2"), 406)
+            assert.assertTrue(str.contains(http, "Connection: close"), 407)
+            assert.assertTrue(str.endsWith(http, "[]"), 408)
+        }
+        case "an empty body still declares a length": {
+            RegResponse r = new RegResponse(404, "text/plain", "")
+            assert.assertTrue(str.contains(r.toHttp(), "Content-Length: 0"), 409)
+        }
+    }
+
+    // ── storage layout + auth ────────────────────────────────────────────────
+    void layoutTest() {
+        case "the storage directory is created by the constructor": {
+            string d = str.concat("reg_suite_ctor", "")
+            fs.dirDeleteAll(d)
+            RegistryHandler h = new RegistryHandler(d, "")
+            assert.assertTrue(path.isDir(d), 501)
+            assert.assertStr(h.getStorage(), d, 502)
+            fs.dirDeleteAll(d)
+        }
+        case "the layout helpers agree with the documented paths": {
+            string d = freshStorage("layout")
+            RegistryHandler h = new RegistryHandler(d, "")
+            assert.assertStr(h.pkgDir("p"), path.join(d, "p"), 503)
+            assert.assertStr(h.tarballPath("p", "1.0.0"),
+                path.join(path.join(d, "p"), "1.0.0.tar.gz"), 504)
+            assert.assertStr(h.manifestPath("p", "1.0.0"),
+                path.join(path.join(path.join(d, "p"), "1.0.0"), "Manifest.fly"), 505)
+            fs.dirDeleteAll(d)
+        }
+        case "requiresAuth follows the token, and auth gates POST only": {
+            string d = freshStorage("auth")
+            RegistryHandler open = new RegistryHandler(d, "")
+            assert.assertFalse(open.requiresAuth(), 506)
+            RegistryHandler locked = new RegistryHandler(d, "tok")
+            assert.assertTrue(locked.requiresAuth(), 507)
+
+            string tgz = gzipFixture()
+            // No token configured: a POST with no header still publishes.
+            RegResponse a = open.handle("POST", "/v1/p/1.0.0", "", "", tgz)
+            assert.assertEqI(a.status, 201, 508)
+            // Token configured: missing, malformed and wrong headers all 401.
+            RegResponse b = locked.handle("POST", "/v1/q/1.0.0", "", "", tgz)
+            assert.assertEqI(b.status, 401, 509)
+            RegResponse c = locked.handle("POST", "/v1/q/1.0.0", "", "tok", tgz)
+            assert.assertEqI(c.status, 401, 510)          // missing "Bearer "
+            RegResponse e = locked.handle("POST", "/v1/q/1.0.0", "", "Bearer nope", tgz)
+            assert.assertEqI(e.status, 401, 511)
+            RegResponse f = locked.handle("POST", "/v1/q/1.0.0", "", "Bearer tok", tgz)
+            assert.assertEqI(f.status, 201, 512)
+            // GET is public even when a token is configured.
+            RegResponse g = locked.handle("GET", "/v1/q", "", "", "")
+            assert.assertEqI(g.status, 200, 513)
+            fs.dirDeleteAll(d)
+        }
+    }
+
+    // ── dirNames ─────────────────────────────────────────────────────────────
+    void dirNamesTest() {
+        case "dirNames lists what was written and nothing else": {
+            string d = freshStorage("dirnames")
+            fs.writeStr(path.join(d, "one.txt"), "1", 420)
+            fs.writeStr(path.join(d, "two.txt"), "2", 420)
+            List<string> names = registry.dirNames(d)
+            assert.assertEqI((int)names.size(), 2, 601)
+            bool sawOne = false
+            bool sawTwo = false
+            int i = 0
+            while i < names.size() {
+                if str.equals(names.get(i), "one.txt") { sawOne = true }
+                if str.equals(names.get(i), "two.txt") { sawTwo = true }
+                i = i + 1
+            }
+            assert.assertTrue(sawOne, 602)
+            assert.assertTrue(sawTwo, 603)
+            fs.dirDeleteAll(d)
+        }
+        case "an empty or missing directory yields an empty list": {
+            string d = freshStorage("dirnames_empty")
+            assert.assertEqI((int)registry.dirNames(d).size(), 0, 604)
+            fs.dirDeleteAll(d)
+            assert.assertEqI((int)registry.dirNames("reg_suite_absent_xyz").size(), 0, 605)
+        }
+    }
+
+    // ── routing ──────────────────────────────────────────────────────────────
+    void routingTest() {
+        case "unknown paths and methods are refused, not mis-served": {
+            string d = freshStorage("routing")
+            RegistryHandler h = new RegistryHandler(d, "")
+            assert.assertEqI(h.handle("GET", "/", "", "", "").status, 404, 701)
+            assert.assertEqI(h.handle("GET", "/v2/p", "", "", "").status, 404, 702)
+            assert.assertEqI(h.handle("GET", "/v1/p/1.0.0/bogus", "", "", "").status, 404, 703)
+            assert.assertEqI(h.handle("DELETE", "/v1/p/1.0.0", "", "", "").status, 400, 704)
+            assert.assertEqI(h.handle("POST", "/v1/p/1.0.0/download", "", "", "x").status, 400, 705)
+            fs.dirDeleteAll(d)
+        }
+        case "a path-traversal name or version is rejected with 400": {
+            // The encoded form is what a real attacker sends; urlDecode runs
+            // BEFORE validation, which is the order that makes this safe.
+            string d = freshStorage("traversal")
+            RegistryHandler h = new RegistryHandler(d, "")
+            assert.assertEqI(h.handle("GET", "/v1/..%2f..%2fetc", "", "", "").status, 400, 706)
+            assert.assertEqI(h.handle("GET", "/v1/..", "", "", "").status, 400, 707)
+            assert.assertEqI(h.handle("GET", "/v1/p/..%2f..%2fetc", "", "", "").status, 400, 708)
+            assert.assertEqI(h.handle("GET", "/v1/.hidden", "", "", "").status, 400, 709)
+            fs.dirDeleteAll(d)
+        }
+        case "listing an unknown package is 404, not an empty array": {
+            string d = freshStorage("unknown")
+            RegistryHandler h = new RegistryHandler(d, "")
+            RegResponse r = h.handle("GET", "/v1/nope", "", "", "")
+            assert.assertEqI(r.status, 404, 710)
+            assert.assertEqI(h.handle("GET", "/v1/nope/1.0.0", "", "", "").status, 404, 711)
+            assert.assertEqI(h.handle("GET", "/v1/nope/1.0.0/download", "", "", "").status, 404, 712)
+            fs.dirDeleteAll(d)
+        }
+    }
+
+    // ── publish + in-process extraction ──────────────────────────────────────
+    void publishTest() {
+        case "publishing stores the tarball and extracts Manifest.fly": {
+            string d = freshStorage("publish")
+            RegistryHandler h = new RegistryHandler(d, "")
+            string tgz = gzipFixture()
+            assert.assertTrue(str.len(tgz) > 0, 801)
+
+            RegResponse r = h.handle("POST", "/v1/mypkg/1.0.0", "", "", tgz)
+            assert.assertEqI(r.status, 201, 802)
+            assert.assertStr(r.body, "published", 803)
+            // The tarball is stored VERBATIM — a byte-exact round trip through
+            // writeBytes, which is what makes the download endpoint honest.
+            string stored = fs.readBytes(h.tarballPath("mypkg", "1.0.0"))
+            assert.assertEqI(str.len(stored), str.len(tgz), 804)
+            assert.assertStr(stored, tgz, 805)
+            // The manifest came out of the archive IN PROCESS: the fixture nests
+            // it one directory deep (mypkg/Manifest.fly), the layout real
+            // packages use.
+            assert.assertTrue(fs.exists(h.manifestPath("mypkg", "1.0.0")), 806)
+            string man = fs.readStr(h.manifestPath("mypkg", "1.0.0"))
+            assert.assertTrue(str.contains(man, "mypkg"), 807)
+            fs.dirDeleteAll(d)
+        }
+        case "a bad publish is refused and leaves nothing behind": {
+            string d = freshStorage("badpublish")
+            RegistryHandler h = new RegistryHandler(d, "")
+            // Missing version: POST /v1/{name} has no version segment.
+            assert.assertEqI(h.handle("POST", "/v1/p", "", "", "x").status, 400, 808)
+            // Empty body.
+            assert.assertEqI(h.handle("POST", "/v1/p/1.0.0", "", "", "").status, 400, 809)
+            // Not gzip at all.
+            RegResponse r = h.handle("POST", "/v1/p/1.0.0", "", "", "not a gzip archive")
+            assert.assertEqI(r.status, 400, 810)
+            assert.assertFalse(fs.exists(h.tarballPath("p", "1.0.0")), 811)
+            fs.dirDeleteAll(d)
+        }
+        case "a TRUNCATED gzip is refused — the reference would have stored it": {
+            // This is the case the in-process extraction buys: the reference
+            // shells out to tar and never validates, so a half-uploaded package
+            // is stored and then served to every client as if it were good.
+            string d = freshStorage("truncated")
+            RegistryHandler h = new RegistryHandler(d, "")
+            string tgz = gzipFixture()
+            string half = str.substring(tgz, 0, str.len(tgz) / 2)
+            assert.assertTrue(targz.isGzip(half), 812)   // still LOOKS like gzip
+            RegResponse r = h.handle("POST", "/v1/p/1.0.0", "", "", half)
+            assert.assertEqI(r.status, 400, 813)
+            assert.assertFalse(fs.exists(h.tarballPath("p", "1.0.0")), 814)
+            fs.dirDeleteAll(d)
+        }
+        case "republishing the same version overwrites it": {
+            string d = freshStorage("republish")
+            RegistryHandler h = new RegistryHandler(d, "")
+            string tgz = gzipFixture()
+            assert.assertEqI(h.handle("POST", "/v1/p/1.0.0", "", "", tgz).status, 201, 815)
+            assert.assertEqI(h.handle("POST", "/v1/p/1.0.0", "", "", tgz).status, 201, 816)
+            RegResponse list = h.handle("GET", "/v1/p", "", "", "")
+            // Still ONE version, not a duplicate entry.
+            assert.assertTrue(str.contains(list.body, "1.0.0"), 817)
+            assert.assertEqI(str.count(list.body, "1.0.0"), 1, 818)
+            fs.dirDeleteAll(d)
+        }
+    }
+
+    // ── list / metadata / download / search ──────────────────────────────────
+    void readEndpointsTest() {
+        case "versions are listed sorted, and only .tar.gz counts": {
+            string d = freshStorage("list")
+            RegistryHandler h = new RegistryHandler(d, "")
+            string tgz = gzipFixture()
+            h.handle("POST", "/v1/p/1.0.2", "", "", tgz)
+            h.handle("POST", "/v1/p/1.0.1", "", "", tgz)
+            h.handle("POST", "/v1/p/1.0.10", "", "", tgz)
+            // A stray file in the package dir must not become a "version".
+            fs.writeStr(path.join(h.pkgDir("p"), "notes.txt"), "x", 420)
+            RegResponse r = h.handle("GET", "/v1/p", "", "", "")
+            assert.assertEqI(r.status, 200, 901)
+            assert.assertStr(r.contentType, "application/json", 902)
+            // Byte order, so "1.0.10" sorts before "1.0.2" — documented, and the
+            // client picks the newest itself.
+            assert.assertStr(r.body, arr3("1.0.1", "1.0.10", "1.0.2"), 903)
+            fs.dirDeleteAll(d)
+        }
+        case "metadata is served, and re-extracted if it was deleted": {
+            string d = freshStorage("meta")
+            RegistryHandler h = new RegistryHandler(d, "")
+            h.handle("POST", "/v1/mypkg/1.0.0", "", "", gzipFixture())
+            RegResponse r = h.handle("GET", "/v1/mypkg/1.0.0", "", "", "")
+            assert.assertEqI(r.status, 200, 904)
+            assert.assertTrue(str.contains(r.body, "mypkg"), 905)
+            // Delete the extracted copy: the next GET must recover it from the
+            // stored tarball rather than 404 (reference parity).
+            fs.delete(h.manifestPath("mypkg", "1.0.0"))
+            assert.assertFalse(fs.exists(h.manifestPath("mypkg", "1.0.0")), 906)
+            RegResponse again = h.handle("GET", "/v1/mypkg/1.0.0", "", "", "")
+            assert.assertEqI(again.status, 200, 907)
+            assert.assertTrue(str.contains(again.body, "mypkg"), 908)
+            fs.dirDeleteAll(d)
+        }
+        case "download returns the stored bytes exactly": {
+            string d = freshStorage("download")
+            RegistryHandler h = new RegistryHandler(d, "")
+            string tgz = gzipFixture()
+            h.handle("POST", "/v1/mypkg/1.0.0", "", "", tgz)
+            RegResponse r = h.handle("GET", "/v1/mypkg/1.0.0/download", "", "", "")
+            assert.assertEqI(r.status, 200, 909)
+            assert.assertStr(r.contentType, "application/octet-stream", 910)
+            assert.assertEqI(str.len(r.body), str.len(tgz), 911)
+            assert.assertStr(r.body, tgz, 912)
+            // And what came back is still a valid archive, not text-mangled.
+            int ge = 0
+            targz.gunzip(r.body, ge)
+            assert.assertEqI(ge, 0, 913)
+            fs.dirDeleteAll(d)
+        }
+        case "search matches substrings, and an empty query lists everything": {
+            string d = freshStorage("search")
+            RegistryHandler h = new RegistryHandler(d, "")
+            string tgz = gzipFixture()
+            h.handle("POST", "/v1/alpha/1.0.0", "", "", tgz)
+            h.handle("POST", "/v1/beta/1.0.0", "", "", tgz)
+            h.handle("POST", "/v1/alphabet/1.0.0", "", "", tgz)
+            RegResponse all = h.handle("GET", "/v1/search", "", "", "")
+            assert.assertEqI(all.status, 200, 914)
+            assert.assertStr(all.body, arr3("alpha", "alphabet", "beta"), 915)
+            RegResponse some = h.handle("GET", "/v1/search", "q=alpha", "", "")
+            assert.assertStr(some.body, arr2("alpha", "alphabet"), 916)
+            RegResponse none = h.handle("GET", "/v1/search", "q=zzz", "", "")
+            assert.assertStr(none.body, "[]", 917)
+            // A percent-encoded query is decoded before matching, and extra
+            // parameters after '&' are not swallowed into the term.
+            RegResponse enc = h.handle("GET", "/v1/search", "q=alph%61&limit=5", "", "")
+            assert.assertStr(enc.body, arr2("alpha", "alphabet"), 918)
+            fs.dirDeleteAll(d)
+        }
+        case "search on an empty registry is an empty array, not an error": {
+            string d = freshStorage("search_empty")
+            RegistryHandler h = new RegistryHandler(d, "")
+            RegResponse r = h.handle("GET", "/v1/search", "q=x", "", "")
+            assert.assertEqI(r.status, 200, 919)
+            assert.assertStr(r.body, "[]", 920)
+            fs.dirDeleteAll(d)
+        }
+    }
+}

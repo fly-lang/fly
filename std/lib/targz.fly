@@ -1,0 +1,1091 @@
+namespace fly.targz
+
+import fly.mem
+import fly.str
+import fly.hash
+import fly.os.fs
+import fly.os.path
+
+// ─────────────────────────────────────────────────────────────────────────────
+// fly.targz — gzip decompression (DEFLATE) and the ustar archive format.
+//
+// Pure Fly, no FFI, no platform branches. This is what removes `tar` from the
+// package-manager path: a registry or git dependency arrives as a .tar.gz, and
+// until now unpacking it meant spawning an external tool that Windows does not
+// ship. Compression is deliberately NOT implemented — nothing in the toolchain
+// produces archives, only consumes them.
+//
+// ERRORS follow the std convention: every entry point takes an `errOut` and the
+// caller checks it rather than the emptiness of the result (inflating an empty
+// stream legitimately yields ""). Codes:
+//   1  truncated input — the stream ended mid-symbol
+//   2  not a gzip stream (bad magic)
+//   3  unsupported gzip compression method or reserved flag
+//   4  invalid DEFLATE block type
+//   5  invalid Huffman code
+//   6  a back-reference pointing before the start of the output
+//   7  CRC-32 mismatch — the payload is corrupt
+//   8  ISIZE mismatch — the payload is truncated
+//   9  bad tar header (checksum) — not an ustar archive, or corrupt
+//   10 an entry could not be written to disk
+//   11 an entry whose path escapes the destination directory (see safeName)
+//
+// The `& 255` on every byte read is load-bearing, not defensive: byte→int
+// widening SIGN-EXTENDS on Linux and ZERO-EXTENDS on Windows. In a bit reader
+// that difference is invisible until a byte ≥ 0x80 arrives, at which point the
+// Huffman decode diverges on ONE platform only — the exact shape of bug that
+// costs a day. Every read here goes through a masked helper.
+//
+// There is no global storage in Fly, so the decompressor's state (bit buffer,
+// input cursor, growing output) lives in an opaque heap block passed to every
+// helper, in the same style as fly.os.proc's ArgList.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Inflate state block, 48 bytes:
+//   [0..7]   pointer src     — the input bytes
+//   [8..11]  int     srcLen
+//   [12..15] int     pos     — next input byte
+//   [16..19] int     bitBuf  — bits already pulled from src, LSB first
+//   [20..23] int     bitCnt  — how many of them are still unread
+//   [24..31] pointer out     — the growing output buffer
+//   [32..35] int     outLen
+//   [36..39] int     outCap
+//   [40..43] int     err     — first error only; later ones do not overwrite it
+
+// ── small shared helpers ──────────────────────────────────────────────────────
+
+// byteOfBuf — the byte at off as a masked int. THE MASK IS THE PLATFORM GUARD.
+private int byteOfBuf(const pointer b, const int off) {
+    byte v = mem.readByte(b, off)
+    int i = v
+    out = i & 255
+}
+
+// strToBuf — a heap copy of a Fly string's bytes; the length goes to nOut.
+private pointer strToBuf(const string s, int nOut) {
+    int n = str.len(s)
+    nOut = n
+    pointer b = mem.alloc(n + 1)
+    int i = 0
+    while i < n {
+        byte v = 0
+        str.byteAt(s, i, v)
+        mem.writeByte(b, i, v)
+        i = i + 1
+    }
+    out = b
+}
+
+// flagSet — is `bit` set in `flg`? Written as a helper because a condition may
+// not START with '(' in this dialect, so `if (flg & 8) != 0` will not parse, and
+// the parenthesis-free form binds the wrong way round: '&' is LOOSER than '!=',
+// so `flg & 8 != 0` means `flg & (8 != 0)`. Both traps disappear here.
+private bool flagSet(const int flg, const int bit) {
+    int v = flg & bit
+    out = v != 0
+}
+
+// le32 — a little-endian unsigned 32-bit field, widened into a long so that the
+// top bit cannot make it negative.
+private long le32(const pointer b, const int off) {
+    long v = 0
+    int i = 3
+    while i >= 0 {
+        v = v * 256 + (long)byteOfBuf(b, off + i)
+        i = i - 1
+    }
+    out = v
+}
+
+// ── inflate state ─────────────────────────────────────────────────────────────
+
+private int stErr(const pointer st) {
+    out = mem.readInt(st, 40)
+}
+
+// setErr records only the FIRST failure: once the bit stream is desynchronised
+// every later symbol is garbage too, and the first code is the one that says
+// what actually went wrong.
+private void setErr(const pointer st, const int e) {
+    if mem.readInt(st, 40) == 0 { mem.writeInt(st, 40, e) }
+}
+
+// getBits — the next n bits, LSB first. Running off the end of the input is
+// error 1 and yields 0, so a truncated stream stops rather than looping.
+private int getBits(const pointer st, const int n) {
+    int val = mem.readInt(st, 16)
+    int cnt = mem.readInt(st, 20)
+    bool bad = false
+    while cnt < n {
+        int pos = mem.readInt(st, 12)
+        if pos >= mem.readInt(st, 8) {
+            setErr(st, 1)
+            cnt = n
+            bad = true
+        } else {
+            pointer src = mem.readPtr(st, 0)
+            int bv = byteOfBuf(src, pos)
+            val = val | (bv << cnt)
+            cnt = cnt + 8
+            mem.writeInt(st, 12, pos + 1)
+        }
+    }
+    if bad {
+        mem.writeInt(st, 16, 0)
+        mem.writeInt(st, 20, 0)
+        out = 0
+        return
+    }
+    int mask = (1 << n) - 1
+    int res = val & mask
+    mem.writeInt(st, 16, val >> n)
+    mem.writeInt(st, 20, cnt - n)
+    out = res
+}
+
+// putByte — append one byte to the output, doubling the buffer when it fills.
+private void putByte(const pointer st, const int b) {
+    int len = mem.readInt(st, 32)
+    int cap = mem.readInt(st, 36)
+    if len >= cap {
+        int newCap = cap * 2
+        if newCap < 1024 { newCap = 1024 }
+        pointer grown = mem.realloc(mem.readPtr(st, 24), newCap)
+        mem.writePtr(st, 24, grown)
+        mem.writeInt(st, 36, newCap)
+    }
+    pointer ob = mem.readPtr(st, 24)
+    int m = b & 255
+    mem.writeByte(ob, len, (byte)m)
+    mem.writeInt(st, 32, len + 1)
+}
+
+// ── canonical Huffman ─────────────────────────────────────────────────────────
+//
+// The decoder is the counts-and-symbols form: for each bit length, how many
+// codes have it, and the symbols in canonical order. It needs no code table, so
+// building it is O(n) and costs two small allocations per block — which matters,
+// because a dynamic block rebuilds it every time.
+//
+// Huffman handle, 24 bytes:
+//   [0..7]   pointer count   — 16 ints, count[len] = codes of that length
+//   [8..15]  pointer symbol  — n ints, symbols ordered by (length, symbol)
+//   [16..19] int     n
+
+private pointer huftNew(const pointer lengths, const int n) {
+    pointer cnt = mem.alloc(16 * 4)
+    mem.zero(cnt, 16 * 4)
+    int i = 0
+    while i < n {
+        int bl = mem.readInt(lengths, i * 4)
+        mem.writeInt(cnt, bl * 4, mem.readInt(cnt, bl * 4) + 1)
+        i = i + 1
+    }
+    // Where each length's run of symbols starts.
+    pointer offs = mem.alloc(16 * 4)
+    mem.zero(offs, 16 * 4)
+    int len = 1
+    while len < 15 {
+        int nxt = mem.readInt(offs, len * 4) + mem.readInt(cnt, len * 4)
+        mem.writeInt(offs, (len + 1) * 4, nxt)
+        len = len + 1
+    }
+    int symBytes = n * 4
+    if symBytes < 4 { symBytes = 4 }
+    pointer sym = mem.alloc(symBytes)
+    int j = 0
+    while j < n {
+        int bl2 = mem.readInt(lengths, j * 4)
+        if bl2 != 0 {
+            int o = mem.readInt(offs, bl2 * 4)
+            mem.writeInt(sym, o * 4, j)
+            mem.writeInt(offs, bl2 * 4, o + 1)
+        }
+        j = j + 1
+    }
+    mem.free(offs, 16 * 4)
+    pointer h = mem.alloc(24)
+    mem.writePtr(h, 0, cnt)
+    mem.writePtr(h, 8, sym)
+    mem.writeInt(h, 16, n)
+    out = h
+}
+
+private void huftFree(const pointer h) {
+    if h == 0 { return }
+    int n = mem.readInt(h, 16)
+    int symBytes = n * 4
+    if symBytes < 4 { symBytes = 4 }
+    mem.free(mem.readPtr(h, 0), 16 * 4)
+    mem.free(mem.readPtr(h, 8), symBytes)
+    mem.free(h, 24)
+}
+
+// huftDecode — read one code, MSB first (Huffman codes are packed the other way
+// round from everything else in DEFLATE), and return its symbol; -1 on error.
+private int huftDecode(const pointer st, const pointer h) {
+    pointer cnt = mem.readPtr(h, 0)
+    pointer sym = mem.readPtr(h, 8)
+    int code = 0
+    int first = 0
+    int index = 0
+    int len = 1
+    int res = 0 - 1
+    while len <= 15 {
+        int bit = getBits(st, 1)
+        if stErr(st) != 0 { len = 16 } else {
+            code = code | bit
+            int count = mem.readInt(cnt, len * 4)
+            int diff = code - first
+            if diff < count {
+                res = mem.readInt(sym, (index + diff) * 4)
+                len = 16
+            } else {
+                index = index + count
+                first = first + count
+                first = first << 1
+                code = code << 1
+                len = len + 1
+            }
+        }
+    }
+    if res < 0 { setErr(st, 5) }
+    out = res
+}
+
+// ── the length and distance code tables, computed rather than written out ─────
+//
+// RFC 1951's tables are regular enough to derive: from symbol 265 the extra-bit
+// count grows by one every four symbols (every two, for distances), and each
+// base is the previous base plus the span the previous entry covered. Deriving
+// them is ~20 lines instead of ~120 of transcribed constants, and a transcription
+// typo in a table like this produces silent corruption, not an error.
+
+private int lenExtraOf(const int i) {
+    if i >= 28 { out = 0  return }
+    int e = 0
+    if i >= 8 { e = (i - 4) / 4 }
+    out = e
+}
+
+private int lenBaseOf(const int i) {
+    if i >= 28 { out = 258  return }        // symbol 285 is the odd one out
+    int b = 3
+    int k = 0
+    while k < i {
+        b = b + (1 << lenExtraOf(k))
+        k = k + 1
+    }
+    out = b
+}
+
+private int distExtraOf(const int i) {
+    int e = 0
+    if i >= 2 { e = (i - 2) / 2 }
+    out = e
+}
+
+private int distBaseOf(const int i) {
+    int b = 1
+    int k = 0
+    while k < i {
+        b = b + (1 << distExtraOf(k))
+        k = k + 1
+    }
+    out = b
+}
+
+// ── the three block types ─────────────────────────────────────────────────────
+
+// storedBlock — an uncompressed block: discard the partial byte, then LEN, its
+// one's complement, and LEN raw bytes.
+private void storedBlock(const pointer st) {
+    mem.writeInt(st, 16, 0)
+    mem.writeInt(st, 20, 0)
+    int pos = mem.readInt(st, 12)
+    int srcLen = mem.readInt(st, 8)
+    if pos + 4 > srcLen { setErr(st, 1)  return }
+    pointer src = mem.readPtr(st, 0)
+    int lo = byteOfBuf(src, pos)
+    int hi = byteOfBuf(src, pos + 1)
+    int n = lo | (hi << 8)
+    pos = pos + 4
+    if pos + n > srcLen { setErr(st, 1)  return }
+    int i = 0
+    while i < n {
+        putByte(st, byteOfBuf(src, pos + i))
+        i = i + 1
+    }
+    mem.writeInt(st, 12, pos + n)
+}
+
+// codes — the shared inner loop of the fixed and dynamic blocks.
+private void codes(const pointer st, const pointer lenH, const pointer distH) {
+    bool go = true
+    while go {
+        int s = huftDecode(st, lenH)
+        if stErr(st) != 0 { go = false } else {
+            if s < 256 { putByte(st, s) } else {
+                if s == 256 { go = false } else {
+                    int li = s - 257
+                    if li >= 29 { setErr(st, 5)  go = false } else {
+                        int length = lenBaseOf(li) + getBits(st, lenExtraOf(li))
+                        int ds = huftDecode(st, distH)
+                        if ds < 0 { go = false } else {
+                            if ds >= 30 { setErr(st, 5)  go = false } else {
+                                int dist = distBaseOf(ds) + getBits(st, distExtraOf(ds))
+                                int outLen = mem.readInt(st, 32)
+                                if dist > outLen { setErr(st, 6)  go = false } else {
+                                    int from = outLen - dist
+                                    int c = 0
+                                    while c < length {
+                                        // Re-read the buffer each time: putByte
+                                        // may have grown and MOVED it. Reading a
+                                        // stale pointer here is a use-after-free
+                                        // that only shows up on long matches.
+                                        pointer ob = mem.readPtr(st, 24)
+                                        putByte(st, byteOfBuf(ob, from + c))
+                                        c = c + 1
+                                    }
+                                }
+                            }
+                        }
+                        if stErr(st) != 0 { go = false }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// fixedBlock — the built-in code lengths of RFC 1951 §3.2.6.
+private void fixedBlock(const pointer st) {
+    pointer ll = mem.alloc(288 * 4)
+    int i = 0
+    while i < 288 {
+        int v = 8
+        if i >= 144 { v = 9 }
+        if i >= 256 { v = 7 }
+        if i >= 280 { v = 8 }
+        mem.writeInt(ll, i * 4, v)
+        i = i + 1
+    }
+    pointer dl = mem.alloc(30 * 4)
+    int j = 0
+    while j < 30 {
+        mem.writeInt(dl, j * 4, 5)
+        j = j + 1
+    }
+    pointer lenH = huftNew(ll, 288)
+    pointer distH = huftNew(dl, 30)
+    codes(st, lenH, distH)
+    huftFree(lenH)
+    huftFree(distH)
+    mem.free(ll, 288 * 4)
+    mem.free(dl, 30 * 4)
+}
+
+// dynamicBlock — the block carries its own code lengths, themselves Huffman
+// coded with a third alphabet whose lengths arrive in a fixed scrambled order.
+private void dynamicBlock(const pointer st) {
+    int hlit = getBits(st, 5) + 257
+    int hdist = getBits(st, 5) + 1
+    int hclen = getBits(st, 4) + 4
+    if stErr(st) != 0 { return }
+    if hlit > 286 { setErr(st, 5)  return }
+    if hdist > 30 { setErr(st, 5)  return }
+
+    // The scrambled order of RFC 1951 §3.2.7 — the one genuinely arbitrary table
+    // in DEFLATE.
+    pointer ord = mem.alloc(19 * 4)
+    mem.writeInt(ord, 0, 16)
+    mem.writeInt(ord, 4, 17)
+    mem.writeInt(ord, 8, 18)
+    mem.writeInt(ord, 12, 0)
+    mem.writeInt(ord, 16, 8)
+    mem.writeInt(ord, 20, 7)
+    mem.writeInt(ord, 24, 9)
+    mem.writeInt(ord, 28, 6)
+    mem.writeInt(ord, 32, 10)
+    mem.writeInt(ord, 36, 5)
+    mem.writeInt(ord, 40, 11)
+    mem.writeInt(ord, 44, 4)
+    mem.writeInt(ord, 48, 12)
+    mem.writeInt(ord, 52, 3)
+    mem.writeInt(ord, 56, 13)
+    mem.writeInt(ord, 60, 2)
+    mem.writeInt(ord, 64, 14)
+    mem.writeInt(ord, 68, 1)
+    mem.writeInt(ord, 72, 15)
+
+    pointer clen = mem.alloc(19 * 4)
+    mem.zero(clen, 19 * 4)
+    int i = 0
+    while i < hclen {
+        int slot = mem.readInt(ord, i * 4)
+        mem.writeInt(clen, slot * 4, getBits(st, 3))
+        i = i + 1
+    }
+    mem.free(ord, 19 * 4)
+    pointer clH = huftNew(clen, 19)
+
+    int total = hlit + hdist
+    pointer lens = mem.alloc(total * 4)
+    mem.zero(lens, total * 4)
+    int k = 0
+    while k < total {
+        int s = huftDecode(st, clH)
+        if s < 0 { k = total } else {
+            if s < 16 {
+                mem.writeInt(lens, k * 4, s)
+                k = k + 1
+            } else {
+                int rep = 0
+                int val = 0
+                if s == 16 {
+                    if k == 0 { setErr(st, 5)  k = total } else {
+                        val = mem.readInt(lens, (k - 1) * 4)
+                        rep = 3 + getBits(st, 2)
+                    }
+                } else {
+                    if s == 17 { rep = 3 + getBits(st, 3) } else { rep = 11 + getBits(st, 7) }
+                }
+                if rep > 0 {
+                    if k + rep > total { setErr(st, 5)  k = total } else {
+                        int r = 0
+                        while r < rep {
+                            mem.writeInt(lens, (k + r) * 4, val)
+                            r = r + 1
+                        }
+                        k = k + rep
+                    }
+                }
+            }
+        }
+        if stErr(st) != 0 { k = total }
+    }
+    huftFree(clH)
+    mem.free(clen, 19 * 4)
+
+    if stErr(st) == 0 {
+        pointer dl = mem.alloc(hdist * 4)
+        int d = 0
+        while d < hdist {
+            mem.writeInt(dl, d * 4, mem.readInt(lens, (hlit + d) * 4))
+            d = d + 1
+        }
+        pointer lenH = huftNew(lens, hlit)
+        pointer distH = huftNew(dl, hdist)
+        codes(st, lenH, distH)
+        huftFree(lenH)
+        huftFree(distH)
+        mem.free(dl, hdist * 4)
+    }
+    mem.free(lens, total * 4)
+}
+
+// ── the public decompressors ──────────────────────────────────────────────────
+
+// inflateRange — a raw DEFLATE stream living in data[start..end).
+private string inflateRange(const string data, const int start, const int end, int errOut) {
+    errOut = 0
+    int n = 0
+    pointer whole = strToBuf(data, n)
+    if start < 0 || end > n {
+        mem.free(whole, n + 1)
+        errOut = 1
+        out = ""
+        return
+    }
+    int span = end - start
+    if span < 0 { span = 0 }
+
+    pointer st = mem.alloc(48)
+    mem.zero(st, 48)
+    mem.writePtr(st, 0, whole)
+    mem.writeInt(st, 8, end)
+    mem.writeInt(st, 12, start)
+    int cap = span * 4
+    if cap < 1024 { cap = 1024 }
+    mem.writePtr(st, 24, mem.alloc(cap))
+    mem.writeInt(st, 36, cap)
+
+    bool last = false
+    while last == false {
+        if stErr(st) != 0 { last = true } else {
+            int bfinal = getBits(st, 1)
+            int btype = getBits(st, 2)
+            if bfinal == 1 { last = true }
+            if stErr(st) != 0 { last = true } else {
+                if btype == 0 { storedBlock(st) } else {
+                    if btype == 1 { fixedBlock(st) } else {
+                        if btype == 2 { dynamicBlock(st) } else {
+                            setErr(st, 4)
+                            last = true
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Read EVERYTHING out of the state block before releasing it — the error
+    // path below needs the output capacity, and reading it back from freed
+    // memory is a use-after-free that would only bite on malformed input.
+    int e = stErr(st)
+    int outLen = mem.readInt(st, 32)
+    int outCap = mem.readInt(st, 36)
+    pointer ob = mem.readPtr(st, 24)
+    mem.free(whole, n + 1)
+    mem.free(st, 48)
+    errOut = e
+    if e != 0 {
+        mem.free(ob, outCap)
+        out = ""
+        return
+    }
+    // fromBytes TAKES OWNERSHIP of ob — it must not be freed here.
+    string res = ""
+    str.fromBytes(ob, outLen, res)
+    out = res
+}
+
+// inflate — decompress a raw DEFLATE stream (no gzip or zlib wrapper).
+public string inflate(const string data, int errOut) {
+    out = inflateRange(data, 0, str.len(data), errOut)
+}
+
+// isGzip — true when data starts with the gzip magic 0x1F 0x8B and names DEFLATE
+// as its method. Cheap enough to use as a dispatch test.
+public bool isGzip(const string data) {
+    if str.len(data) < 3 { out = false  return }
+    byte b0 = 0
+    byte b1 = 0
+    byte b2 = 0
+    str.byteAt(data, 0, b0)
+    str.byteAt(data, 1, b1)
+    str.byteAt(data, 2, b2)
+    int i0 = b0
+    int i1 = b1
+    int i2 = b2
+    i0 = i0 & 255
+    i1 = i1 & 255
+    i2 = i2 & 255
+    bool magic = i0 == 31 && i1 == 139
+    out = magic && i2 == 8
+}
+
+// gunzip — decompress a complete gzip member and VERIFY it. Both trailer checks
+// are performed: the CRC-32 catches corruption in transit and the ISIZE catches
+// truncation, which a CRC alone would miss on a stream that happens to end at a
+// block boundary. A caller that gets "" with errOut 0 decompressed an empty
+// file, which is a legitimate answer.
+public string gunzip(const string data, int errOut) {
+    errOut = 0
+    int n = str.len(data)
+    if n < 18 { errOut = 1  out = ""  return }
+    if isGzip(data) == false {
+        // Distinguish "not gzip at all" from "gzip but a method we cannot read".
+        byte m0 = 0
+        byte m1 = 0
+        str.byteAt(data, 0, m0)
+        str.byteAt(data, 1, m1)
+        int v0 = m0
+        int v1 = m1
+        v0 = v0 & 255
+        v1 = v1 & 255
+        if v0 == 31 && v1 == 139 { errOut = 3 } else { errOut = 2 }
+        out = ""
+        return
+    }
+
+    int nb = 0
+    pointer buf = strToBuf(data, nb)
+    int flg = byteOfBuf(buf, 3)
+    // Bits 5..7 are reserved and MUST be zero; a set bit means a format we do
+    // not know how to skip past, so guessing would silently produce garbage.
+    //
+    // Each flag test goes through a named bool: a condition may not START with
+    // '(' in this dialect, so `if (flg & 224) != 0` is a parse error.
+    bool reserved = flagSet(flg, 224)
+    if reserved {
+        mem.free(buf, nb + 1)
+        errOut = 3
+        out = ""
+        return
+    }
+    int pos = 10
+    bool bad = false
+    bool hasExtra = flagSet(flg, 4)
+    if hasExtra {                               // FEXTRA
+        if pos + 2 > n { bad = true } else {
+            int xlen = byteOfBuf(buf, pos) | (byteOfBuf(buf, pos + 1) << 8)
+            pos = pos + 2 + xlen
+        }
+    }
+    bool hasName = flagSet(flg, 8)
+    if bad == false {
+        if hasName {                            // FNAME, NUL terminated
+            bool go = true
+            while go {
+                if pos >= n { go = false  bad = true } else {
+                    int c = byteOfBuf(buf, pos)
+                    pos = pos + 1
+                    if c == 0 { go = false }
+                }
+            }
+        }
+    }
+    bool hasComment = flagSet(flg, 16)
+    if bad == false {
+        if hasComment {                         // FCOMMENT, NUL terminated
+            bool go2 = true
+            while go2 {
+                if pos >= n { go2 = false  bad = true } else {
+                    int c2 = byteOfBuf(buf, pos)
+                    pos = pos + 1
+                    if c2 == 0 { go2 = false }
+                }
+            }
+        }
+    }
+    bool hasHcrc = flagSet(flg, 2)
+    if bad == false {
+        if hasHcrc { pos = pos + 2 }            // FHCRC
+    }
+    int end = n - 8
+    if pos > end { bad = true }
+    long wantCrcL = 0
+    long wantSize = 0
+    if bad == false {
+        wantCrcL = le32(buf, end)
+        wantSize = le32(buf, end + 4)
+    }
+    mem.free(buf, nb + 1)
+    if bad { errOut = 1  out = ""  return }
+
+    int ie = 0
+    string res = inflateRange(data, pos, end, ie)
+    if ie != 0 { errOut = ie  out = ""  return }
+
+    long gotSize = str.len(res)
+    if gotSize != wantSize { errOut = 8  out = ""  return }
+    uint want = (uint)wantCrcL
+    if hash.crc32(res) != want { errOut = 7  out = ""  return }
+    out = res
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ustar
+//
+// A tar archive is a flat sequence of 512-byte headers, each followed by its
+// entry's contents padded to a 512-byte boundary, and terminated by two zero
+// blocks. Everything numeric is ASCII octal.
+//
+// Reader handle, 64 bytes:
+//   [0..7]   pointer data     — the whole archive
+//   [8..11]  int     len
+//   [12..15] int     pos      — offset of the NEXT header
+//   [16..23] pointer name     — current entry's name (owned, may be 0)
+//   [24..27] int     nameLen
+//   [28..31] int     type     — the typeflag byte
+//   [32..39] long    size
+//   [40..43] int     dataOff
+//   [44..47] int     err
+//   [48..55] pointer pending  — a GNU long name awaiting its real header
+//   [56..59] int     pendingLen
+// ─────────────────────────────────────────────────────────────────────────────
+
+// octalAt — an ASCII octal field. Fields are padded with spaces or NULs on both
+// sides depending on which tar wrote them, so both terminate the number.
+private long octalAt(const pointer buf, const int off, const int n) {
+    long v = 0
+    int i = 0
+    bool go = true
+    while go {
+        if i >= n { go = false } else {
+            int c = byteOfBuf(buf, off + i)
+            if c == 32 { i = i + 1 } else {
+                bool digit = c >= 48 && c <= 55
+                if digit {
+                    v = v * 8 + (long)(c - 48)
+                    i = i + 1
+                } else { go = false }
+            }
+        }
+    }
+    out = v
+}
+
+// blockIsZero — the all-zero block that marks end of archive.
+private bool blockIsZero(const pointer buf, const int off) {
+    int i = 0
+    bool zero = true
+    while i < 512 {
+        if byteOfBuf(buf, off + i) != 0 { zero = false  i = 512 } else { i = i + 1 }
+    }
+    out = zero
+}
+
+// hdrChecksumOk — the header checksum is the sum of its 512 bytes with the
+// checksum field itself read as eight spaces. It is the only integrity check a
+// tar header has, and it is what tells a truncated download from an archive.
+private bool hdrChecksumOk(const pointer buf, const int off) {
+    long want = octalAt(buf, off + 148, 8)
+    long sum = 0
+    int i = 0
+    while i < 512 {
+        int c = 0
+        bool inField = i >= 148 && i < 156
+        if inField { c = 32 } else { c = byteOfBuf(buf, off + i) }
+        sum = sum + (long)c
+        i = i + 1
+    }
+    out = sum == want
+}
+
+// cstrLen — the length of a NUL-terminated field, capped at max.
+private int cstrLen(const pointer buf, const int off, const int max) {
+    int i = 0
+    bool go = true
+    while go {
+        if i >= max { go = false } else {
+            if byteOfBuf(buf, off + i) == 0 { go = false } else { i = i + 1 }
+        }
+    }
+    out = i
+}
+
+// entryName — name, prefixed by the ustar `prefix` field when it is in use.
+// Returns a freshly allocated buffer; its length goes to lenOut.
+private pointer entryName(const pointer buf, const int off, int lenOut) {
+    int nameLen = cstrLen(buf, off, 100)
+    int preLen = cstrLen(buf, off + 345, 155)
+    int total = nameLen
+    if preLen > 0 { total = preLen + 1 + nameLen }
+    if total < 1 { total = 1 }
+    pointer nb = mem.alloc(total)
+    int w = 0
+    if preLen > 0 {
+        // `prefix` sits at offset 345 WITHIN THIS HEADER, so the source is
+        // off + 345 — the first version read from 345, i.e. the first header of
+        // the archive, for every entry. Copied through the same readByte the
+        // length above uses, so the two cannot disagree about where the field is.
+        int p = 0
+        while p < preLen {
+            mem.writeByte(nb, w, mem.readByte(buf, off + 345 + p))
+            w = w + 1
+            p = p + 1
+        }
+        mem.writeByte(nb, w, (byte)47)          // '/'
+        w = w + 1
+    }
+    int q = 0
+    while q < nameLen {
+        mem.writeByte(nb, w + q, mem.readByte(buf, off + q))
+        q = q + 1
+    }
+    lenOut = w + nameLen
+    out = nb
+}
+
+// tarOpen — a reader over the archive bytes; 0 when the input is too short to
+// hold even one header. The reader owns its own copy of the data.
+public pointer tarOpen(const string data) {
+    int n = str.len(data)
+    if n < 512 { out = 0  return }
+    int nb = 0
+    pointer buf = strToBuf(data, nb)
+    pointer h = mem.alloc(64)
+    mem.zero(h, 64)
+    mem.writePtr(h, 0, buf)
+    mem.writeInt(h, 8, n)
+    out = h
+}
+
+// tarNext — advance to the next real entry; false at end of archive or on error
+// (check tarErr to tell them apart). GNU long-name and pax extension records are
+// consumed here rather than reported, so a caller only ever sees real entries.
+public bool tarNext(const pointer h) {
+    if h == 0 { out = false  return }
+    pointer data = mem.readPtr(h, 0)
+    int len = mem.readInt(h, 8)
+    bool done = false
+    bool found = false
+    while done == false {
+        int pos = mem.readInt(h, 12)
+        if pos + 512 > len { done = true } else {
+            if blockIsZero(data, pos) { done = true } else {
+                if hdrChecksumOk(data, pos) == false {
+                    mem.writeInt(h, 44, 9)
+                    done = true
+                } else {
+                    long sz = octalAt(data, pos + 124, 12)
+                    int ty = byteOfBuf(data, pos + 156)
+                    int dataOff = pos + 512
+                    long blocks = (sz + 511) / 512
+                    int padded = (int)blocks * 512
+                    int next = dataOff + padded
+                    if next > len { next = len }
+                    mem.writeInt(h, 12, next)
+                    // A malformed size can make `padded` overflow and send `next`
+                    // BACKWARDS. Left unchecked that is not a wrong answer, it is
+                    // an infinite loop over the same header — and the archives
+                    // this reads arrive from the network. Treat it as corrupt.
+                    if next <= pos {
+                        mem.writeInt(h, 44, 9)
+                        mem.writeInt(h, 12, len)
+                        out = false
+                        return
+                    }
+
+                    if ty == 76 {
+                        // GNU 'L': this record's DATA is the name of the entry
+                        // that follows, which is how names longer than the 100
+                        // byte field are carried.
+                        pointer old = mem.readPtr(h, 48)
+                        if old != 0 { mem.free(old, mem.readInt(h, 56)) }
+                        int pl = (int)sz
+                        if pl > 0 {
+                            if pl > 0 {
+                                pointer pn = mem.alloc(pl)
+                                mem.copy(pn, data + dataOff, pl)
+                                // The stored name is NUL terminated; drop it.
+                                int realLen = cstrLen(pn, 0, pl)
+                                mem.writePtr(h, 48, pn)
+                                mem.writeInt(h, 56, realLen)
+                            }
+                        }
+                    } else {
+                        bool pax = ty == 120 || ty == 103
+                        if pax == false {
+                            pointer oldName = mem.readPtr(h, 16)
+                            if oldName != 0 { mem.free(oldName, mem.readInt(h, 24)) }
+                            pointer pend = mem.readPtr(h, 48)
+                            if pend != 0 {
+                                mem.writePtr(h, 16, pend)
+                                mem.writeInt(h, 24, mem.readInt(h, 56))
+                                mem.writePtr(h, 48, 0)
+                                mem.writeInt(h, 56, 0)
+                            } else {
+                                int nl = 0
+                                pointer nb = entryName(data, pos, nl)
+                                mem.writePtr(h, 16, nb)
+                                mem.writeInt(h, 24, nl)
+                            }
+                            mem.writeInt(h, 28, ty)
+                            mem.writeLong(h, 32, sz)
+                            mem.writeInt(h, 40, dataOff)
+                            found = true
+                            done = true
+                        }
+                    }
+                }
+            }
+        }
+    }
+    out = found
+}
+
+// tarName — the current entry's path, "" before the first tarNext.
+public string tarName(const pointer h) {
+    if h == 0 { out = ""  return }
+    int n = mem.readInt(h, 24)
+    if n <= 0 { out = ""  return }
+    pointer src = mem.readPtr(h, 16)
+    pointer cp = mem.alloc(n)
+    mem.copy(cp, src, n)
+    string s = ""
+    str.fromBytes(cp, n, s)                     // fromBytes takes ownership
+    out = s
+}
+
+// tarSize — the current entry's size in bytes.
+public long tarSize(const pointer h) {
+    if h == 0 { out = 0  return }
+    out = mem.readLong(h, 32)
+}
+
+// tarType — the raw typeflag: 48 ('0') or 0 for a regular file, 53 ('5') for a
+// directory, 50 ('2') for a symlink. isFile/isDir below spare the caller the
+// ASCII codes.
+public int tarType(const pointer h) {
+    if h == 0 { out = 0  return }
+    out = mem.readInt(h, 28)
+}
+
+// tarIsFile — true for a regular file. BOTH '0' and NUL mean regular: the NUL
+// form is what pre-ustar archivers wrote, and it is still in the wild.
+public bool tarIsFile(const pointer h) {
+    int t = tarType(h)
+    out = t == 48 || t == 0
+}
+
+// tarIsDir — true for a directory entry.
+public bool tarIsDir(const pointer h) {
+    out = tarType(h) == 53
+}
+
+// tarData — the current entry's contents.
+public string tarData(const pointer h) {
+    if h == 0 { out = ""  return }
+    long sz = mem.readLong(h, 32)
+    int n = (int)sz
+    if n <= 0 { out = ""  return }
+    int off = mem.readInt(h, 40)
+    int len = mem.readInt(h, 8)
+    if off + n > len { out = ""  return }
+    pointer data = mem.readPtr(h, 0)
+    pointer cp = mem.alloc(n)
+    mem.copy(cp, data + off, n)
+    string s = ""
+    str.fromBytes(cp, n, s)                     // fromBytes takes ownership
+    out = s
+}
+
+// tarErr — 0 while the archive reads cleanly, 9 once a header failed its
+// checksum. tarNext returning false means "end of archive" only when this is 0.
+public int tarErr(const pointer h) {
+    if h == 0 { out = 0  return }
+    out = mem.readInt(h, 44)
+}
+
+// tarFree — release the reader and everything it owns.
+public void tarFree(const pointer h) {
+    if h == 0 { return }
+    pointer data = mem.readPtr(h, 0)
+    int len = mem.readInt(h, 8)
+    if data != 0 { mem.free(data, len + 1) }
+    pointer nm = mem.readPtr(h, 16)
+    if nm != 0 { mem.free(nm, mem.readInt(h, 24)) }
+    pointer pend = mem.readPtr(h, 48)
+    if pend != 0 { mem.free(pend, mem.readInt(h, 56)) }
+    mem.free(h, 64)
+}
+
+// ── extraction ────────────────────────────────────────────────────────────────
+
+// safeName — reject any entry path that would write outside the destination:
+// an absolute path, a Windows drive-qualified path, or one containing a ".."
+// segment. This is not defensive tidiness. The archives being unpacked come off
+// the network from a package registry, and without this check a hostile — or
+// merely careless — tarball can drop a file anywhere the compiler can write.
+public bool safeName(const string name) {
+    if str.isEmpty(name) { out = false  return }
+    int n = str.len(name)
+    byte f = 0
+    str.byteAt(name, 0, f)
+    int fi = f
+    fi = fi & 255
+    if fi == 47 { out = false  return }             // '/'
+    if fi == 92 { out = false  return }             // '\'
+    if n >= 2 {
+        byte c1 = 0
+        str.byteAt(name, 1, c1)
+        int ci = c1
+        ci = ci & 255
+        if ci == 58 { out = false  return }         // "X:"
+    }
+    // Any ".." bounded by separators or by the ends of the string.
+    int i = 0
+    bool ok = true
+    while i < n {
+        if i + 1 < n {
+            byte a = 0
+            byte b = 0
+            str.byteAt(name, i, a)
+            str.byteAt(name, i + 1, b)
+            int ai = a
+            int bi = b
+            ai = ai & 255
+            bi = bi & 255
+            bool dots = ai == 46 && bi == 46
+            if dots {
+                bool leftOk = true
+                if i > 0 {
+                    byte p = 0
+                    str.byteAt(name, i - 1, p)
+                    int pi = p
+                    pi = pi & 255
+                    bool sep = pi == 47 || pi == 92
+                    leftOk = sep
+                }
+                bool rightOk = true
+                if i + 2 < n {
+                    byte q = 0
+                    str.byteAt(name, i + 2, q)
+                    int qi = q
+                    qi = qi & 255
+                    bool sep2 = qi == 47 || qi == 92
+                    rightOk = sep2
+                }
+                if leftOk {
+                    if rightOk { ok = false  i = n }
+                }
+            }
+        }
+        i = i + 1
+    }
+    out = ok
+}
+
+// extractTar — unpack an in-memory ustar archive under destDir, creating parent
+// directories as needed. Returns false and sets errOut on the first problem.
+public bool extractTar(const string data, const string destDir, int errOut) {
+    errOut = 0
+    pointer h = tarOpen(data)
+    if h == 0 { errOut = 1  out = false  return }
+    fs.dirCreateAll(destDir, 493)
+    bool ok = true
+    bool go = true
+    while go {
+        if tarNext(h) == false { go = false } else {
+            string nm = tarName(h)
+            if safeName(nm) == false {
+                errOut = 11
+                ok = false
+                go = false
+            } else {
+                string dst = path.join(destDir, nm)
+                if tarIsDir(h) {
+                    fs.dirCreateAll(dst, 493)
+                } else {
+                    if tarIsFile(h) {
+                        string parent = path.dirname(dst)
+                        if str.isEmpty(parent) == false {
+                            fs.dirCreateAll(parent, 493)
+                        }
+                        // writeBytes, not writeStr: an archive carries binary
+                        // payloads, and a text-mode write would rewrite every
+                        // newline on Windows.
+                        fs.writeBytes(dst, tarData(h), 420)
+                        if fs.exists(dst) == false {
+                            errOut = 10
+                            ok = false
+                            go = false
+                        }
+                    }
+                }
+            }
+        }
+    }
+    int e = tarErr(h)
+    tarFree(h)
+    if e != 0 {
+        errOut = e
+        ok = false
+    }
+    out = ok
+}
+
+// extractTarGz — read a .tar.gz from disk, verify it and unpack it under
+// destDir. This is the whole of what `tar -xzf` was being spawned for.
+public bool extractTarGz(const string archivePath, const string destDir, int errOut) {
+    errOut = 0
+    if fs.exists(archivePath) == false { errOut = 1  out = false  return }
+    string raw = fs.readBytes(archivePath)
+    int ge = 0
+    string tarBytes = gunzip(raw, ge)
+    if ge != 0 { errOut = ge  out = false  return }
+    out = extractTar(tarBytes, destDir, errOut)
+}

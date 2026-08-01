@@ -1,0 +1,282 @@
+import fly.assert
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExecArraySuite — EXECUTED native-array semantics within the CURRENTLY
+// implemented surface: literals, T[]/T[N]/T[][], field/local init, for-in.
+// NOTE: `xs[i]` and `C[N]` now exist in BOTH compilers (the self-host port landed
+// after the reference work), so this suite may use them. `.length` exists in
+// neither and is still avoided.
+//
+// Assert codes: 1xx literals, 2xx params, 3xx strings, 4xx nested, 5xx reassign,
+// 6xx ownership (reference counting).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// FREE function on purpose: a suite helper called through `this` AVs (B018).
+int execArraySumOf(const int[] xs) {
+    int sum = 0
+    for x in xs {
+        sum = sum + x
+    }
+    out = sum
+}
+
+// The buffer built here must outlive this frame. `out = xs` takes a reference on
+// the caller's behalf; the scope-exit release of `xs` then drops the count back to
+// one, so the caller receives a live buffer it alone owns.
+int[] execArrayMake(const int n) {
+    int[] xs = {n, n + 1, n + 2}
+    out = xs
+}
+
+// Takes a BORROW and hands back a fresh array. Chaining the two exercises the
+// whole ownership round trip in one call: borrow in, new buffer out.
+int[] execArrayDouble(const int[] xs) {
+    int[] out2 = {0, 0}
+    int i = 0
+    for x in xs {
+        if i < 2 {
+            out2 = {x * 2, x * 2}
+        }
+        i = i + 1
+    }
+    out = out2
+}
+
+suite ExecArraySuite {
+
+    void literalTest() {
+        case "dynamic literal carries its values in order": {
+            int[] xs = {3, 1, 4, 1, 5}
+            int concat = 0
+            for x in xs {
+                concat = concat * 10 + x
+            }
+            assert.assertEqI(concat, 31415, 101)
+        }
+        case "fixed-size literal matches its declared size": {
+            long[2] xs = {4294967296, 1}
+            long sum = 0
+            for x in xs {
+                sum = sum + x
+            }
+            assert.assertEqL(sum, 4294967297, 111)
+        }
+        case "byte array values stay in unsigned range under mask": {
+            byte[] xs = {(byte)200, (byte)100}
+            int sum = 0
+            for x in xs {
+                sum = sum + ((int)x & 255)
+            }
+            assert.assertEqI(sum, 300, 121)
+        }
+    }
+
+    void paramTest() {
+        case "array passed to a helper": {
+            int[] xs = {10, 20, 30}
+            assert.assertEqI(execArraySumOf(xs), 60, 201)
+        }
+        case "array literal passed directly": {
+            assert.assertEqI(execArraySumOf({1, 2, 3}), 6, 211)
+        }
+    }
+
+    void stringArrayTest() {
+        case "for-in over string elements": {
+            string[] xs = {"a", "bb", "ccc"}
+            int total = 0
+            for s in xs {
+                total = total + str.len(s)
+            }
+            assert.assertEqI(total, 6, 301)
+        }
+    }
+
+    void nestedTest() {
+        case "jagged rows iterate independently": {
+            int[][] rows = {{1}, {2, 3}, {4, 5, 6}}
+            int count = 0
+            int sum = 0
+            for row in rows {
+                count = count + 1
+                for v in row {
+                    sum = sum + v
+                }
+            }
+            assert.assertEqI(count, 3, 401)
+            assert.assertEqI(sum, 21, 402)
+        }
+    }
+
+    void reassignTest() {
+        case "rebinding a local array changes what for-in sees": {
+            int[] xs = {1, 2}
+            xs = {7, 8, 9}
+            int sum = 0
+            for x in xs {
+                sum = sum + x
+            }
+            assert.assertEqI(sum, 24, 501)
+        }
+    }
+
+    // Ownership. Array buffers are reference counted: binding one to a second name
+    // takes a reference instead of copying, and the buffer goes back only when the
+    // last owner leaves scope. Nothing here is observable through an assert alone —
+    // a missing release leaks and a doubled one crashes — so these cases exist to
+    // put the compiler on those paths and let the runtime object if they are wrong.
+    void ownershipTest() {
+        case "an array returned through out outlives the callee": {
+            int[] xs = execArrayMake(10)
+            int sum = 0
+            for x in xs {
+                sum = sum + x
+            }
+            assert.assertEqI(sum, 33, 601)
+        }
+        case "two names share one buffer and it is freed once": {
+            int[] xs = {1, 2, 3}
+            int[] ys = xs
+            int sum = 0
+            for x in xs {
+                sum = sum + x
+            }
+            for y in ys {
+                sum = sum + y
+            }
+            assert.assertEqI(sum, 12, 602)
+        }
+        case "binding an empty array is safe": {
+            int[0] zs
+            int[] ws = zs
+            int count = 0
+            for w in ws {
+                count = count + 1
+            }
+            assert.assertEqI(count, 0, 611)
+        }
+        case "rebinding a nested array releases every level": {
+            // A nested array is one buffer and one count per LEVEL. Rebinding must
+            // walk into the elements before dropping the buffer that holds them,
+            // otherwise the inner rows are abandoned — and it must do so only when
+            // the outer count reaches zero, or a second owner would free them twice.
+            int[][] rows = {{1, 2}, {3}}
+            rows = {{4}, {5, 6}, {7, 8, 9}}
+            int count = 0
+            int sum = 0
+            for row in rows {
+                count = count + 1
+                for v in row {
+                    sum = sum + v
+                }
+            }
+            assert.assertEqI(count, 3, 631)
+            assert.assertEqI(sum, 39, 632)
+        }
+        case "an array passed as an argument is only borrowed": {
+            // No retain, no release on the callee's side: the caller's array is
+            // whole after the call and can be passed again. A stray release in
+            // the callee would free it while the caller holds the only reference.
+            int[] xs = {10, 20, 30}
+            int first = execArraySumOf(xs)
+            int second = execArraySumOf(xs)
+            assert.assertEqI(first, 60, 651)
+            assert.assertEqI(second, 60, 652)
+            int after = 0
+            for x in xs {
+                after = after + x
+            }
+            assert.assertEqI(after, 60, 653)
+        }
+        case "borrow in, fresh array out, in one call": {
+            int[] xs = {3, 4}
+            int[] ys = execArrayDouble(xs)
+            int sum = 0
+            for y in ys {
+                sum = sum + y
+            }
+            assert.assertEqI(sum, 16, 661)          // {8, 8}
+            int keptSum = 0
+            for x in xs {
+                keptSum = keptSum + x
+            }
+            assert.assertEqI(keptSum, 7, 662)       // the argument is untouched
+        }
+        case "the for-in item is a view, not an owner": {
+            // The item must not release anything at the end of each iteration:
+            // it names an element the array still owns. Many rounds make a stray
+            // release fatal rather than merely unlucky.
+            int[] xs = {1, 2, 3, 4}
+            int total = 0
+            int round = 0
+            while round < 500 {
+                for x in xs {
+                    total = x
+                }
+                round = round + 1
+            }
+            assert.assertEqI(total, 4, 671)
+        }
+        case "an array survives a fail caught in the same scope": {
+            // A caught `fail` lands on the safe block IN THIS SCOPE: the locals are
+            // still live and must not be released. The cleanup used to run here, so
+            // the buffer was freed and everything after the handle read it back.
+            int[] xs = {2, 4, 6}
+            handle {
+                fail 3
+            }
+            int sum = 0
+            for x in xs {
+                sum = sum + x
+            }
+            assert.assertEqI(sum, 12, 641)
+        }
+        case "writing through one name is visible through the other": {
+            // The reference semantics, stated outright: binding shares the buffer,
+            // it never copies. This is the rule that separates arrays from every
+            // other type in the language, so it gets an executed case.
+            int[] xs = {1, 2, 3}
+            int[] ys = xs
+            ys[0] = 9
+            assert.assertEqI(xs[0], 9, 681)
+            assert.assertEqI(xs[1] + xs[2], 5, 682)
+        }
+        case "the subscript is bounds-checked on both sides": {
+            int[] xs = {5, 6, 7}
+            int hits = 0
+            handle { int bad = xs[3] }
+            bool c1 = error
+            if c1 == true { hits = hits + 1 }
+            handle { int bad2 = xs[-1] }
+            bool c2 = error
+            if c2 == true { hits = hits + 1 }
+            handle { xs[3] = 0 }
+            bool c3 = error
+            if c3 == true { hits = hits + 1 }
+            assert.assertEqI(hits, 3, 691)
+            // …and the array is untouched by the caught failures
+            assert.assertEqI(xs[0] + xs[1] + xs[2], 18, 692)
+        }
+        case "repeated rebinding releases each previous buffer": {
+            int[] xs = {0}
+            int i = 0
+            while i < 500 {
+                xs = {i, i, i}
+                i = i + 1
+            }
+            int sum = 0
+            for x in xs {
+                sum = sum + x
+            }
+            assert.assertEqI(sum, 1497, 621)
+        }
+    }
+
+    // Arrays of CLASSES are NOT covered here. Both compilers implement them, but
+    // the REFERENCE cannot parse a `C[N] x` declaration inside a `case { }` block —
+    // it parses one fine in an ordinary function body, so the gap is in the
+    // case-block statement path, not in array types. This suite is a shared gate,
+    // so the executed coverage for class arrays lives in the self-host probes
+    // (build/align/sp_cls) until that gap is closed on the reference.
+}

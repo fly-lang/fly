@@ -69,5 +69,9 @@ public enum SemaKind {
     STMT_FAIL,
     STMT_HANDLE,
     STMT_TEST,
-    STMT_CASE
+    STMT_CASE,
+
+    // Appended LAST on purpose: this enum's numbering is observable through the
+    // bootstrap, so a new value goes at the end rather than beside its family.
+    ARRAY_ACCESS
 }

@@ -1,0 +1,288 @@
+import fly.codec
+import fly.str
+import fly.mem
+import fly.assert
+
+// byteAt — the i-th byte of s as a masked int (byte widening differs per platform).
+int byteAt(const string s, const int i) {
+    byte b = 0
+    str.byteAt(s, i, b)
+    int v = b
+    out = v & 255
+}
+
+// bytesOf — a string from explicit byte values, for inputs a literal cannot hold.
+string bytesOf(const int a, const int b, const int c) {
+    pointer p = mem.alloc(3)
+    mem.writeByte(p, 0, (byte)a)
+    mem.writeByte(p, 1, (byte)b)
+    mem.writeByte(p, 2, (byte)c)
+    str.fromBytes(p, 3, out)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodecSuite — fly.codec (std/lib/codec.fly): Base64, percent-encoding, hex.
+//
+// The Base64 cases are the RFC 4648 section 10 test vectors, which exist exactly
+// to catch the two classic mistakes: the padding of a 1- and 2-byte tail, and the
+// last two alphabet characters (+ / vs - _).
+//
+// The 0x80-and-above cases are not padding: byte→int widening SIGN-EXTENDS on
+// Linux and ZERO-EXTENDS on Windows, so an unmasked byte would index the alphabet
+// table differently on the two platforms. Any case with a high byte is a
+// portability test first and an encoding test second.
+//
+// Assert codes: 1xx base64 encode, 2xx base64 decode, 3xx base64url,
+// 4xx percent encode, 5xx percent decode, 6xx hex, 7xx round-trips.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite CodecSuite {
+
+    // ── base64 encoding: the RFC 4648 vectors ────────────────────────────────
+    void base64EncodeTest() {
+        case "the RFC 4648 section 10 vectors": {
+            assert.assertEmpty(codec.base64Encode(""), 101)
+            assert.assertStr(codec.base64Encode("f"), "Zg==", 102)
+            assert.assertStr(codec.base64Encode("fo"), "Zm8=", 103)
+            assert.assertStr(codec.base64Encode("foo"), "Zm9v", 104)
+            assert.assertStr(codec.base64Encode("foob"), "Zm9vYg==", 105)
+            assert.assertStr(codec.base64Encode("fooba"), "Zm9vYmE=", 106)
+            assert.assertStr(codec.base64Encode("foobar"), "Zm9vYmFy", 107)
+        }
+        case "the output length is always a multiple of four": {
+            assert.assertEqI(str.len(codec.base64Encode("f")), 4, 108)
+            assert.assertEqI(str.len(codec.base64Encode("fo")), 4, 109)
+            assert.assertEqI(str.len(codec.base64Encode("foo")), 4, 110)
+            assert.assertEqI(str.len(codec.base64Encode("foob")), 8, 111)
+        }
+        case "high bytes use the top of the alphabet": {
+            // 0xFF 0xFF 0xFF is six 1-bits per group → the LAST two alphabet
+            // characters, '+' and '/'. A sign-extended byte would land elsewhere.
+            assert.assertStr(codec.base64Encode(bytesOf(255, 255, 255)), "////", 112)
+            assert.assertStr(codec.base64Encode(bytesOf(251, 255, 191)), "+/+/", 113)
+            assert.assertStr(codec.base64Encode(bytesOf(0, 0, 0)), "AAAA", 114)
+        }
+    }
+
+    // ── base64 decoding ──────────────────────────────────────────────────────
+    void base64DecodeTest() {
+        case "the vectors decode back": {
+            int e = 0
+            assert.assertStr(codec.base64Decode("Zg==", e), "f", 201)
+            assert.assertEqI(e, 0, 202)
+            int e2 = 0
+            assert.assertStr(codec.base64Decode("Zm8=", e2), "fo", 203)
+            int e3 = 0
+            assert.assertStr(codec.base64Decode("Zm9vYmFy", e3), "foobar", 204)
+            int e4 = 0
+            assert.assertEmpty(codec.base64Decode("", e4), 205)
+            assert.assertEqI(e4, 0, 206)
+        }
+        case "padding is optional on input": {
+            int e1 = 0
+            assert.assertStr(codec.base64Decode("Zg", e1), "f", 207)
+            assert.assertEqI(e1, 0, 208)
+            int e2 = 0
+            assert.assertStr(codec.base64Decode("Zm8", e2), "fo", 209)
+            assert.assertEqI(e2, 0, 210)
+        }
+        case "high bytes decode back exactly": {
+            int e = 0
+            string got = codec.base64Decode("////", e)
+            assert.assertEqI(e, 0, 211)
+            assert.assertEqI(str.len(got), 3, 212)
+            assert.assertEqI(byteAt(got, 0), 255, 213)
+            assert.assertEqI(byteAt(got, 2), 255, 214)
+        }
+        case "a character outside the alphabet is error 1": {
+            int e = 0
+            assert.assertEmpty(codec.base64Decode("Zm9v!", e), 215)
+            assert.assertEqI(e, 1, 216)
+        }
+        case "WHITESPACE IS REJECTED, not skipped": {
+            // Silently ignoring it would hide a corrupted payload. A caller who
+            // wants MIME line folding strips it deliberately first.
+            int e1 = 0
+            assert.assertEmpty(codec.base64Decode("Zm9v Zm9v", e1), 217)
+            assert.assertEqI(e1, 1, 218)
+            int e2 = 0
+            codec.base64Decode("Zm9v", e2)
+            assert.assertEqI(e2, 0, 219)
+        }
+        case "an impossible length is error 2": {
+            // One leftover character cannot encode any whole byte.
+            int e = 0
+            assert.assertEmpty(codec.base64Decode("Zm9vZ", e), 220)
+            assert.assertEqI(e, 2, 221)
+        }
+        case "non-zero leftover bits are error 3": {
+            // "Zh" carries bits the single decoded byte does not use.
+            int e = 0
+            assert.assertEmpty(codec.base64Decode("Zh", e), 222)
+            assert.assertEqI(e, 3, 223)
+        }
+    }
+
+    // ── the URL-safe variant ─────────────────────────────────────────────────
+    void base64UrlTest() {
+        case "the URL alphabet swaps the last two characters and drops padding": {
+            assert.assertStr(codec.base64UrlEncode(bytesOf(255, 255, 255)), "____", 301)
+            assert.assertStr(codec.base64UrlEncode(bytesOf(251, 255, 191)), "-_-_", 302)
+            // no '=' anywhere, which is the point of the variant
+            assert.assertStr(codec.base64UrlEncode("f"), "Zg", 303)
+            assert.assertStr(codec.base64UrlEncode("fo"), "Zm8", 304)
+            assert.assertStr(codec.base64UrlEncode("foo"), "Zm9v", 305)
+        }
+        case "the decoder accepts EITHER alphabet": {
+            // Rejecting the other variant's two characters would only create work
+            // for callers, so both decode.
+            int e1 = 0
+            assert.assertStr(codec.base64UrlDecode("____", e1), codec.base64Decode("////", e1), 306)
+            int e2 = 0
+            string viaUrl = codec.base64UrlDecode("Zm9vYmFy", e2)
+            assert.assertStr(viaUrl, "foobar", 307)
+            assert.assertEqI(e2, 0, 308)
+        }
+    }
+
+    // ── percent encoding ─────────────────────────────────────────────────────
+    void percentEncodeTest() {
+        case "the unreserved set passes through untouched": {
+            assert.assertStr(codec.percentEncode("abcXYZ019-._~"), "abcXYZ019-._~", 401)
+            assert.assertStr(codec.percentEncodeComponent("abcXYZ019-._~"), "abcXYZ019-._~", 402)
+        }
+        case "a space and other unsafe bytes become escapes": {
+            assert.assertStr(codec.percentEncode("a b"), "a%20b", 403)
+            assert.assertStr(codec.percentEncodeComponent("a b"), "a%20b", 404)
+            assert.assertStr(codec.percentEncode("a%b"), "a%25b", 405)
+        }
+        case "percentEncode KEEPS the URL structure, component does not": {
+            // This is the whole difference between the two, and getting it wrong
+            // either mangles a URL or lets a value break out of its field.
+            assert.assertStr(codec.percentEncode("/a/b?c=1&d=2"), "/a/b?c=1&d=2", 406)
+            assert.assertStr(codec.percentEncodeComponent("/a/b"), "%2Fa%2Fb", 407)
+            assert.assertStr(codec.percentEncodeComponent("c=1&d=2"), "c%3D1%26d%3D2", 408)
+            assert.assertStr(codec.percentEncodeComponent("a:b"), "a%3Ab", 409)
+        }
+        case "high bytes are escaped as two hex digits": {
+            string s = bytesOf(195, 169, 65)                 // UTF-8 'é' then 'A'
+            assert.assertStr(codec.percentEncode(s), "%C3%A9A", 410)
+        }
+        case "encoding an empty string": {
+            assert.assertEmpty(codec.percentEncode(""), 411)
+            assert.assertEmpty(codec.percentEncodeComponent(""), 412)
+        }
+    }
+
+    // ── percent decoding ─────────────────────────────────────────────────────
+    void percentDecodeTest() {
+        case "escapes decode, in either case": {
+            int e1 = 0
+            assert.assertStr(codec.percentDecode("a%20b", e1), "a b", 501)
+            assert.assertEqI(e1, 0, 502)
+            int e2 = 0
+            assert.assertStr(codec.percentDecode("%c3%a9", e2), codec.percentDecode("%C3%A9", e2), 503)
+            int e3 = 0
+            string hi = codec.percentDecode("%FF", e3)
+            assert.assertEqI(byteAt(hi, 0), 255, 504)
+        }
+        case "a PLUS is left alone, not turned into a space": {
+            // '+' means space only in application/x-www-form-urlencoded, which is
+            // a different format. Substituting here would corrupt any path or
+            // JSON body containing a plus.
+            int e = 0
+            assert.assertStr(codec.percentDecode("a+b", e), "a+b", 505)
+            assert.assertEqI(e, 0, 506)
+        }
+        case "a truncated escape is error 2": {
+            int e1 = 0
+            assert.assertEmpty(codec.percentDecode("ab%", e1), 507)
+            assert.assertEqI(e1, 2, 508)
+            int e2 = 0
+            assert.assertEmpty(codec.percentDecode("ab%4", e2), 509)
+            assert.assertEqI(e2, 2, 510)
+        }
+        case "a non-hex escape is error 4": {
+            int e = 0
+            assert.assertEmpty(codec.percentDecode("a%zzb", e), 511)
+            assert.assertEqI(e, 4, 512)
+        }
+        case "text with no escapes passes through": {
+            int e = 0
+            assert.assertStr(codec.percentDecode("plain/text", e), "plain/text", 513)
+            assert.assertEqI(e, 0, 514)
+            int e2 = 0
+            assert.assertEmpty(codec.percentDecode("", e2), 515)
+            assert.assertEqI(e2, 0, 516)
+        }
+    }
+
+    // ── hex ──────────────────────────────────────────────────────────────────
+    void hexTest() {
+        case "hex encodes two lowercase characters per byte": {
+            assert.assertStr(codec.hexEncode("abc"), "616263", 601)
+            assert.assertStr(codec.hexEncode(bytesOf(0, 15, 255)), "000fff", 602)
+            assert.assertEmpty(codec.hexEncode(""), 603)
+        }
+        case "hex decodes either case": {
+            int e1 = 0
+            assert.assertStr(codec.hexDecode("616263", e1), "abc", 604)
+            assert.assertEqI(e1, 0, 605)
+            int e2 = 0
+            assert.assertStr(codec.hexDecode("ABC123", e2), codec.hexDecode("abc123", e2), 606)
+            int e3 = 0
+            string hi = codec.hexDecode("ff", e3)
+            assert.assertEqI(byteAt(hi, 0), 255, 607)
+        }
+        case "an odd length is error 2 and a bad digit is error 1": {
+            int e1 = 0
+            assert.assertEmpty(codec.hexDecode("abc", e1), 608)
+            assert.assertEqI(e1, 2, 609)
+            int e2 = 0
+            assert.assertEmpty(codec.hexDecode("zz", e2), 610)
+            assert.assertEqI(e2, 1, 611)
+            int e3 = 0
+            assert.assertEmpty(codec.hexDecode("", e3), 612)
+            assert.assertEqI(e3, 0, 613)
+        }
+    }
+
+    // ── round-trips over every byte value ────────────────────────────────────
+    void roundTripTest() {
+        case "all 256 byte values survive base64, hex and percent": {
+            // The exhaustive check. Anything that mishandles a byte >= 0x80 on one
+            // platform only shows up here.
+            pointer p = mem.alloc(256)
+            int i = 0
+            while i < 256 {
+                mem.writeByte(p, i, (byte)i)
+                i = i + 1
+            }
+            string all = ""
+            str.fromBytes(p, 256, all)
+            assert.assertEqI(str.len(all), 256, 701)
+
+            int e1 = 0
+            assert.assertStr(codec.base64Decode(codec.base64Encode(all), e1), all, 702)
+            assert.assertEqI(e1, 0, 703)
+
+            int e2 = 0
+            assert.assertStr(codec.base64UrlDecode(codec.base64UrlEncode(all), e2), all, 704)
+            assert.assertEqI(e2, 0, 705)
+
+            int e3 = 0
+            assert.assertStr(codec.hexDecode(codec.hexEncode(all), e3), all, 706)
+            assert.assertEqI(e3, 0, 707)
+
+            int e4 = 0
+            assert.assertStr(codec.percentDecode(codec.percentEncodeComponent(all), e4), all, 708)
+            assert.assertEqI(e4, 0, 709)
+        }
+        case "a long input round-trips through base64": {
+            string src = str.repeat("The quick brown fox. ", 60)   // 1260 bytes
+            int e = 0
+            assert.assertStr(codec.base64Decode(codec.base64Encode(src), e), src, 710)
+            assert.assertEqI(e, 0, 711)
+        }
+    }
+}

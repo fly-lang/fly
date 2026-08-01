@@ -25,9 +25,9 @@ suite CodeGenFunctionSuite {
     void declTest() {
         case "void-returning function with out-param + ret void": {
             string ir = cgIR("int five() { out = 5 }")
-            assert.assertTrue(fly.str.contains(ir, "define void @_F"), 11)
-            assert.assertTrue(fly.str.contains(ir, "store i32 5"), 12)
-            assert.assertTrue(fly.str.contains(ir, "ret void"), 13)
+            assert.assertTrue(str.contains(ir, "define void @_F"), 11)
+            assert.assertTrue(str.contains(ir, "store i32 5"), 12)
+            assert.assertTrue(str.contains(ir, "ret void"), 13)
         }
     }
 
@@ -36,14 +36,14 @@ suite CodeGenFunctionSuite {
             string ir = cgIR("
                 int add(const int a, const int b) { out = a + b }
                 int fact(const int n) { if n <= 1 { out = 1 } else { out = n * fact(n - 1) } }
-                int main() { int s = add(40, 2)
+                void main() { int s = add(40, 2)
                     int f = fact(4)
-                    out = s
+                    fail s
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "call void @_F03add"), 21)
-            assert.assertTrue(fly.str.contains(ir, "call void @_F04fact"), 22)  // recursion
-            assert.assertTrue(fly.str.contains(ir, "define i32 @main(i32"), 23)
+            assert.assertTrue(str.contains(ir, "call void @_F03add"), 21)
+            assert.assertTrue(str.contains(ir, "call void @_F04fact"), 22)  // recursion
+            assert.assertTrue(str.contains(ir, "define i32 @main(i32"), 23)
         }
     }
 }

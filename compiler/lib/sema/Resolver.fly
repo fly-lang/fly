@@ -83,18 +83,18 @@ public class Resolver : ASTVisitor {
 
     // nextOutName — a fresh "__out_N" name for a call's synthetic return variable.
     public string nextOutName() {
-        string n = fly.str.convert(this.outVarCounter)
+        string n = str.convert(this.outVarCounter)
         this.outVarCounter = this.outVarCounter + 1
-        string t = fly.str.concat("__out_", n)
+        string t = str.concat("__out_", n)
         out = t
     }
 
     // nextForInName — synthetic name for the desugared for-in hoist/index locals
     // (same convention as __out_N).
     public string nextForInName() {
-        string n = fly.str.convert(this.forInCounter)
+        string n = str.convert(this.forInCounter)
         this.forInCounter = this.forInCounter + 1
-        out = fly.str.concat("__forin_", n)
+        out = str.concat("__forin_", n)
     }
 
     // ── control-flow nesting ──────────────────────────────────────────────────
@@ -132,8 +132,8 @@ public class Resolver : ASTVisitor {
             if i == 0 {
                 r = names.get(i).getName()
             } else {
-                string t = fly.str.concat(r, "_")
-                r = fly.str.concat(t, names.get(i).getName())
+                string t = str.concat(r, "_")
+                r = str.concat(t, names.get(i).getName())
             }
             i = i + 1
         }
@@ -386,6 +386,7 @@ public class Resolver : ASTVisitor {
     public void visit(const ASTMethod node) { ResolverClass.method(this, node) }
     public void visit(const ASTEnum node) { ResolverClass.declareEnum(this, node) }
     public void visit(const ASTEnumEntry node) { ResolverClass.enumEntry(this, node) }
+    public void visit(const ASTArrayAccess node) { ResolverExpr.arrayAccess(this, node) }
     public void visit(const ASTComment node) { }
 
     public void visit(const ASTLocalVar node) { ResolverDecl.localVar(this, node) }
@@ -426,14 +427,10 @@ public class Resolver : ASTVisitor {
     public void visit(const ASTBoolValue node) { this.currentExpr = SemaBuilder.CreateBoolValue(node) }
     public void visit(const ASTNumberValue node) { this.currentExpr = SemaBuilder.CreateNumberValue(node) }
     public void visit(const ASTStringValue node) { this.currentExpr = SemaBuilder.CreateStringValue(node) }
-    // Array literals resolve via ResolverExpr (kept a one-liner: large method
-    // bodies inside a visit trip a self-host codegen bug). Struct literals are
-    // still unsupported.
+    // Array/struct literals resolve via ResolverExpr (kept one-liners: large
+    // method bodies inside a visit trip a self-host codegen bug).
     public void visit(const ASTArrayValue node) { ResolverExpr.arrayValue(this, node) }
-    public void visit(const ASTStructValue node) {
-        this.diagStr(node.getLoc(), DiagID.err_sema_not_supported, "struct literals")
-        this.currentExpr = null
-    }
+    public void visit(const ASTStructValue node) { ResolverExpr.structValue(this, node) }
     public void visit(const ASTNullValue node) { this.currentExpr = SemaBuilder.CreateNullValue(node) }
     public void visit(const ASTUnsetValue node) { this.currentExpr = SemaBuilder.CreateUnsetValue(node) }
 }

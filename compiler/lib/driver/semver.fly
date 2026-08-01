@@ -5,7 +5,7 @@ import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SemVer — SemVer triplet + SemVerRange expressions, ported from
-// fly/tools/flyp/resolver/VersionConstraint.h + MVSResolver.cpp (SemVer/SemVerRange).
+// the reference C++ package manager resolver/VersionConstraint.h + MVSResolver.cpp (SemVer/SemVerRange).
 //
 // Range syntax (comma = AND): *  1.2.3  ^1.2.3  ~1.2.3 / ~1.2 / ~1  >=x >x <=x <x
 // 1.x / 1.*  >=1.0,<2.0. Parse failures degrade to 0.0.0 / an "any" range.
@@ -27,6 +27,7 @@ public class SemVer {
     public int getMinor() { out = this.minor }
     public int getPatch() { out = this.patch }
 
+    // fully-qualified: inside a method named `str` the short prefix is shadowed
     public string str() {
         string a = fly.str.convert(this.major)
         string b = fly.str.concat(a, ".")
@@ -111,11 +112,11 @@ public class SemVerRange {
 // parseUIntAt — read a run of decimal digits at [pos] of s, returning the value
 // and advancing `pos` past it. Missing digits → 0.
 public int parseUIntAt(const string s, int pos) {
-    int n = fly.str.len(s)
+    int n = str.len(s)
     int v = 0
     while pos < n {
         byte b = 0
-        fly.str.byteAt(s, pos, b)
+        str.byteAt(s, pos, b)
         int c = b
         if c < 48 { out = v  return }
         if c > 57 { out = v  return }
@@ -128,17 +129,17 @@ public int parseUIntAt(const string s, int pos) {
 // semverParse — strips a leading v/V, reads major[.minor[.patch]]; 0.0.0 on failure.
 public SemVer semverParse(const string s) {
     int pos = 0
-    int n = fly.str.len(s)
+    int n = str.len(s)
     if n > 0 {
         byte b0 = 0
-        fly.str.byteAt(s, 0, b0)
+        str.byteAt(s, 0, b0)
         if b0 == 118 || b0 == 86 { pos = 1 }        // 'v' | 'V'
     }
     int ma = parseUIntAt(s, pos)
     // advance past the digits just consumed, then optional '.'
     while pos < n {
         byte b = 0
-        fly.str.byteAt(s, pos, b)
+        str.byteAt(s, pos, b)
         if b < 48 || b > 57 { break }
         pos = pos + 1
     }
@@ -146,19 +147,19 @@ public SemVer semverParse(const string s) {
     int pa = 0
     if pos < n {
         byte d = 0
-        fly.str.byteAt(s, pos, d)
+        str.byteAt(s, pos, d)
         if d == 46 {                                 // '.'
             pos = pos + 1
             mi = parseUIntAt(s, pos)
             while pos < n {
                 byte b = 0
-                fly.str.byteAt(s, pos, b)
+                str.byteAt(s, pos, b)
                 if b < 48 || b > 57 { break }
                 pos = pos + 1
             }
             if pos < n {
                 byte e = 0
-                fly.str.byteAt(s, pos, e)
+                str.byteAt(s, pos, e)
                 if e == 46 {                         // '.'
                     pos = pos + 1
                     pa = parseUIntAt(s, pos)
@@ -172,12 +173,12 @@ public SemVer semverParse(const string s) {
 // rangeParse — parse a range expression into a SemVerRange (empty/"*" → any).
 public SemVerRange rangeParse(const string s) {
     SemVerRange range = new SemVerRange()
-    string t = fly.str.trim(s)
-    if fly.str.isEmpty(t) { out = range  return }
-    if fly.str.equals(t, "*") { out = range  return }
+    string t = str.trim(s)
+    if str.isEmpty(t) { out = range  return }
+    if str.equals(t, "*") { out = range  return }
 
     // split on ',' (AND) into trimmed tokens
-    int n = fly.str.len(t)
+    int n = str.len(t)
     int start = 0
     int i = 0
     while i <= n {
@@ -185,12 +186,12 @@ public SemVerRange rangeParse(const string s) {
         bool isComma = false
         if atEnd == false {
             byte b = 0
-            fly.str.byteAt(t, i, b)
+            str.byteAt(t, i, b)
             if b == 44 { isComma = true }            // ','
         }
         if atEnd || isComma {
-            string tok = fly.str.trim(fly.str.substring(t, start, i))
-            if fly.str.isEmpty(tok) == false { rangeAddAtom(range, tok) }
+            string tok = str.trim(str.substring(t, start, i))
+            if str.isEmpty(tok) == false { rangeAddAtom(range, tok) }
             start = i + 1
         }
         i = i + 1
@@ -201,13 +202,13 @@ public SemVerRange rangeParse(const string s) {
 // rangeAddAtom — dispatch one trimmed token to atoms (mirrors MVSResolver.cpp:64-118).
 public void rangeAddAtom(SemVerRange range, const string tok) {
     byte b0 = 0
-    fly.str.byteAt(tok, 0, b0)
+    str.byteAt(tok, 0, b0)
     int c0 = b0
-    int len = fly.str.len(tok)
+    int len = str.len(tok)
 
     // caret: ^1.2.3 → >=1.2.3,<upper
     if c0 == 94 {
-        SemVer base = semverParse(fly.str.substring(tok, 1, len))
+        SemVer base = semverParse(str.substring(tok, 1, len))
         range.add(new Atom(3, base))
         SemVer up = caretUpper(base)
         range.add(new Atom(4, up))
@@ -215,8 +216,8 @@ public void rangeAddAtom(SemVerRange range, const string tok) {
     }
     // tilde: ~ → >=base,<upper (upper depends on how many dots were present)
     if c0 == 126 {
-        string rest = fly.str.substring(tok, 1, len)
-        int dots = fly.str.count(rest, ".")
+        string rest = str.substring(tok, 1, len)
+        int dots = str.count(rest, ".")
         SemVer base = semverParse(rest)
         range.add(new Atom(3, base))
         SemVer up = tildeUpper(base, dots)
@@ -226,28 +227,28 @@ public void rangeAddAtom(SemVerRange range, const string tok) {
     // comparison operators
     if len >= 2 {
         byte b1 = 0
-        fly.str.byteAt(tok, 1, b1)
+        str.byteAt(tok, 1, b1)
         if c0 == 62 && b1 == 61 {                    // ">="
-            range.add(new Atom(3, semverParse(fly.str.substring(tok, 2, len))))
+            range.add(new Atom(3, semverParse(str.substring(tok, 2, len))))
             return
         }
         if c0 == 60 && b1 == 61 {                    // "<="
-            range.add(new Atom(5, semverParse(fly.str.substring(tok, 2, len))))
+            range.add(new Atom(5, semverParse(str.substring(tok, 2, len))))
             return
         }
     }
     if c0 == 62 {                                    // ">"
-        range.add(new Atom(2, semverParse(fly.str.substring(tok, 1, len))))
+        range.add(new Atom(2, semverParse(str.substring(tok, 1, len))))
         return
     }
     if c0 == 60 {                                    // "<"
-        range.add(new Atom(4, semverParse(fly.str.substring(tok, 1, len))))
+        range.add(new Atom(4, semverParse(str.substring(tok, 1, len))))
         return
     }
     // wildcard shorthand: 1.x or 1.*
-    if fly.str.contains(tok, ".x") || fly.str.contains(tok, ".*") {
-        int dot = fly.str.lastIndexOf(tok, ".")
-        SemVer base = semverParse(fly.str.substring(tok, 0, dot))
+    if str.contains(tok, ".x") || str.contains(tok, ".*") {
+        int dot = str.lastIndexOf(tok, ".")
+        SemVer base = semverParse(str.substring(tok, 0, dot))
         range.add(new Atom(3, base))
         range.add(new Atom(4, new SemVer(base.getMajor() + 1, 0, 0)))
         return

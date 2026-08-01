@@ -1,0 +1,214 @@
+namespace fly.lsp
+
+import fly.str
+import fly.mem
+import fly.json
+import fly.codec
+import fly.data.List
+import fly.compiler.sema.SymbolKind
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LspProtocol — LSP type mapping. Port of tools/lsp/{include,lib}/LspProtocol.
+//
+// The reference builds llvm::json objects; here every builder returns a fly.json
+// node handle (an opaque pointer). Ownership follows fly.json's rule: `put`/`add`
+// take ownership of the child, and freeing the root frees the whole tree — so a
+// node is attached to exactly one parent and only roots are ever freed.
+//
+// Positions: LSP is 0-based, the compiler is 1-based. The subtraction happens
+// HERE and nowhere else, so a mixed-up caller cannot produce an off-by-one that
+// looks right in one place and wrong in another.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// LspDiag — one diagnostic, 1-BASED compiler coordinates. Kept as a class so the
+// analyzer can hand the server a List<LspDiag> (the same pattern as the driver's
+// List<ASTModule>; tools compile monolithically, so generics are safe here).
+public class LspDiag {
+    public int line          // 1-based
+    public int col           // 1-based
+    public int severity      // LSP: 1=error 2=warning 3=info 4=hint
+    public string message
+    public string file
+
+    public LspDiag(const int line, const int col, const int severity,
+                   const string message, const string file) {
+        this.line = line
+        this.col = col
+        this.severity = severity
+        this.message = message
+        this.file = file
+    }
+}
+
+// uriToPath — "file:///c%3A/x/y.fly" → "c:/x/y.fly", "file:///home/u/y.fly" →
+// "/home/u/y.fly". The reference strips the scheme and nothing else; real
+// editors percent-encode the drive colon, so the decode is not optional here.
+public string uriToPath(const string uri) {
+    string s = uri
+    if str.startsWith(s, "file://") {
+        s = str.substring(s, 7, str.len(s))
+    }
+    int de = 0
+    string dec = codec.percentDecode(s, de)
+    if de == 0 { s = dec }
+    // "/c:/x" → "c:/x": the leading slash is URI syntax, not part of the path.
+    if str.len(s) >= 3 {
+        byte b0 = 0
+        byte b2 = 0
+        str.byteAt(s, 0, b0)
+        str.byteAt(s, 2, b2)
+        int i0 = b0
+        int i2 = b2
+        i0 = i0 & 255
+        i2 = i2 & 255
+        if i0 == 47 {
+            if i2 == 58 { s = str.substring(s, 1, str.len(s)) }
+        }
+    }
+    out = s
+}
+
+// pathToUri — the inverse: a Windows drive path gains the extra slash.
+public string pathToUri(const string path) {
+    string p = str.replace(path, "\\", "/")
+    bool drive = false
+    if str.len(p) >= 2 {
+        byte b1 = 0
+        str.byteAt(p, 1, b1)
+        int i1 = b1
+        i1 = i1 & 255
+        if i1 == 58 { drive = true }
+    }
+    if drive { out = str.concat("file:///", p) } else { out = str.concat("file://", p) }
+}
+
+// mkPosition — an LSP Position node from 1-based compiler coordinates.
+public pointer mkPosition(const int line1, const int col1) {
+    int l = line1 - 1
+    int c = col1 - 1
+    if l < 0 { l = 0 }
+    if c < 0 { c = 0 }
+    pointer o = json.newObject()
+    json.put(o, "line", json.newInt(l))
+    json.put(o, "character", json.newInt(c))
+    out = o
+}
+
+// mkRange — a single-character range at (line1, col1): enough to place the
+// squiggle, which is all the compiler's point locations carry.
+public pointer mkRange(const int line1, const int col1) {
+    pointer o = json.newObject()
+    json.put(o, "start", mkPosition(line1, col1))
+    int endCol = col1 + 1
+    json.put(o, "end", mkPosition(line1, endCol))
+    out = o
+}
+
+// mkDiagnostic — one LSP Diagnostic node.
+public pointer mkDiagnostic(const LspDiag d) {
+    pointer o = json.newObject()
+    json.put(o, "range", mkRange(d.line, d.col))
+    json.put(o, "severity", json.newInt(d.severity))
+    json.put(o, "source", json.newString("fly"))
+    json.put(o, "message", json.newString(d.message))
+    out = o
+}
+
+// lfStr — a one-byte "\n" string; literals keep escapes raw in this dialect.
+public string lfStr() {
+    pointer p = mem.alloc(1)
+    mem.writeByte(p, 0, 10)
+    string s = ""
+    str.fromBytes(p, 1, s)
+    out = s
+}
+
+// completionKindOf — SymbolKind → LSP CompletionItemKind.
+public int completionKindOf(const SymbolKind k) {
+    if k == SymbolKind.FUNCTION { out = 3  return }
+    if k == SymbolKind.CLASS { out = 7  return }
+    if k == SymbolKind.LOCAL_VAR || k == SymbolKind.PARAM || k == SymbolKind.VAR { out = 6  return }
+    if k == SymbolKind.ATTRIBUTE || k == SymbolKind.ENUM_ENTRY { out = 5  return }
+    if k == SymbolKind.NAMESPACE { out = 9  return }
+    out = 1
+}
+
+// tokenTypeOf — SymbolKind → semantic token type index (the server's legend:
+// 0 namespace, 1 class, 2 function, 3 variable, 4 parameter, 5 property,
+// 6 enumMember, 7 type). -1 = skip.
+public int tokenTypeOf(const SymbolKind k) {
+    if k == SymbolKind.NAMESPACE { out = 0  return }
+    if k == SymbolKind.CLASS { out = 1  return }
+    if k == SymbolKind.FUNCTION { out = 2  return }
+    if k == SymbolKind.LOCAL_VAR || k == SymbolKind.VAR { out = 3  return }
+    if k == SymbolKind.PARAM { out = 4  return }
+    if k == SymbolKind.ATTRIBUTE { out = 5  return }
+    if k == SymbolKind.ENUM_ENTRY { out = 6  return }
+    if k == SymbolKind.TYPE || k == SymbolKind.ENUM || k == SymbolKind.BUILTIN_TYPE { out = 7  return }
+    out = 0 - 1
+}
+
+// severityOfWord — "error"/"fatal" → 1, "warning" → 2, anything else → 3.
+public int severityOfWord(const string w) {
+    if str.equals(w, "error") { out = 1  return }
+    if str.equals(w, "fatal") { out = 1  return }
+    if str.equals(w, "warning") { out = 2  return }
+    out = 3
+}
+
+// parseRendered — decode the engine's "line:col: level: message" short form into
+// an LspDiag. This is how PARSE diagnostics are recovered: the Parser hardwires
+// its own StoringDiagnosticConsumer, which keeps only the rendered string. The
+// format is produced by exactly one function (DiagnosticsEngine.emitDiagnostic),
+// so this is a stable contract, not screen-scraping. Returns null when the
+// string does not have that shape.
+public LspDiag parseRendered(const string s, const string file) {
+    int n = str.len(s)
+    int i = 0
+    int line = 0
+    bool sawLine = false
+    bool go = true
+    while go {
+        if i >= n { go = false } else {
+            byte b = 0
+            str.byteAt(s, i, b)
+            int c = b
+            c = c & 255
+            bool digit = c >= 48 && c <= 57
+            if digit { line = line * 10 + (c - 48)  sawLine = true  i = i + 1 }
+            else { go = false }
+        }
+    }
+    if sawLine == false { out = null  return }
+    if i >= n { out = null  return }
+    byte sep = 0
+    str.byteAt(s, i, sep)
+    int sepI = sep
+    sepI = sepI & 255
+    if sepI != 58 { out = null  return }            // ':'
+    i = i + 1
+    int col = 0
+    bool sawCol = false
+    go = true
+    while go {
+        if i >= n { go = false } else {
+            byte b2 = 0
+            str.byteAt(s, i, b2)
+            int c2 = b2
+            c2 = c2 & 255
+            bool digit2 = c2 >= 48 && c2 <= 57
+            if digit2 { col = col * 10 + (c2 - 48)  sawCol = true  i = i + 1 }
+            else { go = false }
+        }
+    }
+    if sawCol == false { out = null  return }
+    // ": level: message"
+    string tail = str.substring(s, i, n)
+    if str.startsWith(tail, ": ") == false { out = null  return }
+    tail = str.substring(tail, 2, str.len(tail))
+    int lv = str.indexOf(tail, ": ")
+    if lv < 0 { out = null  return }
+    string word = str.substring(tail, 0, lv)
+    string msg = str.substring(tail, lv + 2, str.len(tail))
+    out = new LspDiag(line, col, severityOfWord(word), msg, file)
+}

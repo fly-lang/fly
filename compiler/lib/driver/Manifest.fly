@@ -52,9 +52,9 @@ public class GitDep {
         this.versionReq = ver
     }
 
-    public bool isPathDep()     { out = fly.str.isEmpty(this.path) == false }
-    public bool isRegistryDep() { out = fly.str.isEmpty(this.registryName) == false }
-    public bool isGitDep()      { out = fly.str.isEmpty(this.gitUrl) == false }
+    public bool isPathDep()     { out = str.isEmpty(this.path) == false }
+    public bool isRegistryDep() { out = str.isEmpty(this.registryName) == false }
+    public bool isGitDep()      { out = str.isEmpty(this.gitUrl) == false }
 }
 
 // A build profile (opt-level etc.).
@@ -103,8 +103,8 @@ public class Target {
     public string getName() { out = this.name }
     public string getPath() { out = this.path }
     public string getLib()  { out = this.lib }
-    public bool isLib()     { out = fly.str.isEmpty(this.lib) == false }
-    public bool isBin()     { out = fly.str.isEmpty(this.lib) }
+    public bool isLib()     { out = str.isEmpty(this.lib) == false }
+    public bool isBin()     { out = str.isEmpty(this.lib) }
 }
 
 // [test] — suite-based test configuration.
@@ -253,7 +253,7 @@ public class Manifest {
         int i = 0
         while i < this.deps.size() {
             DepEntry e = this.deps.get(i)
-            if fly.str.equals(e.getName(), n) { out = true  return }
+            if str.equals(e.getName(), n) { out = true  return }
             i = i + 1
         }
         out = false
@@ -262,7 +262,7 @@ public class Manifest {
         int i = 0
         while i < this.deps.size() {
             DepEntry e = this.deps.get(i)
-            if fly.str.equals(e.getName(), n) { out = e.getDep()  return }
+            if str.equals(e.getName(), n) { out = e.getDep()  return }
             i = i + 1
         }
         out = null
@@ -276,7 +276,7 @@ public class Manifest {
         int i = 0
         while i < this.repos.size() {
             StrEntry e = this.repos.get(i)
-            if fly.str.equals(e.getName(), n) { out = e.getValue()  return }
+            if str.equals(e.getName(), n) { out = e.getValue()  return }
             i = i + 1
         }
         out = ""
@@ -290,7 +290,7 @@ public class Manifest {
         int i = 0
         while i < this.profiles.size() {
             ProfileEntry e = this.profiles.get(i)
-            if fly.str.equals(e.getName(), n) { out = true  return }
+            if str.equals(e.getName(), n) { out = true  return }
             i = i + 1
         }
         out = false
@@ -299,7 +299,7 @@ public class Manifest {
         int i = 0
         while i < this.profiles.size() {
             ProfileEntry e = this.profiles.get(i)
-            if fly.str.equals(e.getName(), n) { out = e.getProf()  return }
+            if str.equals(e.getName(), n) { out = e.getProf()  return }
             i = i + 1
         }
         out = null
@@ -312,7 +312,7 @@ public class Manifest {
         int i = 0
         while i < this.deps.size() {
             DepEntry e = this.deps.get(i)
-            if fly.str.equals(e.getName(), name) { found = true } else { keep.add(e) }
+            if str.equals(e.getName(), name) { found = true } else { keep.add(e) }
             i = i + 1
         }
         this.deps = keep
@@ -320,7 +320,7 @@ public class Manifest {
         int j = 0
         while j < this.devDeps.size() {
             DepEntry e = this.devDeps.get(j)
-            if fly.str.equals(e.getName(), name) { found = true } else { keepDev.add(e) }
+            if str.equals(e.getName(), name) { found = true } else { keepDev.add(e) }
             j = j + 1
         }
         this.devDeps = keepDev
@@ -335,55 +335,55 @@ public class Manifest {
     public string serialize() {
         string q = fly.driver.dq()
         string nl = fly.driver.nl()
-        string s = fly.str.concat("namespace pkg.manifest", nl)
-        s = fly.str.concat(s, fly.str.concat("import fly.meta.*", nl))
-        s = fly.str.concat(s, nl)
-        s = fly.str.concat(s, fly.str.concat("class Manifest : fly.meta.Manifest {", nl))
-        s = fly.str.concat(s, this.scalarField("name", this.name, q, nl))
-        s = fly.str.concat(s, this.scalarField("version", this.version, q, nl))
-        if fly.str.isEmpty(this.description) == false { s = fly.str.concat(s, this.scalarField("description", this.description, q, nl)) }
-        if fly.str.isEmpty(this.license) == false     { s = fly.str.concat(s, this.scalarField("license", this.license, q, nl)) }
-        if fly.str.isEmpty(this.flyVersion) == false  { s = fly.str.concat(s, this.scalarField("flyVersion", this.flyVersion, q, nl)) }
-        if fly.str.isEmpty(this.homepage) == false    { s = fly.str.concat(s, this.scalarField("homepage", this.homepage, q, nl)) }
-        if fly.str.isEmpty(this.repository) == false  { s = fly.str.concat(s, this.scalarField("repository", this.repository, q, nl)) }
-        if fly.str.isEmpty(this.defaultRegistry) == false { s = fly.str.concat(s, this.scalarField("registry", this.defaultRegistry, q, nl)) }
-        if this.authors.size() > 0   { s = fly.str.concat(s, this.strArray("string[] authors", this.authors, q, nl)) }
-        if this.linkLibs.size() > 0  { s = fly.str.concat(s, this.strArray("string[] linkLibs", this.linkLibs, q, nl)) }
-        if this.deps.size() > 0      { s = fly.str.concat(s, this.depArray("dependencies", this.deps, q, nl)) }
-        if this.devDeps.size() > 0   { s = fly.str.concat(s, this.depArray("devDependencies", this.devDeps, q, nl)) }
-        if this.targets.size() > 0   { s = fly.str.concat(s, this.targetArray(this.targets, q, nl)) }
-        s = fly.str.concat(s, fly.str.concat("}", nl))
+        string s = str.concat("namespace pkg.manifest", nl)
+        s = str.concat(s, str.concat("import fly.meta.*", nl))
+        s = str.concat(s, nl)
+        s = str.concat(s, str.concat("class Manifest : fly.meta.Manifest {", nl))
+        s = str.concat(s, this.scalarField("name", this.name, q, nl))
+        s = str.concat(s, this.scalarField("version", this.version, q, nl))
+        if str.isEmpty(this.description) == false { s = str.concat(s, this.scalarField("description", this.description, q, nl)) }
+        if str.isEmpty(this.license) == false     { s = str.concat(s, this.scalarField("license", this.license, q, nl)) }
+        if str.isEmpty(this.flyVersion) == false  { s = str.concat(s, this.scalarField("flyVersion", this.flyVersion, q, nl)) }
+        if str.isEmpty(this.homepage) == false    { s = str.concat(s, this.scalarField("homepage", this.homepage, q, nl)) }
+        if str.isEmpty(this.repository) == false  { s = str.concat(s, this.scalarField("repository", this.repository, q, nl)) }
+        if str.isEmpty(this.defaultRegistry) == false { s = str.concat(s, this.scalarField("registry", this.defaultRegistry, q, nl)) }
+        if this.authors.size() > 0   { s = str.concat(s, this.strArray("string[] authors", this.authors, q, nl)) }
+        if this.linkLibs.size() > 0  { s = str.concat(s, this.strArray("string[] linkLibs", this.linkLibs, q, nl)) }
+        if this.deps.size() > 0      { s = str.concat(s, this.depArray("dependencies", this.deps, q, nl)) }
+        if this.devDeps.size() > 0   { s = str.concat(s, this.depArray("devDependencies", this.devDeps, q, nl)) }
+        if this.targets.size() > 0   { s = str.concat(s, this.targetArray(this.targets, q, nl)) }
+        s = str.concat(s, str.concat("}", nl))
         out = s
     }
 
     // scalarField — `  string <name> = "<val>"`.
     string scalarField(const string name, const string val, const string q, const string nl) {
-        out = fly.str.concat("  string ", fly.str.concat(name, fly.str.concat(" = ", fly.str.concat(q, fly.str.concat(val, fly.str.concat(q, nl))))))
+        out = str.concat("  string ", str.concat(name, str.concat(" = ", str.concat(q, str.concat(val, str.concat(q, nl))))))
     }
 
     // strArray — `  <decl> = { "a", "b" }`.
     string strArray(const string decl, const List<string> items, const string q, const string nl) {
-        string a = fly.str.concat("  ", fly.str.concat(decl, " = { "))
+        string a = str.concat("  ", str.concat(decl, " = { "))
         int i = 0
         while i < items.size() {
-            if i > 0 { a = fly.str.concat(a, ", ") }
-            a = fly.str.concat(a, fly.str.concat(q, fly.str.concat(items.get(i), q)))
+            if i > 0 { a = str.concat(a, ", ") }
+            a = str.concat(a, str.concat(q, str.concat(items.get(i), q)))
             i = i + 1
         }
-        out = fly.str.concat(a, fly.str.concat(" }", nl))
+        out = str.concat(a, str.concat(" }", nl))
     }
 
     // depArray — `  Dependency[] <field> = { new Dependency(...), ... }`.
     string depArray(const string field, const List<DepEntry> ds, const string q, const string nl) {
-        string a = fly.str.concat("  Dependency[] ", fly.str.concat(field, " = { "))
+        string a = str.concat("  Dependency[] ", str.concat(field, " = { "))
         int i = 0
         while i < ds.size() {
-            if i > 0 { a = fly.str.concat(a, ", ") }
+            if i > 0 { a = str.concat(a, ", ") }
             DepEntry e = ds.get(i)
-            a = fly.str.concat(a, this.depNew(e.getName(), e.getDep(), q))
+            a = str.concat(a, this.depNew(e.getName(), e.getDep(), q))
             i = i + 1
         }
-        out = fly.str.concat(a, fly.str.concat(" }", nl))
+        out = str.concat(a, str.concat(" }", nl))
     }
 
     // depNew — new Dependency(name, version, registry, git, tag, branch, rev, path).
@@ -391,20 +391,20 @@ public class Manifest {
         string tag = ""
         string br = ""
         string rev = ""
-        if fly.str.isEmpty(g.getGitUrl()) == false {
+        if str.isEmpty(g.getGitUrl()) == false {
             if g.getRefKind() == 0 { tag = g.getRefValue() }
             elsif g.getRefKind() == 1 { br = g.getRefValue() }
             else { rev = g.getRefValue() }
         }
-        string s = fly.str.concat("new Dependency(", this.qc(name, q))
-        s = fly.str.concat(s, this.qc(g.getVersionReq(), q))
-        s = fly.str.concat(s, this.qc(g.getRegistryName(), q))
-        s = fly.str.concat(s, this.qc(g.getGitUrl(), q))
-        s = fly.str.concat(s, this.qc(tag, q))
-        s = fly.str.concat(s, this.qc(br, q))
-        s = fly.str.concat(s, this.qc(rev, q))
-        s = fly.str.concat(s, fly.str.concat(q, fly.str.concat(g.getPath(), q)))
-        out = fly.str.concat(s, ")")
+        string s = str.concat("new Dependency(", this.qc(name, q))
+        s = str.concat(s, this.qc(g.getVersionReq(), q))
+        s = str.concat(s, this.qc(g.getRegistryName(), q))
+        s = str.concat(s, this.qc(g.getGitUrl(), q))
+        s = str.concat(s, this.qc(tag, q))
+        s = str.concat(s, this.qc(br, q))
+        s = str.concat(s, this.qc(rev, q))
+        s = str.concat(s, str.concat(q, str.concat(g.getPath(), q)))
+        out = str.concat(s, ")")
     }
 
     // targetArray — `  Target[] targets = { new Target("name", "path", "lib"), ... }`.
@@ -412,25 +412,25 @@ public class Manifest {
         string a = "  Target[] targets = { "
         int i = 0
         while i < ts.size() {
-            if i > 0 { a = fly.str.concat(a, ", ") }
+            if i > 0 { a = str.concat(a, ", ") }
             Target t = ts.get(i)
-            string tn = fly.str.concat("new Target(", this.qc(t.getName(), q))
-            tn = fly.str.concat(tn, this.qc(t.getPath(), q))
-            tn = fly.str.concat(tn, fly.str.concat(q, fly.str.concat(t.getLib(), fly.str.concat(q, ")"))))
-            a = fly.str.concat(a, tn)
+            string tn = str.concat("new Target(", this.qc(t.getName(), q))
+            tn = str.concat(tn, this.qc(t.getPath(), q))
+            tn = str.concat(tn, str.concat(q, str.concat(t.getLib(), str.concat(q, ")"))))
+            a = str.concat(a, tn)
             i = i + 1
         }
-        out = fly.str.concat(a, fly.str.concat(" }", nl))
+        out = str.concat(a, str.concat(" }", nl))
     }
 
     // qc — a quoted value followed by ", " (a comma-separated arg).
     string qc(const string v, const string q) {
-        out = fly.str.concat(q, fly.str.concat(v, fly.str.concat(q, ", ")))
+        out = str.concat(q, str.concat(v, str.concat(q, ", ")))
     }
 
     // save — write serialize() to Manifest.fly in the current directory.
     public void save() {
-        fly.os.fs.writeStr("Manifest.fly", this.serialize(), 420)
+        fs.writeStr("Manifest.fly", this.serialize(), 420)
     }
 }
 
@@ -438,12 +438,12 @@ public class Manifest {
 
 // nameValid — non-empty, all chars in [a-z0-9_-].
 public bool nameValid(const string s) {
-    int n = fly.str.len(s)
+    int n = str.len(s)
     if n == 0 { out = false  return }
     int i = 0
     while i < n {
         byte bb = 0
-        fly.str.byteAt(s, i, bb)
+        str.byteAt(s, i, bb)
         int c = bb
         bool lower = c >= 97 && c <= 122
         bool digit = c >= 48 && c <= 57
@@ -456,13 +456,13 @@ public bool nameValid(const string s) {
 
 // versionValid — exactly digits '.' digits '.' digits (MAJOR.MINOR.PATCH).
 public bool versionValid(const string s) {
-    int n = fly.str.len(s)
+    int n = str.len(s)
     int i = 0
     int dots = 0
     int digitsInGroup = 0
     while i < n {
         byte bb = 0
-        fly.str.byteAt(s, i, bb)
+        str.byteAt(s, i, bb)
         int c = bb
         if c >= 48 && c <= 57 {
             digitsInGroup = digitsInGroup + 1
@@ -485,7 +485,7 @@ public bool versionValid(const string s) {
 // raises opt-level); everything else keeps the debug defaults (Manifest.cpp:51-58).
 public BuildProfile defaultProfile(const string name) {
     BuildProfile p = new BuildProfile()
-    if fly.str.equals(name, "release") {
+    if str.equals(name, "release") {
         p.setOptLevel(3)
         p.setDebugInfo(false)
         p.setAssertions(false)

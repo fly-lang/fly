@@ -21,8 +21,9 @@ New-Item -ItemType Directory -Force $OUT | Out-Null
 # -- Stage plumbing: WHICH compiler runs the tests. ----------------------------
 # STAGE=N runs the suites with build\stageN's own compiler — each stage tests the
 # compiler it just produced, so every step of the bootstrap is covered:
-#   STAGE=0  the pinned REFERENCE seed that stage0 downloaded, with its bundled
-#            runtime/std. A failure here is a SOURCE-level problem.
+#   STAGE=0  the pinned REFERENCE seed that stage0 downloaded. The suites
+#            compile the in-tree std sources (-L), so a failure here is a
+#            SOURCE-level problem (from 0.13.14 the seed ships no std of its own).
 #   STAGE=1  the self-host stage1 just built WITH the reference. A failure here
 #            that passed at 0 is the self-host's own codegen.
 #   STAGE=2  the self-host stage2 just built WITH the self-host — the shipped
@@ -65,6 +66,33 @@ if (-not (Test-Path $FLY -PathType Leaf)) {
 }
 $FLY = (Resolve-Path $FLY).Path
 
+# Seed link extras. The self-host driver links these by itself; the reference
+# seed does not know them, so under the seed (stage1's interleaved pass) a
+# suite would not link. Both drivers DO link every archive at the top level of
+# a -L dir, so stage them in a scratch dir:
+#   - fly_tls_stub: tls_* primitives (NOT fly_tls_lib next to it - that is the
+#     real backend with Schannel system deps, and must not race the stub);
+#   - mingw compiler-rt builtins: the stage-1 runtime is gnu-flavoured fly code
+#     (___chkstk_ms, __atomic_*) and the seed links only its MSVC builtins;
+#   - ws2_32/winhttp import libs: runtime net_* landed after the seed's cut.
+$EXTRA_L = @()
+$flyLibDir = Join-Path (Split-Path -Parent $FLY) '..\lib'
+$extras = @(
+    (Join-Path $flyLibDir 'fly_tls_stub.lib'),
+    (Join-Path $flyLibDir 'fly_tls_stub.a'),
+    'build\mingw\builtins\libclang_rt.builtins-x86_64.a',
+    'build\mingw\lib\libws2_32.a',
+    'build\mingw\lib\libwinhttp.a'
+)
+$extrasDir = "$OUT/_seed_link"
+foreach ($f in $extras) {
+    if (Test-Path $f -PathType Leaf) {
+        New-Item -ItemType Directory -Force $extrasDir | Out-Null
+        Copy-Item $f $extrasDir -Force
+        $EXTRA_L = @('-L', $extrasDir)
+    }
+}
+
 $pass = 0
 $fail = 0
 $found = 0
@@ -79,7 +107,11 @@ foreach ($t in $tests) {
     # One-shot: --suite compiles AND runs; fly's exit code is the run's code (or
     # the compile failure). DIRECTORY CLI (every stage): the suite is discovered
     # by name from the runtime/test root.
-    & $FLY --suite=$name --src-dir runtime/test -o "rt_$name" --out-dir $OUT -L $STD *> $log
+    # --target: suites are gnu/UCRT like everything else this bootstrap builds —
+    # from 0.13.14 the seed links windows-gnu itself (LinkWindowsGNU, bundled
+    # mingw sysroot), and the explicit flag keeps the run independent of the
+    # driver's default (the seed's default is still -msvc).
+    & $FLY --suite=$name --target x86_64-w64-windows-gnu --src-dir runtime/test -o "rt_$name" --out-dir $OUT -L $STD @EXTRA_L *> $log
     if ($LASTEXITCODE -eq 0) {
         Write-Host "  PASS          $name"
         $pass++

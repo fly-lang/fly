@@ -4,6 +4,7 @@ import fly.compiler.parser.*
 import fly.compiler.sema.*
 import fly.data.*
 import fly.assert
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SemaContextSuite — Stage 6: first end-to-end Sema run. Parses a Fly source
@@ -28,8 +29,10 @@ suite SemaContextSuite {
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
-            SemaContext ctx = new SemaContext(null)
+            DiagnosticsEngine diags = p.getDiags()
+            SemaContext ctx = new SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertFalse(diags.hasErrorOccurred(), 99)
             assert.assertEqI(resolved.size(), 1, 2)
 
             Registry reg = ctx.getReg()
@@ -48,7 +51,7 @@ suite SemaContextSuite {
             List<SemaParam> params = fn.getParams()
             assert.assertEqI(params.size(), 2, 7)
             SemaParam pa = params.get(0)
-            assert.assertTrue(fly.str.equals(pa.getName(), "a"), 8)
+            assert.assertTrue(str.equals(pa.getName(), "a"), 8)
             SemaType pat = pa.getType()
             assert.assertTrue(pat.isInteger(), 9)
 
@@ -72,8 +75,10 @@ suite SemaContextSuite {
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
-            SemaContext ctx = new SemaContext(null)
+            DiagnosticsEngine diags = p.getDiags()
+            SemaContext ctx = new SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertFalse(diags.hasErrorOccurred(), 99)
 
             Registry reg = ctx.getReg()
             List<SemaFunctionBase> bodies = reg.getBodies()
@@ -97,8 +102,10 @@ suite SemaContextSuite {
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
-            SemaContext ctx = new SemaContext(null)
+            DiagnosticsEngine diags = p.getDiags()
+            SemaContext ctx = new SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertFalse(diags.hasErrorOccurred(), 99)
 
             Registry reg = ctx.getReg()
             List<SemaFunctionBase> bodies = reg.getBodies()
@@ -126,8 +133,10 @@ suite SemaContextSuite {
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
-            SemaContext ctx = new SemaContext(null)
+            DiagnosticsEngine diags = p.getDiags()
+            SemaContext ctx = new SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertFalse(diags.hasErrorOccurred(), 99)
 
             Registry reg = ctx.getReg()
             List<SemaClassType> classes = reg.getClasses()
@@ -154,8 +163,10 @@ suite SemaContextSuite {
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
-            SemaContext ctx = new SemaContext(null)
+            DiagnosticsEngine diags = p.getDiags()
+            SemaContext ctx = new SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertFalse(diags.hasErrorOccurred(), 99)
 
             Registry reg = ctx.getReg()
             List<SemaClassType> classes = reg.getClasses()
@@ -185,8 +196,10 @@ suite SemaContextSuite {
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
-            SemaContext ctx = new SemaContext(null)
+            DiagnosticsEngine diags = p.getDiags()
+            SemaContext ctx = new SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertFalse(diags.hasErrorOccurred(), 99)
 
             Registry reg = ctx.getReg()
             List<SemaClassType> classes = reg.getClasses()
@@ -215,8 +228,10 @@ suite SemaContextSuite {
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
-            SemaContext ctx = new SemaContext(null)
+            DiagnosticsEngine diags = p.getDiags()
+            SemaContext ctx = new SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertFalse(diags.hasErrorOccurred(), 99)
 
             SemaModule sm = resolved.get(0)
             SymbolTable scope = sm.getSymbols()
@@ -238,8 +253,10 @@ suite SemaContextSuite {
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
-            SemaContext ctx = new SemaContext(null)
+            DiagnosticsEngine diags = p.getDiags()
+            SemaContext ctx = new SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertFalse(diags.hasErrorOccurred(), 99)
 
             Registry reg = ctx.getReg()
             List<SemaFunctionBase> bodies = reg.getBodies()
@@ -266,8 +283,10 @@ suite SemaContextSuite {
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
-            SemaContext ctx = new SemaContext(null)
+            DiagnosticsEngine diags = p.getDiags()
+            SemaContext ctx = new SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
+            assert.assertFalse(diags.hasErrorOccurred(), 99)
 
             Registry reg = ctx.getReg()
             List<SemaFunctionBase> bodies = reg.getBodies()

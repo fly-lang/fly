@@ -2,14 +2,28 @@ namespace fly.driver
 
 import fly.data.List
 import fly.str
+import fly.json
+import fly.targz
+import fly.net.http
 import fly.os.fs
+import fly.os.proc
 import fly.os.io
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RegistryFetcher — download a package from a REST registry into the cache. Port of
-// fly/tools/flyp/fetcher/RegistryFetcher.{h,cpp}. HTTP goes through the system
-// `curl` (the shell helpers); registry JSON (the /v1/<pkg> version list) is parsed with
-// the json reader. Version selection reuses the semver range matcher (the resolver).
+// the reference C++ package manager fetcher/RegistryFetcher.{h,cpp}.
+//
+// NO CURL, and no subprocess of any kind for HTTP: everything goes through
+// fly.net.http, which serves plaintext over fly.net's own sockets and https
+// through whichever backend the build has (WinHTTP on Windows, fly.net.tls over
+// OpenSSL on a Linux built with --tls). Registry JSON is parsed with fly.json;
+// version selection reuses the semver range matcher.
+//
+// When a build has NO https backend, an https registry URL now FAILS WITH A
+// DIAGNOSTIC rather than silently working through an external tool that may or
+// may not be installed. That is the point of the change: one code path, and a
+// clear message when it cannot be taken.
+//
 // All methods (this module pulls the manifest reader → the toml reader).
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -18,24 +32,38 @@ public class RegistryFetcher {
 
     public RegistryFetcher(const fly.driver.Cache c) { this.cache = c }
 
-    // ── HTTP (via curl) ───────────────────────────────────────────────────────
+    // ── HTTP ──────────────────────────────────────────────────────────────────
+    //
+    // Thin wrappers over fly.net.http, which picks the transport itself:
+    // plaintext over fly.net sockets, https over WinHTTP or fly.net.tls. There is
+    // no scheme branch here any more, and no external tool.
+
+    // httpsUsable — can this build actually serve an https URL? Used only to turn
+    // "it returned nothing" into an actionable message.
+    public bool httpsUsable(const string url) {
+        if str.equals(http.urlScheme(url), "https") == false { out = true  return }
+        out = http.httpsSupported()
+    }
+
+    // reportNoHttps — one clear diagnostic instead of a silent empty result. A
+    // registry that cannot be reached because the compiler was built without a TLS
+    // backend is a configuration problem, and the user can only fix it if told.
+    public void reportNoHttps(const string url) {
+        io.printErrLn(str.concat("error: cannot fetch ", str.concat(url,
+            " — this build has no HTTPS backend (rebuild with --tls, or use an http:// registry)")))
+    }
+
     public string httpGet(const string url) {
-        out = fly.driver.capture(fly.str.concat("curl -fsSL ", fly.driver.shellQuote(url)))
+        if this.httpsUsable(url) == false { this.reportNoHttps(url)  out = ""  return }
+        out = http.get(url)
     }
     public bool httpDownload(const string url, const string dest) {
-        string cmd = fly.str.concat("curl -fsSL -o ",
-                     fly.str.concat(fly.driver.shellQuote(dest),
-                     fly.str.concat(" ", fly.driver.shellQuote(url))))
-        out = fly.driver.runShell(fly.str.concat(cmd, " 2>/dev/null")) == 0
+        if this.httpsUsable(url) == false { this.reportNoHttps(url)  out = false  return }
+        out = http.download(url, dest)
     }
     public bool httpPostFile(const string url, const string file, const string token) {
-        string cmd = "curl -fsSL -X POST -H 'Content-Type: application/octet-stream'"
-        if fly.str.isEmpty(token) == false {
-            cmd = fly.str.concat(cmd, fly.str.concat(" -H 'Authorization: Bearer ", fly.str.concat(token, "'")))
-        }
-        cmd = fly.str.concat(cmd, fly.str.concat(" --data-binary @", fly.driver.shellQuote(file)))
-        cmd = fly.str.concat(cmd, fly.str.concat(" ", fly.driver.shellQuote(url)))
-        out = fly.driver.runShell(fly.str.concat(cmd, " 2>/dev/null")) == 0
+        if this.httpsUsable(url) == false { this.reportNoHttps(url)  out = false  return }
+        out = http.postFile(url, file, token)
     }
 
     // ── version listing / resolution ──────────────────────────────────────────
@@ -43,26 +71,27 @@ public class RegistryFetcher {
     // listVersions — GET <registry>/v1/<pkg> → JSON array → the version strings.
     public List<string> listVersions(const string registryUrl, const string pkg) {
         List<string> vers = new List<string>()
-        string url = fly.str.concat(registryUrl, fly.str.concat("/v1/", pkg))
+        string url = str.concat(registryUrl, str.concat("/v1/", pkg))
         string body = this.httpGet(url)
         int e = 0
-        fly.driver.JsonValue v = fly.driver.jsonParse(body, e)
-        if e != 0 { out = vers  return }
-        if v.isArray() == false { out = vers  return }
+        pointer v = json.parse(body, e)
+        if e != 0 { json.freeValue(v)  out = vers  return }
+        if json.isArray(v) == false { json.freeValue(v)  out = vers  return }
         int i = 0
-        while i < v.size() {
-            fly.driver.JsonValue el = v.at(i)
-            if el.isString() {
-                string s = el.asString()
-                if fly.str.isEmpty(s) == false {
+        while i < json.size(v) {
+            pointer el = json.at(v, i)
+            if json.isString(el) {
+                string s = json.asString(el)
+                if str.isEmpty(s) == false {
                     byte b0 = 0
-                    fly.str.byteAt(s, 0, b0)
+                    str.byteAt(s, 0, b0)
                     int c = b0
                     if c >= 48 && c <= 57 { vers.add(s) }   // starts with a digit
                 }
             }
             i = i + 1
         }
+        json.freeValue(v)
         out = vers
     }
 
@@ -84,7 +113,7 @@ public class RegistryFetcher {
             string vstr = vers.get(i)
             SemVer sv = semverParse(vstr)
             if range.matches(sv) {
-                if fly.str.isEmpty(bestStr) || sv.gt(best) {
+                if str.isEmpty(bestStr) || sv.gt(best) {
                     best = sv
                     bestStr = vstr
                 }
@@ -96,17 +125,17 @@ public class RegistryFetcher {
 
     // isExact — v?DIGITS.DIGITS.DIGITS (no range operators).
     public bool isExact(const string s) {
-        int n = fly.str.len(s)
+        int n = str.len(s)
         if n == 0 { out = false  return }
         int i = 0
         byte b0 = 0
-        fly.str.byteAt(s, 0, b0)
+        str.byteAt(s, 0, b0)
         if b0 == 118 || b0 == 86 { i = 1 }      // leading v/V
         int dots = 0
         int digits = 0
         while i < n {
             byte bb = 0
-            fly.str.byteAt(s, i, bb)
+            str.byteAt(s, i, bb)
             int c = bb
             if c >= 48 && c <= 57 { digits = digits + 1 }
             elsif c == 46 {
@@ -126,16 +155,16 @@ public class RegistryFetcher {
     public FetchResult fetch(const string alias, const GitDep dep, const string registryUrl) {
         FetchResult r = new FetchResult()
         string pkg = dep.getPkgName()
-        if fly.str.isEmpty(pkg) { pkg = alias }
+        if str.isEmpty(pkg) { pkg = alias }
 
         string version = this.resolveVersion(registryUrl, pkg, dep.getVersionReq())
-        if fly.str.isEmpty(version) {
-            r.setError(fly.str.concat("registry: no version of ", fly.str.concat(pkg, fly.str.concat(" satisfies ", dep.getVersionReq()))))
+        if str.isEmpty(version) {
+            r.setError(str.concat("registry: no version of ", str.concat(pkg, str.concat(" satisfies ", dep.getVersionReq()))))
             out = r
             return
         }
 
-        string key = fly.str.concat(pkg, fly.str.concat("/", version))
+        string key = str.concat(pkg, str.concat("/", version))
         if this.cache.has(registryUrl, key) {
             string entry = this.cache.entryPath(registryUrl, key)
             this.fill(r, version, entry)
@@ -146,19 +175,28 @@ public class RegistryFetcher {
         // download tarball → extract → clean up
         this.cache.prepare(registryUrl, key)
         string entry = this.cache.entryPath(registryUrl, key)
-        string durl = fly.str.concat(registryUrl, fly.str.concat("/v1/",
-                      fly.str.concat(pkg, fly.str.concat("/", fly.str.concat(version, "/download")))))
-        string tarball = fly.str.concat(entry, fly.str.concat("/", fly.str.concat(pkg,
-                         fly.str.concat("-", fly.str.concat(version, ".tar.gz")))))
+        string durl = str.concat(registryUrl, str.concat("/v1/",
+                      str.concat(pkg, str.concat("/", str.concat(version, "/download")))))
+        string tarball = str.concat(entry, str.concat("/", str.concat(pkg,
+                         str.concat("-", str.concat(version, ".tar.gz")))))
         if this.httpDownload(durl, tarball) == false {
-            r.setError(fly.str.concat("registry: download failed for ", pkg))
+            r.setError(str.concat("registry: download failed for ", pkg))
             out = r
             return
         }
-        string extract = fly.str.concat("tar -xzf ", fly.str.concat(fly.driver.shellQuote(tarball),
-                         fly.str.concat(" -C ", fly.driver.shellQuote(entry))))
-        fly.driver.runShell(fly.str.concat(extract, " 2>/dev/null"))
-        fly.driver.runShell(fly.str.concat("rm -f ", fly.driver.shellQuote(tarball)))
+        // Unpacked in-process by fly.targz — no `tar` on PATH, which is what
+        // makes this work on a stock Windows box. It also gains two things the
+        // external tool did not give us: gzip's CRC-32 and ISIZE are VERIFIED,
+        // so a truncated download is reported instead of silently unpacked; and
+        // entries whose paths would escape the cache entry are refused.
+        int xe = 0
+        bool xok = targz.extractTarGz(tarball, entry, xe)
+        fs.delete(tarball)
+        if xok == false {
+            r.setError(str.concat("registry: corrupt or unreadable archive for ", pkg))
+            out = r
+            return
+        }
         this.fill(r, version, entry)
         out = r
     }
@@ -168,8 +206,8 @@ public class RegistryFetcher {
         r.setRev(version)
         r.setVersion(version)
         r.setLocalPath(entry)
-        string tomlPath = fly.str.concat(entry, "/Manifest.fly")
-        if fly.os.fs.exists(tomlPath) {
+        string tomlPath = str.concat(entry, "/Manifest.fly")
+        if fs.exists(tomlPath) {
             r.setChecksum(fly.driver.sha256File(tomlPath))
         }
         r.setOk(true)
@@ -177,20 +215,20 @@ public class RegistryFetcher {
 
     // publish — POST a tarball to <registry>/v1/<pkg>/<version>.
     public bool publish(const string pkg, const string version, const string tarball, const string registryUrl, const string token) {
-        string url = fly.str.concat(registryUrl, fly.str.concat("/v1/",
-                     fly.str.concat(pkg, fly.str.concat("/", version))))
+        string url = str.concat(registryUrl, str.concat("/v1/",
+                     str.concat(pkg, str.concat("/", version))))
         out = this.httpPostFile(url, tarball, token)
     }
 
     // readManifest — parse <entry>/Manifest.fly. errOut: 1 = missing, else parser code.
     public Manifest readManifest(const string alias, const string entry, int errOut) {
-        string mpath = fly.str.concat(entry, "/Manifest.fly")
-        if fly.os.fs.exists(mpath) == false {
+        string mpath = str.concat(entry, "/Manifest.fly")
+        if fs.exists(mpath) == false {
             errOut = 1
             out = new Manifest()
             return
         }
-        string src = fly.os.fs.readStr(mpath)
+        string src = fs.readStr(mpath)
         int e = 0
         FlyManifestReader r = new FlyManifestReader()
         Manifest m = r.read(src, e)

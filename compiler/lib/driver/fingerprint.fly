@@ -21,16 +21,16 @@ import fly.llvm
 // fpStrCompare — bytewise lexicographic compare (-1/0/1). fly.str has no
 // compare; bytes are masked to unsigned because byte widens with SIGN extension.
 public int fpStrCompare(const string a, const string b) {
-    int la = fly.str.len(a)
-    int lb = fly.str.len(b)
+    int la = str.len(a)
+    int lb = str.len(b)
     int n = la
     if lb < n { n = lb }
     int i = 0
     while i < n {
         byte ba = 0
         byte bb = 0
-        fly.str.byteAt(a, i, ba)
-        fly.str.byteAt(b, i, bb)
+        str.byteAt(a, i, ba)
+        str.byteAt(b, i, bb)
         int ia = (int)ba
         ia = ia & 255
         int ib = (int)bb
@@ -47,7 +47,7 @@ public int fpStrCompare(const string a, const string b) {
 // fpBackslash — a one-byte string holding "\" (92); literals keep escapes raw,
 // so a lone backslash cannot come from a literal. Same construction as dq()/nl().
 public string fpBackslash() {
-    pointer buf = fly.mem.alloc(1)
+    pointer buf = mem.alloc(1)
     byte b = 92
     fly.llvm.strPoke(buf, 0, b)
     string s = ""
@@ -61,17 +61,17 @@ public string fpBackslash() {
 // PATH fallback) degrades to "<version> 0 0" — still versioned.
 public string fpCompilerId(const string flyBinaryPath) {
     string ver = flyVersion()
-    if fly.os.fs.exists(flyBinaryPath) == false {
-        out = fly.str.concat(ver, " 0 0")
+    if fs.exists(flyBinaryPath) == false {
+        out = str.concat(ver, " 0 0")
         return
     }
-    fly.os.fs.Stat st = fly.os.fs.stat(flyBinaryPath)
+    fly.os.fs.Stat st = fs.stat(flyBinaryPath)
     long szL = (long)st.size
     long mtL = (long)st.mtime_sec
-    string r = fly.str.concat(ver, " ")
-    r = fly.str.concat(r, fly.str.convertL(szL))
-    r = fly.str.concat(r, " ")
-    r = fly.str.concat(r, fly.str.convertL(mtL))
+    string r = str.concat(ver, " ")
+    r = str.concat(r, str.convertL(szL))
+    r = str.concat(r, " ")
+    r = str.concat(r, str.convertL(mtL))
     out = r
 }
 
@@ -113,10 +113,10 @@ public class Fingerprint {
     // An absolute srcDir (isAbsolute knows the Windows forms too) is kept
     // verbatim so the fingerprint text stays stable across normalize changes.
     public string compute(const string srcDir, const string header) {
-        if fly.os.path.isAbsolute(srcDir) {
-            this.root = fly.str.concat("", srcDir)
+        if path.isAbsolute(srcDir) {
+            this.root = str.concat("", srcDir)
         } else {
-            this.root = fly.os.path.absolute(srcDir)
+            this.root = path.absolute(srcDir)
         }
         this.files = ";"
         this.pending = segAppend(";", this.root)
@@ -133,8 +133,8 @@ public class Fingerprint {
             this.hashOneAt(i)
             i = i + 1
         }
-        string filesHdr = fly.str.concat("files", fly.driver.nl())
-        out = fly.str.concat(header, fly.str.concat(filesHdr, this.lines))
+        string filesHdr = str.concat("files", fly.driver.nl())
+        out = str.concat(header, str.concat(filesHdr, this.lines))
     }
 
     // scanOneDirAt — scan the qi-th pending directory: enqueue subdirectories,
@@ -142,8 +142,8 @@ public class Fingerprint {
     // DirEntry-stride read pattern as Driver.scanOneDirAt.
     public void scanOneDirAt(const int qi) {
         string dir = segAt(this.pending, qi)
-        if fly.os.path.isDir(dir) == false { return }
-        fly.os.fs.DirEntries de = fly.os.fs.dirRead(dir)
+        if path.isDir(dir) == false { return }
+        fly.os.fs.DirEntries de = fs.dirRead(dir)
         pointer items = de.items
         if items == 0 { return }
         long lenL = (long)de.len
@@ -152,14 +152,14 @@ public class Fingerprint {
         int i = 0
         while i < n {
             int off = i * 56
-            pointer namePtr = fly.mem.readPtr(items, off)
-            int nameLen = fly.mem.readInt(items, off + 8)
+            pointer namePtr = mem.readPtr(items, off)
+            int nameLen = mem.readInt(items, off + 8)
             string entry = ""
-            fly.str.fromBytes(namePtr, nameLen, entry)
-            string full = fly.os.path.join(dir, entry)
-            if fly.os.path.isDir(full) {
+            str.fromBytes(namePtr, nameLen, entry)
+            string full = path.join(dir, entry)
+            if path.isDir(full) {
                 this.pending = segAppend(this.pending, full)
-            } elsif fly.str.endsWith(entry, ".fly") {
+            } elsif str.endsWith(entry, ".fly") {
                 this.files = segAppend(this.files, full)
             }
             i = i + 1
@@ -171,7 +171,7 @@ public class Fingerprint {
     // for target-sized trees (hundreds of files).
     public void sortFiles() {
         this.sorted = ";"
-        this.rem = fly.str.concat("", this.files)
+        this.rem = str.concat("", this.files)
         while segCount(this.rem) > 0 {
             int n = segCount(this.rem)
             this.hasBest = false
@@ -189,7 +189,7 @@ public class Fingerprint {
                 this.keepAt(j)
                 j = j + 1
             }
-            this.rem = fly.str.concat("", this.next)
+            this.rem = str.concat("", this.next)
         }
     }
 
@@ -198,13 +198,13 @@ public class Fingerprint {
     public void considerAt(const int i) {
         string cand = segAt(this.rem, i)
         if this.hasBest == false {
-            this.best = fly.str.concat("", cand)
+            this.best = str.concat("", cand)
             this.bestIdx = i
             this.hasBest = true
             return
         }
         if fpStrCompare(cand, this.best) < 0 {
-            this.best = fly.str.concat("", cand)
+            this.best = str.concat("", cand)
             this.bestIdx = i
         }
     }
@@ -222,10 +222,10 @@ public class Fingerprint {
     public void hashOneAt(const int i) {
         string path = segAt(this.sorted, i)
         string hash = fly.driver.sha256File(path)
-        int rootLen = fly.str.len(this.root)
-        string rel = fly.str.substring(path, rootLen + 1, fly.str.len(path))
-        string relNorm = fly.str.replace(rel, fpBackslash(), "/")
-        string line = fly.str.concat(relNorm, fly.str.concat(" ", hash))
-        this.lines = fly.str.concat(this.lines, fly.str.concat(line, fly.driver.nl()))
+        int rootLen = str.len(this.root)
+        string rel = str.substring(path, rootLen + 1, str.len(path))
+        string relNorm = str.replace(rel, fpBackslash(), "/")
+        string line = str.concat(relNorm, str.concat(" ", hash))
+        this.lines = str.concat(this.lines, str.concat(line, fly.driver.nl()))
     }
 }

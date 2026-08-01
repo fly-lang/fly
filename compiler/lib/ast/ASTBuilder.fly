@@ -138,10 +138,8 @@ public class ASTBuilder {
         arr.setValues(values)
         out = arr
     }
-    public static ASTStructValue CreateStructValue(const SourceLocation loc, const List<ASTExpr> values) {
-        ASTStructValue st = new ASTStructValue(loc)
-        st.setValues(values)
-        out = st
+    public static ASTStructValue CreateStructValue(const SourceLocation loc) {
+        out = new ASTStructValue(loc)
     }
 
     // ── Vars ─────────────────────────────────────────────────────────────────
@@ -184,6 +182,9 @@ public class ASTBuilder {
     }
     public static ASTMember CreateMember(const SourceLocation loc, const string name, const ASTExpr parent) {
         out = new ASTMember(loc, name, parent)
+    }
+    public static ASTArrayAccess CreateArrayAccess(const SourceLocation loc, const ASTExpr base, const ASTExpr index) {
+        out = new ASTArrayAccess(loc, base, index)
     }
     public static ASTUnary CreateUnary(const SourceLocation loc, const ASTUnaryKind opKind, const ASTExpr expr) {
         out = new ASTUnary(loc, opKind, expr)

@@ -1,0 +1,141 @@
+namespace fly.compiler.codegen.test.trace
+
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.compiler.sema.*
+import fly.compiler.codegen.*
+import fly.data.*
+import fly.assert
+import fly.os.fs
+import fly.str
+import fly.test.util.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenTraceSuite — `--trace-calls` instrumentation (codegen/CodeGenTrace.fly):
+// with CodeGenOptions.traceCalls on, every user function/method body gets a
+// fly.log enter hook in its entry block and an exit/exitFail hook before each
+// `ret void`. The hook symbols are hardcoded in CodeGenTrace; the mangling
+// cross-check case pins them to what the mangler actually produces for the
+// real fly.log signatures, so a mangling change cannot silently detach them.
+//
+// Assert codes: 91-93 reserved by TestUtil-shaped helpers, 1xx free functions,
+// 2xx methods, 3xx fail/handle exits, 4xx the off/exclusion gates, 5xx the
+// mangling cross-check.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// cgIRTrace — TestUtil.cgIR with traceCalls switched on before generate().
+string cgIRTrace(const string src) {
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), 91)
+    DiagnosticsEngine diags = p.getDiags()
+    List<ASTModule> mods = new List<ASTModule>()
+    mods.add(m)
+    SemaContext ctx = new SemaContext(diags)
+    List<SemaModule> res = ctx.Resolve(mods, false)
+    if diags.hasErrorOccurred() {
+        out = ""
+        fail 92, "cgIRTrace: source did not resolve"
+    }
+    CodeGenModule cgm = new CodeGenModule("t")
+    CodeGenOptions o = new CodeGenOptions()
+    o.setTraceCalls(true)
+    cgm.setCodeGenOpts(o)
+    cgm.generate(ctx.getReg())
+    bool ok = false
+    string vmsg = cgm.verifyMsg(ok)
+    assert.assertStr(vmsg, "", 93)
+    cgm.emitIR("/tmp/cg/suite.ll")
+    out = fs.readStr("/tmp/cg/suite.ll")
+}
+
+suite CodeGenTraceSuite {
+
+    void freeFunctionTest() {
+        case "a free function gets enter and exit hooks with its pretty name": {
+            string ir = cgIRTrace("
+                int square(const int n) { out = n * n }
+                void main() { int x = square(3) }
+            ")
+            assert.assertTrue(str.contains(ir, "call void @_F7fly_log5enter_Ss"), 101)
+            assert.assertTrue(str.contains(ir, "call void @_F7fly_log4exit_Ss"), 102)
+            assert.assertTrue(str.contains(ir, "square"), 103)
+        }
+        case "an explicit return also routes through the exit hook": {
+            string ir = cgIRTrace("
+                void early(const int n) {
+                    if n > 0 { return }
+                    int y = n
+                }
+                void main() { early(1) }
+            ")
+            assert.assertTrue(str.contains(ir, "call void @_F7fly_log4exit_Ss"), 104)
+        }
+    }
+
+    void methodTest() {
+        case "a class method is traced as ns-less Class.method": {
+            string ir = cgIRTrace("
+                public class Box {
+                    int v
+                    public Box(const int v) { this.v = v }
+                    public int get() { out = this.v }
+                }
+                void main() { Box b = new Box(7)  int x = b.get() }
+            ")
+            assert.assertTrue(str.contains(ir, "call void @_F7fly_log5enter_Ss"), 201)
+            assert.assertTrue(str.contains(ir, "Box.get"), 202)
+        }
+    }
+
+    void failExitTest() {
+        case "an unhandled fail exits through exitFail": {
+            string ir = cgIRTrace("
+                void risky(const int n) { if n > 0 { fail 7 } }
+                void main() { risky(1) }
+            ")
+            assert.assertTrue(str.contains(ir, "call void @_F7fly_log8exitFail_Ss"), 301)
+        }
+        case "a fail inside its own handle is not a function exit": {
+            string ir = cgIRTrace("
+                void guarded() { handle { fail 5 } }
+                void main() { guarded() }
+            ")
+            assert.assertFalse(str.contains(ir, "_F7fly_log8exitFail_Ss"), 302)
+            assert.assertTrue(str.contains(ir, "call void @_F7fly_log4exit_Ss"), 303)
+        }
+    }
+
+    void gatingTest() {
+        case "without the flag no hook is emitted at all": {
+            string ir = cgIR("
+                int square(const int n) { out = n * n }
+                void main() { int x = square(3) }
+            ")
+            assert.assertFalse(str.contains(ir, "fly_log"), 401)
+        }
+        case "the fly.* namespaces are excluded even with the flag on": {
+            string ir = cgIRTrace("
+                namespace fly.foo
+                int helper(const int n) { out = n + 1 }
+                void main() { int x = helper(1) }
+            ")
+            assert.assertFalse(str.contains(ir, "fly_log"), 402)
+        }
+    }
+
+    void manglingCrossCheckTest() {
+        case "the real fly.log hook signatures mangle to the hardcoded symbols": {
+            string ir = cgIR("
+                namespace fly.log
+                public void enter(const string name) { }
+                public void exit(const string name) { }
+                public void exitFail(const string name) { }
+            ")
+            assert.assertTrue(str.contains(ir, "define void @_F7fly_log5enter_Ss"), 501)
+            assert.assertTrue(str.contains(ir, "define void @_F7fly_log4exit_Ss"), 502)
+            assert.assertTrue(str.contains(ir, "define void @_F7fly_log8exitFail_Ss"), 503)
+        }
+    }
+}

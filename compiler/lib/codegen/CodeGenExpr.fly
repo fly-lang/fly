@@ -42,6 +42,8 @@ public class CodeGenExpr : SemaVisitor {
     pointer lastErrPtr     // alloca i32: code of the LAST handle block (implicit `error` var)
     pointer handleSafe     // innermost handle's continuation block (0 = not in a handle)
     string lastStrLit      // text of the last string LITERAL gen'd (bridge symbol capture)
+    string traceName       // --trace-calls: this function's pretty name; "" = not traced
+                           // (set by CodeGenTrace.emitEnter, read by the exit hooks)
     pointer outSlot        // class-return: the `out` param's slot (a ptr to the return
                            // slot). Its stored value is the RETURNED heap handle, which
                            // must NOT be freed at scope exit (ownership escapes). 0 = the
@@ -61,8 +63,11 @@ public class CodeGenExpr : SemaVisitor {
         this.lastErrPtr = 0
         this.handleSafe = 0
         this.lastStrLit = ""
+        this.traceName = ""
         this.outSlot = 0
     }
+    public string getTraceName() { out = this.traceName }
+    public void setTraceName(const string n) { this.traceName = n }
     public void setOutSlot(const pointer p) { this.outSlot = p }
     // bindOutSlot — if the function returns a CLASS/INTERFACE handle, record its synthetic
     // `out` param's slot so scope-exit cleanup can spare the returned handle. Called after
@@ -71,7 +76,7 @@ public class CodeGenExpr : SemaVisitor {
         int i = 0
         while i < params.size() {
             SemaParam p = params.get(i)
-            if fly.str.equals(p.getName(), "out") {
+            if str.equals(p.getName(), "out") {
                 SemaType pt = p.getType()
                 if pt != null {
                     SemaClassType pc = pt.asClass()
@@ -243,10 +248,16 @@ public class CodeGenExpr : SemaVisitor {
             // error in the case's slot, jump to the case end so later statements
             // never run (reference: visit(SemaBlockStmt) checks after each stmt
             // while CurrentCaseEndBB is set). Only the FIRST failure of the case
-            // is reported.
+            // is reported. NOT inside a `handle` block: a callee fail there is
+            // the handle's to consume (emitHandle step 3), and jumping to the
+            // case end first would report a HANDLED error as a case failure —
+            // matching standalone semantics, where the handle block always runs
+            // to completion and the caught error never escapes.
             if this.caseEndBB != 0 {
                 if this.terminated == false {
-                    this.emitCaseFailFast()
+                    if this.handleSafe == 0 {
+                        this.emitCaseFailFast()
+                    }
                 }
             }
             i = i + 1
@@ -290,6 +301,20 @@ public class CodeGenExpr : SemaVisitor {
                         pointer sptr2
                         this.llvm.buildExtractValue(this.builder, sval2, 0, "sfreep", sptr2)
                         this.cgm.freeHandle(sptr2)
+                        j = j + 1
+                        continue
+                    }
+                    // Array local: drop ONE reference to its buffer. The block goes
+                    // back only when the count reaches zero, so two names over one
+                    // buffer release twice and free once. Handled here, before the
+                    // out-slot compare below: a returned array needs no such compare
+                    // because `out = xs` RETAINED it, so this release just undoes
+                    // this frame's own reference — the same reasoning as strings,
+                    // which are cloned into the out slot.
+                    bool isArr = false
+                    if vty != null { isArr = vty.isArray() }
+                    if isArr {
+                        CodeGenArray.emitRelease(this, v.getLlvmAlloca(), vty.asArray())
                         j = j + 1
                         continue
                     }
@@ -363,6 +388,9 @@ public class CodeGenExpr : SemaVisitor {
     public void visit(const SemaLocalVar node) { this.genVarAccess(node) }
     public void visit(const SemaClassInstance node) { this.genVarAccess(node) }
     public void visit(const SemaClassAttribute node) { this.genAttrAccess(node) }
+    // Subscript: the element ADDRESS in addrMode, the loaded element otherwise —
+    // one node, both directions (A6 fills CodeGenArray.arrayAccess in).
+    public void visit(const SemaArrayAccess node) { CodeGenArray.arrayAccess(this, node) }
     // the implicit `error` variable: true when the LAST handle block recorded a
     // failure (lasterr != 0). handle blocks update the per-function lasterr slot.
     public void visit(const SemaError node) {
@@ -433,6 +461,8 @@ public class CodeGenExpr : SemaVisitor {
         ASTBinaryKind k = ba.getBinaryKind()
         if k == ASTBinaryKind.OP_BINARY_ASSIGN {
             CodeGenExprOps.assign(this, node)
+        } elsif ba.isCompoundAssign() {
+            CodeGenExprOps.compoundAssign(this, node, k)
         } elsif k == ASTBinaryKind.OP_BINARY_LOGIC_AND {
             CodeGenExprOps.logic(this, node, k)
         } elsif k == ASTBinaryKind.OP_BINARY_LOGIC_OR {
@@ -497,7 +527,7 @@ public class CodeGenExpr : SemaVisitor {
             string nm = e.getName()
             pointer g = cg.globalString(this.cgm.getModule(), this.cgm.getCtx(), nm)
             pointer lenC
-            this.llvm.constInt(i32n, fly.str.len(nm), false, lenC)
+            this.llvm.constInt(i32n, str.len(nm), false, lenC)
             List<pointer> fields = new List<pointer>()
             fields.add(g)
             fields.add(lenC)
@@ -540,7 +570,7 @@ public class CodeGenExpr : SemaVisitor {
     public void visit(const SemaStringValue node) {
         string val = node.getValue()
         this.lastStrLit = val
-        int len = fly.str.len(val)
+        int len = str.len(val)
         CodeGenLLVM cg = this.cgm.getCg()
         pointer g = cg.globalString(this.cgm.getModule(), this.cgm.getCtx(), val)
         pointer i32len
@@ -557,7 +587,7 @@ public class CodeGenExpr : SemaVisitor {
     }
     public void visit(const SemaComplexValue node) { }
     public void visit(const SemaArrayValue node) { CodeGenArray.arrayValue(this, node) }
-    public void visit(const SemaStructValue node) { }
+    public void visit(const SemaStructValue node) { CodeGenClass.structValue(this, node) }
     // unset — lower to a typed zero. The empty visit left llvmValue = 0, and a
     // null handle reaching buildStore/buildRet crashes inside libLLVM.
     public void visit(const SemaUnsetValue node) {
@@ -618,7 +648,7 @@ public class CodeGenExpr : SemaVisitor {
     // it as a "body" failure — matching the reference.
     public void visit(const SemaCaseStmt node) {
         string label = node.getLabel()
-        pointer bb = this.newBlock(fly.str.concat("case.", label))
+        pointer bb = this.newBlock(str.concat("case.", label))
         this.br(bb)
         this.position(bb)
 
@@ -642,7 +672,7 @@ public class CodeGenExpr : SemaVisitor {
         this.cgm.incrSuiteCounter(this.cgm.suiteCounter("__fly_suite_total"))
 
         // Run the body under the fail-fast target (this.errPtr stays the method slot).
-        pointer endBB = this.newBlock(fly.str.concat("case.end.", label))
+        pointer endBB = this.newBlock(str.concat("case.end.", label))
         pointer savedEnd = this.caseEndBB
         this.caseEndBB = endBB
         SemaBlockStmt body = node.getBody()
@@ -671,8 +701,8 @@ public class CodeGenExpr : SemaVisitor {
         // On failure, count it and clear the slot before the next case.
         pointer hasErr
         this.llvm.buildICmp(this.builder, 33, endCode, zero, "endne", hasErr)   // NE
-        pointer failBB = this.newBlock(fly.str.concat("case.fail.", label))
-        pointer contBB = this.newBlock(fly.str.concat("case.cont.", label))
+        pointer failBB = this.newBlock(str.concat("case.fail.", label))
+        pointer contBB = this.newBlock(str.concat("case.cont.", label))
         pointer cbr
         this.llvm.buildCondBr(this.builder, hasErr, failBB, contBB, cbr)
         this.terminated = true
@@ -715,17 +745,17 @@ public class CodeGenExpr : SemaVisitor {
 // ── literal parsing helpers (free functions; intrinsic byte access) ─────────────
 public long parseLong(const string s) {
     long r = 0
-    int n = fly.str.len(s)
+    int n = str.len(s)
     int i = 0
     bool neg = false
     if n > 0 {
         byte b0 = 0
-        fly.str.byteAt(s, 0, b0)
+        str.byteAt(s, 0, b0)
         if b0 == 45 { neg = true  i = 1 }   // '-'
     }
     while i < n {
         byte b = 0
-        fly.str.byteAt(s, i, b)
+        str.byteAt(s, i, b)
         int bi = b
         if bi >= 48 {
             if bi <= 57 {
@@ -741,22 +771,22 @@ public long parseLong(const string s) {
 
 public double parseDouble(const string s) {
     // integer + fractional parts split on '.'; minimal (no exponent) for Stage 2.
-    int dot = fly.str.indexOf(s, ".")
+    int dot = str.indexOf(s, ".")
     double result = 0.0
     if dot < 0 {
         result = parseLong(s)
     } else {
-        string ip = fly.str.substring(s, 0, dot)
-        int n = fly.str.len(s)
-        string fp = fly.str.substring(s, dot + 1, n)
+        string ip = str.substring(s, 0, dot)
+        int n = str.len(s)
+        string fp = str.substring(s, dot + 1, n)
         double whole = parseLong(ip)
         double frac = 0.0
         double scale = 1.0
-        int fn = fly.str.len(fp)
+        int fn = str.len(fp)
         int i = 0
         while i < fn {
             byte b = 0
-            fly.str.byteAt(fp, i, b)
+            str.byteAt(fp, i, b)
             int bi = b
             double d = bi - 48
             scale = scale * 10.0

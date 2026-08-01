@@ -58,11 +58,47 @@ public class Frontend {
 
     public string getOutputFile() { out = this.outputFile }
 
+    // checkTestFilter — true when `--test=<tf>` selects at least one *Test
+    // method among the suites this build runs (all of them, or only the
+    // --suite=<suiteSel> one). Matching mirrors emitTestMain: the bare name or
+    // the name+"Test" form. A build with no suites at all passes untouched
+    // (the method filter has no suite to apply to there).
+    public bool checkTestFilter(const Registry reg, const string suiteSel, const string tf) {
+        bool anySuite = false
+        bool anyMatch = false
+        List<SemaClassType> classes = reg.getClasses()
+        int i = 0
+        while i < classes.size() {
+            SemaClassType cls = classes.get(i)
+            if cls.getClassKind() == SemaClassKind.SUITE {
+                if cls.isFromHeader() == false {
+                    bool sel = cls.matchesSuiteSel(suiteSel)
+                    if sel {
+                        anySuite = true
+                        List<SemaClassMethod> ms = cls.getMethodList()
+                        int mi = 0
+                        while mi < ms.size() {
+                            string nm = ms.get(mi).getName()
+                            if str.endsWith(nm, "Test") {
+                                if str.equals(nm, tf) { anyMatch = true }
+                                elsif str.equals(nm, str.concat(tf, "Test")) { anyMatch = true }
+                            }
+                            mi = mi + 1
+                        }
+                    }
+                }
+            }
+            i = i + 1
+        }
+        if anySuite == false { out = true  return }
+        out = anyMatch
+    }
+
     // trace — verbose phase log to stderr (only when FrontendOptions.verbose).
     public void trace(const string msg) {
         FrontendOptions fo = this.ci.getFrontendOptions()
         if fo.getVerbose() {
-            fly.os.io.printErrLn(fly.str.concat("fly: ", msg))
+            io.printErrLn(str.concat("fly: ", msg))
         }
     }
 
@@ -75,46 +111,46 @@ public class Frontend {
     // --log-file flush needs a single point AFTER the pipeline — here.
     public int execute(const string objPath, const bool noOutput) {
         FrontendOptions wfo = this.ci.getFrontendOptions()
-        if fly.str.isEmpty(wfo.getLogFile()) == false {
+        if str.isEmpty(wfo.getLogFile()) == false {
             this.logger = new LogDiagnosticPrinter()
         }
         int rc = this.executeImpl(objPath, noOutput)
         this.flushLog(wfo)
         if wfo.getShowStats() { this.printStats() }
-        if fly.str.isEmpty(wfo.getStatsFile()) == false { this.writeStatsFile(wfo.getStatsFile()) }
+        if str.isEmpty(wfo.getStatsFile()) == false { this.writeStatsFile(wfo.getStatsFile()) }
         out = rc
     }
 
     // printStats — the --print-stats block, on stderr (reference PrintStats shape,
     // with the numbers the self-host can honestly produce — see the field note).
     public void printStats() {
-        fly.os.io.printErrLn("*** Compilation Stats:")
-        fly.os.io.printErrLn(fly.str.concat(fly.str.convert(this.statInputFiles),
-                             fly.str.concat(" input files parsed, ",
-                             fly.str.concat(fly.str.convert(this.statDepModules), " dependency modules pulled."))))
-        fly.os.io.printErrLn(fly.str.concat(fly.str.convert(this.statHeaderModules),
-                             fly.str.concat(" header modules loaded, ",
-                             fly.str.concat(fly.str.convert(this.statDirsScanned), " directories scanned."))))
+        io.printErrLn("*** Compilation Stats:")
+        io.printErrLn(str.concat(str.convert(this.statInputFiles),
+                             str.concat(" input files parsed, ",
+                             str.concat(str.convert(this.statDepModules), " dependency modules pulled."))))
+        io.printErrLn(str.concat(str.convert(this.statHeaderModules),
+                             str.concat(" header modules loaded, ",
+                             str.concat(str.convert(this.statDirsScanned), " directories scanned."))))
     }
 
     // statsJson — the --stats-file payload (fixed keys, numeric values).
     public string statsJson() {
         string q = quoteChar()
-        string p1 = fly.str.concat(q, fly.str.concat("input-files", fly.str.concat(q, fly.str.concat(":", fly.str.convert(this.statInputFiles)))))
-        string p2 = fly.str.concat(q, fly.str.concat("dep-modules", fly.str.concat(q, fly.str.concat(":", fly.str.convert(this.statDepModules)))))
-        string p3 = fly.str.concat(q, fly.str.concat("header-modules", fly.str.concat(q, fly.str.concat(":", fly.str.convert(this.statHeaderModules)))))
-        string p4 = fly.str.concat(q, fly.str.concat("dirs-scanned", fly.str.concat(q, fly.str.concat(":", fly.str.convert(this.statDirsScanned)))))
-        string body = fly.str.concat(p1, fly.str.concat(",", fly.str.concat(p2,
-                      fly.str.concat(",", fly.str.concat(p3, fly.str.concat(",", p4))))))
-        out = fly.str.concat("{", fly.str.concat(body, "}"))
+        string p1 = str.concat(q, str.concat("input-files", str.concat(q, str.concat(":", str.convert(this.statInputFiles)))))
+        string p2 = str.concat(q, str.concat("dep-modules", str.concat(q, str.concat(":", str.convert(this.statDepModules)))))
+        string p3 = str.concat(q, str.concat("header-modules", str.concat(q, str.concat(":", str.convert(this.statHeaderModules)))))
+        string p4 = str.concat(q, str.concat("dirs-scanned", str.concat(q, str.concat(":", str.convert(this.statDirsScanned)))))
+        string body = str.concat(p1, str.concat(",", str.concat(p2,
+                      str.concat(",", str.concat(p3, str.concat(",", p4))))))
+        out = str.concat("{", str.concat(body, "}"))
     }
 
     // writeStatsFile — write statsJson() to the --stats-file path; failure warns
     // and is non-fatal (reference warn_fe_unable_to_open_stats_file).
     public void writeStatsFile(const string path) {
-        fly.os.fs.writeStr(path, this.statsJson(), 420)
-        if fly.os.fs.exists(path) == false {
-            fly.os.io.printErrLn(fly.str.concat(fly.str.concat("warning: unable to open statistics output file '", path), "'"))
+        fs.writeStr(path, this.statsJson(), 420)
+        if fs.exists(path) == false {
+            io.printErrLn(str.concat(str.concat("warning: unable to open statistics output file '", path), "'"))
         }
     }
 
@@ -128,7 +164,7 @@ public class Frontend {
         // 0) select target — fail fast on an unsupported arch.
         TargetInfo ti = targetInfoCreate(topts)
         if ti.isValid() == false {
-            fly.os.io.printErrLn(fly.str.concat("error: unsupported target: ", topts.getTriple()))
+            io.printErrLn(str.concat("error: unsupported target: ", topts.getTriple()))
             out = 1
             return
         }
@@ -153,9 +189,9 @@ public class Frontend {
             int ei = 0
             while ei < inCount {
                 string ipath = fo.inputAt(ei)
-                string isrc = fly.os.fs.readStr(ipath)
-                if fly.str.isEmpty(isrc) {
-                    fly.os.io.printErrLn(fly.str.concat("error: cannot read input file: ", ipath))
+                string isrc = fs.readStr(ipath)
+                if str.isEmpty(isrc) {
+                    io.printErrLn(str.concat("error: cannot read input file: ", ipath))
                     out = 1
                     return
                 }
@@ -225,6 +261,22 @@ public class Frontend {
         }
         Registry reg = ctx.getReg()
 
+        // --test=<Method> matching ZERO *Test methods across the suites this
+        // build runs is an error: a typo'd filter would otherwise report every
+        // suite "0 cases, 0 failed" and exit GREEN.
+        if fo.getTestMode() {
+            CodeGenOptions cgo0 = this.ci.getCodeGenOptions()
+            string tf0 = ""
+            if cgo0 != null { tf0 = cgo0.getTestFilter() }
+            if str.isEmpty(tf0) == false {
+                if this.checkTestFilter(reg, cgo0.getSuiteName(), tf0) == false {
+                    io.printErrLn(str.concat(str.concat("error: --test filter '", tf0), "' matches no test method in the selected suites"))
+                    out = 1
+                    return
+                }
+            }
+        }
+
         // 2c) headers (--lib / --header): emit a `.fly.h` per ENTRY module now that
         // resolution has run (return/field/param types are known). Ports the reference
         // Frontend GenerateHeader; the archive is built by the ci script over the object.
@@ -245,12 +297,12 @@ public class Frontend {
         bool ok = false
         cgm.verify(ok)
         if ok == false {
-            fly.os.io.printErrLn("error: backend module verification failed")
+            io.printErrLn("error: backend module verification failed")
             // reason via a second verify, consumed DIRECTLY as a call argument
             // (binding the returned string to a method-frame local double-frees
             // under the bootstrap — the trace() arg pattern is safe)
             bool ok2 = false
-            fly.os.io.printErrLn(cgm.verifyMsg(ok2))
+            io.printErrLn(cgm.verifyMsg(ok2))
             out = 1
             return
         }
@@ -264,24 +316,24 @@ public class Frontend {
         }
         int action = fo.getBackendAction()
         if action == 3 {
-            this.trace(fly.str.concat("emitting ", objPath))
+            this.trace(str.concat("emitting ", objPath))
             bool eok = false
             cgm.emitObjectOrAsm(ti, objPath, 1, eok)     // 1 = object
             if eok == false {
-                fly.os.io.printErrLn("error: object emission failed")
+                io.printErrLn("error: object emission failed")
                 out = 1
                 return
             }
             this.outputFile = objPath
         } else {
             string outPath = fo.getOutputFile()
-            this.trace(fly.str.concat("emitting ", outPath))
+            this.trace(str.concat("emitting ", outPath))
             if action == 0 {
                 // check the write result: a missing/read-only output dir used to
                 // exit 0 with no .ll produced
                 bool iok = cgm.emitIRChecked(outPath)
                 if iok == false {
-                    fly.os.io.printErrLn(fly.str.concat("error: cannot write LLVM IR to ", outPath))
+                    io.printErrLn(str.concat("error: cannot write LLVM IR to ", outPath))
                     out = 1
                     return
                 }
@@ -289,7 +341,7 @@ public class Frontend {
                 // real LLVM bitcode (--emit-bc), reference Backend_EmitBC
                 bool bok = cgm.emitBitcodeChecked(outPath)
                 if bok == false {
-                    fly.os.io.printErrLn(fly.str.concat("error: cannot write LLVM bitcode to ", outPath))
+                    io.printErrLn(str.concat("error: cannot write LLVM bitcode to ", outPath))
                     out = 1
                     return
                 }
@@ -299,7 +351,7 @@ public class Frontend {
                 bool eok = false
                 cgm.emitObjectOrAsm(ti, outPath, fileType, eok)
                 if eok == false {
-                    fly.os.io.printErrLn("error: object/assembly emission failed")
+                    io.printErrLn("error: object/assembly emission failed")
                     out = 1
                     return
                 }
@@ -317,14 +369,14 @@ public class Frontend {
     // fly_std_lib.a rather than defined. No-op when no lib dirs are configured.
     public void loadLibHeaders(const FrontendOptions fo, List<ASTModule> mods, const List<string> skipNs) {
         string stdDir = fo.getStdLibDir()
-        if fly.str.isEmpty(stdDir) == false {
+        if str.isEmpty(stdDir) == false {
             this.loadHeadersFromDir(stdDir, mods, skipNs)
         }
         int nd = fo.libDirCount()
         int di = 0
         while di < nd {
             string d = fo.libDirAt(di)
-            if fly.str.isEmpty(d) == false { this.loadHeadersFromDir(d, mods, skipNs) }
+            if str.isEmpty(d) == false { this.loadHeadersFromDir(d, mods, skipNs) }
             di = di + 1
         }
     }
@@ -333,9 +385,9 @@ public class Frontend {
     // A header whose namespace is in `skipNs` (provided by an entry source in --lib mode)
     // is dropped, so the source definition isn't shadowed by a colliding declaration.
     public void loadHeadersFromDir(const string dir, List<ASTModule> mods, const List<string> skipNs) {
-        if fly.os.path.isDir(dir) == false { return }
+        if path.isDir(dir) == false { return }
         this.statDirsScanned = this.statDirsScanned + 1
-        fly.os.fs.DirEntries de = fly.os.fs.dirRead(dir)
+        fly.os.fs.DirEntries de = fs.dirRead(dir)
         pointer items = de.items
         if items == 0 { return }
 
@@ -349,15 +401,15 @@ public class Frontend {
         int i = 0
         while i < n {
             int off = i * 56
-            pointer namePtr = fly.mem.readPtr(items, off)
-            int nameLen = fly.mem.readInt(items, off + 8)
+            pointer namePtr = mem.readPtr(items, off)
+            int nameLen = mem.readInt(items, off + 8)
             string name = ""
-            fly.str.fromBytes(namePtr, nameLen, name)
+            str.fromBytes(namePtr, nameLen, name)
 
-            if fly.str.endsWith(name, ".fly.h") {
-                string full = fly.os.path.join(dir, name)
-                string src = fly.os.fs.readStr(full)
-                if fly.str.isEmpty(src) == false {
+            if str.endsWith(name, ".fly.h") {
+                string full = path.join(dir, name)
+                string src = fs.readStr(full)
+                if str.isEmpty(src) == false {
                     Parser hp = new Parser(src)
                     ASTModule hm = hp.parseModule(name)
                     if hp.isSuccess() {
@@ -397,7 +449,7 @@ public class Frontend {
         int mi = 0
         while mi < mods.size() {
             ASTModule mm = mods.get(mi)
-            known.add(fly.os.path.basename(mm.getName()))
+            known.add(path.basename(mm.getName()))
             if mm.isHeader() {
                 ASTNameSpace hns = mm.getNameSpace()
                 if hns != null { headerNs.add(this.joinNames(hns.getNames())) }
@@ -423,7 +475,7 @@ public class Frontend {
                 bool headerServed = this.listHas(headerNs, ns)
                 if headerServed == false && imp.isWildcard() == false {
                     string hcand = this.dropLastSegment(ns)
-                    while fly.str.isEmpty(hcand) == false {
+                    while str.isEmpty(hcand) == false {
                         if this.listHas(headerNs, hcand) { headerServed = true  break }
                         string hcand2 = this.dropLastSegment(hcand)
                         hcand = hcand2
@@ -441,7 +493,7 @@ public class Frontend {
                             int di = 0
                             while di < sd {
                                 string d = fo.srcDirAt(di)
-                                if fly.str.isEmpty(d) == false { this.scanSrcDir(d, mapNs, mapPath, known) }
+                                if str.isEmpty(d) == false { this.scanSrcDir(d, mapNs, mapPath, known) }
                                 di = di + 1
                             }
                         }
@@ -456,12 +508,12 @@ public class Frontend {
                     bool descHit = this.hasDescendant(mapNs, ns)
                     if imp.isWildcard() == false && exactHit == false && descHit == false {
                         string cand = this.dropLastSegment(ns)
-                        while fly.str.isEmpty(cand) == false {
+                        while str.isEmpty(cand) == false {
                             if this.listHas(mapNs, cand) { break }
                             string cand2 = this.dropLastSegment(cand)
                             cand = cand2
                         }
-                        if fly.str.isEmpty(cand) == false { ns = cand }
+                        if str.isEmpty(cand) == false { ns = cand }
                     }
                     if this.listHas(doneNs, ns) == false {
                         doneNs.add(ns)
@@ -480,11 +532,11 @@ public class Frontend {
                     // `fly.compiler.codegen.*` TEST suites into a compiler
                     // build). Header-served descendants stay with their archives.
                     if this.listHas(mapNs, ns) == false {
-                        string pfx = fly.str.concat(ns, ".")
+                        string pfx = str.concat(ns, ".")
                         int dnk = 0
                         while dnk < mapNs.size() {
                             string cns = mapNs.get(dnk)
-                            if fly.str.startsWith(cns, pfx) {
+                            if str.startsWith(cns, pfx) {
                                 if this.listHas(headerNs, cns) == false {
                                     if this.listHas(doneNs, cns) == false {
                                         doneNs.add(cns)
@@ -511,13 +563,13 @@ public class Frontend {
     public bool pullNamespace(const string ns, const List<string> mapNs, const List<string> mapPath, List<string> known, List<ASTModule> mods) {
         int k = 0
         while k < mapNs.size() {
-            if fly.str.equals(mapNs.get(k), ns) {
+            if str.equals(mapNs.get(k), ns) {
                 string p = mapPath.get(k)
-                string base = fly.os.path.basename(p)
+                string base = path.basename(p)
                 if this.listHas(known, base) == false {
                     known.add(base)
-                    this.trace(fly.str.concat("resolved import → ", p))
-                    string src = fly.os.fs.readStr(p)
+                    this.trace(str.concat("resolved import → ", p))
+                    string src = fs.readStr(p)
                     Parser dp = new Parser(src)
                     ASTModule dm = dp.parseModule(p)
                     if dp.isSuccess() == false {
@@ -539,9 +591,9 @@ public class Frontend {
     // entry itself, typically) are skipped. Same DirEntry-stride read pattern as
     // loadHeadersFromDir.
     public void scanSrcDir(const string dir, List<string> mapNs, List<string> mapPath, const List<string> known) {
-        if fly.os.path.isDir(dir) == false { return }
+        if path.isDir(dir) == false { return }
         this.statDirsScanned = this.statDirsScanned + 1
-        fly.os.fs.DirEntries de = fly.os.fs.dirRead(dir)
+        fly.os.fs.DirEntries de = fs.dirRead(dir)
         pointer items = de.items
         if items == 0 { return }
         long lenL = (long)de.len
@@ -550,17 +602,26 @@ public class Frontend {
         int i = 0
         while i < n {
             int off = i * 56
-            pointer namePtr = fly.mem.readPtr(items, off)
-            int nameLen = fly.mem.readInt(items, off + 8)
+            pointer namePtr = mem.readPtr(items, off)
+            int nameLen = mem.readInt(items, off + 8)
             string entry = ""
-            fly.str.fromBytes(namePtr, nameLen, entry)
-            string full = fly.os.path.join(dir, entry)
-            if fly.os.path.isDir(full) {
-                this.scanSrcDir(full, mapNs, mapPath, known)
-            } elsif fly.str.endsWith(entry, ".fly") {
+            str.fromBytes(namePtr, nameLen, entry)
+            string full = path.join(dir, entry)
+            if path.isDir(full) {
+                // B009: hidden dot-dirs and build/ are never sources (mirror
+                // of the driver discovery walk — fly.driver.discoverySkipsDir).
+                bool skipDir = false
+                byte b0 = 0
+                str.byteAt(entry, 0, b0)
+                if b0 == 46 { skipDir = true }
+                elsif str.equals(entry, "build") { skipDir = true }
+                if skipDir == false {
+                    this.scanSrcDir(full, mapNs, mapPath, known)
+                }
+            } elsif str.endsWith(entry, ".fly") {
                 if this.listHas(known, entry) == false {
                     string ns = this.extractNs(full)
-                    if fly.str.isEmpty(ns) == false {
+                    if str.isEmpty(ns) == false {
                         mapNs.add(ns)
                         mapPath.add(full)
                     }
@@ -574,27 +635,27 @@ public class Frontend {
     // (mirror of Frontend.cpp::extractFileNamespace). Empty when the file has no
     // namespace declaration: such files are never import-resolvable.
     public string extractNs(const string path) {
-        string src = fly.os.fs.readStr(path)
-        int n = fly.str.len(src)
+        string src = fs.readStr(path)
+        int n = str.len(src)
         int pos = 0
         while pos < n {
             int e = pos
             while e < n {
                 byte c = 0
-                fly.str.byteAt(src, e, c)
+                str.byteAt(src, e, c)
                 if c == 10 { break }
                 e = e + 1
             }
-            string line = fly.str.trim(fly.str.substring(src, pos, e))
+            string line = str.trim(str.substring(src, pos, e))
             pos = e + 1
-            if fly.str.isEmpty(line) { continue }
-            if fly.str.startsWith(line, "/") { continue }
-            if fly.str.startsWith(line, "*") { continue }
-            if fly.str.startsWith(line, "namespace ") {
-                string rest = fly.str.trim(fly.str.substring(line, 10, fly.str.len(line)))
-                int sp = fly.str.indexOf(rest, " ")
+            if str.isEmpty(line) { continue }
+            if str.startsWith(line, "/") { continue }
+            if str.startsWith(line, "*") { continue }
+            if str.startsWith(line, "namespace ") {
+                string rest = str.trim(str.substring(line, 10, str.len(line)))
+                int sp = str.indexOf(rest, " ")
                 if sp >= 0 {
-                    out = fly.str.substring(rest, 0, sp)
+                    out = str.substring(rest, 0, sp)
                     return
                 }
                 out = rest
@@ -614,10 +675,10 @@ public class Frontend {
         while i < names.size() {
             ASTName an = names.get(i)
             if i > 0 {
-                string acc = fly.str.concat(res, ".")
+                string acc = str.concat(res, ".")
                 res = acc
             }
-            string acc2 = fly.str.concat(res, an.getName())
+            string acc2 = str.concat(res, an.getName())
             res = acc2
             i = i + 1
         }
@@ -626,20 +687,20 @@ public class Frontend {
 
     // dropLastSegment — "a.b.c" → "a.b"; "" when no dot remains.
     public string dropLastSegment(const string ns) {
-        int dot = fly.str.lastIndexOf(ns, ".")
+        int dot = str.lastIndexOf(ns, ".")
         if dot < 0 {
             out = ""
             return
         }
-        out = fly.str.substring(ns, 0, dot)
+        out = str.substring(ns, 0, dot)
     }
 
     // hasDescendant — true when any list entry starts with `ns` + ".".
     public bool hasDescendant(const List<string> xs, const string ns) {
-        string pfx = fly.str.concat(ns, ".")
+        string pfx = str.concat(ns, ".")
         int i = 0
         while i < xs.size() {
-            if fly.str.startsWith(xs.get(i), pfx) {
+            if str.startsWith(xs.get(i), pfx) {
                 out = true
                 return
             }
@@ -652,7 +713,7 @@ public class Frontend {
     public bool listHas(const List<string> xs, const string v) {
         int i = 0
         while i < xs.size() {
-            if fly.str.equals(xs.get(i), v) {
+            if str.equals(xs.get(i), v) {
                 out = true
                 return
             }
@@ -670,7 +731,7 @@ public class Frontend {
         int i = 0
         while i < n {
             string msg = sink.getMessage(i)
-            fly.os.io.printErrLn(msg)
+            io.printErrLn(msg)
             if this.logger != null {
                 this.logger.add("error", "", "0", "0", msg)
             }
@@ -687,7 +748,7 @@ public class Frontend {
         while i < n {
             string sep = ""
             if i > 0 { sep = " " }
-            string acc = fly.str.concat(res, fly.str.concat(sep, fo.inputAt(i)))
+            string acc = str.concat(res, str.concat(sep, fo.inputAt(i)))
             res = acc
             i = i + 1
         }
@@ -703,14 +764,14 @@ public class Frontend {
         if this.logger.count() == 0 { return }
         string path = fo.getLogFile()
         string text = ""
-        if fly.str.equals(fo.getLogFormat(), "json") {
+        if str.equals(fo.getLogFormat(), "json") {
             text = this.logger.toJsonReport(this.inputsJoined(fo), fo.getOutputFile())
         } else {
             text = this.logger.toTextReport(this.inputsJoined(fo), fo.getOutputFile())
         }
-        fly.os.fs.writeStr(path, text, 420)
-        if fly.os.fs.exists(path) == false {
-            fly.os.io.printErrLn(fly.str.concat(fly.str.concat("warning: unable to open log file '", path), "'"))
+        fs.writeStr(path, text, 420)
+        if fs.exists(path) == false {
+            io.printErrLn(str.concat(str.concat("warning: unable to open log file '", path), "'"))
         }
     }
 }

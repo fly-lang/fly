@@ -34,109 +34,109 @@ suite MathSuite {
     // ── absI / absF / sign / min / max / clamp ───────────────────────────────
     void basicTest() {
         case "absI": {
-            assert.assertEqL(fly.math.absI(0 - 5), 5, 101)
-            assert.assertEqL(fly.math.absI(5), 5, 102)
-            assert.assertEqL(fly.math.absI(0), 0, 103)
-            assert.assertEqL(fly.math.absI(0 - 9000000000), 9000000000, 104)
+            assert.assertEqL(math.absI(0 - 5), 5, 101)
+            assert.assertEqL(math.absI(5), 5, 102)
+            assert.assertEqL(math.absI(0), 0, 103)
+            assert.assertEqL(math.absI(0 - 9000000000), 9000000000, 104)
         }
         case "absF": {
-            assert.assertApprox(fly.math.absF(0.0 - 3.14159265358979323846),
+            assert.assertApprox(math.absF(0.0 - 3.14159265358979323846),
                                 3.14159265358979323846, 105)
-            assert.assertApprox(fly.math.absF(2.5), 2.5, 106)
-            assert.assertApprox(fly.math.absF(0.0), 0.0, 107)
+            assert.assertApprox(math.absF(2.5), 2.5, 106)
+            assert.assertApprox(math.absF(0.0), 0.0, 107)
         }
         case "sign": {
-            assert.assertEqI(fly.math.sign(5.0), 1, 108)
-            assert.assertEqI(fly.math.sign(0.0 - 5.0), 0 - 1, 109)
-            assert.assertEqI(fly.math.sign(0.0), 0, 110)
-            assert.assertEqI(fly.math.sign(0.0000001), 1, 111)
-            assert.assertEqI(fly.math.sign(0.0 - 0.0000001), 0 - 1, 112)
+            assert.assertEqI(math.sign(5.0), 1, 108)
+            assert.assertEqI(math.sign(0.0 - 5.0), 0 - 1, 109)
+            assert.assertEqI(math.sign(0.0), 0, 110)
+            assert.assertEqI(math.sign(0.0000001), 1, 111)
+            assert.assertEqI(math.sign(0.0 - 0.0000001), 0 - 1, 112)
         }
         case "minI / maxI": {
-            assert.assertEqL(fly.math.minI(3, 7), 3, 113)
-            assert.assertEqL(fly.math.minI(7, 3), 3, 114)
-            assert.assertEqL(fly.math.minI(4, 4), 4, 115)
-            assert.assertEqL(fly.math.minI(0 - 7, 3), 0 - 7, 116)
-            assert.assertEqL(fly.math.maxI(3, 7), 7, 117)
-            assert.assertEqL(fly.math.maxI(7, 3), 7, 118)
-            assert.assertEqL(fly.math.maxI(4, 4), 4, 119)
-            assert.assertEqL(fly.math.maxI(0 - 7, 0 - 3), 0 - 3, 120)
+            assert.assertEqL(math.minI(3, 7), 3, 113)
+            assert.assertEqL(math.minI(7, 3), 3, 114)
+            assert.assertEqL(math.minI(4, 4), 4, 115)
+            assert.assertEqL(math.minI(0 - 7, 3), 0 - 7, 116)
+            assert.assertEqL(math.maxI(3, 7), 7, 117)
+            assert.assertEqL(math.maxI(7, 3), 7, 118)
+            assert.assertEqL(math.maxI(4, 4), 4, 119)
+            assert.assertEqL(math.maxI(0 - 7, 0 - 3), 0 - 3, 120)
         }
         case "minF / maxF": {
-            assert.assertApprox(fly.math.minF(1.5, 2.5), 1.5, 121)
-            assert.assertApprox(fly.math.minF(2.5, 1.5), 1.5, 122)
-            assert.assertApprox(fly.math.maxF(1.5, 2.5), 2.5, 123)
-            assert.assertApprox(fly.math.maxF(2.5, 1.5), 2.5, 124)
-            assert.assertApprox(fly.math.minF(0.0 - 1.0, 1.0), 0.0 - 1.0, 125)
-            assert.assertApprox(fly.math.maxF(0.0 - 1.0, 0.0 - 2.0), 0.0 - 1.0, 126)
+            assert.assertApprox(math.minF(1.5, 2.5), 1.5, 121)
+            assert.assertApprox(math.minF(2.5, 1.5), 1.5, 122)
+            assert.assertApprox(math.maxF(1.5, 2.5), 2.5, 123)
+            assert.assertApprox(math.maxF(2.5, 1.5), 2.5, 124)
+            assert.assertApprox(math.minF(0.0 - 1.0, 1.0), 0.0 - 1.0, 125)
+            assert.assertApprox(math.maxF(0.0 - 1.0, 0.0 - 2.0), 0.0 - 1.0, 126)
         }
         case "clampI covers all three branches": {
-            assert.assertEqL(fly.math.clampI(5, 0, 3), 3, 127)          // above hi
-            assert.assertEqL(fly.math.clampI(0 - 1, 0, 10), 0, 128)     // below lo
-            assert.assertEqL(fly.math.clampI(5, 0, 10), 5, 129)         // inside
-            assert.assertEqL(fly.math.clampI(0, 0, 10), 0, 130)         // at lo
-            assert.assertEqL(fly.math.clampI(10, 0, 10), 10, 131)       // at hi
+            assert.assertEqL(math.clampI(5, 0, 3), 3, 127)          // above hi
+            assert.assertEqL(math.clampI(0 - 1, 0, 10), 0, 128)     // below lo
+            assert.assertEqL(math.clampI(5, 0, 10), 5, 129)         // inside
+            assert.assertEqL(math.clampI(0, 0, 10), 0, 130)         // at lo
+            assert.assertEqL(math.clampI(10, 0, 10), 10, 131)       // at hi
         }
         case "clampF covers all three branches": {
-            assert.assertApprox(fly.math.clampF(1.5, 0.0, 1.0), 1.0, 132)
-            assert.assertApprox(fly.math.clampF(0.0 - 0.5, 0.0, 1.0), 0.0, 133)
-            assert.assertApprox(fly.math.clampF(0.5, 0.0, 1.0), 0.5, 134)
-            assert.assertApprox(fly.math.clampF(0.0 - 5.0, 0.0 - 2.0, 2.0), 0.0 - 2.0, 135)
+            assert.assertApprox(math.clampF(1.5, 0.0, 1.0), 1.0, 132)
+            assert.assertApprox(math.clampF(0.0 - 0.5, 0.0, 1.0), 0.0, 133)
+            assert.assertApprox(math.clampF(0.5, 0.0, 1.0), 0.5, 134)
+            assert.assertApprox(math.clampF(0.0 - 5.0, 0.0 - 2.0, 2.0), 0.0 - 2.0, 135)
         }
     }
 
     // ── gcd / lcm / divmod ───────────────────────────────────────────────────
     void integerTheoryTest() {
         case "gcd": {
-            assert.assertEqL(fly.math.gcd(12, 8), 4, 201)
-            assert.assertEqL(fly.math.gcd(8, 12), 4, 202)
-            assert.assertEqL(fly.math.gcd(7, 7), 7, 203)
-            assert.assertEqL(fly.math.gcd(9, 4), 1, 204)                // coprime
-            assert.assertEqL(fly.math.gcd(270, 192), 6, 205)
+            assert.assertEqL(math.gcd(12, 8), 4, 201)
+            assert.assertEqL(math.gcd(8, 12), 4, 202)
+            assert.assertEqL(math.gcd(7, 7), 7, 203)
+            assert.assertEqL(math.gcd(9, 4), 1, 204)                // coprime
+            assert.assertEqL(math.gcd(270, 192), 6, 205)
         }
         case "gcd with zeros and negatives": {
-            assert.assertEqL(fly.math.gcd(0, 5), 5, 206)
-            assert.assertEqL(fly.math.gcd(5, 0), 5, 207)
-            assert.assertEqL(fly.math.gcd(0, 0), 0, 208)
-            assert.assertEqL(fly.math.gcd(0 - 12, 8), 4, 209)           // folds the sign
-            assert.assertEqL(fly.math.gcd(12, 0 - 8), 4, 210)
-            assert.assertEqL(fly.math.gcd(0 - 12, 0 - 8), 4, 211)
+            assert.assertEqL(math.gcd(0, 5), 5, 206)
+            assert.assertEqL(math.gcd(5, 0), 5, 207)
+            assert.assertEqL(math.gcd(0, 0), 0, 208)
+            assert.assertEqL(math.gcd(0 - 12, 8), 4, 209)           // folds the sign
+            assert.assertEqL(math.gcd(12, 0 - 8), 4, 210)
+            assert.assertEqL(math.gcd(0 - 12, 0 - 8), 4, 211)
         }
         case "lcm": {
-            assert.assertEqL(fly.math.lcm(4, 6), 12, 212)
-            assert.assertEqL(fly.math.lcm(5, 3), 15, 213)               // coprime
-            assert.assertEqL(fly.math.lcm(7, 7), 7, 214)
-            assert.assertEqL(fly.math.lcm(0 - 4, 6), 12, 215)
+            assert.assertEqL(math.lcm(4, 6), 12, 212)
+            assert.assertEqL(math.lcm(5, 3), 15, 213)               // coprime
+            assert.assertEqL(math.lcm(7, 7), 7, 214)
+            assert.assertEqL(math.lcm(0 - 4, 6), 12, 215)
         }
         case "lcm with a zero operand is 0": {
             // gcd(0,0) == 0 takes the guard; gcd(x,0) == x makes the product 0.
-            assert.assertEqL(fly.math.lcm(0, 0), 0, 216)
-            assert.assertEqL(fly.math.lcm(0, 5), 0, 217)
-            assert.assertEqL(fly.math.lcm(5, 0), 0, 218)
+            assert.assertEqL(math.lcm(0, 0), 0, 216)
+            assert.assertEqL(math.lcm(0, 5), 0, 217)
+            assert.assertEqL(math.lcm(5, 0), 0, 218)
         }
         case "divmod on positive operands": {
             long q = 0
             long r = 0
-            fly.math.divmod(17, 5, q, r)
+            math.divmod(17, 5, q, r)
             assert.assertEqL(q, 3, 219)
             assert.assertEqL(r, 2, 220)
-            fly.math.divmod(10, 3, q, r)
+            math.divmod(10, 3, q, r)
             assert.assertEqL(q, 3, 221)
             assert.assertEqL(r, 1, 222)
-            fly.math.divmod(9, 3, q, r)
+            math.divmod(9, 3, q, r)
             assert.assertEqL(q, 3, 223)
             assert.assertEqL(r, 0, 224)                                 // exact
         }
         case "divmod truncates toward zero on negatives": {
             long q = 0
             long r = 0
-            fly.math.divmod(0 - 17, 5, q, r)
+            math.divmod(0 - 17, 5, q, r)
             assert.assertEqL(q, 0 - 3, 225)
             assert.assertEqL(r, 0 - 2, 226)                             // sign follows the dividend
-            fly.math.divmod(17, 0 - 5, q, r)
+            math.divmod(17, 0 - 5, q, r)
             assert.assertEqL(q, 0 - 3, 227)
             assert.assertEqL(r, 2, 228)
-            fly.math.divmod(0, 5, q, r)
+            math.divmod(0, 5, q, r)
             assert.assertEqL(q, 0, 229)
             assert.assertEqL(r, 0, 230)
         }
@@ -145,54 +145,54 @@ suite MathSuite {
     // ── sqrt / cbrt / pow / exp / log ────────────────────────────────────────
     void powerAndLogTest() {
         case "sqrt": {
-            assert.assertApprox(fly.math.sqrt(4.0), 2.0, 301)
-            assert.assertApprox(fly.math.sqrt(9.0), 3.0, 302)
-            assert.assertApprox(fly.math.sqrt(0.0), 0.0, 303)
-            assert.assertApprox(fly.math.sqrt(1.0), 1.0, 304)
-            assert.assertApproxEps(fly.math.sqrt(2.0), 1.4142135623730951, 0.000000001, 305)
+            assert.assertApprox(math.sqrt(4.0), 2.0, 301)
+            assert.assertApprox(math.sqrt(9.0), 3.0, 302)
+            assert.assertApprox(math.sqrt(0.0), 0.0, 303)
+            assert.assertApprox(math.sqrt(1.0), 1.0, 304)
+            assert.assertApproxEps(math.sqrt(2.0), 1.4142135623730951, 0.000000001, 305)
         }
         case "cbrt handles the negative branch": {
-            assert.assertApprox(fly.math.cbrt(8.0), 2.0, 306)
-            assert.assertApprox(fly.math.cbrt(27.0), 3.0, 307)
-            assert.assertApprox(fly.math.cbrt(0.0 - 27.0), 0.0 - 3.0, 308)
-            assert.assertApprox(fly.math.cbrt(0.0), 0.0, 309)
-            assert.assertApprox(fly.math.cbrt(1.0), 1.0, 310)
+            assert.assertApprox(math.cbrt(8.0), 2.0, 306)
+            assert.assertApprox(math.cbrt(27.0), 3.0, 307)
+            assert.assertApprox(math.cbrt(0.0 - 27.0), 0.0 - 3.0, 308)
+            assert.assertApprox(math.cbrt(0.0), 0.0, 309)
+            assert.assertApprox(math.cbrt(1.0), 1.0, 310)
         }
         case "pow": {
-            assert.assertApprox(fly.math.pow(2.0, 10.0), 1024.0, 311)
-            assert.assertApprox(fly.math.pow(5.0, 0.0), 1.0, 312)
-            assert.assertApprox(fly.math.pow(3.0, 3.0), 27.0, 313)
-            assert.assertApprox(fly.math.pow(2.0, 0.0 - 2.0), 0.25, 314)
-            assert.assertApprox(fly.math.pow(4.0, 0.5), 2.0, 315)
-            assert.assertApprox(fly.math.pow(1.0, 999.0), 1.0, 316)
+            assert.assertApprox(math.pow(2.0, 10.0), 1024.0, 311)
+            assert.assertApprox(math.pow(5.0, 0.0), 1.0, 312)
+            assert.assertApprox(math.pow(3.0, 3.0), 27.0, 313)
+            assert.assertApprox(math.pow(2.0, 0.0 - 2.0), 0.25, 314)
+            assert.assertApprox(math.pow(4.0, 0.5), 2.0, 315)
+            assert.assertApprox(math.pow(1.0, 999.0), 1.0, 316)
         }
         case "exp / exp2": {
-            assert.assertApprox(fly.math.exp(0.0), 1.0, 317)
-            assert.assertApproxEps(fly.math.exp(1.0), 2.718281828459045, 0.000000001, 318)
-            assert.assertApprox(fly.math.exp2(3.0), 8.0, 319)
-            assert.assertApprox(fly.math.exp2(0.0), 1.0, 320)
-            assert.assertApprox(fly.math.exp2(0.0 - 1.0), 0.5, 321)
+            assert.assertApprox(math.exp(0.0), 1.0, 317)
+            assert.assertApproxEps(math.exp(1.0), 2.718281828459045, 0.000000001, 318)
+            assert.assertApprox(math.exp2(3.0), 8.0, 319)
+            assert.assertApprox(math.exp2(0.0), 1.0, 320)
+            assert.assertApprox(math.exp2(0.0 - 1.0), 0.5, 321)
         }
         case "log / log2 / log10": {
-            assert.assertApprox(fly.math.log(1.0), 0.0, 322)
-            assert.assertApprox(fly.math.log(2.718281828459045), 1.0, 323)
-            assert.assertApprox(fly.math.log2(8.0), 3.0, 324)
-            assert.assertApprox(fly.math.log2(1.0), 0.0, 325)
-            assert.assertApprox(fly.math.log10(1000.0), 3.0, 326)
-            assert.assertApprox(fly.math.log10(1.0), 0.0, 327)
+            assert.assertApprox(math.log(1.0), 0.0, 322)
+            assert.assertApprox(math.log(2.718281828459045), 1.0, 323)
+            assert.assertApprox(math.log2(8.0), 3.0, 324)
+            assert.assertApprox(math.log2(1.0), 0.0, 325)
+            assert.assertApprox(math.log10(1000.0), 3.0, 326)
+            assert.assertApprox(math.log10(1.0), 0.0, 327)
         }
         case "logN": {
-            assert.assertApprox(fly.math.logN(8.0, 2.0), 3.0, 328)
-            assert.assertApprox(fly.math.logN(100.0, 10.0), 2.0, 329)
-            assert.assertApprox(fly.math.logN(1.0, 5.0), 0.0, 330)
-            assert.assertApproxEps(fly.math.logN(9.0, 3.0), 2.0, 0.000000001, 331)
+            assert.assertApprox(math.logN(8.0, 2.0), 3.0, 328)
+            assert.assertApprox(math.logN(100.0, 10.0), 2.0, 329)
+            assert.assertApprox(math.logN(1.0, 5.0), 0.0, 330)
+            assert.assertApproxEps(math.logN(9.0, 3.0), 2.0, 0.000000001, 331)
         }
         case "exp and log invert each other": {
             double bad = 0.0
             int i = 1
             while i < 20 {
                 double x = i
-                double back = fly.math.log(fly.math.exp(x))
+                double back = math.log(math.exp(x))
                 double diff = back - x
                 if diff < 0.0 { diff = 0.0 - diff }
                 if diff > 0.0000001 { bad = x }
@@ -201,74 +201,74 @@ suite MathSuite {
             assert.assertApprox(bad, 0.0, 332)
         }
         case "hypot": {
-            assert.assertApprox(fly.math.hypot(3.0, 4.0), 5.0, 333)
-            assert.assertApprox(fly.math.hypot(5.0, 12.0), 13.0, 334)
-            assert.assertApprox(fly.math.hypot(0.0, 0.0), 0.0, 335)
-            assert.assertApprox(fly.math.hypot(0.0, 7.0), 7.0, 336)
+            assert.assertApprox(math.hypot(3.0, 4.0), 5.0, 333)
+            assert.assertApprox(math.hypot(5.0, 12.0), 13.0, 334)
+            assert.assertApprox(math.hypot(0.0, 0.0), 0.0, 335)
+            assert.assertApprox(math.hypot(0.0, 7.0), 7.0, 336)
             // No intermediate overflow at the top of the double range.
-            assert.assertApproxEps(fly.math.hypot(3.0e200, 4.0e200), 5.0e200, 1.0e185, 337)
+            assert.assertApproxEps(math.hypot(3.0e200, 4.0e200), 5.0e200, 1.0e185, 337)
         }
     }
 
     // ── trigonometry, hyperbolics, and the angle conversions ─────────────────
     void trigTest() {
         case "sin / cos / tan at 0": {
-            assert.assertApprox(fly.math.sin(0.0), 0.0, 401)
-            assert.assertApprox(fly.math.cos(0.0), 1.0, 402)
-            assert.assertApprox(fly.math.tan(0.0), 0.0, 403)
+            assert.assertApprox(math.sin(0.0), 0.0, 401)
+            assert.assertApprox(math.cos(0.0), 1.0, 402)
+            assert.assertApprox(math.tan(0.0), 0.0, 403)
         }
         case "sin / cos / tan at known angles": {
             double pi = 3.14159265358979323846
-            assert.assertApproxEps(fly.math.sin(pi / 2.0), 1.0, 0.000000001, 404)
-            assert.assertApproxEps(fly.math.cos(pi), 0.0 - 1.0, 0.000000001, 405)
-            assert.assertApproxEps(fly.math.sin(pi), 0.0, 0.000000001, 406)
-            assert.assertApproxEps(fly.math.tan(pi / 4.0), 1.0, 0.000000001, 407)
+            assert.assertApproxEps(math.sin(pi / 2.0), 1.0, 0.000000001, 404)
+            assert.assertApproxEps(math.cos(pi), 0.0 - 1.0, 0.000000001, 405)
+            assert.assertApproxEps(math.sin(pi), 0.0, 0.000000001, 406)
+            assert.assertApproxEps(math.tan(pi / 4.0), 1.0, 0.000000001, 407)
         }
         case "asin / acos / atan": {
-            assert.assertApprox(fly.math.asin(0.0), 0.0, 408)
-            assert.assertApprox(fly.math.acos(1.0), 0.0, 409)
-            assert.assertApprox(fly.math.atan(0.0), 0.0, 410)
-            assert.assertApproxEps(fly.math.asin(0.5), 0.5235987755982988, 0.000000001, 411)
-            assert.assertApproxEps(fly.math.acos(0.5), 1.0471975511965979, 0.000000001, 412)
-            assert.assertApproxEps(fly.math.atan(1.0), 0.7853981633974483, 0.000000001, 413)
-            assert.assertApproxEps(fly.math.asin(1.0), 1.5707963267948966, 0.000000001, 414)
-            assert.assertApproxEps(fly.math.acos(0.0), 1.5707963267948966, 0.000000001, 415)
+            assert.assertApprox(math.asin(0.0), 0.0, 408)
+            assert.assertApprox(math.acos(1.0), 0.0, 409)
+            assert.assertApprox(math.atan(0.0), 0.0, 410)
+            assert.assertApproxEps(math.asin(0.5), 0.5235987755982988, 0.000000001, 411)
+            assert.assertApproxEps(math.acos(0.5), 1.0471975511965979, 0.000000001, 412)
+            assert.assertApproxEps(math.atan(1.0), 0.7853981633974483, 0.000000001, 413)
+            assert.assertApproxEps(math.asin(1.0), 1.5707963267948966, 0.000000001, 414)
+            assert.assertApproxEps(math.acos(0.0), 1.5707963267948966, 0.000000001, 415)
         }
         case "atan2 across the quadrants": {
             double pi = 3.14159265358979323846
-            assert.assertApprox(fly.math.atan2(0.0, 1.0), 0.0, 416)
-            assert.assertApproxEps(fly.math.atan2(1.0, 1.0), 0.7853981633974483, 0.000000001, 417)
-            assert.assertApproxEps(fly.math.atan2(1.0, 0.0), pi / 2.0, 0.000000001, 418)
-            assert.assertApproxEps(fly.math.atan2(0.0, 0.0 - 1.0), pi, 0.000000001, 419)
-            assert.assertApproxEps(fly.math.atan2(0.0 - 1.0, 1.0),
+            assert.assertApprox(math.atan2(0.0, 1.0), 0.0, 416)
+            assert.assertApproxEps(math.atan2(1.0, 1.0), 0.7853981633974483, 0.000000001, 417)
+            assert.assertApproxEps(math.atan2(1.0, 0.0), pi / 2.0, 0.000000001, 418)
+            assert.assertApproxEps(math.atan2(0.0, 0.0 - 1.0), pi, 0.000000001, 419)
+            assert.assertApproxEps(math.atan2(0.0 - 1.0, 1.0),
                                    0.0 - 0.7853981633974483, 0.000000001, 420)
         }
         case "sinh / cosh / tanh": {
-            assert.assertApprox(fly.math.sinh(0.0), 0.0, 421)
-            assert.assertApprox(fly.math.cosh(0.0), 1.0, 422)
-            assert.assertApprox(fly.math.tanh(0.0), 0.0, 423)
-            assert.assertApproxEps(fly.math.sinh(1.0), 1.1752011936438014, 0.000000001, 424)
-            assert.assertApproxEps(fly.math.cosh(1.0), 1.5430806348152437, 0.000000001, 425)
-            assert.assertApproxEps(fly.math.tanh(1.0), 0.7615941559557649, 0.000000001, 426)
-            assert.assertApproxEps(fly.math.sinh(0.0 - 1.0),
+            assert.assertApprox(math.sinh(0.0), 0.0, 421)
+            assert.assertApprox(math.cosh(0.0), 1.0, 422)
+            assert.assertApprox(math.tanh(0.0), 0.0, 423)
+            assert.assertApproxEps(math.sinh(1.0), 1.1752011936438014, 0.000000001, 424)
+            assert.assertApproxEps(math.cosh(1.0), 1.5430806348152437, 0.000000001, 425)
+            assert.assertApproxEps(math.tanh(1.0), 0.7615941559557649, 0.000000001, 426)
+            assert.assertApproxEps(math.sinh(0.0 - 1.0),
                                    0.0 - 1.1752011936438014, 0.000000001, 427)
-            assert.assertApproxEps(fly.math.cosh(0.0 - 1.0), 1.5430806348152437, 0.000000001, 428)
+            assert.assertApproxEps(math.cosh(0.0 - 1.0), 1.5430806348152437, 0.000000001, 428)
         }
         case "asinh / acosh / atanh": {
-            assert.assertApprox(fly.math.asinh(0.0), 0.0, 429)
-            assert.assertApproxEps(fly.math.asinh(1.0), 0.881373587019543, 0.000000001, 430)
-            assert.assertApprox(fly.math.acosh(1.0), 0.0, 431)
-            assert.assertApproxEps(fly.math.acosh(2.0), 1.3169578969248166, 0.000000001, 432)
-            assert.assertApprox(fly.math.atanh(0.0), 0.0, 433)
-            assert.assertApproxEps(fly.math.atanh(0.5), 0.5493061443340549, 0.000000001, 434)
+            assert.assertApprox(math.asinh(0.0), 0.0, 429)
+            assert.assertApproxEps(math.asinh(1.0), 0.881373587019543, 0.000000001, 430)
+            assert.assertApprox(math.acosh(1.0), 0.0, 431)
+            assert.assertApproxEps(math.acosh(2.0), 1.3169578969248166, 0.000000001, 432)
+            assert.assertApprox(math.atanh(0.0), 0.0, 433)
+            assert.assertApproxEps(math.atanh(0.5), 0.5493061443340549, 0.000000001, 434)
         }
         case "toRadians / toDegrees round-trip": {
             double pi = 3.14159265358979323846
-            assert.assertApproxEps(fly.math.toRadians(180.0), pi, 0.000000001, 435)
-            assert.assertApproxEps(fly.math.toDegrees(pi), 180.0, 0.000001, 436)
-            assert.assertApprox(fly.math.toRadians(0.0), 0.0, 437)
-            assert.assertApproxEps(fly.math.toRadians(90.0), pi / 2.0, 0.000000001, 438)
-            assert.assertApproxEps(fly.math.toDegrees(fly.math.toRadians(45.0)),
+            assert.assertApproxEps(math.toRadians(180.0), pi, 0.000000001, 435)
+            assert.assertApproxEps(math.toDegrees(pi), 180.0, 0.000001, 436)
+            assert.assertApprox(math.toRadians(0.0), 0.0, 437)
+            assert.assertApproxEps(math.toRadians(90.0), pi / 2.0, 0.000000001, 438)
+            assert.assertApproxEps(math.toDegrees(math.toRadians(45.0)),
                                    45.0, 0.000001, 439)
         }
     }
@@ -276,37 +276,37 @@ suite MathSuite {
     // ── floor / ceil / round / trunc / roundTo ───────────────────────────────
     void roundingTest() {
         case "floor": {
-            assert.assertApprox(fly.math.floor(2.7), 2.0, 501)
-            assert.assertApprox(fly.math.floor(2.0), 2.0, 502)
-            assert.assertApprox(fly.math.floor(0.0 - 2.7), 0.0 - 3.0, 503)
-            assert.assertApprox(fly.math.floor(0.0), 0.0, 504)
+            assert.assertApprox(math.floor(2.7), 2.0, 501)
+            assert.assertApprox(math.floor(2.0), 2.0, 502)
+            assert.assertApprox(math.floor(0.0 - 2.7), 0.0 - 3.0, 503)
+            assert.assertApprox(math.floor(0.0), 0.0, 504)
         }
         case "ceil": {
-            assert.assertApprox(fly.math.ceil(2.1), 3.0, 505)
-            assert.assertApprox(fly.math.ceil(2.0), 2.0, 506)
-            assert.assertApprox(fly.math.ceil(0.0 - 2.1), 0.0 - 2.0, 507)
+            assert.assertApprox(math.ceil(2.1), 3.0, 505)
+            assert.assertApprox(math.ceil(2.0), 2.0, 506)
+            assert.assertApprox(math.ceil(0.0 - 2.1), 0.0 - 2.0, 507)
         }
         case "round is half-away-from-zero": {
-            assert.assertApprox(fly.math.round(2.5), 3.0, 508)
-            assert.assertApprox(fly.math.round(2.4), 2.0, 509)
-            assert.assertApprox(fly.math.round(0.0 - 2.5), 0.0 - 3.0, 510)
-            assert.assertApprox(fly.math.round(0.0 - 2.4), 0.0 - 2.0, 511)
+            assert.assertApprox(math.round(2.5), 3.0, 508)
+            assert.assertApprox(math.round(2.4), 2.0, 509)
+            assert.assertApprox(math.round(0.0 - 2.5), 0.0 - 3.0, 510)
+            assert.assertApprox(math.round(0.0 - 2.4), 0.0 - 2.0, 511)
         }
         case "trunc drops the fraction toward zero": {
-            assert.assertApprox(fly.math.trunc(2.9), 2.0, 512)
-            assert.assertApprox(fly.math.trunc(0.0 - 2.9), 0.0 - 2.0, 513)
-            assert.assertApprox(fly.math.trunc(0.5), 0.0, 514)
+            assert.assertApprox(math.trunc(2.9), 2.0, 512)
+            assert.assertApprox(math.trunc(0.0 - 2.9), 0.0 - 2.0, 513)
+            assert.assertApprox(math.trunc(0.5), 0.0, 514)
         }
         case "roundTo with n >= 0": {
-            assert.assertApproxEps(fly.math.roundTo(3.14159, 2), 3.14, 0.000001, 515)
-            assert.assertApprox(fly.math.roundTo(3.14159, 0), 3.0, 516)
-            assert.assertApproxEps(fly.math.roundTo(3.14159, 4), 3.1416, 0.000001, 517)
-            assert.assertApproxEps(fly.math.roundTo(2.5, 1), 2.5, 0.000001, 518)
+            assert.assertApproxEps(math.roundTo(3.14159, 2), 3.14, 0.000001, 515)
+            assert.assertApprox(math.roundTo(3.14159, 0), 3.0, 516)
+            assert.assertApproxEps(math.roundTo(3.14159, 4), 3.1416, 0.000001, 517)
+            assert.assertApproxEps(math.roundTo(2.5, 1), 2.5, 0.000001, 518)
         }
         case "roundTo with n < 0 takes the divide-then-scale branch": {
-            assert.assertApprox(fly.math.roundTo(1234.0, 0 - 1), 1230.0, 519)
-            assert.assertApprox(fly.math.roundTo(1234.0, 0 - 2), 1200.0, 520)
-            assert.assertApprox(fly.math.roundTo(1250.0, 0 - 2), 1300.0, 521)
+            assert.assertApprox(math.roundTo(1234.0, 0 - 1), 1230.0, 519)
+            assert.assertApprox(math.roundTo(1234.0, 0 - 2), 1200.0, 520)
+            assert.assertApprox(math.roundTo(1250.0, 0 - 2), 1300.0, 521)
         }
     }
 
@@ -315,157 +315,157 @@ suite MathSuite {
         case "isNaN": {
             double zero = 0.0
             double nan = zero / zero
-            assert.assertTrue(fly.math.isNaN(nan), 601)
-            assert.assertFalse(fly.math.isNaN(1.0), 602)
-            assert.assertFalse(fly.math.isNaN(0.0), 603)
+            assert.assertTrue(math.isNaN(nan), 601)
+            assert.assertFalse(math.isNaN(1.0), 602)
+            assert.assertFalse(math.isNaN(0.0), 603)
             double inf = 1.0 / zero
-            assert.assertFalse(fly.math.isNaN(inf), 604)
+            assert.assertFalse(math.isNaN(inf), 604)
         }
         case "isInf on both infinities": {
             double zero = 0.0
             double inf = 1.0 / zero
             double ninf = 0.0 - inf
-            assert.assertTrue(fly.math.isInf(inf), 605)
-            assert.assertTrue(fly.math.isInf(ninf), 606)
-            assert.assertFalse(fly.math.isInf(1.0), 607)
-            assert.assertFalse(fly.math.isInf(0.0), 608)                // the x != 0 guard
+            assert.assertTrue(math.isInf(inf), 605)
+            assert.assertTrue(math.isInf(ninf), 606)
+            assert.assertFalse(math.isInf(1.0), 607)
+            assert.assertFalse(math.isInf(0.0), 608)                // the x != 0 guard
         }
         case "isFinite": {
             double zero = 0.0
             double inf = 1.0 / zero
             double nan = zero / zero
-            assert.assertTrue(fly.math.isFinite(1.0), 609)
-            assert.assertTrue(fly.math.isFinite(0.0), 610)
-            assert.assertTrue(fly.math.isFinite(0.0 - 1.0e300), 611)
-            assert.assertFalse(fly.math.isFinite(inf), 612)
-            assert.assertFalse(fly.math.isFinite(nan), 613)
+            assert.assertTrue(math.isFinite(1.0), 609)
+            assert.assertTrue(math.isFinite(0.0), 610)
+            assert.assertTrue(math.isFinite(0.0 - 1.0e300), 611)
+            assert.assertFalse(math.isFinite(inf), 612)
+            assert.assertFalse(math.isFinite(nan), 613)
         }
         case "approxEqual": {
-            assert.assertTrue(fly.math.approxEqual(1.0, 1.0000000001, 0.000001), 614)
-            assert.assertFalse(fly.math.approxEqual(1.0, 2.0, 0.000000001), 615)
-            assert.assertTrue(fly.math.approxEqual(1.0, 1.0, 0.0), 616)     // exactly equal
-            assert.assertTrue(fly.math.approxEqual(0.0 - 1.0, 0.0 - 1.0, 0.0), 617)
-            assert.assertTrue(fly.math.approxEqual(1.0, 1.5, 0.5), 618)     // at the boundary
-            assert.assertFalse(fly.math.approxEqual(1.0, 1.6, 0.5), 619)
+            assert.assertTrue(math.approxEqual(1.0, 1.0000000001, 0.000001), 614)
+            assert.assertFalse(math.approxEqual(1.0, 2.0, 0.000000001), 615)
+            assert.assertTrue(math.approxEqual(1.0, 1.0, 0.0), 616)     // exactly equal
+            assert.assertTrue(math.approxEqual(0.0 - 1.0, 0.0 - 1.0, 0.0), 617)
+            assert.assertTrue(math.approxEqual(1.0, 1.5, 0.5), 618)     // at the boundary
+            assert.assertFalse(math.approxEqual(1.0, 1.6, 0.5), 619)
         }
         case "copySign": {
-            assert.assertApprox(fly.math.copySign(3.0, 0.0 - 1.0), 0.0 - 3.0, 620)
-            assert.assertApprox(fly.math.copySign(0.0 - 3.0, 1.0), 3.0, 621)
-            assert.assertApprox(fly.math.copySign(3.0, 1.0), 3.0, 622)
-            assert.assertApprox(fly.math.copySign(0.0 - 3.0, 0.0 - 1.0), 0.0 - 3.0, 623)
+            assert.assertApprox(math.copySign(3.0, 0.0 - 1.0), 0.0 - 3.0, 620)
+            assert.assertApprox(math.copySign(0.0 - 3.0, 1.0), 3.0, 621)
+            assert.assertApprox(math.copySign(3.0, 1.0), 3.0, 622)
+            assert.assertApprox(math.copySign(0.0 - 3.0, 0.0 - 1.0), 0.0 - 3.0, 623)
         }
     }
 
     // ── isPow2 / nextPow2 / popcount / leadingZeros / trailingZeros ──────────
     void bitwiseTest() {
         case "isPow2": {
-            assert.assertTrue(fly.math.isPow2(1), 701)
-            assert.assertTrue(fly.math.isPow2(2), 702)
-            assert.assertTrue(fly.math.isPow2(8), 703)
-            assert.assertTrue(fly.math.isPow2(1024), 704)
-            assert.assertFalse(fly.math.isPow2(7), 705)
-            assert.assertFalse(fly.math.isPow2(0), 706)                 // n > 0 guard
-            assert.assertFalse(fly.math.isPow2(0 - 8), 707)             // negatives are not
+            assert.assertTrue(math.isPow2(1), 701)
+            assert.assertTrue(math.isPow2(2), 702)
+            assert.assertTrue(math.isPow2(8), 703)
+            assert.assertTrue(math.isPow2(1024), 704)
+            assert.assertFalse(math.isPow2(7), 705)
+            assert.assertFalse(math.isPow2(0), 706)                 // n > 0 guard
+            assert.assertFalse(math.isPow2(0 - 8), 707)             // negatives are not
         }
         case "nextPow2": {
-            assert.assertEqL(fly.math.nextPow2(5), 8, 708)
-            assert.assertEqL(fly.math.nextPow2(8), 8, 709)              // already a power
-            assert.assertEqL(fly.math.nextPow2(9), 16, 710)
-            assert.assertEqL(fly.math.nextPow2(1), 1, 711)              // v <= 1 early out
-            assert.assertEqL(fly.math.nextPow2(0), 1, 712)
-            assert.assertEqL(fly.math.nextPow2(0 - 5), 1, 713)
-            assert.assertEqL(fly.math.nextPow2(1025), 2048, 714)
-            assert.assertEqL(fly.math.nextPow2(4294967297), 8589934592, 715)  // past 32 bits
+            assert.assertEqL(math.nextPow2(5), 8, 708)
+            assert.assertEqL(math.nextPow2(8), 8, 709)              // already a power
+            assert.assertEqL(math.nextPow2(9), 16, 710)
+            assert.assertEqL(math.nextPow2(1), 1, 711)              // v <= 1 early out
+            assert.assertEqL(math.nextPow2(0), 1, 712)
+            assert.assertEqL(math.nextPow2(0 - 5), 1, 713)
+            assert.assertEqL(math.nextPow2(1025), 2048, 714)
+            assert.assertEqL(math.nextPow2(4294967297), 8589934592, 715)  // past 32 bits
         }
         case "isPow2 and nextPow2 agree": {
             long bad = 0 - 1
             long i = 1
             while i < 300 {
-                if fly.math.isPow2(i) {
-                    if fly.math.nextPow2(i) != i { bad = i }
+                if math.isPow2(i) {
+                    if math.nextPow2(i) != i { bad = i }
                 }
                 i = i + 1
             }
             assert.assertEqL(bad, 0 - 1, 716)
         }
         case "popcount": {
-            assert.assertEqI(fly.math.popcount(0), 0, 717)
-            assert.assertEqI(fly.math.popcount(1), 1, 718)
-            assert.assertEqI(fly.math.popcount(255), 8, 719)
-            assert.assertEqI(fly.math.popcount(256), 1, 720)
-            assert.assertEqI(fly.math.popcount(0 - 1), 64, 721)         // all bits set
+            assert.assertEqI(math.popcount(0), 0, 717)
+            assert.assertEqI(math.popcount(1), 1, 718)
+            assert.assertEqI(math.popcount(255), 8, 719)
+            assert.assertEqI(math.popcount(256), 1, 720)
+            assert.assertEqI(math.popcount(0 - 1), 64, 721)         // all bits set
         }
         case "leadingZeros": {
-            assert.assertEqI(fly.math.leadingZeros(0), 64, 722)         // early out
-            assert.assertEqI(fly.math.leadingZeros(1), 63, 723)
-            assert.assertEqI(fly.math.leadingZeros(2), 62, 724)
-            assert.assertEqI(fly.math.leadingZeros(255), 56, 725)
-            assert.assertEqI(fly.math.leadingZeros(0 - 1), 0, 726)      // sign bit set
+            assert.assertEqI(math.leadingZeros(0), 64, 722)         // early out
+            assert.assertEqI(math.leadingZeros(1), 63, 723)
+            assert.assertEqI(math.leadingZeros(2), 62, 724)
+            assert.assertEqI(math.leadingZeros(255), 56, 725)
+            assert.assertEqI(math.leadingZeros(0 - 1), 0, 726)      // sign bit set
         }
         case "trailingZeros": {
-            assert.assertEqI(fly.math.trailingZeros(0), 64, 727)        // early out
-            assert.assertEqI(fly.math.trailingZeros(1), 0, 728)
-            assert.assertEqI(fly.math.trailingZeros(8), 3, 729)
-            assert.assertEqI(fly.math.trailingZeros(256), 8, 730)
-            assert.assertEqI(fly.math.trailingZeros(0 - 1), 0, 731)
-            assert.assertEqI(fly.math.trailingZeros(4294967296), 32, 732)
+            assert.assertEqI(math.trailingZeros(0), 64, 727)        // early out
+            assert.assertEqI(math.trailingZeros(1), 0, 728)
+            assert.assertEqI(math.trailingZeros(8), 3, 729)
+            assert.assertEqI(math.trailingZeros(256), 8, 730)
+            assert.assertEqI(math.trailingZeros(0 - 1), 0, 731)
+            assert.assertEqI(math.trailingZeros(4294967296), 32, 732)
         }
     }
 
     // ── fma / lerp / saturate / factorials / comb / perm / erf / gamma ───────
     void specialTest() {
         case "fma": {
-            assert.assertApprox(fly.math.fma(2.0, 3.0, 1.0), 7.0, 801)
-            assert.assertApprox(fly.math.fma(0.0, 5.0, 2.0), 2.0, 802)
-            assert.assertApprox(fly.math.fma(0.0 - 2.0, 3.0, 1.0), 0.0 - 5.0, 803)
+            assert.assertApprox(math.fma(2.0, 3.0, 1.0), 7.0, 801)
+            assert.assertApprox(math.fma(0.0, 5.0, 2.0), 2.0, 802)
+            assert.assertApprox(math.fma(0.0 - 2.0, 3.0, 1.0), 0.0 - 5.0, 803)
         }
         case "lerp": {
-            assert.assertApprox(fly.math.lerp(0.0, 10.0, 0.5), 5.0, 804)
-            assert.assertApprox(fly.math.lerp(0.0, 10.0, 0.0), 0.0, 805)
-            assert.assertApprox(fly.math.lerp(0.0, 10.0, 1.0), 10.0, 806)
-            assert.assertApprox(fly.math.lerp(2.0, 4.0, 0.25), 2.5, 807)
-            assert.assertApprox(fly.math.lerp(0.0, 10.0, 2.0), 20.0, 808)   // extrapolates
+            assert.assertApprox(math.lerp(0.0, 10.0, 0.5), 5.0, 804)
+            assert.assertApprox(math.lerp(0.0, 10.0, 0.0), 0.0, 805)
+            assert.assertApprox(math.lerp(0.0, 10.0, 1.0), 10.0, 806)
+            assert.assertApprox(math.lerp(2.0, 4.0, 0.25), 2.5, 807)
+            assert.assertApprox(math.lerp(0.0, 10.0, 2.0), 20.0, 808)   // extrapolates
         }
         case "saturate covers all three branches": {
-            assert.assertApprox(fly.math.saturate(2.0), 1.0, 809)
-            assert.assertApprox(fly.math.saturate(0.0 - 1.0), 0.0, 810)
-            assert.assertApprox(fly.math.saturate(0.5), 0.5, 811)
-            assert.assertApprox(fly.math.saturate(0.0), 0.0, 812)
-            assert.assertApprox(fly.math.saturate(1.0), 1.0, 813)
+            assert.assertApprox(math.saturate(2.0), 1.0, 809)
+            assert.assertApprox(math.saturate(0.0 - 1.0), 0.0, 810)
+            assert.assertApprox(math.saturate(0.5), 0.5, 811)
+            assert.assertApprox(math.saturate(0.0), 0.0, 812)
+            assert.assertApprox(math.saturate(1.0), 1.0, 813)
         }
         case "factorialI": {
-            assert.assertEqL(fly.math.factorialI(0), 1, 814)            // empty product
-            assert.assertEqL(fly.math.factorialI(1), 1, 815)
-            assert.assertEqL(fly.math.factorialI(5), 120, 816)
-            assert.assertEqL(fly.math.factorialI(10), 3628800, 817)
-            assert.assertEqL(fly.math.factorialI(0 - 3), 1, 818)        // loop never runs
+            assert.assertEqL(math.factorialI(0), 1, 814)            // empty product
+            assert.assertEqL(math.factorialI(1), 1, 815)
+            assert.assertEqL(math.factorialI(5), 120, 816)
+            assert.assertEqL(math.factorialI(10), 3628800, 817)
+            assert.assertEqL(math.factorialI(0 - 3), 1, 818)        // loop never runs
         }
         case "factorialF": {
-            assert.assertApprox(fly.math.factorialF(0), 1.0, 819)
-            assert.assertApprox(fly.math.factorialF(1), 1.0, 820)
-            assert.assertApprox(fly.math.factorialF(5), 120.0, 821)
-            assert.assertApprox(fly.math.factorialF(10), 3628800.0, 822)
-            assert.assertApproxEps(fly.math.factorialF(20), 2432902008176640000.0, 1.0, 823)
+            assert.assertApprox(math.factorialF(0), 1.0, 819)
+            assert.assertApprox(math.factorialF(1), 1.0, 820)
+            assert.assertApprox(math.factorialF(5), 120.0, 821)
+            assert.assertApprox(math.factorialF(10), 3628800.0, 822)
+            assert.assertApproxEps(math.factorialF(20), 2432902008176640000.0, 1.0, 823)
         }
         case "comb": {
-            assert.assertEqL(fly.math.comb(5, 2), 10, 824)
-            assert.assertEqL(fly.math.comb(5, 3), 10, 825)              // symmetric
-            assert.assertEqL(fly.math.comb(5, 0), 1, 826)
-            assert.assertEqL(fly.math.comb(5, 5), 1, 827)
-            assert.assertEqL(fly.math.comb(10, 5), 252, 828)
-            assert.assertEqL(fly.math.comb(0, 0), 1, 829)
+            assert.assertEqL(math.comb(5, 2), 10, 824)
+            assert.assertEqL(math.comb(5, 3), 10, 825)              // symmetric
+            assert.assertEqL(math.comb(5, 0), 1, 826)
+            assert.assertEqL(math.comb(5, 5), 1, 827)
+            assert.assertEqL(math.comb(10, 5), 252, 828)
+            assert.assertEqL(math.comb(0, 0), 1, 829)
         }
         case "comb guards": {
-            assert.assertEqL(fly.math.comb(5, 6), 0, 830)               // k > n
-            assert.assertEqL(fly.math.comb(5, 0 - 1), 0, 831)           // k < 0
+            assert.assertEqL(math.comb(5, 6), 0, 830)               // k > n
+            assert.assertEqL(math.comb(5, 0 - 1), 0, 831)           // k < 0
         }
         case "perm": {
-            assert.assertEqL(fly.math.perm(5, 2), 20, 832)
-            assert.assertEqL(fly.math.perm(5, 0), 1, 833)
-            assert.assertEqL(fly.math.perm(5, 5), 120, 834)             // == 5!
-            assert.assertEqL(fly.math.perm(5, 1), 5, 835)
-            assert.assertEqL(fly.math.perm(5, 6), 0, 836)               // k > n
-            assert.assertEqL(fly.math.perm(5, 0 - 1), 0, 837)           // k < 0
+            assert.assertEqL(math.perm(5, 2), 20, 832)
+            assert.assertEqL(math.perm(5, 0), 1, 833)
+            assert.assertEqL(math.perm(5, 5), 120, 834)             // == 5!
+            assert.assertEqL(math.perm(5, 1), 5, 835)
+            assert.assertEqL(math.perm(5, 6), 0, 836)               // k > n
+            assert.assertEqL(math.perm(5, 0 - 1), 0, 837)           // k < 0
         }
         case "comb, perm and factorial agree": {
             // perm(n,k) == comb(n,k) * k!
@@ -474,7 +474,7 @@ suite MathSuite {
             while n < 12 {
                 long k = 0
                 while k <= n {
-                    if fly.math.perm(n, k) != fly.math.comb(n, k) * fly.math.factorialI((int)k) {
+                    if math.perm(n, k) != math.comb(n, k) * math.factorialI((int)k) {
                         bad = n * 100 + k
                     }
                     k = k + 1
@@ -484,22 +484,22 @@ suite MathSuite {
             assert.assertEqL(bad, 0 - 1, 838)
         }
         case "erf / erfc": {
-            assert.assertApprox(fly.math.erf(0.0), 0.0, 839)
-            assert.assertApproxEps(fly.math.erf(1.0), 0.8427007929497148, 0.000000001, 840)
-            assert.assertApproxEps(fly.math.erf(0.5), 0.5204998778130465, 0.000000001, 841)
-            assert.assertApproxEps(fly.math.erf(0.0 - 1.0),
+            assert.assertApprox(math.erf(0.0), 0.0, 839)
+            assert.assertApproxEps(math.erf(1.0), 0.8427007929497148, 0.000000001, 840)
+            assert.assertApproxEps(math.erf(0.5), 0.5204998778130465, 0.000000001, 841)
+            assert.assertApproxEps(math.erf(0.0 - 1.0),
                                    0.0 - 0.8427007929497148, 0.000000001, 842)
-            assert.assertApprox(fly.math.erfc(0.0), 1.0, 843)
-            assert.assertApproxEps(fly.math.erfc(1.0), 0.15729920705028513, 0.000000001, 844)
+            assert.assertApprox(math.erfc(0.0), 1.0, 843)
+            assert.assertApproxEps(math.erfc(1.0), 0.15729920705028513, 0.000000001, 844)
             // erf(x) + erfc(x) == 1
-            assert.assertApproxEps(fly.math.erf(0.7) + fly.math.erfc(0.7), 1.0, 0.000000001, 845)
+            assert.assertApproxEps(math.erf(0.7) + math.erfc(0.7), 1.0, 0.000000001, 845)
         }
         case "gamma": {
-            assert.assertApprox(fly.math.gamma(1.0), 1.0, 846)
-            assert.assertApprox(fly.math.gamma(2.0), 1.0, 847)
-            assert.assertApprox(fly.math.gamma(5.0), 24.0, 848)         // (5-1)!
-            assert.assertApproxEps(fly.math.gamma(0.5), 1.7724538509055159, 0.000000001, 849)
-            assert.assertApproxEps(fly.math.gamma(6.0), 120.0, 0.000001, 850)
+            assert.assertApprox(math.gamma(1.0), 1.0, 846)
+            assert.assertApprox(math.gamma(2.0), 1.0, 847)
+            assert.assertApprox(math.gamma(5.0), 24.0, 848)         // (5-1)!
+            assert.assertApproxEps(math.gamma(0.5), 1.7724538509055159, 0.000000001, 849)
+            assert.assertApproxEps(math.gamma(6.0), 120.0, 0.000001, 850)
         }
     }
 
@@ -508,15 +508,15 @@ suite MathSuite {
         case "seeding is deterministic": {
             fly_rng a = new fly_rng()
             fly_rng b = new fly_rng()
-            fly.math.randSeed(a, 12345)
-            fly.math.randSeed(b, 12345)
+            math.randSeed(a, 12345)
+            math.randSeed(b, 12345)
             assert.assertEqL((long)a.s0, (long)b.s0, 901)
             assert.assertEqL((long)a.s3, (long)b.s3, 902)
             // Identical seeds must produce identical streams.
             bool same = true
             int i = 0
             while i < 50 {
-                if fly.math.rngNext(a) != fly.math.rngNext(b) { same = false }
+                if math.rngNext(a) != math.rngNext(b) { same = false }
                 i = i + 1
             }
             assert.assertTrue(same, 903)
@@ -524,40 +524,40 @@ suite MathSuite {
         case "distinct seeds diverge": {
             fly_rng a = new fly_rng()
             fly_rng b = new fly_rng()
-            fly.math.randSeed(a, 1)
-            fly.math.randSeed(b, 2)
+            math.randSeed(a, 1)
+            math.randSeed(b, 2)
             bool differed = false
             int i = 0
             while i < 20 {
-                if fly.math.rngNext(a) != fly.math.rngNext(b) { differed = true }
+                if math.rngNext(a) != math.rngNext(b) { differed = true }
                 i = i + 1
             }
             assert.assertTrue(differed, 904)
         }
         case "rngNext advances the state": {
             fly_rng r = new fly_rng()
-            fly.math.randSeed(r, 99)
+            math.randSeed(r, 99)
             ulong s0 = r.s0
-            ulong first = fly.math.rngNext(r)
+            ulong first = math.rngNext(r)
             assert.assertNeL((long)r.s0, (long)s0, 905)
             // Consecutive draws should not all repeat.
             bool varied = false
             int i = 0
             while i < 20 {
-                if fly.math.rngNext(r) != first { varied = true }
+                if math.rngNext(r) != first { varied = true }
                 i = i + 1
             }
             assert.assertTrue(varied, 906)
         }
         case "randFloat stays in [0, 1)": {
             fly_rng r = new fly_rng()
-            fly.math.randSeed(r, 2026)
+            math.randSeed(r, 2026)
             bool inRange = true
             bool sawLow = false
             bool sawHigh = false
             int i = 0
             while i < 500 {
-                double d = fly.math.randFloat(r)
+                double d = math.randFloat(r)
                 if d < 0.0 { inRange = false }
                 if d >= 1.0 { inRange = false }
                 if d < 0.5 { sawLow = true }
@@ -570,11 +570,11 @@ suite MathSuite {
         }
         case "randInt honours its bounds": {
             fly_rng r = new fly_rng()
-            fly.math.randSeed(r, 7)
+            math.randSeed(r, 7)
             bool inRange = true
             int i = 0
             while i < 500 {
-                long v = fly.math.randInt(r, 10, 20)
+                long v = math.randInt(r, 10, 20)
                 if v < 10 { inRange = false }
                 if v > 20 { inRange = false }
                 i = i + 1
@@ -583,17 +583,17 @@ suite MathSuite {
         }
         case "randInt with a single-value range and with lo > hi": {
             fly_rng r = new fly_rng()
-            fly.math.randSeed(r, 8)
-            assert.assertEqL(fly.math.randInt(r, 5, 5), 5, 911)
-            assert.assertEqL(fly.math.randInt(r, 20, 10), 20, 912)   // lo > hi guard
+            math.randSeed(r, 8)
+            assert.assertEqL(math.randInt(r, 5, 5), 5, 911)
+            assert.assertEqL(math.randInt(r, 20, 10), 20, 912)   // lo > hi guard
         }
         case "randInt spans a negative range": {
             fly_rng r = new fly_rng()
-            fly.math.randSeed(r, 4242)
+            math.randSeed(r, 4242)
             bool inRange = true
             int i = 0
             while i < 300 {
-                long v = fly.math.randInt(r, 0 - 5, 5)
+                long v = math.randInt(r, 0 - 5, 5)
                 if v < 0 - 5 { inRange = false }
                 if v > 5 { inRange = false }
                 i = i + 1
@@ -602,13 +602,13 @@ suite MathSuite {
         }
         case "randNormal stays finite and near mu": {
             fly_rng r = new fly_rng()
-            fly.math.randSeed(r, 31337)
+            math.randSeed(r, 31337)
             bool finite = true
             double sum = 0.0
             int i = 0
             while i < 500 {
-                double d = fly.math.randNormal(r, 10.0, 1.0)
-                if fly.math.isFinite(d) == false { finite = false }
+                double d = math.randNormal(r, 10.0, 1.0)
+                if math.isFinite(d) == false { finite = false }
                 sum = sum + d
                 i = i + 1
             }
@@ -618,8 +618,8 @@ suite MathSuite {
         }
         case "randNormal with sigma 0 collapses to mu": {
             fly_rng r = new fly_rng()
-            fly.math.randSeed(r, 5)
-            assert.assertApprox(fly.math.randNormal(r, 3.0, 0.0), 3.0, 916)
+            math.randSeed(r, 5)
+            assert.assertApprox(math.randNormal(r, 3.0, 0.0), 3.0, 916)
         }
     }
 }

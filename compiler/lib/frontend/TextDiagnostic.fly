@@ -24,9 +24,9 @@ import fly.mem
 // `fly.str` is baked into the compiler binary so new helpers there don't link —
 // so the byte is built locally via the same intrinsics fly.os.io.writeNL uses.
 public string lineFeed() {
-    pointer buf = fly.mem.alloc(1)
-    fly.mem.writeByte(buf, 0, 10)
-    fly.str.fromBytes(buf, 1, out)
+    pointer buf = mem.alloc(1)
+    mem.writeByte(buf, 0, 10)
+    str.fromBytes(buf, 1, out)
 }
 
 // quoteChar — a string holding a single `"` byte (0x22). Same rationale as
@@ -34,17 +34,17 @@ public string lineFeed() {
 // string) and `\"` is stored RAW as backslash+quote, so JSON structural quotes
 // must be built byte-wise.
 public string quoteChar() {
-    pointer buf = fly.mem.alloc(1)
-    fly.mem.writeByte(buf, 0, 34)
-    fly.str.fromBytes(buf, 1, out)
+    pointer buf = mem.alloc(1)
+    mem.writeByte(buf, 0, 34)
+    str.fromBytes(buf, 1, out)
 }
 
 // backslashChar — a string holding a single `\` byte (0x5C), built byte-wise for
 // the same reason as quoteChar (a literal `"\\"` is two raw chars, not one).
 public string backslashChar() {
-    pointer buf = fly.mem.alloc(1)
-    fly.mem.writeByte(buf, 0, 92)
-    fly.str.fromBytes(buf, 1, out)
+    pointer buf = mem.alloc(1)
+    mem.writeByte(buf, 0, 92)
+    str.fromBytes(buf, 1, out)
 }
 
 // diagLevelName — display name for a level ("error"/"warning"/…).
@@ -76,11 +76,11 @@ public class TextDiagnostic {
 
     // header — "<file>:<line>:<col>: <level>: <message>".
     public string header(const Diagnostic diag) {
-        string lc = fly.str.concat(fly.str.convert(diag.getLine()),
-                    fly.str.concat(":", fly.str.concat(fly.str.convert(diag.getColumn()), ": ")))
-        string lvl = fly.str.concat(diagLevelName(diag.getLevel()), ": ")
-        out = fly.str.concat(fly.str.concat(diag.getFilename(), ":"),
-              fly.str.concat(lc, fly.str.concat(lvl, diag.getMessage())))
+        string lc = str.concat(str.convert(diag.getLine()),
+                    str.concat(":", str.concat(str.convert(diag.getColumn()), ": ")))
+        string lvl = str.concat(diagLevelName(diag.getLevel()), ": ")
+        out = str.concat(str.concat(diag.getFilename(), ":"),
+              str.concat(lc, str.concat(lvl, diag.getMessage())))
     }
 
     // render — the full caret diagnostic. Falls back to the header alone when no
@@ -96,13 +96,13 @@ public class TextDiagnostic {
         SourceLocation dloc = diag.getLoc()
         int tokLen = this.tokenLenAt(sm, dloc.getOffset())
 
-        string pad = fly.str.repeat(" ", col0)
+        string pad = str.repeat(" ", col0)
         string tilde = ""
-        if tokLen > 1 { tilde = fly.str.repeat("~", tokLen - 1) }
-        string underline = fly.str.concat(pad, fly.str.concat("^", tilde))
+        if tokLen > 1 { tilde = str.repeat("~", tokLen - 1) }
+        string underline = str.concat(pad, str.concat("^", tilde))
 
         string nl = lineFeed()
-        out = fly.str.concat(head, fly.str.concat(nl,
-              fly.str.concat(srcLine, fly.str.concat(nl, underline))))
+        out = str.concat(head, str.concat(nl,
+              str.concat(srcLine, str.concat(nl, underline))))
     }
 }

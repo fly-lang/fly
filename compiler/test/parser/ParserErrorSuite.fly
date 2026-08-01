@@ -18,7 +18,7 @@ suite ParserErrorSuite {
             ASTModule mod = p.parseModule("t")
             assert.assertFalse(p.isSuccess(), 1)
             StoringDiagnosticConsumer sink = p.getSink()
-            assert.assertTrue(fly.str.contains(sink.getMessage(0), "ternary"), 2)
+            assert.assertTrue(str.contains(sink.getMessage(0), "ternary"), 2)
         }
     }
 
@@ -28,7 +28,7 @@ suite ParserErrorSuite {
             ASTModule mod = p.parseModule("t")
             assert.assertFalse(p.isSuccess(), 10)
             StoringDiagnosticConsumer sink = p.getSink()
-            assert.assertTrue(fly.str.contains(sink.getMessage(0), "at most 3"), 11)
+            assert.assertTrue(str.contains(sink.getMessage(0), "at most 3"), 11)
         }
     }
 
@@ -48,7 +48,7 @@ suite ParserErrorSuite {
             ASTModule mod = p.parseModule("t")
             assert.assertFalse(p.isSuccess(), 30)
             StoringDiagnosticConsumer sink = p.getSink()
-            assert.assertTrue(fly.str.contains(sink.getMessage(0), "namespace"), 31)
+            assert.assertTrue(str.contains(sink.getMessage(0), "namespace"), 31)
         }
     }
 
@@ -58,7 +58,7 @@ suite ParserErrorSuite {
             ASTModule mod = p.parseModule("t")
             assert.assertFalse(p.isSuccess(), 50)
             StoringDiagnosticConsumer sink = p.getSink()
-            assert.assertTrue(fly.str.contains(sink.getMessage(0), "paren-less"), 51)
+            assert.assertTrue(str.contains(sink.getMessage(0), "paren-less"), 51)
         }
         case "paren-less if condition is accepted": {
             Parser p = new Parser("int m() { if x > 0 { out = 1 } out = 0 }")
@@ -98,7 +98,7 @@ suite ParserErrorSuite {
             ASTModule mod = p.parseModule("t")
             assert.assertFalse(p.isSuccess(), 60)
             StoringDiagnosticConsumer sink = p.getSink()
-            assert.assertTrue(fly.str.contains(sink.getMessage(0), "not a declarable type"), 61)
+            assert.assertTrue(str.contains(sink.getMessage(0), "not a declarable type"), 61)
         }
         case "a bare handle block is accepted": {
             Parser p = new Parser("void m() { handle { } if error { } }")

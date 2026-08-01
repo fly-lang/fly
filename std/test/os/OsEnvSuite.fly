@@ -192,7 +192,9 @@ suite OsEnvSuite {
         }
         case "setting a new variable adds exactly one to the count": {
             env.delete("FLY_ENV_TEST_COUNTED")            // make sure it is absent
-            int before = env.allCount()
+            // allCount() is pointer-sized; the reference refuses the implicit
+            // pointer→int narrowing (the self-host coerces), so cast.
+            int before = (int)env.allCount()
             env.set("FLY_ENV_TEST_COUNTED", "yes")
             assert.assertEqI(env.allCount(), before + 1, 604)
             assert.assertStr(env.get("FLY_ENV_TEST_COUNTED"), "yes", 605)

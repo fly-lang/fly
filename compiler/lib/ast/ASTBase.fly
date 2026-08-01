@@ -3,7 +3,7 @@ namespace fly.compiler.ast
 import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTKind
 import fly.compiler.ast.ASTNode
-import fly.str as s
+import fly.str as s   // aliased: this class defines a str() method
 
 public class ASTBase {
 

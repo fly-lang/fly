@@ -77,9 +77,15 @@ suite OverrideSuite {
             assert.assertEqI(sh.sides(), 0, 103)
         }
         case "a non-overridden method is shared by every level": {
-            assert.assertEqI(new Shape().family(), 1, 104)
-            assert.assertEqI(new Square().family(), 1, 105)
-            assert.assertEqI(new Leaf().family(), 1, 106)
+            // Hoisted: the reference cannot chain a call onto a `new` expression
+            // (postfix-on-new is self-host-only, B014), and the seed compiles
+            // this suite in stage1's interleaved pass.
+            Shape shBase = new Shape()
+            Square shSquare = new Square()
+            Leaf shLeaf = new Leaf()
+            assert.assertEqI(shBase.family(), 1, 104)
+            assert.assertEqI(shSquare.family(), 1, 105)
+            assert.assertEqI(shLeaf.family(), 1, 106)
         }
     }
 
@@ -171,9 +177,14 @@ suite OverrideSuite {
     void selfCallTest() {
         case "the base method sees the derived override": {
             // Shape.corners() calls this.sides(); on a Square that must be 4.
-            assert.assertEqI(new Shape().corners(), 0, 501)
-            assert.assertEqI(new Square().corners(), 4, 502)
-            assert.assertEqI(new Triangle().corners(), 3, 503)
+            // Hoisted: postfix-on-new is self-host-only (B014) and the seed
+            // compiles this suite in stage1's interleaved pass.
+            Shape scShape = new Shape()
+            Square scSquare = new Square()
+            Triangle scTriangle = new Triangle()
+            assert.assertEqI(scShape.corners(), 0, 501)
+            assert.assertEqI(scSquare.corners(), 4, 502)
+            assert.assertEqI(scTriangle.corners(), 3, 503)
         }
         case "the self-call resolves through a base reference too": {
             Shape s = new Square()
@@ -182,8 +193,11 @@ suite OverrideSuite {
             assert.assertEqI(s.corners(), 3, 505)
         }
         case "the self-call works down a two-level chain": {
-            assert.assertEqI(new Leaf().corners(), 5, 506)
-            assert.assertEqI(new Deep().corners(), 7, 507)
+            // Hoisted: postfix-on-new is self-host-only (B014).
+            Leaf scLeaf = new Leaf()
+            Deep scDeep = new Deep()
+            assert.assertEqI(scLeaf.corners(), 5, 506)
+            assert.assertEqI(scDeep.corners(), 7, 507)
         }
     }
 }

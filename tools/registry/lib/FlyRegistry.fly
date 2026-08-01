@@ -1,0 +1,193 @@
+import fly.str
+import fly.mem
+import fly.llvm
+import fly.runtime
+import fly.net
+import fly.net.http
+import fly.os.io
+import fly.os.env
+import fly.os.path
+import fly.registry.RegistryHandler
+import fly.registry.RegResponse
+
+// ─────────────────────────────────────────────────────────────────────────────
+// fly-registry — minimal REST package registry for Fly. Port of
+// tools/registry/FlyRegistry.cpp.
+//
+//   GET  /v1/{name}                    → JSON array of available versions
+//   GET  /v1/{name}/{version}          → package metadata (Manifest.fly)
+//   GET  /v1/{name}/{version}/download → source tarball (.tar.gz)
+//   POST /v1/{name}/{version}          → upload a source tarball
+//   GET  /v1/search?q={query}          → JSON array of matching package names
+//
+//   fly-registry [--storage DIR] [--port PORT] [--host HOST] [--token TOK]
+//
+// The reference hand-rolls socket setup and a request parser; here both come
+// from std: fly.net for the listener and fly.net.http for parsing (method,
+// path, headers, Content-Length framing). Single-threaded and one request per
+// connection, like the reference — a package registry serving a build is not a
+// throughput problem, and threads would need a runtime primitive that does not
+// exist yet.
+//
+// --token, or FLY_REGISTRY_TOKEN, guards POST only; GET is always public.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// argAt — argv[i] as an OWNED string. fromBytes would only ALIAS the argv slot
+// (owned by the StringArray) and free it at scope exit, so a later read of the
+// same index returns garbage — the Driver.argAt lesson, verbatim.
+string argAt(const fly.os.env.StringArray args, const int i) {
+    pointer base = args.items
+    pointer ptr = mem.readPtr(base, i * 16)
+    int len = mem.readInt(base, i * 16 + 8)
+    if len <= 0 { out = ""  return }
+    pointer buf = 0
+    fly.runtime.mem_alloc(len, buf)
+    mem.copy(buf, ptr, len)
+    string s = ""
+    str.fromBytes(buf, len, s)
+    out = s
+}
+
+// argValue — the value of `--name` (either "--name V" or "--name=V"), "" absent.
+string argValue(const string name) {
+    fly.os.env.StringArray args = env.argsGet()
+    long cntL = (long)args.count
+    int n = 0
+    fly.llvm.longToInt(cntL, n)
+    string eq = str.concat(name, "=")
+    int i = 0
+    while i < n {
+        string a = argAt(args, i)
+        if str.equals(a, name) {
+            if i + 1 < n { out = argAt(args, i + 1)  return }
+            // A flag with no value: report presence with a sentinel so callers
+            // that only test presence (--once) still see it.
+            out = "1"
+            return
+        }
+        if str.startsWith(a, eq) {
+            out = str.substring(a, str.len(eq), str.len(a))
+            return
+        }
+        i = i + 1
+    }
+    out = ""
+}
+
+// parseInt — a non-negative decimal, or `dflt` when the text is not one.
+int parseInt(const string s, const int dflt) {
+    int n = str.len(s)
+    if n == 0 { out = dflt  return }
+    int v = 0
+    int i = 0
+    while i < n {
+        byte b = 0
+        str.byteAt(s, i, b)
+        int c = b
+        c = c & 255
+        bool digit = c >= 48 && c <= 57
+        if digit == false { out = dflt  return }
+        v = v * 10 + (c - 48)
+        i = i + 1
+    }
+    out = v
+}
+
+// readRequest — read one complete HTTP request off `s`. Headers first, then
+// exactly Content-Length more bytes; http.isComplete knows both framings, so
+// this is the same "read until the message ends" loop the client side uses.
+// "" on a closed or malformed connection.
+string readRequest(const long s) {
+    string raw = ""
+    bool go = true
+    int guard = 0
+    while go {
+        string chunk = net.recvStr(s, 8192)
+        if str.isEmpty(chunk) { go = false } else {
+            raw = str.concat(raw, chunk)
+            if http.isComplete(raw) { go = false }
+        }
+        guard = guard + 1
+        if guard > 4096 { go = false }
+    }
+    out = raw
+}
+
+void main() {
+    string storage = argValue("--storage")
+    if str.isEmpty(storage) {
+        string home = env.get("FLY_HOME")
+        if str.isEmpty(home) == false {
+            storage = path.join(home, "registry")
+        } else {
+            string h = env.get("HOME")
+            if str.isEmpty(h) { h = env.get("USERPROFILE") }
+            if str.isEmpty(h) { h = "." }
+            storage = path.join(path.join(h, ".fly"), "registry")
+        }
+    }
+    int port = parseInt(argValue("--port"), 5000)
+    if port == 5000 {
+        string p2 = argValue("-p")
+        if str.isEmpty(p2) == false { port = parseInt(p2, 5000) }
+    }
+    string host = argValue("--host")
+    if str.isEmpty(host) { host = "0.0.0.0" }
+    string token = argValue("--token")
+    if str.isEmpty(token) { token = env.get("FLY_REGISTRY_TOKEN") }
+
+    RegistryHandler handler = new RegistryHandler(storage, token)
+
+    string auth = "disabled"
+    if handler.requiresAuth() { auth = "Bearer token" }
+    io.printLn("fly-registry")
+    io.printLn(str.concat("  storage : ", storage))
+    io.printLn(str.concat("  listen  : ",
+        str.concat(host, str.concat(":", str.convert(port)))))
+    io.printLn(str.concat("  auth    : ", auth))
+
+    int addr = net.anyAddr()
+    if str.equals(host, "0.0.0.0") == false {
+        addr = net.parseIp(host)
+        if addr == 0 { addr = net.resolve(host) }
+        if addr == 0 {
+            io.printErrLn(str.concat("error: cannot resolve host: ", host))
+            return
+        }
+    }
+    long server = net.listenOn(addr, port, 16)
+    if server < 0 {
+        io.printErrLn("error: bind/listen failed")
+        return
+    }
+    // Port 0 asks the OS to choose; report it so a caller (a test) can find us.
+    int bound = net.localPort(server)
+    io.printLn(str.concat("  ready   : port ", str.convert(bound)))
+
+    // --once serves a single request and exits: that is what makes an
+    // end-to-end test terminate without signals.
+    bool once = str.isEmpty(argValue("--once")) == false
+    bool serving = true
+    while serving {
+        long client = net.accept(server)
+        if client < 0 { serving = false } else {
+            // A client that opens a connection and stalls would otherwise hold
+            // this single-threaded server forever.
+            net.setRecvTimeout(client, 15000)
+            string raw = readRequest(client)
+            if str.isEmpty(raw) == false {
+                string method = http.method(raw)
+                string path = http.path(raw)
+                string query = http.query(raw)
+                string authHdr = http.header(raw, "Authorization")
+                string body = http.body(raw)
+                RegResponse resp = handler.handle(method, path, query, authHdr, body)
+                net.sendStr(client, resp.toHttp())
+            }
+            net.shutdownWrite(client)
+            net.close(client)
+            if once { serving = false }
+        }
+    }
+    net.close(server)
+}

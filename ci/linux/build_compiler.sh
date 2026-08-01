@@ -5,7 +5,7 @@
 # into a single merged object at build/stage$STAGE/driver/Driver.o; link_fly.sh
 # then links it into the fly executable. Run with STAGE=1 (stage0 compiles) or
 # STAGE=2 (the stage1 fly recompiles it); see stage1.sh for the stage map.
-# MONOLITHIC: the compiler is compiled from source INTO this object (--src-dir .),
+# MONOLITHIC: the compiler is compiled from source INTO this object (--src-dir compiler),
 # not linked as a static archive — see the note by the compile step below.
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
@@ -28,7 +28,7 @@ fi
 [ -f "$LIB/fly_std_lib.a" ] && [ -f "$LIB/fly_runtime_lib.a" ] || { echo "error: std/runtime missing in $LIB — run build_runtime.sh + build_std.sh first." >&2; exit 1; }
 
 # MONOLITHIC build: the compiler is compiled FROM SOURCE into the driver object
-# (`--src-dir .` resolves fly.compiler.* from compiler/lib source; std stays an
+# (`--src-dir compiler` resolves fly.compiler.* from compiler/lib source; std stays an
 # external archive). There is NO fly_compiler_lib.a static archive anymore — as a
 # static lib the compiler's GENERIC INSTANTIATIONS (List<ASTNode> ...) were
 # COMDAT-deduped by the linker against the driver's own copies, causing a
@@ -53,12 +53,12 @@ echo "stage$STAGE: compiling driver + compiler (monolithic, from source) ...${DB
 if [ "$STAGE" = "1" ]; then
     # stage0 reference: no -c — its in-process link fails on the LLVM C-API
     # symbols (resolved only by -lLLVM at link time) but emits the object first.
-    "$FLY" --src-dir . \
+    "$FLY" --src-dir compiler \
         $DBG -o fly --out-dir "$D" > "$D/emit.log" 2>&1 || true
     OBJ="$D/Driver.fly.o"
 else
     # self-host: -c emits a clean object, no link attempt.
-    "$FLY" --src-dir . \
+    "$FLY" --src-dir compiler \
         $DBG -c -o Driver --out-dir "$D" > "$D/emit.log" 2>&1 || true
     OBJ="$D/Driver"
 fi

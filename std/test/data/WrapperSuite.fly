@@ -139,9 +139,14 @@ suite WrapperSuite {
             Node a = new Node(1)
             Node b = new Node(2)
             Wrapper<Node> w = new Wrapper<Node>(a)
-            assert.assertEqI(w.get().v, 1, 306)
+            // Hoisted: the reference cannot type `w.get().v` as an argument
+            // (chained call member access), and the seed compiles this suite
+            // in stage1's interleaved pass.
+            Node before = w.get()
+            assert.assertEqI(before.v, 1, 306)
             w.set(b)
-            assert.assertEqI(w.get().v, 2, 307)
+            Node after = w.get()
+            assert.assertEqI(after.v, 2, 307)
             assert.assertEqI(a.v, 1, 308)              // the old object is untouched
         }
         case "struct payload is copied by value": {

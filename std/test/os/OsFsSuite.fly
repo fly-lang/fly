@@ -4,7 +4,18 @@ import fly.os.path
 import fly.os.time
 import fly.os.time.Duration
 import fly.str
+import fly.mem
 import fly.assert
+
+// byteOfFile — the i-th byte of s as a masked int. The mask matters: byte→int
+// widening sign-extends on Linux and zero-extends on Windows, so an unmasked
+// 0xFF compares differently on the two platforms.
+int byteOfFile(const string s, const int i) {
+    byte b = 0
+    str.byteAt(s, i, b)
+    int v = b
+    out = v & 255
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OsFsSuite — fly.os.fs (std/lib/os/fs.fly): files, directories, metadata,
@@ -467,6 +478,87 @@ suite OsFsSuite {
             fs.close(h)
             assert.assertTrue(fs.exists(f), 807)
             fs.delete(f)
+        }
+    }
+
+    // ── binary-safe I/O ──────────────────────────────────────────────────────
+    //
+    // readStr/writeStr use the platform's TEXT-mode descriptors. On POSIX that is
+    // identical to binary; on Windows the UCRT rewrites bytes in BOTH directions —
+    // a written \n becomes \r\n, a read \r\n collapses to \n, and a read stops
+    // dead at 0x1A. Fine for source text, silent corruption for a tarball.
+    //
+    // The payload below is chosen to trip every one of those: a bare \n (10), a
+    // CR LF pair (13 10), and a 0x1A (26). A round trip through writeBytes/
+    // readBytes must return it byte-identical, on every platform.
+    void binaryIoTest() {
+        case "a byte-exact payload survives writeBytes then readBytes": {
+            string p = "fly_fs_bin1.bin"
+            pointer buf = mem.alloc(8)
+            mem.writeByte(buf, 0, 1)
+            mem.writeByte(buf, 1, 10)      // LF     — text mode would expand on write
+            mem.writeByte(buf, 2, 13)      // CR  \  — text mode would collapse
+            mem.writeByte(buf, 3, 10)      // LF  /    this pair on read
+            mem.writeByte(buf, 4, 26)      // 0x1A   — text mode would stop reading here
+            mem.writeByte(buf, 5, 255)
+            mem.writeByte(buf, 6, 0)       // an embedded NUL, for good measure
+            mem.writeByte(buf, 7, 65)
+            string payload = ""
+            str.fromBytes(buf, 8, payload)
+
+            fs.writeBytes(p, payload, 420)
+            string back = fs.readBytes(p)
+            assert.assertEqI(str.len(back), 8, 901)
+            assert.assertEqI(byteOfFile(back, 1), 10, 902)
+            assert.assertEqI(byteOfFile(back, 2), 13, 903)
+            assert.assertEqI(byteOfFile(back, 3), 10, 904)
+            assert.assertEqI(byteOfFile(back, 4), 26, 905)
+            assert.assertEqI(byteOfFile(back, 5), 255, 906)
+            assert.assertEqI(byteOfFile(back, 7), 65, 907)
+            assert.assertStr(back, payload, 908)
+            fs.delete(p)
+        }
+        case "the on-disk size matches the payload exactly": {
+            // The most direct statement of the bug: text-mode writing inflates a
+            // file by one byte per newline.
+            string p = "fly_fs_bin2.bin"
+            pointer buf = mem.alloc(4)
+            mem.writeByte(buf, 0, 10)
+            mem.writeByte(buf, 1, 10)
+            mem.writeByte(buf, 2, 10)
+            mem.writeByte(buf, 3, 10)
+            string nl4 = ""
+            str.fromBytes(buf, 4, nl4)
+            fs.writeBytes(p, nl4, 420)
+            assert.assertEqL((long)fs.size(p), 4, 909)
+            fs.delete(p)
+        }
+        case "a large binary payload round-trips whole": {
+            // readBytes loops over short reads; this is big enough to take more
+            // than one.
+            string p = "fly_fs_bin3.bin"
+            int n = 70000
+            pointer buf = mem.alloc(n)
+            int i = 0
+            while i < n {
+                mem.writeByte(buf, i, (byte)(i % 256))
+                i = i + 1
+            }
+            string big = ""
+            str.fromBytes(buf, n, big)
+            fs.writeBytes(p, big, 420)
+            assert.assertEqL((long)fs.size(p), 70000, 910)
+            string back = fs.readBytes(p)
+            assert.assertEqI(str.len(back), n, 911)
+            assert.assertStr(back, big, 912)
+            fs.delete(p)
+        }
+        case "reading a missing or empty file is empty, not an error": {
+            assert.assertEmpty(fs.readBytes("fly_fs_bin_absent.bin"), 913)
+            string p = "fly_fs_bin4.bin"
+            fs.writeBytes(p, "", 420)
+            assert.assertEmpty(fs.readBytes(p), 914)
+            fs.delete(p)
         }
     }
 }

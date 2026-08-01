@@ -10,7 +10,7 @@
 #            the prelinked fly.exe is kept for link_fly.ps1 to install.
 #   STAGE=2  the stage-1 fly.exe recompiles the driver with -c (clean object).
 #
-# MONOLITHIC: the compiler is compiled from source INTO this object (`--src-dir .`),
+# MONOLITHIC: the compiler is compiled from source INTO this object (`--src-dir compiler`),
 # not linked as a static archive - see the note by the compile step below.
 # -----------------------------------------------------------------------------
 $ErrorActionPreference = 'Stop'
@@ -45,7 +45,7 @@ if (-not (Test-Path "$LIB/fly_std_lib.lib") -or -not (Test-Path "$LIB/fly_runtim
 }
 
 # MONOLITHIC build: the compiler is compiled FROM SOURCE into the driver object
-# (`--src-dir .` resolves fly.compiler.* from compiler/lib source; std stays an
+# (`--src-dir compiler` resolves fly.compiler.* from compiler/lib source; std stays an
 # external archive). There is NO fly_compiler_lib.lib static archive anymore.
 # Rationale: as a static lib, the compiler's GENERIC INSTANTIATIONS (List<ASTNode>
 # ...) were COMDAT-deduped by the linker against the driver's own copies, causing
@@ -69,11 +69,11 @@ Write-Host "stage${STAGE}: compiling driver + compiler (monolithic, from source)
 if ($STAGE -eq '1') {
     # stage0 reference: no -c; the in-process link may fail (tolerated), the
     # per-source object is emitted first. --target keeps the object gnu COFF.
-    & $FLY --src-dir . `
+    & $FLY --src-dir compiler `
         @DBG @FLY_TARGET_ARGS -o fly --out-dir $D > "$D/emit.log" 2>&1
 } else {
     # self-host: -c emits a clean object, no link attempt.
-    & $FLY --src-dir . `
+    & $FLY --src-dir compiler `
         @DBG @FLY_TARGET_ARGS -c -o Driver --out-dir $D > "$D/emit.log" 2>&1
 }
 $OBJ = @("$D/Driver", "$D/Driver.fly.o", "$D/Driver.fly.obj") | Where-Object { Test-Path $_ } | Select-Object -First 1

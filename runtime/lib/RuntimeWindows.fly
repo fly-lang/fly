@@ -31,6 +31,7 @@ public void _close(const int fd, int out) {}
 public void _read(const int fd, const pointer buf, const int count, int out) {}
 public void _write(const int fd, const pointer buf, const int count, int out) {}
 public void _lseeki64(const int fd, const long offset, const int origin, long out) {}
+public void _setmode(const int fd, const int mode, int out) {}
 // console I/O
 public void GetStdHandle(const int nStdHandle, pointer out) {}
 public void WriteFile(const pointer h, const pointer buf, const int n, const pointer written, const pointer overlapped, int out) {}
@@ -46,6 +47,40 @@ public void GetExitCodeProcess(const pointer h, const pointer code, int out) {}
 public void WaitOnAddress(const pointer addr, const pointer compare, const ulong size, const int ms, int out) {}
 public void WakeByAddressSingle(const pointer addr) {}
 public void WakeByAddressAll(const pointer addr) {}
+// sockets (ws2_32) — a Windows SOCKET is a 64-bit UINT_PTR, so these take and
+// return `long`, unlike the POSIX backends where a socket is a 32-bit int fd.
+public void WSAStartup(const int version, const pointer data, int out) {}
+public void socket(const int af, const int type, const int proto, long out) {}
+public void bind(const long s, const pointer addr, const int len, int out) {}
+public void listen(const long s, const int backlog, int out) {}
+public void accept(const long s, const pointer addr, const pointer len, long out) {}
+public void connect(const long s, const pointer addr, const int len, int out) {}
+public void send(const long s, const pointer buf, const int n, const int flags, int out) {}
+public void recv(const long s, const pointer buf, const int n, const int flags, int out) {}
+public void sendto(const long s, const pointer buf, const int n, const int flags, const pointer addr, const int alen, int out) {}
+public void recvfrom(const long s, const pointer buf, const int n, const int flags, const pointer addr, const pointer alen, int out) {}
+public void shutdown(const long s, const int how, int out) {}
+public void setsockopt(const long s, const int level, const int opt, const pointer val, const int len, int out) {}
+public void getsockopt(const long s, const int level, const int opt, const pointer val, const pointer len, int out) {}
+public void getsockname(const long s, const pointer addr, const pointer len, int out) {}
+public void getpeername(const long s, const pointer addr, const pointer len, int out) {}
+public void gethostbyname(const pointer name, pointer out) {}
+public void gethostbyaddr(const pointer addr, const int len, const int type, pointer out) {}
+public void closesocket(const long s, int out) {}
+public void ioctlsocket(const long s, const int cmd, const pointer argp, int out) {}
+public void WSAPoll(const pointer fds, const int nfds, const int timeout, int out) {}
+// WinHTTP (-lwinhttp) — a high-level HTTPS CLIENT, used because Windows has no
+// generic TLS socket backend yet (Schannel is a later, far larger job). Every
+// parameter is an opaque handle or a wide string: no byte-laid structs at all,
+// which is what makes this an afternoon rather than a week.
+public void WinHttpOpen(const pointer agentW, const int accessType, const pointer proxyW, const pointer bypassW, const int flags, pointer out) {}
+public void WinHttpConnect(const pointer session, const pointer serverW, const int port, const int reserved, pointer out) {}
+public void WinHttpOpenRequest(const pointer connect, const pointer verbW, const pointer objectW, const pointer versionW, const pointer referrerW, const pointer acceptTypes, const int flags, pointer out) {}
+public void WinHttpSendRequest(const pointer request, const pointer headersW, const int headersLen, const pointer optional, const int optionalLen, const int totalLen, const long context, int out) {}
+public void WinHttpReceiveResponse(const pointer request, const pointer reserved, int out) {}
+public void WinHttpQueryHeaders(const pointer request, const int infoLevel, const pointer nameW, const pointer buffer, const pointer bufferLen, const pointer index, int out) {}
+public void WinHttpReadData(const pointer request, const pointer buffer, const int toRead, const pointer readOut, int out) {}
+public void WinHttpCloseHandle(const pointer h, int out) {}
 // atomics (clang/lld build → compiler-rt)
 public void __atomic_load_4(const pointer ptr, const int memorder, int out) {}
 public void __atomic_store_4(const pointer ptr, const int val, const int memorder) {}
@@ -184,6 +219,20 @@ public void fs_write(const int fd, const pointer buf, const ulong count, long ou
 }
 public void fs_seek(const int fd, const long offset, const int whence, long out) {
     fly.runtime._lseeki64(fd, offset, whence, out)
+}
+
+// io_set_binary — take an fd out of the UCRT's TEXT mode, where reads collapse
+// \r\n into \n and stop at a 0x1A byte, and writes expand every \n into \r\n.
+// _O_BINARY is 0x8000 = 32768. Returns 0 on success, -1 on error.
+//
+// This is opt-in per fd rather than a global _fmode change: the compiler's own
+// stdout is happy in text mode, while a byte-exact protocol (the LSP's
+// Content-Length framing) is destroyed by it. The POSIX backends translate
+// nothing, so there the primitive is a no-op that reports success.
+public void io_set_binary(const int fd, int out) {
+    int r = 0
+    fly.runtime._setmode(fd, 32768, r)
+    if r < 0 { out = 0 - 1 } else { out = 0 }
 }
 // stat via GetFileAttributesExA. WIN32_FILE_ATTRIBUTE_DATA: dwFileAttributes@0,
 // nFileSizeHigh@28, nFileSizeLow@32. mode fabricated: dir=0040755 else 0100644.
@@ -986,6 +1035,122 @@ public void proc_exec(const pointer path, const pointer argv, int out) {
     fly.runtime.free(pi)
     fly.runtime.free(codep)
 }
+// proc_exec_redirect — proc_exec with the child's STDOUT redirected to outPath
+// (created/truncated), so a caller can capture a command's output with NO SHELL
+// involved. Returns the child exit code, or -1 on failure.
+//
+// This primitive is the reason command capture works on Windows at all: the
+// previous approach ran `sh -c "cmd > file"`, and there is no /bin/sh here — the
+// path normalisation below turns arg0 '/'→'\', so it became a nonexistent
+// `\bin\sh`. Every capture call site was therefore dead code on Windows.
+//
+// STDERR AND STDIN ARE INHERITED from this process, deliberately: a failing
+// command's diagnostics should reach the user. STARTF_USESTDHANDLES makes all
+// THREE handles mandatory, so the other two come from GetStdHandle.
+//
+// Two byte-laid structs, both easy to get wrong:
+//   SECURITY_ATTRIBUTES (24 B): nLength u32@0, lpSecurityDescriptor ptr@8,
+//                               bInheritHandle i32@16
+//     — bInheritHandle MUST be TRUE, or CreateProcessA's bInheritHandles has
+//       nothing inheritable to pass on and the child writes nowhere.
+//   STARTUPINFOA (104 B): cb u32@0, dwFlags u32@60, hStdInput ptr@80,
+//                         hStdOutput ptr@88, hStdError ptr@96
+public void proc_exec_redirect(const pointer path, const pointer argv, const pointer outPath, int out) {
+    // Same command-line assembly as proc_exec: arg0 quoted with '/'→'\', the
+    // rest space-separated. `aend`/`cend` are DISTINCT out vars because reusing
+    // the position variable as both in-arg and out-arg makes the compiler cache
+    // the stale value (see the note in proc_exec).
+    pointer cmd = 0
+    fly.runtime.malloc(8192, cmd)
+    int p = 0
+    fly.llvm.ptrPokeByte(cmd, p, 34)  p = p + 1
+    int aend = p
+    appendCStrPath(cmd, p, path, aend)
+    p = aend
+    fly.llvm.ptrPokeByte(cmd, p, 34)  p = p + 1
+    int i = 1
+    bool go = true
+    while go {
+        long a = 0
+        fly.llvm.ptrReadLong(argv, i * 8, a)
+        if a == 0 { go = false } else {
+            fly.llvm.ptrPokeByte(cmd, p, 32)  p = p + 1
+            int cend = p
+            appendCStr(cmd, p, a, cend)
+            p = cend
+            i = i + 1
+        }
+    }
+    fly.llvm.ptrPokeByte(cmd, p, 0)
+
+    // An INHERITABLE handle on the output file.
+    pointer sa = 0
+    fly.runtime.malloc(24, sa)
+    zeroMem(sa, 24)
+    fly.llvm.ptrPokeInt(sa, 0, 24)                     // nLength
+    fly.llvm.ptrPokeInt(sa, 16, 1)                     // bInheritHandle = TRUE
+    pointer hOut = 0
+    // GENERIC_WRITE = 1073741824, CREATE_ALWAYS = 2, FILE_ATTRIBUTE_NORMAL = 128
+    fly.runtime.CreateFileA(outPath, 1073741824, 0, sa, 2, 128, 0, hOut)
+    if hOut == 0 - 1 {
+        fly.runtime.free(cmd)
+        fly.runtime.free(sa)
+        out = 0 - 1
+        return
+    }
+
+    pointer hIn = 0
+    fly.runtime.GetStdHandle(0 - 10, hIn)              // STD_INPUT_HANDLE
+    pointer hErr = 0
+    fly.runtime.GetStdHandle(0 - 12, hErr)             // STD_ERROR_HANDLE
+
+    pointer si = 0
+    fly.runtime.malloc(104, si)
+    zeroMem(si, 104)
+    fly.llvm.ptrPokeInt(si, 0, 104)                    // si.cb
+    fly.llvm.ptrPokeInt(si, 60, 256)                   // dwFlags = STARTF_USESTDHANDLES
+    fly.llvm.ptrPokeLong(si, 80, hIn)
+    fly.llvm.ptrPokeLong(si, 88, hOut)
+    fly.llvm.ptrPokeLong(si, 96, hErr)
+    pointer pi = 0
+    fly.runtime.malloc(24, pi)
+    zeroMem(pi, 24)
+    int ok = 0
+    fly.runtime.CreateProcessA(0, cmd, 0, 0, 1, 0, 0, 0, si, pi, ok)
+    int chc = 0
+    fly.runtime.CloseHandle(hOut, chc)                 // the child owns its copy
+    if ok == 0 {
+        fly.runtime.free(cmd)
+        fly.runtime.free(sa)
+        fly.runtime.free(si)
+        fly.runtime.free(pi)
+        out = 0 - 1
+        return
+    }
+    long hpL = 0
+    fly.llvm.ptrReadLong(pi, 0, hpL)
+    pointer hProc = 0
+    hProc = hpL
+    int w = 0
+    fly.runtime.WaitForSingleObject(hProc, 0 - 1, w)
+    pointer codep = 0
+    fly.runtime.malloc(4, codep)
+    int gc = 0
+    fly.runtime.GetExitCodeProcess(hProc, codep, gc)
+    fly.llvm.ptrReadInt(codep, 0, out)
+    long htL = 0
+    fly.llvm.ptrReadLong(pi, 8, htL)
+    int rc1 = 0
+    int rc2 = 0
+    fly.runtime.CloseHandle(htL, rc1)
+    fly.runtime.CloseHandle(hProc, rc2)
+    fly.runtime.free(cmd)
+    fly.runtime.free(sa)
+    fly.runtime.free(si)
+    fly.runtime.free(pi)
+    fly.runtime.free(codep)
+}
+
 private void zeroMem(const pointer p, const int n) {
     int i = 0
     while i < n { fly.llvm.ptrPokeByte(p, i, 0)  i = i + 1 }
@@ -1074,6 +1239,780 @@ public void atomic_cas_i32(const pointer addr, const int expected, const int des
 }
 public void atomic_fetch_add_i32(const pointer addr, const int delta, int out) {
     fly.runtime.__atomic_fetch_add_4(addr, delta, 4, out)
+}
+
+// ── Networking — IPv4 TCP over Winsock ────────────────────────────────────────
+//
+// Same contract as the POSIX backends (see RuntimeLinux.fly): a socket handle is
+// a `long` and NEGATIVE means invalid, an address is a packed host-order int, and
+// the sockaddr_in is poked byte-wise so no htons/inet_addr is needed. Here the
+// sentinel is free: INVALID_SOCKET is (SOCKET)~0, which read as a signed 64-bit
+// value IS -1.
+//
+// WSAStartup has to run before any other Winsock call, and Fly has no working
+// global storage (see the file header), so there is nowhere to keep an
+// "already initialised" flag. It is therefore INLINED at the top of the only two
+// primitives that can be first — net_socket and net_resolve4. Winsock's init is
+// reference-counted and idempotent, so the repeat calls are cheap increments;
+// WSACleanup is deliberately never called (process teardown reclaims).
+// The block is inlined rather than factored into a helper for the same reason the
+// sockaddr builders are: an internal fly→fly call following a store is
+// miscompiled away under flat C-ABI emission.
+//
+// SO_REUSEADDR is NOT set here. On Windows it permits port hijacking rather than
+// TIME_WAIT relief — a different security model — and nothing in scope needs it,
+// so net_reuseaddr is a documented no-op that reports success.
+
+// net_init — run WSAStartup so a caller can fail early. 0 ok, -1 error.
+public void net_init(int out) {
+    pointer wsa = 0
+    fly.runtime.malloc(512, wsa)                    // WSADATA is ~408 bytes; never read
+    int rc = 0
+    fly.runtime.WSAStartup(514, wsa, rc)            // MAKEWORD(2,2)
+    fly.runtime.free(wsa)
+    if rc != 0 { out = 0 - 1 } else { out = 0 }
+}
+
+// net_socket — a blocking IPv4 TCP socket; <0 on failure.
+public void net_socket(long out) {
+    pointer wsa = 0
+    fly.runtime.malloc(512, wsa)
+    int wrc = 0
+    fly.runtime.WSAStartup(514, wsa, wrc)
+    fly.runtime.free(wsa)
+    long s = 0
+    fly.runtime.socket(2, 1, 6, s)                  // AF_INET, SOCK_STREAM, IPPROTO_TCP
+    if s < 0 { out = 0 - 1  return }
+    out = s
+}
+
+public void net_close(const long s) {
+    if s < 0 { return }
+    int rc = 0
+    fly.runtime.closesocket(s, rc)
+}
+
+public void net_shutdown(const long s, const int how, int out) {
+    if s < 0 { out = 0 - 1  return }
+    int rc = 0
+    fly.runtime.shutdown(s, how, rc)
+    if rc < 0 { out = 0 - 1 } else { out = 0 }
+}
+
+// net_reuseaddr — NO-OP on Windows, reporting success. See the note above.
+public void net_reuseaddr(const long s, int out) {
+    if s < 0 { out = 0 - 1  return }
+    out = 0
+}
+
+// ── Socket options ────────────────────────────────────────────────────────────
+//
+// Winsock uses the BSD numbering (shared with macOS, NOT with Linux):
+//   SOL_SOCKET=65535  SO_KEEPALIVE=8  SO_BROADCAST=32  SO_LINGER=128
+//   SO_SNDBUF=4097    SO_RCVBUF=4098  SO_SNDTIMEO=4101 SO_RCVTIMEO=4102
+//   SO_ERROR=4103.    IPPROTO_TCP=6 / TCP_NODELAY=1 agree everywhere.
+//
+// Two payloads genuinely differ from POSIX here:
+//   • the timeouts take a bare DWORD of MILLISECONDS, not a `struct timeval`;
+//   • LINGER is two u_shorts (4 bytes), where POSIX uses two ints (8 bytes).
+// Getting either wrong is silently accepted by the kernel and then misbehaves.
+
+private void setIntOpt(const long s, const int level, const int opt, const int val, int out) {
+    if s < 0 { out = 0 - 1  return }
+    pointer p = 0
+    fly.runtime.malloc(4, p)
+    fly.llvm.ptrPokeInt(p, 0, val)
+    int rc = 0
+    fly.runtime.setsockopt(s, level, opt, p, 4, rc)
+    fly.runtime.free(p)
+    if rc < 0 { out = 0 - 1 } else { out = 0 }
+}
+
+public void net_set_nodelay(const long s, const int on, int out) {
+    setIntOpt(s, 6, 1, on, out)
+}
+public void net_set_keepalive(const long s, const int on, int out) {
+    setIntOpt(s, 65535, 8, on, out)
+}
+public void net_set_broadcast(const long s, const int on, int out) {
+    setIntOpt(s, 65535, 32, on, out)
+}
+public void net_set_recvbuf(const long s, const int bytes, int out) {
+    setIntOpt(s, 65535, 4098, bytes, out)
+}
+public void net_set_sendbuf(const long s, const int bytes, int out) {
+    setIntOpt(s, 65535, 4097, bytes, out)
+}
+
+// The timeouts are a plain DWORD of milliseconds — the same int the Fly API
+// already speaks, so no struct at all.
+public void net_set_recv_timeout(const long s, const int ms, int out) {
+    int msec = ms
+    if msec < 0 { msec = 0 }
+    setIntOpt(s, 65535, 4102, msec, out)            // SO_RCVTIMEO
+}
+public void net_set_send_timeout(const long s, const int ms, int out) {
+    int msec = ms
+    if msec < 0 { msec = 0 }
+    setIntOpt(s, 65535, 4101, msec, out)            // SO_SNDTIMEO
+}
+
+// net_set_linger — Winsock's LINGER is { u_short l_onoff; u_short l_linger },
+// four bytes, NOT the eight-byte two-int POSIX struct.
+public void net_set_linger(const long s, const int on, const int sec, int out) {
+    if s < 0 { out = 0 - 1  return }
+    pointer lg = 0
+    fly.runtime.malloc(4, lg)
+    fly.llvm.ptrPokeShort(lg, 0, (short)(on & 65535))
+    fly.llvm.ptrPokeShort(lg, 2, (short)(sec & 65535))
+    int rc = 0
+    fly.runtime.setsockopt(s, 65535, 128, lg, 4, rc)     // SOL_SOCKET, SO_LINGER
+    fly.runtime.free(lg)
+    if rc < 0 { out = 0 - 1 } else { out = 0 }
+}
+
+// net_set_nonblocking — ioctlsocket(FIONBIO). FIONBIO is 0x8004667E, which
+// exceeds 2^31; Fly has no hex literals and a decimal above 2^31 is typed long,
+// so it is written as the equivalent NEGATIVE signed int.
+public void net_set_nonblocking(const long s, const int on, int out) {
+    if s < 0 { out = 0 - 1  return }
+    pointer mode = 0
+    fly.runtime.malloc(4, mode)
+    fly.llvm.ptrPokeInt(mode, 0, on)
+    int rc = 0
+    fly.runtime.ioctlsocket(s, 0 - 2147195266, mode, rc)     // FIONBIO
+    fly.runtime.free(mode)
+    if rc < 0 { out = 0 - 1 } else { out = 0 }
+}
+
+public void net_sock_error(const long s, int out) {
+    if s < 0 { out = 0 - 1  return }
+    pointer v = 0
+    fly.runtime.malloc(4, v)
+    pointer vlen = 0
+    fly.runtime.malloc(4, vlen)
+    fly.llvm.ptrPokeInt(vlen, 0, 4)
+    fly.llvm.ptrPokeInt(v, 0, 0)
+    int rc = 0
+    fly.runtime.getsockopt(s, 65535, 4103, v, vlen, rc)      // SOL_SOCKET, SO_ERROR
+    int val = 0
+    fly.llvm.ptrReadInt(v, 0, val)
+    fly.runtime.free(v)
+    fly.runtime.free(vlen)
+    if rc < 0 { out = 0 - 1 } else { out = val }
+}
+
+public void net_bind(const long s, const int addr, const int port, int out) {
+    if s < 0 { out = 0 - 1  return }
+    pointer sa = 0
+    fly.runtime.malloc(16, sa)
+    int z = 0
+    while z < 16 {
+        fly.llvm.ptrPokeByte(sa, z, 0)
+        z = z + 1
+    }
+    fly.llvm.ptrPokeByte(sa, 0, 2)                  // AF_INET, low byte
+    fly.llvm.ptrPokeByte(sa, 2, (byte)((port >> 8) & 255))
+    fly.llvm.ptrPokeByte(sa, 3, (byte)(port & 255))
+    fly.llvm.ptrPokeByte(sa, 4, (byte)((addr >> 24) & 255))
+    fly.llvm.ptrPokeByte(sa, 5, (byte)((addr >> 16) & 255))
+    fly.llvm.ptrPokeByte(sa, 6, (byte)((addr >> 8) & 255))
+    fly.llvm.ptrPokeByte(sa, 7, (byte)(addr & 255))
+    int rc = 0
+    fly.runtime.bind(s, sa, 16, rc)
+    fly.runtime.free(sa)
+    if rc < 0 { out = 0 - 1 } else { out = 0 }
+}
+
+public void net_listen(const long s, const int backlog, int out) {
+    if s < 0 { out = 0 - 1  return }
+    int rc = 0
+    fly.runtime.listen(s, backlog, rc)
+    if rc < 0 { out = 0 - 1 } else { out = 0 }
+}
+
+public void net_accept(const long s, long out) {
+    if s < 0 { out = 0 - 1  return }
+    long c = 0
+    fly.runtime.accept(s, 0, 0, c)
+    if c < 0 { out = 0 - 1  return }
+    out = c
+}
+
+public void net_connect(const long s, const int addr, const int port, int out) {
+    if s < 0 { out = 0 - 1  return }
+    pointer sa = 0
+    fly.runtime.malloc(16, sa)
+    int z = 0
+    while z < 16 {
+        fly.llvm.ptrPokeByte(sa, z, 0)
+        z = z + 1
+    }
+    fly.llvm.ptrPokeByte(sa, 0, 2)                  // AF_INET, low byte
+    fly.llvm.ptrPokeByte(sa, 2, (byte)((port >> 8) & 255))
+    fly.llvm.ptrPokeByte(sa, 3, (byte)(port & 255))
+    fly.llvm.ptrPokeByte(sa, 4, (byte)((addr >> 24) & 255))
+    fly.llvm.ptrPokeByte(sa, 5, (byte)((addr >> 16) & 255))
+    fly.llvm.ptrPokeByte(sa, 6, (byte)((addr >> 8) & 255))
+    fly.llvm.ptrPokeByte(sa, 7, (byte)(addr & 255))
+    int rc = 0
+    fly.runtime.connect(s, sa, 16, rc)
+    fly.runtime.free(sa)
+    if rc < 0 { out = 0 - 1 } else { out = 0 }
+}
+
+// net_send — ONE send attempt; may write LESS than n. <0 on error. Winsock takes
+// and returns an int length, so the count is widened here.
+public void net_send(const long s, const pointer buf, const int n, long out) {
+    if s < 0 { out = 0 - 1  return }
+    int sent = 0
+    fly.runtime.send(s, buf, n, 0, sent)
+    out = sent
+}
+
+// net_recv — ONE blocking receive of up to n bytes. >0 = bytes, 0 = orderly peer
+// shutdown (EOF), <0 = error.
+public void net_recv(const long s, const pointer buf, const int n, long out) {
+    if s < 0 { out = 0 - 1  return }
+    int got = 0
+    fly.runtime.recv(s, buf, n, 0, got)
+    out = got
+}
+
+public void net_local_port(const long s, int out) {
+    if s < 0 { out = 0 - 1  return }
+    pointer sa = 0
+    fly.runtime.malloc(16, sa)
+    pointer alen = 0
+    fly.runtime.malloc(4, alen)
+    fly.llvm.ptrPokeInt(alen, 0, 16)
+    int rc = 0
+    fly.runtime.getsockname(s, sa, alen, rc)
+    if rc < 0 {
+        fly.runtime.free(sa)
+        fly.runtime.free(alen)
+        out = 0 - 1
+        return
+    }
+    byte hi = 0
+    byte lo = 0
+    fly.llvm.ptrByteAt(sa, 2, hi)
+    fly.llvm.ptrByteAt(sa, 3, lo)
+    int h = hi & 255
+    int l = lo & 255
+    fly.runtime.free(sa)
+    fly.runtime.free(alen)
+    out = (h << 8) | l
+}
+
+// ── UDP datagrams ─────────────────────────────────────────────────────────────
+//
+// SOCK_DGRAM=2 and IPPROTO_UDP=17, same as POSIX. Winsock takes and returns int
+// lengths, so the counts are widened here; the sender is reported through the
+// caller's 8-byte scratch ([0..3] packed address, [4..7] port).
+
+// net_socket_udp — a blocking IPv4 UDP socket; <0 on failure. Performs the
+// (idempotent) Winsock startup, like net_socket.
+public void net_socket_udp(long out) {
+    pointer wsa = 0
+    fly.runtime.malloc(512, wsa)
+    int wrc = 0
+    fly.runtime.WSAStartup(514, wsa, wrc)
+    fly.runtime.free(wsa)
+    long s = 0
+    fly.runtime.socket(2, 2, 17, s)                 // AF_INET, SOCK_DGRAM, IPPROTO_UDP
+    if s < 0 { out = 0 - 1  return }
+    out = s
+}
+
+// net_send_to — one datagram to addr:port; bytes accepted, <0 on error. A
+// datagram is sent whole or not at all, so there is no short write to loop over.
+public void net_send_to(const long s, const pointer buf, const int n, const int addr, const int port, long out) {
+    if s < 0 { out = 0 - 1  return }
+    pointer sa = 0
+    fly.runtime.malloc(16, sa)
+    int z = 0
+    while z < 16 {
+        fly.llvm.ptrPokeByte(sa, z, 0)
+        z = z + 1
+    }
+    fly.llvm.ptrPokeByte(sa, 0, 2)                  // AF_INET, low byte
+    fly.llvm.ptrPokeByte(sa, 2, (byte)((port >> 8) & 255))
+    fly.llvm.ptrPokeByte(sa, 3, (byte)(port & 255))
+    fly.llvm.ptrPokeByte(sa, 4, (byte)((addr >> 24) & 255))
+    fly.llvm.ptrPokeByte(sa, 5, (byte)((addr >> 16) & 255))
+    fly.llvm.ptrPokeByte(sa, 6, (byte)((addr >> 8) & 255))
+    fly.llvm.ptrPokeByte(sa, 7, (byte)(addr & 255))
+    int sent = 0
+    fly.runtime.sendto(s, buf, n, 0, sa, 16, sent)
+    fly.runtime.free(sa)
+    out = sent
+}
+
+// net_recv_from — one datagram of up to n bytes, sender written into the 8-byte
+// `from` scratch. 0 is a legal EMPTY datagram, not end-of-stream; <0 is an error
+// or a receive timeout. A longer datagram is TRUNCATED — UDP semantics.
+public void net_recv_from(const long s, const pointer buf, const int n, const pointer from, long out) {
+    if s < 0 { out = 0 - 1  return }
+    pointer sa = 0
+    fly.runtime.malloc(16, sa)
+    pointer alen = 0
+    fly.runtime.malloc(4, alen)
+    fly.llvm.ptrPokeInt(alen, 0, 16)
+    int got = 0
+    fly.runtime.recvfrom(s, buf, n, 0, sa, alen, got)
+    if got < 0 {
+        fly.runtime.free(sa)
+        fly.runtime.free(alen)
+        out = got
+        return
+    }
+    byte b0 = 0
+    byte b1 = 0
+    byte b2 = 0
+    byte b3 = 0
+    byte ph = 0
+    byte pl = 0
+    fly.llvm.ptrByteAt(sa, 4, b0)
+    fly.llvm.ptrByteAt(sa, 5, b1)
+    fly.llvm.ptrByteAt(sa, 6, b2)
+    fly.llvm.ptrByteAt(sa, 7, b3)
+    fly.llvm.ptrByteAt(sa, 2, ph)
+    fly.llvm.ptrByteAt(sa, 3, pl)
+    int i0 = b0 & 255
+    int i1 = b1 & 255
+    int i2 = b2 & 255
+    int i3 = b3 & 255
+    int hp = ph & 255
+    int lp = pl & 255
+    fly.llvm.ptrPokeInt(from, 0, (i0 << 24) | (i1 << 16) | (i2 << 8) | i3)
+    fly.llvm.ptrPokeInt(from, 4, (hp << 8) | lp)
+    fly.runtime.free(sa)
+    fly.runtime.free(alen)
+    out = got
+}
+
+// ── HTTPS via WinHTTP ─────────────────────────────────────────────────────────
+//
+// Windows has no generic TLS socket backend (fly.net.tls reports unavailable
+// here), so https is served by WinHTTP instead: a complete HTTP client rather
+// than a transport. That is a real limitation and the API says so — WinHTTP
+// cannot back tlsSend/tlsRecv, only whole request/response exchanges. What it
+// buys is https on Windows for ~200 lines and no new dependency, since
+// libwinhttp is already in the bundled mingw sysroot.
+//
+// The response BODY goes to a FILE rather than a returned buffer: a primitive has
+// exactly one `out` (used by the status code), and handing a heap buffer back
+// across the boundary would need an ownership contract. The same file-handoff
+// pattern proc_exec_redirect already uses.
+//
+// WinHTTP is W-only (there is no WinHttpOpenA), so every string is widened to
+// UTF-16LE first. ASCII-only is fine for hosts, paths and header names —
+// internationalised domains are the caller's problem (punycode).
+
+// wideOf — ASCII C string → a freshly allocated UTF-16LE C string. Returns 0 for
+// a null input. Two bytes per character plus a two-byte terminator.
+private void wideOf(const pointer s, pointer out) {
+    if s == 0 { out = 0  return }
+    ulong lenU = 0
+    fly.runtime.strlen(s, lenU)
+    int n = 0
+    fly.llvm.longToInt((long)lenU, n)
+    pointer w = 0
+    fly.runtime.malloc(n * 2 + 2, w)
+    int i = 0
+    while i < n {
+        byte b = 0
+        fly.llvm.ptrByteAt(s, i, b)
+        fly.llvm.ptrPokeByte(w, i * 2, b)
+        fly.llvm.ptrPokeByte(w, i * 2 + 1, 0)
+        i = i + 1
+    }
+    fly.llvm.ptrPokeByte(w, n * 2, 0)
+    fly.llvm.ptrPokeByte(w, n * 2 + 1, 0)
+    out = w
+}
+
+// net_https_available — 1 here: WinHTTP is always present on Windows.
+public void net_https_available(int out) {
+    out = 1
+}
+
+// net_https_request — one complete HTTPS exchange. `headers` is an ASCII string of
+// CRLF-separated "Name: Value" lines ("" for none); `bodyIn`/`bodyInLen` is the
+// request body (0/0 for none); the response body is written to `outPath`.
+// Returns the HTTP status code, or -1 when the exchange could not be completed.
+public void net_https_request(const pointer verb, const pointer host, const int port,
+                             const pointer path, const pointer headers,
+                             const pointer bodyIn, const int bodyInLen,
+                             const pointer outPath, int out) {
+    // Every widening happens FIRST, so that no store in this frame precedes an
+    // internal call — the poke-then-fly-call miscompile only bites in that order.
+    pointer wVerb = 0
+    wideOf(verb, wVerb)
+    pointer wHost = 0
+    wideOf(host, wHost)
+    pointer wPath = 0
+    wideOf(path, wPath)
+    pointer wHdrs = 0
+    wideOf(headers, wHdrs)
+    pointer wAgent = 0
+    wideOf(0, wAgent)                                  // NULL agent → WinHTTP default
+
+    pointer session = 0
+    fly.runtime.WinHttpOpen(0, 0, 0, 0, 0, session)     // ACCESS_TYPE_DEFAULT_PROXY
+    if session == 0 { out = 0 - 1  return }
+    pointer conn = 0
+    fly.runtime.WinHttpConnect(session, wHost, port, 0, conn)
+    if conn == 0 {
+        int c1 = 0
+        fly.runtime.WinHttpCloseHandle(session, c1)
+        out = 0 - 1
+        return
+    }
+    // WINHTTP_FLAG_SECURE = 0x00800000 = 8388608 — this is what makes it TLS.
+    pointer req = 0
+    fly.runtime.WinHttpOpenRequest(conn, wVerb, wPath, 0, 0, 0, 8388608, req)
+    if req == 0 {
+        int c1 = 0
+        int c2 = 0
+        fly.runtime.WinHttpCloseHandle(conn, c1)
+        fly.runtime.WinHttpCloseHandle(session, c2)
+        out = 0 - 1
+        return
+    }
+    // headersLen -1 means "the wide string is NUL-terminated".
+    int hlen = 0
+    if wHdrs == 0 { hlen = 0 } else { hlen = 0 - 1 }
+    int sent = 0
+    fly.runtime.WinHttpSendRequest(req, wHdrs, hlen, bodyIn, bodyInLen, bodyInLen, 0, sent)
+    if sent == 0 {
+        int c1 = 0
+        int c2 = 0
+        int c3 = 0
+        fly.runtime.WinHttpCloseHandle(req, c1)
+        fly.runtime.WinHttpCloseHandle(conn, c2)
+        fly.runtime.WinHttpCloseHandle(session, c3)
+        out = 0 - 1
+        return
+    }
+    int recvd = 0
+    fly.runtime.WinHttpReceiveResponse(req, 0, recvd)
+    if recvd == 0 {
+        int c1 = 0
+        int c2 = 0
+        int c3 = 0
+        fly.runtime.WinHttpCloseHandle(req, c1)
+        fly.runtime.WinHttpCloseHandle(conn, c2)
+        fly.runtime.WinHttpCloseHandle(session, c3)
+        out = 0 - 1
+        return
+    }
+    // Status code as a NUMBER: WINHTTP_QUERY_STATUS_CODE (19) OR'd with
+    // WINHTTP_QUERY_FLAG_NUMBER (0x20000000) → 536870931. Without the flag the
+    // status comes back as text.
+    pointer stBuf = 0
+    fly.runtime.malloc(4, stBuf)
+    fly.llvm.ptrPokeInt(stBuf, 0, 0)
+    pointer stLen = 0
+    fly.runtime.malloc(4, stLen)
+    fly.llvm.ptrPokeInt(stLen, 0, 4)
+    int qok = 0
+    fly.runtime.WinHttpQueryHeaders(req, 536870931, 0, stBuf, stLen, 0, qok)
+    int status = 0 - 1
+    if qok != 0 { fly.llvm.ptrReadInt(stBuf, 0, status) }
+
+    // Drain the body into outPath.
+    pointer hFile = 0
+    fly.runtime.CreateFileA(outPath, 1073741824, 0, 0, 2, 128, 0, hFile)
+    if hFile != 0 - 1 {
+        pointer buf = 0
+        fly.runtime.malloc(8192, buf)
+        pointer nRead = 0
+        fly.runtime.malloc(4, nRead)
+        pointer nWrote = 0
+        fly.runtime.malloc(4, nWrote)
+        bool go = true
+        while go {
+            fly.llvm.ptrPokeInt(nRead, 0, 0)
+            int rok = 0
+            fly.runtime.WinHttpReadData(req, buf, 8192, nRead, rok)
+            int got = 0
+            fly.llvm.ptrReadInt(nRead, 0, got)
+            if rok == 0 || got <= 0 { go = false } else {
+                int wok = 0
+                fly.runtime.WriteFile(hFile, buf, got, nWrote, 0, wok)
+            }
+        }
+        int ch = 0
+        fly.runtime.CloseHandle(hFile, ch)
+        fly.runtime.free(buf)
+        fly.runtime.free(nRead)
+        fly.runtime.free(nWrote)
+    }
+
+    int c1 = 0
+    int c2 = 0
+    int c3 = 0
+    fly.runtime.WinHttpCloseHandle(req, c1)
+    fly.runtime.WinHttpCloseHandle(conn, c2)
+    fly.runtime.WinHttpCloseHandle(session, c3)
+    fly.runtime.free(stBuf)
+    fly.runtime.free(stLen)
+    out = status
+}
+
+// ── Multiplexing, peer address and full DNS ──────────────────────────────────
+//
+// net_poll takes OUR OWN entry array — 16 bytes per entry, identical on every
+// platform — and translates it into the native one. Windows is where that
+// indirection earns its keep, because BOTH the layout and the bits differ from
+// POSIX:
+//
+//   Fly entry   (16 B): [0..7] long socket  [8..11] int events  [12..15] int revents
+//   WSAPOLLFD   (16 B): SOCKET fd@0 (EIGHT bytes), SHORT events@8, SHORT revents@10
+//   POSIX pollfd (8 B): int fd@0, short events@4, short revents@6
+//
+//   Windows bits: POLLERR=1 POLLHUP=2 POLLNVAL=4 POLLWRNORM=16
+//                 POLLRDNORM=256 POLLRDBAND=512
+//   POSIX bits:   POLLIN=1 POLLOUT=4 POLLERR=8 POLLHUP=16 POLLNVAL=32
+//
+// WSAPoll also only accepts POLLRDNORM/POLLRDBAND/POLLWRNORM as INPUT events —
+// passing POLLERR/POLLHUP there is an error — so the Fly-level err/hup bits are
+// deliberately dropped on the way in and only read on the way out.
+//
+// Known Winsock defect, worth stating: WSAPoll does not report a FAILED
+// non-blocking connect (it never sets POLLERR for that case), so a caller
+// waiting for connect completion must check net_sock_error itself.
+public void net_poll(const pointer entries, const int count, const int timeoutMs, int out) {
+    if count <= 0 { out = 0  return }
+    pointer fds = 0
+    fly.runtime.malloc(count * 16, fds)
+    int i = 0
+    while i < count {
+        long sv = 0
+        fly.llvm.ptrReadLong(entries, i * 16, sv)
+        int ev = 0
+        fly.llvm.ptrReadInt(entries, i * 16 + 8, ev)
+        int nev = 0
+        int rd = ev & 1
+        int wr = ev & 2
+        if rd != 0 { nev = nev | 256 }               // POLLRDNORM
+        if wr != 0 { nev = nev | 16 }                // POLLWRNORM
+        fly.llvm.ptrPokeLong(fds, i * 16, sv)
+        fly.llvm.ptrPokeShort(fds, i * 16 + 8, (short)nev)
+        fly.llvm.ptrPokeShort(fds, i * 16 + 10, 0)
+        fly.llvm.ptrPokeInt(fds, i * 16 + 12, 0)
+        i = i + 1
+    }
+    int rc = 0
+    fly.runtime.WSAPoll(fds, count, timeoutMs, rc)
+    int j = 0
+    while j < count {
+        short rv = 0
+        fly.llvm.ptrReadShort(fds, j * 16 + 10, rv)
+        int rvi = rv
+        int nrv = rvi & 65535
+        int frv = 0
+        int m1 = nrv & 256
+        int m1b = nrv & 512
+        int m2 = nrv & 16
+        int m3 = nrv & 1
+        int m4 = nrv & 2
+        int m5 = nrv & 4
+        if m1 != 0 { frv = frv | 1 }
+        if m1b != 0 { frv = frv | 1 }
+        if m2 != 0 { frv = frv | 2 }
+        if m3 != 0 { frv = frv | 4 }
+        if m4 != 0 { frv = frv | 8 }
+        if m5 != 0 { frv = frv | 4 }                 // POLLNVAL folded into "error"
+        fly.llvm.ptrPokeInt(entries, j * 16 + 12, frv)
+        j = j + 1
+    }
+    fly.runtime.free(fds)
+    out = rc
+}
+
+// net_peer_addr / net_peer_port — who is on the other end of a connected
+// socket, via getpeername. 0 / -1 when the socket is not connected.
+public void net_peer_addr(const long s, int out) {
+    if s < 0 { out = 0  return }
+    pointer sa = 0
+    fly.runtime.malloc(16, sa)
+    pointer alen = 0
+    fly.runtime.malloc(4, alen)
+    fly.llvm.ptrPokeInt(alen, 0, 16)
+    int rc = 0
+    fly.runtime.getpeername(s, sa, alen, rc)
+    if rc < 0 {
+        fly.runtime.free(sa)
+        fly.runtime.free(alen)
+        out = 0
+        return
+    }
+    byte b0 = 0
+    byte b1 = 0
+    byte b2 = 0
+    byte b3 = 0
+    fly.llvm.ptrByteAt(sa, 4, b0)
+    fly.llvm.ptrByteAt(sa, 5, b1)
+    fly.llvm.ptrByteAt(sa, 6, b2)
+    fly.llvm.ptrByteAt(sa, 7, b3)
+    int i0 = b0 & 255
+    int i1 = b1 & 255
+    int i2 = b2 & 255
+    int i3 = b3 & 255
+    fly.runtime.free(sa)
+    fly.runtime.free(alen)
+    out = (i0 << 24) | (i1 << 16) | (i2 << 8) | i3
+}
+
+public void net_peer_port(const long s, int out) {
+    if s < 0 { out = 0 - 1  return }
+    pointer sa = 0
+    fly.runtime.malloc(16, sa)
+    pointer alen = 0
+    fly.runtime.malloc(4, alen)
+    fly.llvm.ptrPokeInt(alen, 0, 16)
+    int rc = 0
+    fly.runtime.getpeername(s, sa, alen, rc)
+    if rc < 0 {
+        fly.runtime.free(sa)
+        fly.runtime.free(alen)
+        out = 0 - 1
+        return
+    }
+    byte hi = 0
+    byte lo = 0
+    fly.llvm.ptrByteAt(sa, 2, hi)
+    fly.llvm.ptrByteAt(sa, 3, lo)
+    int h = hi & 255
+    int l = lo & 255
+    fly.runtime.free(sa)
+    fly.runtime.free(alen)
+    out = (h << 8) | l
+}
+
+// net_resolve_all — every A record for `host`, as packed host-order ints in a
+// caller-provided buffer of `maxCount` slots. Returns the count, -1 on failure.
+public void net_resolve_all(const pointer host, const pointer buf, const int maxCount, int out) {
+    pointer wsa = 0
+    fly.runtime.malloc(512, wsa)
+    int wrc = 0
+    fly.runtime.WSAStartup(514, wsa, wrc)
+    fly.runtime.free(wsa)
+    pointer he = 0
+    fly.runtime.gethostbyname(host, he)
+    if he == 0 { out = 0 - 1  return }
+    long lstl = 0
+    fly.llvm.ptrReadLong(he, 24, lstl)               // h_addr_list
+    pointer lst = 0
+    lst = lstl
+    if lst == 0 { out = 0 - 1  return }
+    int n = 0
+    bool go = true
+    while go {
+        if n >= maxCount { go = false } else {
+            long al = 0
+            fly.llvm.ptrReadLong(lst, n * 8, al)
+            pointer a = 0
+            a = al
+            if a == 0 { go = false } else {
+                byte b0 = 0
+                byte b1 = 0
+                byte b2 = 0
+                byte b3 = 0
+                fly.llvm.ptrByteAt(a, 0, b0)
+                fly.llvm.ptrByteAt(a, 1, b1)
+                fly.llvm.ptrByteAt(a, 2, b2)
+                fly.llvm.ptrByteAt(a, 3, b3)
+                int i0 = b0 & 255
+                int i1 = b1 & 255
+                int i2 = b2 & 255
+                int i3 = b3 & 255
+                int packed = (i0 << 24) | (i1 << 16) | (i2 << 8) | i3
+                fly.llvm.ptrPokeInt(buf, n * 4, packed)
+                n = n + 1
+            }
+        }
+    }
+    out = n
+}
+
+// net_reverse_dns — the host name for a packed IPv4, written NUL-free into buf.
+// Returns the byte length, or -1 when there is no PTR record.
+public void net_reverse_dns(const int addr, const pointer buf, const int cap, int out) {
+    pointer wsa = 0
+    fly.runtime.malloc(512, wsa)
+    int wrc = 0
+    fly.runtime.WSAStartup(514, wsa, wrc)
+    fly.runtime.free(wsa)
+    pointer raw = 0
+    fly.runtime.malloc(4, raw)
+    fly.llvm.ptrPokeByte(raw, 0, (byte)((addr >> 24) & 255))
+    fly.llvm.ptrPokeByte(raw, 1, (byte)((addr >> 16) & 255))
+    fly.llvm.ptrPokeByte(raw, 2, (byte)((addr >> 8) & 255))
+    fly.llvm.ptrPokeByte(raw, 3, (byte)(addr & 255))
+    pointer he = 0
+    fly.runtime.gethostbyaddr(raw, 4, 2, he)         // AF_INET = 2
+    fly.runtime.free(raw)
+    if he == 0 { out = 0 - 1  return }
+    long nml = 0
+    fly.llvm.ptrReadLong(he, 0, nml)                 // h_name
+    pointer nm = 0
+    nm = nml
+    if nm == 0 { out = 0 - 1  return }
+    ulong len = 0
+    fly.runtime.strlen(nm, len)
+    int n = 0
+    fly.llvm.longToInt((long)len, n)
+    if n >= cap { n = cap - 1 }
+    if n < 0 { n = 0 }
+    int i = 0
+    while i < n {
+        byte b = 0
+        fly.llvm.ptrByteAt(nm, i, b)
+        fly.llvm.ptrPokeByte(buf, i, b)
+        i = i + 1
+    }
+    out = n
+}
+
+// net_resolve4 — host name → packed host-order IPv4; 0 on failure. Winsock2's
+// hostent puts h_addr_list at offset 24, same as glibc and libSystem (two shorts
+// plus padding fill 16..23 instead of two ints).
+public void net_resolve4(const pointer host, int out) {
+    pointer wsa = 0
+    fly.runtime.malloc(512, wsa)
+    int wrc = 0
+    fly.runtime.WSAStartup(514, wsa, wrc)
+    fly.runtime.free(wsa)
+    pointer he = 0
+    fly.runtime.gethostbyname(host, he)
+    if he == 0 { out = 0  return }
+    long lstl = 0
+    fly.llvm.ptrReadLong(he, 24, lstl)              // h_addr_list
+    pointer lst = 0
+    lst = lstl
+    if lst == 0 { out = 0  return }
+    long a0l = 0
+    fly.llvm.ptrReadLong(lst, 0, a0l)               // h_addr_list[0]
+    pointer a0 = 0
+    a0 = a0l
+    if a0 == 0 { out = 0  return }
+    byte b0 = 0
+    byte b1 = 0
+    byte b2 = 0
+    byte b3 = 0
+    fly.llvm.ptrByteAt(a0, 0, b0)
+    fly.llvm.ptrByteAt(a0, 1, b1)
+    fly.llvm.ptrByteAt(a0, 2, b2)
+    fly.llvm.ptrByteAt(a0, 3, b3)
+    int i0 = b0 & 255
+    int i1 = b1 & 255
+    int i2 = b2 & 255
+    int i3 = b3 & 255
+    out = (i0 << 24) | (i1 << 16) | (i2 << 8) | i3
 }
 
 // ── Fly string-array slot helpers ────────────────────────────────────────────

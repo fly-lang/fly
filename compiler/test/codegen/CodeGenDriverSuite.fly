@@ -31,14 +31,14 @@ suite CodeGenDriverSuite {
             CodeGenOptions cgo = new CodeGenOptions()
             TargetOptions to = new TargetOptions("x86_64-unknown-linux-gnu")
             CompilerInstance ci = new CompilerInstance(null, fo, cgo, to)
-            ci.createSourceManager("t", "int main() { out = 42 }")
+            ci.createSourceManager("t", "void main() { fail 42 }")
             Frontend fe = new Frontend(ci)
             int code = fe.execute("", false)
             assert.assertEqI(code, 0, 1)
-            assert.assertTrue(fly.os.fs.exists("/tmp/cg/drv.ll"), 2)
-            string ir = fly.os.fs.readStr("/tmp/cg/drv.ll")
-            assert.assertTrue(fly.str.contains(ir, "define"), 3)
-            assert.assertTrue(fly.str.contains(ir, "store i32 42"), 4)
+            assert.assertTrue(fs.exists("/tmp/cg/drv.ll"), 2)
+            string ir = fs.readStr("/tmp/cg/drv.ll")
+            assert.assertTrue(str.contains(ir, "define"), 3)
+            assert.assertTrue(str.contains(ir, "store i32 42"), 4)
         }
         case "malformed program → exit 1": {
             FrontendOptions fo = new FrontendOptions("/tmp/cg/bad.ll")
@@ -52,17 +52,17 @@ suite CodeGenDriverSuite {
             assert.assertEqI(code, 1, 11)
         }
         case "--no-output → exit 0 + no file written": {
-            fly.os.fs.delete("/tmp/cg/noout.ll")
+            fs.delete("/tmp/cg/noout.ll")
             FrontendOptions fo = new FrontendOptions("/tmp/cg/noout.ll")
             fo.setBackendAction(0)
             CodeGenOptions cgo = new CodeGenOptions()
             TargetOptions to = new TargetOptions("x86_64-unknown-linux-gnu")
             CompilerInstance ci = new CompilerInstance(null, fo, cgo, to)
-            ci.createSourceManager("t", "int main() { out = 1 }")
+            ci.createSourceManager("t", "void main() { fail 1 }")
             Frontend fe = new Frontend(ci)
             int code = fe.execute("", true)
             assert.assertEqI(code, 0, 21)
-            assert.assertTrue(fly.os.fs.exists("/tmp/cg/noout.ll") == false, 22)
+            assert.assertTrue(fs.exists("/tmp/cg/noout.ll") == false, 22)
         }
     }
 
@@ -90,7 +90,7 @@ suite CodeGenDriverSuite {
             CodeGenOptions cgo = new CodeGenOptions()
             TargetOptions to = new TargetOptions("x86_64-unknown-linux-gnu")
             CompilerInstance ci = new CompilerInstance(null, fo, cgo, to)
-            ci.createSourceManager("t", "int main() { out = 1 }")
+            ci.createSourceManager("t", "void main() { fail 1 }")
             Frontend fe = new Frontend(ci)
             int code = fe.execute("", false)
             assert.assertEqI(code, 0, 51)

@@ -1,0 +1,203 @@
+import fly.log
+import fly.log.LogLevel
+import fly.str
+import fly.os.fs
+import fly.os.env
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LogSuite — fly.log (std/lib/log.fly): leveled logging + trace hooks.
+//
+// The logger's state is process-global (LogState statics) and the one-shot
+// std binary shares the process across suites, so every case starts AND ends
+// with log.reset(); the env cases delete FLY_LOG_LEVEL when done so later
+// cases see a clean environment. File-sink assertions go through a temp file
+// in the CWD (deleted before the asserts would be nice, but the content IS the
+// assertion — deleted right after reading, before reset).
+//
+// Lines are `YYYY-MM-DD HH:MM:SS [LEVEL] msg`; the timestamp is wall-clock so
+// only the ` [LEVEL] ` tag and the message are asserted, never the prefix.
+//
+// Assert codes: 1xx enum entries + parseLevel/isLevelName, 2xx level state
+// (setLevel/setLevelName/setOff/env init), 3xx message emission + file sink,
+// 4xx enter/exit/exitFail tracing.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite LogSuite {
+
+    // ── the enum ladder itself ───────────────────────────────────────────────
+    void enumTest() {
+        case "values are the severity ladder 1..5": {
+            assert.assertEqI(LogLevel.ERROR.value, 1, 101)
+            assert.assertEqI(LogLevel.WARN.value, 2, 102)
+            assert.assertEqI(LogLevel.INFO.value, 3, 103)
+            assert.assertEqI(LogLevel.DEBUG.value, 4, 104)
+            assert.assertEqI(LogLevel.TRACE.value, 5, 105)
+        }
+        case "names are the declared identifiers": {
+            assert.assertStr(LogLevel.ERROR.name, "ERROR", 106)
+            assert.assertStr(LogLevel.TRACE.name, "TRACE", 107)
+        }
+        case "parseLevel maps names case-insensitively": {
+            LogLevel a = log.parseLevel("error")
+            int av = a.value
+            assert.assertEqI(av, 1, 108)
+            LogLevel b = log.parseLevel("Warn")
+            int bv = b.value
+            assert.assertEqI(bv, 2, 109)
+            LogLevel c = log.parseLevel("TRACE")
+            int cv = c.value
+            assert.assertEqI(cv, 5, 110)
+        }
+        case "an unknown name parses to the INFO default and is not a level name": {
+            LogLevel u = log.parseLevel("bogus")
+            int uv = u.value
+            assert.assertEqI(uv, 3, 111)
+            assert.assertFalse(log.isLevelName("bogus"), 112)
+            assert.assertTrue(log.isLevelName("dEbUg"), 113)
+        }
+    }
+
+    // ── threshold state ──────────────────────────────────────────────────────
+    void levelStateTest() {
+        case "setLevel and getLevel round-trip": {
+            log.reset()
+            log.setLevel(LogLevel.DEBUG)
+            LogLevel got = log.getLevel()
+            int gv = got.value
+            assert.assertEqI(gv, 4, 201)
+            assert.assertFalse(log.isOff(), 202)
+            log.reset()
+        }
+        case "setLevelName accepts any case and ignores unknown names": {
+            log.reset()
+            log.setLevelName("WARN")
+            LogLevel got = log.getLevel()
+            int gv = got.value
+            assert.assertEqI(gv, 2, 203)
+            log.setLevelName("bogus")
+            LogLevel still = log.getLevel()
+            int sv = still.value
+            assert.assertEqI(sv, 2, 204)
+            log.reset()
+        }
+        case "setOff silences and isOff reports it": {
+            log.reset()
+            log.setOff()
+            assert.assertTrue(log.isOff(), 205)
+            log.reset()
+        }
+        case "the first read consults FLY_LOG_LEVEL lazily": {
+            log.reset()
+            env.set("FLY_LOG_LEVEL", "trace")
+            LogLevel got = log.getLevel()
+            int gv = got.value
+            assert.assertEqI(gv, 5, 206)
+            env.delete("FLY_LOG_LEVEL")
+            log.reset()
+        }
+        case "FLY_LOG_LEVEL=off silences everything": {
+            log.reset()
+            env.set("FLY_LOG_LEVEL", "off")
+            assert.assertTrue(log.isOff(), 207)
+            env.delete("FLY_LOG_LEVEL")
+            log.reset()
+        }
+        case "no env var means the INFO default": {
+            log.reset()
+            env.delete("FLY_LOG_LEVEL")
+            LogLevel got = log.getLevel()
+            int gv = got.value
+            assert.assertEqI(gv, 3, 208)
+            log.reset()
+        }
+    }
+
+    // ── message emission through the file sink ───────────────────────────────
+    void fileSinkTest() {
+        case "a message at the threshold reaches the file, one below does not": {
+            log.reset()
+            string p = "log_suite_tmp.txt"
+            fs.delete(p)
+            log.setLevel(LogLevel.INFO)
+            log.setFile(p)
+            log.info("visible line")
+            log.debug("hidden line")
+            string content = fs.readStr(p)
+            assert.assertTrue(str.contains(content, "[INFO] visible line"), 301)
+            assert.assertFalse(str.contains(content, "hidden line"), 302)
+            fs.delete(p)
+            log.reset()
+        }
+        case "err tags the line with ERROR and passes every threshold": {
+            log.reset()
+            string p = "log_suite_tmp.txt"
+            fs.delete(p)
+            log.setLevel(LogLevel.ERROR)
+            log.setFile(p)
+            log.err("boom")
+            log.warn("quiet")
+            string content = fs.readStr(p)
+            assert.assertTrue(str.contains(content, "[ERROR] boom"), 303)
+            assert.assertFalse(str.contains(content, "quiet"), 304)
+            fs.delete(p)
+            log.reset()
+        }
+        case "when off nothing is written at all": {
+            log.reset()
+            string p = "log_suite_tmp.txt"
+            fs.delete(p)
+            log.setOff()
+            log.setFile(p)
+            log.err("nope")
+            assert.assertFalse(fs.exists(p), 305)
+            log.reset()
+        }
+    }
+
+    // ── the trace hooks: enter / exit / exitFail ─────────────────────────────
+    void traceHooksTest() {
+        case "enter and exit nest with two-space indentation at TRACE": {
+            log.reset()
+            string p = "log_suite_tmp.txt"
+            fs.delete(p)
+            log.setLevelName("trace")
+            log.setFile(p)
+            log.enter("outer")
+            log.enter("inner")
+            log.exit("inner")
+            log.exit("outer")
+            string content = fs.readStr(p)
+            assert.assertTrue(str.contains(content, "[TRACE] > outer"), 401)
+            assert.assertTrue(str.contains(content, "[TRACE]   > inner"), 402)
+            assert.assertTrue(str.contains(content, "[TRACE]   < inner"), 403)
+            assert.assertTrue(str.contains(content, "[TRACE] < outer"), 404)
+            fs.delete(p)
+            log.reset()
+        }
+        case "exitFail marks the failing exit": {
+            log.reset()
+            string p = "log_suite_tmp.txt"
+            fs.delete(p)
+            log.setLevelName("trace")
+            log.setFile(p)
+            log.enter("doomed")
+            log.exitFail("doomed")
+            string content = fs.readStr(p)
+            assert.assertTrue(str.contains(content, "<! doomed"), 405)
+            fs.delete(p)
+            log.reset()
+        }
+        case "below TRACE the hooks are silent": {
+            log.reset()
+            string p = "log_suite_tmp.txt"
+            fs.delete(p)
+            log.setLevel(LogLevel.DEBUG)
+            log.setFile(p)
+            log.enter("quiet")
+            log.exit("quiet")
+            assert.assertFalse(fs.exists(p), 406)
+            log.reset()
+        }
+    }
+}

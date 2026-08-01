@@ -74,6 +74,7 @@ public class NameProbe : ASTVisitor {
     public void visit(const ASTNullValue node) { }
     public void visit(const ASTUnsetValue node) { }
     public void visit(const ASTEnumEntry node) { }
+    public void visit(const ASTArrayAccess node) { }
 }
 
 suite NameProbeSuite {

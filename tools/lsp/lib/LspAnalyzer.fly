@@ -1,0 +1,1222 @@
+namespace fly.lsp
+
+import fly.str
+import fly.data.List
+import fly.os.fs
+import fly.os.env
+import fly.os.path
+import fly.compiler.basic.*
+import fly.compiler.target.*
+import fly.compiler.target
+import fly.compiler.ast.*
+import fly.compiler.parser.Parser
+import fly.compiler.sema.*
+import fly.compiler.frontend.Frontend
+import fly.compiler.frontend.FrontendOptions
+import fly.compiler.frontend.CompilerInstance
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LspAnalyzer — compiler integration: compile() plus the navigation features.
+// Port of tools/lsp/LspAnalyzer.cpp, reshaped around one structural difference
+// (see LspNav.fly's header): identifier uses are re-resolved by NAME through the
+// SymbolTable scopes Sema built, because the self-host's resolved tree keeps no
+// per-use nodes.
+//
+// The pipeline REPLICATES Frontend.executeImpl up to Sema and stops there — no
+// codegen, no output: parse → loadLibHeaders (so `import fly.*` resolves against
+// <exe>/../lib exactly as a real compile) → resolveSourceDeps (so imports of
+// sibling sources under the file's own directory resolve too) → Resolve.
+//
+// PARSE diagnostics are recovered from the Parser's built-in sink via
+// parseRendered (the Parser hardwires its consumer). SEMA diagnostics flow into
+// our own LspDiagnosticConsumer, structured from the start.
+//
+// After a successful parse the compile state STAYS ALIVE (AST module, Sema
+// modules, registry, SourceManager) — that state is what every navigation query
+// reads. Queries against a file whose last compile failed to parse answer
+// empty rather than stale.
+//
+// KNOWN LIMITS (documented rather than papered over):
+//   • one compile has ONE SourceManager — the open file's; sema diagnostics in
+//     PULLED modules decode against the wrong buffer;
+//   • name resolution for navigation uses the FUNCTION scope, so a name
+//     shadowed inside a nested block resolves to the outer declaration;
+//   • overloaded functions resolve to the first overload (hover/signature may
+//     show a sibling overload's signature);
+//   • references/highlights cover the OPEN file (cross-file reference search
+//     is a later phase).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// LspSym — one entry for documentSymbol / workspace/symbol.
+public class LspSym {
+    public string name
+    public int kind           // LSP SymbolKind numbers
+    public int line           // 1-based
+    public int col
+    public string file
+    public string container
+
+    public LspSym(const string name, const int kind, const int line, const int col,
+                  const string file, const string container) {
+        this.name = name
+        this.kind = kind
+        this.line = line
+        this.col = col
+        this.file = file
+        this.container = container
+    }
+}
+
+// LspFold — one folding range (1-based lines).
+public class LspFold {
+    public int startLine
+    public int endLine
+
+    public LspFold(const int startLine, const int endLine) {
+        this.startLine = startLine
+        this.endLine = endLine
+    }
+}
+
+// LspLoc — a resolved declaration site.
+public class LspLoc {
+    public bool ok
+    public string file
+    public int line           // 1-based
+    public int col
+
+    public LspLoc() {
+        this.ok = false
+        this.file = ""
+        this.line = 0
+        this.col = 0
+    }
+}
+
+// LspSignature — signatureHelp payload.
+public class LspSignature {
+    public bool ok
+    public string label
+    public List<string> params
+    public int active
+
+    public LspSignature() {
+        this.ok = false
+        this.label = ""
+        this.params = new List<string>()
+        this.active = 0
+    }
+}
+
+// LspDiagnosticConsumer — captures structured diagnostics (vtable dispatch, the
+// StoringDiagnosticConsumer pattern).
+public class LspDiagnosticConsumer : DiagnosticConsumer {
+    List<LspDiag> diags
+
+    public LspDiagnosticConsumer() {
+        super()
+        this.diags = new List<LspDiag>()
+    }
+
+    public void handleDiagnostic(const Diagnostic diag) {
+        int sev = 3
+        DiagLevel level = diag.getLevel()
+        if level == DiagLevel.Error || level == DiagLevel.Fatal { sev = 1 }
+        elsif level == DiagLevel.Warning { sev = 2 }
+        this.diags.add(new LspDiag(diag.getLine(), diag.getColumn(), sev,
+                                   diag.getMessage(), diag.getFilename()))
+    }
+
+    public List<LspDiag> getDiags() { out = this.diags }
+}
+
+public class LspAnalyzer {
+    string stdLibDir
+
+    // ── the last successful compile, kept alive for navigation ───────────────
+    bool navValid
+    string navPath
+    SourceManager navSm            // decodes locations of the OPEN file
+    ASTModule navAst               // the open file's AST module
+    List<SemaModule> navSema       // every resolved module (headers included)
+    Registry navReg
+    // lazy per-file SourceManagers for declaration sites in OTHER files
+    List<string> smFiles
+    List<SourceManager> smCache
+
+    public LspAnalyzer() {
+        // Auto-discover <install>/lib next to the running fly-lsp binary, the
+        // same walk Driver.fly does for fly itself: bin/fly-lsp → ../lib.
+        this.stdLibDir = ""
+        string exe = env.exePath()
+        if str.isEmpty(exe) == false {
+            string binDir = path.dirname(exe)
+            string instDir = path.dirname(binDir)
+            string cand = path.join(instDir, "lib")
+            if path.isDir(cand) { this.stdLibDir = cand }
+        }
+        this.navValid = false
+        this.navPath = ""
+        this.navSm = null
+        this.navAst = null
+        this.navSema = null
+        this.navReg = null
+        this.smFiles = new List<string>()
+        this.smCache = new List<SourceManager>()
+    }
+
+    // compileFile — parse + sema `file`, returning every diagnostic. An empty
+    // list means the file is clean. A file that cannot be read yields one error
+    // diagnostic at 1:1 rather than an empty (i.e. "all good") answer.
+    public List<LspDiag> compileFile(const string file) {
+        List<LspDiag> result = new List<LspDiag>()
+        string src = fs.readStr(file)
+        if str.isEmpty(src) {
+            result.add(new LspDiag(1, 1, 1, "cannot read file", file))
+            out = result
+            return
+        }
+
+        // 1) parse
+        Parser p = new Parser(src)
+        ASTModule m = p.parseModule(file)
+        if p.isSuccess() == false {
+            StoringDiagnosticConsumer sink = p.getSink()
+            int i = 0
+            int n = sink.count()
+            while i < n {
+                LspDiag d = fly.lsp.parseRendered(sink.getMessage(i), file)
+                if d != null { result.add(d) }
+                i = i + 1
+            }
+            // A parse failure that somehow rendered nothing still must not
+            // report a clean file.
+            if result.size() == 0 {
+                result.add(new LspDiag(1, 1, 1, "parse failed", file))
+            }
+            out = result
+            return
+        }
+
+        // 2) sema — executeImpl's steps with our own consumer.
+        DiagnosticOptions opts = new DiagnosticOptions()
+        LspDiagnosticConsumer consumer = new LspDiagnosticConsumer()
+        SourceManager sm = new SourceManager(file, src)
+        DiagnosticsEngine diags = new DiagnosticsEngine(opts, consumer, sm)
+
+        FrontendOptions fo = new FrontendOptions("")
+        if str.isEmpty(this.stdLibDir) == false { fo.setStdLibDir(this.stdLibDir) }
+        string dir = path.dirname(file)
+        if str.isEmpty(dir) == false { fo.addSrcDir(dir) }
+
+        CodeGenOptions cgo = new CodeGenOptions()
+        TargetOptions topts = new TargetOptions(target.hostTripleStr())
+        CompilerInstance ci = new CompilerInstance(diags, fo, cgo, topts)
+        ci.createFileManager()
+        ci.createSourceManager(file, src)
+        Frontend fe = new Frontend(ci)
+
+        // The open file's own namespace must not also be loaded from a header —
+        // same shadowing rule executeImpl applies to --lib builds.
+        List<string> entryNs = new List<string>()
+        ASTNameSpace ns0 = m.getNameSpace()
+        if ns0 != null { entryNs.add(fe.joinNames(ns0.getNames())) }
+
+        List<ASTModule> mods = new List<ASTModule>()
+        fe.loadLibHeaders(fo, mods, entryNs)
+        mods.add(m)
+        bool depsOk = fe.resolveSourceDeps(fo, mods)
+        // Navigation state is refreshed even when sema reported errors: the
+        // parts that DID resolve are exactly what an editor wants to keep
+        // navigating while the user is mid-edit.
+        this.navValid = false
+        if depsOk {
+            SemaContext ctx = new SemaContext(diags)
+            List<SemaModule> res = ctx.Resolve(mods, false)
+            this.navValid = true
+            this.navPath = file
+            this.navSm = sm
+            this.navAst = m
+            this.navSema = res
+            this.navReg = ctx.getReg()
+            this.smFiles = new List<string>()
+            this.smCache = new List<SourceManager>()
+        }
+
+        List<LspDiag> semaDiags = consumer.getDiags()
+        int si = 0
+        while si < semaDiags.size() {
+            result.add(semaDiags.get(si))
+            si = si + 1
+        }
+        out = result
+    }
+
+    // ── position decoding ────────────────────────────────────────────────────
+
+    // smFor — a SourceManager for `file`, cached. The open file reuses the
+    // compile's own; any other file (a pulled sibling, a std header) gets one
+    // built lazily from disk. This is what lets a definition jump land in a
+    // file that was never opened in the editor.
+    SourceManager smFor(const string file) {
+        if str.equals(file, this.navPath) { out = this.navSm  return }
+        int i = 0
+        while i < this.smFiles.size() {
+            if str.equals(this.smFiles.get(i), file) { out = this.smCache.get(i)  return }
+            i = i + 1
+        }
+        string src = fs.readStr(file)
+        if str.isEmpty(src) { out = null  return }
+        SourceManager sm = new SourceManager(file, src)
+        this.smFiles.add(file)
+        this.smCache.add(sm)
+        out = sm
+    }
+
+    // ── the enclosing function of a position, and name resolution ────────────
+
+    // findTargetAt — what is under the cursor (1-based line/col).
+    public LspTarget findTargetAt(const int line, const int col) {
+        LspTarget t = new LspTarget()
+        if this.navValid == false { out = t  return }
+
+        // 1) find the name at the position, walking every function/method body
+        //    of the open file's AST; remember which body scored the hit.
+        LspNavVisitor v = new LspNavVisitor(this.navSm)
+        v.mode = navModeFind()
+        v.targetLine = line
+        v.targetCol = col
+        ASTFunction hitFn = null
+        List<ASTNode> nodes = this.navAst.getNodes()
+        int i = 0
+        while i < nodes.size() {
+            if v.foundKind == 0 {
+                ASTNode n = nodes.get(i)
+                ASTFunction f = n.asFunction()
+                if f != null {
+                    v.visit(f)
+                    if v.foundKind != 0 { hitFn = f }
+                } else {
+                    ASTClass c = n.asClass()
+                    if c != null {
+                        List<ASTNode> members = c.getNodes()
+                        int mi = 0
+                        while mi < members.size() {
+                            if v.foundKind == 0 {
+                                ASTFunction mf = members.get(mi).asFunction()
+                                if mf != null {
+                                    v.visit(mf)
+                                    if v.foundKind != 0 { hitFn = mf }
+                                }
+                            }
+                            mi = mi + 1
+                        }
+                    }
+                }
+            }
+            i = i + 1
+        }
+        if v.foundKind == 0 { out = t  return }
+
+        t.name = v.foundName
+        t.useLine = v.foundLine
+        t.useCol = v.foundCol
+        t.useLen = str.len(v.foundName)
+
+        // 2) resolve. A hit WITH a receiver chain (p.getX(), p.x, this.x) is a
+        //    MEMBER access: the receiver's static class type decides, through
+        //    the same LookupMethod/LookupAttribute walk (bases included) Sema
+        //    itself uses. Only receiver-less hits fall through to the plain
+        //    name-in-scope lookup.
+        SymbolTable scope = this.scopeOfAstFn(hitFn)
+        if v.foundExpr != null {
+            ASTExpr recv = v.foundExpr.getParent()
+            if recv != null {
+                SemaClassType rc = this.receiverClassOf(recv, scope)
+                if rc != null {
+                    if v.foundKind == 2 {
+                        SemaClassMethod m = rc.LookupMethod(t.name)
+                        if m != null {
+                            t.kind = 1
+                            t.fn = m
+                            out = t
+                            return
+                        }
+                    }
+                    SemaClassAttribute a = rc.LookupAttribute(t.name)
+                    if a != null {
+                        t.kind = 2
+                        t.attr = a
+                        SemaType at = a.getType()
+                        if at != null { t.varTypeName = at.getName() }
+                        out = t
+                        return
+                    }
+                    // a member hit that is neither: maybe a method referenced
+                    // without parens.
+                    SemaClassMethod m2 = rc.LookupMethod(t.name)
+                    if m2 != null {
+                        t.kind = 1
+                        t.fn = m2
+                        out = t
+                        return
+                    }
+                }
+                // A receiver that does not type as a class (a namespace chain
+                // like fly.str.len) falls through to the name lookup below.
+            }
+        }
+        Symbol sym = this.resolveName(scope, t.name)
+        if sym == null { out = t  return }
+
+        SymbolKind sk = sym.getKind()
+        if sk == SymbolKind.FUNCTION {
+            SemaNode ref = sym.getRef()
+            if ref != null {
+                SemaFunctionBase fb = ref.asFunctionBase()
+                if fb != null {
+                    t.kind = 1
+                    t.fn = fb
+                }
+            }
+        } elsif sk == SymbolKind.CLASS || sk == SymbolKind.TYPE || sk == SymbolKind.ENUM {
+            SemaType ty = sym.getTypeRef()
+            if ty != null {
+                SemaClassType ct = ty.asClass()
+                if ct != null {
+                    t.kind = 3
+                    t.cls = ct
+                } else { t.kind = 4 }
+            } else { t.kind = 4 }
+        } elsif sym.isVarKind() {
+            t.kind = 2
+            // Hover type: the declaration's Sema node IS the symbol's exprRef.
+            SemaExpr ve = sym.getExprRef()
+            if ve != null {
+                SemaType vt = ve.getType()
+                if vt != null { t.varTypeName = vt.getName() }
+            }
+        } else { t.kind = 4 }
+        out = t
+    }
+
+    // scopeOfAstFn — the SymbolTable Sema built for the function whose AST is
+    // `fn`. Matching is by name + declaration offset: the Sema node points back
+    // at the very same AST object, so both always agree.
+    SymbolTable scopeOfAstFn(const ASTFunction fn) {
+        if fn == null { out = null  return }
+        if this.navSema == null { out = null  return }
+        SourceLocation want = fn.getLoc()
+        int wantOff = 0
+        if want != null { wantOff = want.getOffset() }
+        int i = 0
+        while i < this.navSema.size() {
+            SemaModule mod = this.navSema.get(i)
+            if str.equals(mod.getName(), this.navPath) {
+                List<SemaNode> nodes = mod.getNodes()
+                int j = 0
+                while j < nodes.size() {
+                    SemaNode n = nodes.get(j)
+                    SemaFunctionBase fb = n.asFunctionBase()
+                    if fb != null {
+                        if str.equals(fb.getName(), fn.getName()) {
+                            SourceLocation gl = fb.getAST().getLoc()
+                            int off = 0
+                            if gl != null { off = gl.getOffset() }
+                            if off == wantOff { out = fb.getSymbols()  return }
+                        }
+                    }
+                    j = j + 1
+                }
+                // Methods live under classes. The node list is typed SemaNode
+                // (no type-side narrow), but the module SYMBOL TABLE has every
+                // class as a Symbol whose typeRef narrows via asClass() — that
+                // is the route to SemaClassMethod scopes.
+                SymbolTable modSyms = mod.getSymbols()
+                if modSyms != null {
+                    List<Symbol> all = modSyms.getAllSymbols()
+                    int k = 0
+                    while k < all.size() {
+                        Symbol s2 = all.get(k)
+                        if s2.getKind() == SymbolKind.CLASS {
+                            SemaType ty = s2.getTypeRef()
+                            if ty != null {
+                                SemaClassType ct = ty.asClass()
+                                if ct != null {
+                                    List<SemaNode> cn = ct.getNodes()
+                                    int q = 0
+                                    while q < cn.size() {
+                                        SemaFunctionBase mb = cn.get(q).asFunctionBase()
+                                        if mb != null {
+                                            if str.equals(mb.getName(), fn.getName()) {
+                                                SourceLocation ml = mb.getAST().getLoc()
+                                                int moff = 0
+                                                if ml != null { moff = ml.getOffset() }
+                                                if moff == wantOff { out = mb.getSymbols()  return }
+                                            }
+                                        }
+                                        q = q + 1
+                                    }
+                                }
+                            }
+                        }
+                        k = k + 1
+                    }
+                }
+            }
+            i = i + 1
+        }
+        out = null
+    }
+
+    // resolveName — a name as seen from inside a function. Locals live in the
+    // CHILD block scopes pushScope() created under the function scope (the
+    // function table itself holds only parameters), so the search is: up the
+    // parent chain, then DOWN into the children, then the registry's global
+    // route. The downward leg can cross a sibling block's scope — Fly's
+    // no-shadowing style keeps that harmless in practice, and it is the
+    // documented approximation of this port.
+    Symbol resolveName(const SymbolTable scope, const string name) {
+        Symbol sym = null
+        if scope != null {
+            List<Symbol> up = scope.lookupInParents(name)
+            if up != null { if up.size() > 0 { sym = up.get(0) } }
+            if sym == null {
+                List<Symbol> down = scope.lookupInChildren(name)
+                if down != null { if down.size() > 0 { sym = down.get(0) } }
+            }
+        }
+        if sym == null { if this.navReg != null { sym = this.navReg.LookupName(name, scope) } }
+        out = sym
+    }
+
+    // receiverClassOf — the STATIC class type of a receiver expression: an
+    // identifier (variable of class type, `this`, or a class name for static
+    // access) or a member chain (each hop through LookupAttribute). A call as
+    // receiver (`f().m()`) is NOT typed: ASTExpr has no asCall narrow and
+    // adding one risks the vtable-shift miscompile — declared limit.
+    SemaClassType receiverClassOf(const ASTExpr recv, const SymbolTable scope) {
+        if recv == null { out = null  return }
+        ASTIdentifier id = recv.asIdentifier()
+        if id != null {
+            Symbol sym = this.resolveName(scope, id.getName())
+            if sym == null { out = null  return }
+            if sym.getKind() == SymbolKind.CLASS {
+                SemaType ty = sym.getTypeRef()
+                if ty != null { out = ty.asClass()  return }
+                out = null
+                return
+            }
+            if sym.isVarKind() {
+                SemaExpr ve = sym.getExprRef()
+                if ve != null {
+                    SemaType vt = ve.getType()
+                    if vt != null { out = vt.asClass()  return }
+                }
+            }
+            out = null
+            return
+        }
+        ASTMember mem = recv.asMember()
+        if mem != null {
+            SemaClassType rc = this.receiverClassOf(mem.getParent(), scope)
+            if rc == null { out = null  return }
+            SemaClassAttribute attr = rc.LookupAttribute(mem.getName())
+            if attr == null { out = null  return }
+            SemaType at = attr.getType()
+            if at != null { out = at.asClass()  return }
+            out = null
+            return
+        }
+        out = null
+    }
+
+    // enclosingAstFn — the function/method whose declaration starts nearest
+    // above `line` in the open file. Fly declares before use and functions do
+    // not nest, so "greatest start line ≤ line" is the enclosing body.
+    ASTFunction enclosingAstFn(const int line) {
+        if this.navValid == false { out = null  return }
+        ASTFunction best = null
+        int bestLine = 0
+        List<ASTNode> nodes = this.navAst.getNodes()
+        int i = 0
+        while i < nodes.size() {
+            ASTNode n = nodes.get(i)
+            ASTFunction f = n.asFunction()
+            if f != null {
+                int fl = this.navSm.getLineNumber(f.getLoc())
+                if fl <= line { if fl > bestLine { best = f  bestLine = fl } }
+            } else {
+                ASTClass c = n.asClass()
+                if c != null {
+                    List<ASTNode> members = c.getNodes()
+                    int mi = 0
+                    while mi < members.size() {
+                        ASTFunction mf = members.get(mi).asFunction()
+                        if mf != null {
+                            int ml = this.navSm.getLineNumber(mf.getLoc())
+                            if ml <= line { if ml > bestLine { best = mf  bestLine = ml } }
+                        }
+                        mi = mi + 1
+                    }
+                }
+            }
+            i = i + 1
+        }
+        out = best
+    }
+
+    // ── declaration site ─────────────────────────────────────────────────────
+
+    // declLocationOf — where the target was declared.
+    public LspLoc declLocationOf(const LspTarget t) {
+        LspLoc loc = new LspLoc()
+        if this.navValid == false { out = loc  return }
+        if t.kind == 1 {
+            // The module whose nodes (or classes) contain this function tells
+            // us the FILE; the AST location gives line/col in that file.
+            string file = this.fileOfFunction(t.fn)
+            if str.isEmpty(file) { out = loc  return }
+            SourceManager sm = this.smFor(file)
+            if sm == null { out = loc  return }
+            SourceLocation l = t.fn.getAST().getLoc()
+            if l == null { out = loc  return }
+            loc.ok = true
+            loc.file = file
+            loc.line = sm.getLineNumber(l)
+            loc.col = sm.getColumnNumber(l)
+            out = loc
+            return
+        }
+        if t.kind == 3 {
+            SemaModule dm = t.cls.getModule()
+            if dm == null { out = loc  return }
+            string cfile = dm.getName()
+            SourceManager csm = this.smFor(cfile)
+            if csm == null { out = loc  return }
+            SourceLocation cl = t.cls.getAST().getLoc()
+            if cl == null { out = loc  return }
+            loc.ok = true
+            loc.file = cfile
+            loc.line = csm.getLineNumber(cl)
+            loc.col = csm.getColumnNumber(cl)
+            out = loc
+            return
+        }
+        if t.kind == 2 {
+            // A field found through a receiver: the attribute knows its class,
+            // the class knows its module — the declaration can live in ANY file.
+            if t.attr != null {
+                SemaClassType oc = t.attr.getClass()
+                if oc == null { out = loc  return }
+                SemaModule om = oc.getModule()
+                if om == null { out = loc  return }
+                SourceManager osm = this.smFor(om.getName())
+                if osm == null { out = loc  return }
+                SourceLocation al = t.attr.getAST().getLoc()
+                if al == null { out = loc  return }
+                loc.ok = true
+                loc.file = om.getName()
+                loc.line = osm.getLineNumber(al)
+                loc.col = osm.getColumnNumber(al)
+                out = loc
+                return
+            }
+            // A variable's declaration: parameters first, then the first
+            // declaration-site use inside the enclosing function (Fly declares
+            // before use). All in the open file.
+            ASTFunction fn = this.enclosingAstFn(t.useLine)
+            if fn == null { out = loc  return }
+            List<ASTParam> params = fn.getParams()
+            int pi = 0
+            while pi < params.size() {
+                ASTParam p = params.get(pi)
+                if str.equals(p.getName(), t.name) {
+                    loc.ok = true
+                    loc.file = this.navPath
+                    loc.line = this.navSm.getLineNumber(p.getLoc())
+                    loc.col = this.navSm.getColumnNumber(p.getLoc())
+                    out = loc
+                    return
+                }
+                pi = pi + 1
+            }
+            LspNavVisitor v = new LspNavVisitor(this.navSm)
+            v.mode = navModeCollect()
+            v.wantName = t.name
+            v.visit(fn)
+            if v.uses.size() > 0 {
+                LspUse first = v.uses.get(0)
+                loc.ok = true
+                loc.file = this.navPath
+                loc.line = first.line
+                loc.col = first.col
+            }
+            out = loc
+            return
+        }
+        out = loc
+    }
+
+    // fileOfFunction — which module (file) declares `fb`. A METHOD knows its
+    // class directly; free functions are found by scanning module node lists.
+    string fileOfFunction(const SemaFunctionBase fb) {
+        if fb == null { out = ""  return }
+        SemaClassMethod cm = fb.asClassMethod()
+        if cm != null {
+            SemaClassType oc = cm.getClass()
+            if oc != null {
+                SemaModule om = oc.getModule()
+                if om != null { out = om.getName()  return }
+            }
+        }
+        SourceLocation want = fb.getAST().getLoc()
+        int wantOff = 0
+        if want != null { wantOff = want.getOffset() }
+        string name = fb.getName()
+        int i = 0
+        while i < this.navSema.size() {
+            SemaModule mod = this.navSema.get(i)
+            List<SemaNode> nodes = mod.getNodes()
+            int j = 0
+            while j < nodes.size() {
+                SemaFunctionBase cand = nodes.get(j).asFunctionBase()
+                if cand != null {
+                    if str.equals(cand.getName(), name) {
+                        SourceLocation gl = cand.getAST().getLoc()
+                        int off = 0
+                        if gl != null { off = gl.getOffset() }
+                        if off == wantOff { out = mod.getName()  return }
+                    }
+                }
+                j = j + 1
+            }
+            i = i + 1
+        }
+        out = ""
+    }
+
+    // ── hover ────────────────────────────────────────────────────────────────
+
+    public string hoverOf(const LspTarget t) {
+        if t.kind == 0 { out = ""  return }
+        string nl = lfStr()
+        string open = str.concat("```fly", nl)
+        string close = str.concat(nl, "```")
+        if t.kind == 1 {
+            string sig = this.signatureLabelOf(t.fn)
+            out = str.concat(open, str.concat(sig, close))
+            return
+        }
+        if t.kind == 3 {
+            string kw = "class"
+            SemaClassKind ck = t.cls.getClassKind()
+            if ck == SemaClassKind.STRUCT { kw = "struct" }
+            elsif ck == SemaClassKind.INTERFACE { kw = "interface" }
+            out = str.concat(open, str.concat(kw,
+                  str.concat(" ", str.concat(t.name, close))))
+            return
+        }
+        if t.kind == 2 {
+            string ty = t.varTypeName
+            if str.isEmpty(ty) { ty = "?" }
+            string tag = "(var) "
+            if t.attr != null { tag = "(field) " }
+            out = str.concat(open, str.concat(tag,
+                  str.concat(ty, str.concat(" ", str.concat(t.name, close)))))
+            return
+        }
+        out = str.concat(open, str.concat(t.name, close))
+    }
+
+    // signatureLabelOf — "ret name(type param, …)".
+    string signatureLabelOf(const SemaFunctionBase fb) {
+        string ret = "void"
+        SemaType rt = fb.getReturnType()
+        if rt != null { ret = rt.getName() }
+        string label = str.concat(ret, str.concat(" ", str.concat(fb.getName(), "(")))
+        List<SemaParam> params = fb.getParams()
+        int i = 0
+        while i < params.size() {
+            if i > 0 { label = str.concat(label, ", ") }
+            label = str.concat(label, this.paramLabelOf(params.get(i)))
+            i = i + 1
+        }
+        out = str.concat(label, ")")
+    }
+
+    string paramLabelOf(const SemaParam p) {
+        string ty = ""
+        SemaType pt = p.getType()
+        if pt != null { ty = pt.getName() }
+        if str.isEmpty(ty) { out = p.getName()  return }
+        out = str.concat(ty, str.concat(" ", p.getName()))
+    }
+
+    // ── document symbols and folding (pure AST walks of the open file) ───────
+
+    public List<LspSym> documentSymbols() {
+        List<LspSym> result = new List<LspSym>()
+        if this.navValid == false { out = result  return }
+        List<ASTNode> nodes = this.navAst.getNodes()
+        int i = 0
+        while i < nodes.size() {
+            ASTNode n = nodes.get(i)
+            ASTFunction f = n.asFunction()
+            if f != null {
+                result.add(new LspSym(f.getName(), 12,
+                    this.navSm.getLineNumber(f.getLoc()),
+                    this.navSm.getColumnNumber(f.getLoc()), this.navPath, ""))
+            } else {
+                ASTClass c = n.asClass()
+                if c != null {
+                    int kind = 5
+                    ASTClassKind ck = c.getClassKind()
+                    if ck == ASTClassKind.STRUCT { kind = 23 }
+                    elsif ck == ASTClassKind.INTERFACE { kind = 11 }
+                    result.add(new LspSym(c.getName(), kind,
+                        this.navSm.getLineNumber(c.getLoc()),
+                        this.navSm.getColumnNumber(c.getLoc()), this.navPath, ""))
+                    List<ASTNode> members = c.getNodes()
+                    int mi = 0
+                    while mi < members.size() {
+                        ASTFunction mf = members.get(mi).asFunction()
+                        if mf != null {
+                            result.add(new LspSym(mf.getName(), 6,
+                                this.navSm.getLineNumber(mf.getLoc()),
+                                this.navSm.getColumnNumber(mf.getLoc()), this.navPath, c.getName()))
+                        }
+                        mi = mi + 1
+                    }
+                } else {
+                    ASTEnum e = n.asEnum()
+                    if e != null {
+                        result.add(new LspSym(e.getName(), 10,
+                            this.navSm.getLineNumber(e.getLoc()),
+                            this.navSm.getColumnNumber(e.getLoc()), this.navPath, ""))
+                    }
+                }
+            }
+            i = i + 1
+        }
+        out = result
+    }
+
+    public List<LspFold> foldingRanges() {
+        List<LspFold> result = new List<LspFold>()
+        if this.navValid == false { out = result  return }
+        List<ASTNode> nodes = this.navAst.getNodes()
+        int i = 0
+        while i < nodes.size() {
+            ASTNode n = nodes.get(i)
+            ASTFunction f = n.asFunction()
+            if f != null {
+                this.addBodyFold(f, result)
+            } else {
+                ASTClass c = n.asClass()
+                if c != null {
+                    int clsStart = this.navSm.getLineNumber(c.getLoc())
+                    int clsEnd = clsStart
+                    List<ASTNode> members = c.getNodes()
+                    int mi = 0
+                    while mi < members.size() {
+                        ASTFunction mf = members.get(mi).asFunction()
+                        if mf != null {
+                            int e = this.addBodyFold(mf, result)
+                            if e > clsEnd { clsEnd = e }
+                        }
+                        mi = mi + 1
+                    }
+                    if clsEnd > clsStart { result.add(new LspFold(clsStart, clsEnd)) }
+                }
+            }
+            i = i + 1
+        }
+        out = result
+    }
+
+    // addBodyFold — fold a function body (start line → its last statement's
+    // line); returns the end line for the caller's class-level fold.
+    int addBodyFold(const ASTFunction f, List<LspFold> result) {
+        int start = this.navSm.getLineNumber(f.getLoc())
+        ASTBlockStmt body = f.getBody()
+        if body == null { out = start  return }
+        List<ASTStmt> content = body.getContent()
+        if content.size() == 0 { out = start  return }
+        ASTStmt last = content.get((int)content.size() - 1)
+        int end = this.navSm.getLineNumber(last.getLoc())
+        if end > start { result.add(new LspFold(start, end)) }
+        out = end
+    }
+
+    // ── uses (references / highlights / semantic tokens) ─────────────────────
+
+    // collectUses — every use of `name` in the open file ("" collects all).
+    public List<LspUse> collectUses(const string name) {
+        List<LspUse> result = new List<LspUse>()
+        if this.navValid == false { out = result  return }
+        LspNavVisitor v = new LspNavVisitor(this.navSm)
+        v.mode = navModeCollect()
+        v.wantName = name
+        List<ASTNode> nodes = this.navAst.getNodes()
+        int i = 0
+        while i < nodes.size() {
+            ASTNode n = nodes.get(i)
+            ASTFunction f = n.asFunction()
+            if f != null { v.visit(f) } else {
+                ASTClass c = n.asClass()
+                if c != null {
+                    List<ASTNode> members = c.getNodes()
+                    int mi = 0
+                    while mi < members.size() {
+                        ASTFunction mf = members.get(mi).asFunction()
+                        if mf != null { v.visit(mf) }
+                        mi = mi + 1
+                    }
+                }
+            }
+            i = i + 1
+        }
+        out = v.uses
+    }
+
+    // ── signature help ───────────────────────────────────────────────────────
+
+    public LspSignature signatureAt(const int line, const int col) {
+        LspSignature sig = new LspSignature()
+        if this.navValid == false { out = sig  return }
+        ASTFunction fn = this.enclosingAstFn(line)
+        if fn == null { out = sig  return }
+        LspNavVisitor v = new LspNavVisitor(this.navSm)
+        v.mode = navModeCallAt()
+        v.targetLine = line
+        v.targetCol = col
+        v.visit(fn)
+        if v.callAt == null { out = sig  return }
+        // Resolve the call: free function by name, or method via the receiver's
+        // class (first overload wins — declared limit).
+        SymbolTable scope = this.scopeOfAstFn(fn)
+        SemaFunctionBase fb = this.functionOfCall(v.callAt.getName(), v.callAt, scope)
+        if fb == null { out = sig  return }
+        sig.ok = true
+        sig.label = this.signatureLabelOf(fb)
+        List<SemaParam> params = fb.getParams()
+        int i = 0
+        while i < params.size() {
+            sig.params.add(this.paramLabelOf(params.get(i)))
+            i = i + 1
+        }
+        sig.active = v.callActiveParam
+        if sig.active >= (int)sig.params.size() { sig.active = 0 }
+        out = sig
+    }
+
+    // ── completion ───────────────────────────────────────────────────────────
+
+    // completionsAt — names visible at the position: the enclosing function's
+    // scope chain up to the module table. LSP CompletionItemKind numbers.
+    public List<LspSym> completionsAt(const int line, const int col) {
+        List<LspSym> result = new List<LspSym>()
+        if this.navValid == false { out = result  return }
+        ASTFunction fn = this.enclosingAstFn(line)
+        SymbolTable scope = this.scopeOfAstFn(fn)
+        List<string> seen = new List<string>()
+        // Locals first: they live in the DESCENDANT block scopes.
+        if scope != null { this.collectScopeTree(scope, seen, result) }
+        SymbolTable t = scope
+        if t != null { t = t.getParent() }
+        while t != null {
+            List<Symbol> all = t.getAllSymbols()
+            int i = 0
+            while i < all.size() {
+                Symbol s = all.get(i)
+                string nm = s.getName()
+                if this.listHasName(seen, nm) == false {
+                    seen.add(nm)
+                    result.add(new LspSym(nm, completionKindOf(s.getKind()), 0, 0, "", ""))
+                    if result.size() >= 200 { out = result  return }
+                }
+                i = i + 1
+            }
+            t = t.getParent()
+        }
+        out = result
+    }
+
+    // collectScopeTree — this scope's symbols plus every descendant's.
+    void collectScopeTree(const SymbolTable t, List<string> seen, List<LspSym> result) {
+        if result.size() >= 200 { return }
+        List<Symbol> all = t.getAllSymbols()
+        int i = 0
+        while i < all.size() {
+            Symbol s = all.get(i)
+            string nm = s.getName()
+            if this.listHasName(seen, nm) == false {
+                seen.add(nm)
+                result.add(new LspSym(nm, completionKindOf(s.getKind()), 0, 0, "", ""))
+            }
+            i = i + 1
+        }
+        List<SymbolTable> kids = t.getChildren()
+        int k = 0
+        while k < kids.size() {
+            SymbolTable c = kids.get(k)
+            if c != null { this.collectScopeTree(c, seen, result) }
+            k = k + 1
+        }
+    }
+
+    bool listHasName(const List<string> xs, const string v) {
+        int i = 0
+        while i < xs.size() {
+            if str.equals(xs.get(i), v) { out = true  return }
+            i = i + 1
+        }
+        out = false
+    }
+
+    // ── workspace symbols ────────────────────────────────────────────────────
+
+    public List<LspSym> workspaceSymbols(const string query) {
+        List<LspSym> result = new List<LspSym>()
+        if this.navValid == false { out = result  return }
+        string q = str.toLower(query)
+        int i = 0
+        while i < this.navSema.size() {
+            SemaModule mod = this.navSema.get(i)
+            string file = mod.getName()
+            SourceManager sm = this.smFor(file)
+            if sm != null {
+                List<SemaNode> nodes = mod.getNodes()
+                int j = 0
+                while j < nodes.size() {
+                    if result.size() >= 100 { out = result  return }
+                    SemaFunctionBase fb = nodes.get(j).asFunctionBase()
+                    if fb != null {
+                        string nm = fb.getName()
+                        bool take = str.isEmpty(q)
+                        if take == false { take = str.contains(str.toLower(nm), q) }
+                        if take {
+                            SourceLocation l = fb.getAST().getLoc()
+                            result.add(new LspSym(nm, 12, sm.getLineNumber(l), sm.getColumnNumber(l), file, ""))
+                        }
+                    }
+                    j = j + 1
+                }
+                // classes via the module symbol table (typeRef narrows).
+                SymbolTable modSyms = mod.getSymbols()
+                if modSyms != null {
+                    List<Symbol> all = modSyms.getAllSymbols()
+                    int k = 0
+                    while k < all.size() {
+                        if result.size() >= 100 { out = result  return }
+                        Symbol s = all.get(k)
+                        if s.getKind() == SymbolKind.CLASS {
+                            string cnm = s.getName()
+                            bool take2 = str.isEmpty(q)
+                            if take2 == false { take2 = str.contains(str.toLower(cnm), q) }
+                            if take2 {
+                                SemaType ty = s.getTypeRef()
+                                if ty != null {
+                                    SemaClassType ct = ty.asClass()
+                                    if ct != null {
+                                        SourceLocation cl = ct.getAST().getLoc()
+                                        result.add(new LspSym(cnm, 5, sm.getLineNumber(cl), sm.getColumnNumber(cl), file, ""))
+                                    }
+                                }
+                            }
+                        }
+                        k = k + 1
+                    }
+                }
+            }
+            i = i + 1
+        }
+        out = result
+    }
+
+    // ── semantic tokens ──────────────────────────────────────────────────────
+
+    // semanticTokens — every resolvable name use in the open file, classified.
+    // Token type indexes match the legend the server declares:
+    // 0 namespace, 1 class, 2 function, 3 variable, 4 parameter, 5 property,
+    // 6 enumMember, 7 type.
+    public List<LspSym> semanticTokens() {
+        List<LspSym> result = new List<LspSym>()
+        if this.navValid == false { out = result  return }
+        List<ASTNode> nodes = this.navAst.getNodes()
+        int i = 0
+        while i < nodes.size() {
+            ASTNode n = nodes.get(i)
+            ASTFunction f = n.asFunction()
+            if f != null { this.tokensOfFn(f, result) } else {
+                ASTClass c = n.asClass()
+                if c != null {
+                    List<ASTNode> members = c.getNodes()
+                    int mi = 0
+                    while mi < members.size() {
+                        ASTFunction mf = members.get(mi).asFunction()
+                        if mf != null { this.tokensOfFn(mf, result) }
+                        mi = mi + 1
+                    }
+                }
+            }
+            i = i + 1
+        }
+        out = result
+    }
+
+    // ── inlay hints ──────────────────────────────────────────────────────────
+
+    // inlayHints — parameter-name hints for every call argument in the given
+    // 1-based line range. LspSym reuse: name carries the LABEL ("n:"), line/col
+    // the argument position; kind is the LSP InlayHintKind (2 = Parameter).
+    public List<LspSym> inlayHints(const int startLine, const int endLine) {
+        List<LspSym> result = new List<LspSym>()
+        if this.navValid == false { out = result  return }
+        List<ASTNode> nodes = this.navAst.getNodes()
+        int i = 0
+        while i < nodes.size() {
+            ASTNode n = nodes.get(i)
+            ASTFunction f = n.asFunction()
+            if f != null { this.hintsOfFn(f, startLine, endLine, result) } else {
+                ASTClass c = n.asClass()
+                if c != null {
+                    List<ASTNode> members = c.getNodes()
+                    int mi = 0
+                    while mi < members.size() {
+                        ASTFunction mf = members.get(mi).asFunction()
+                        if mf != null { this.hintsOfFn(mf, startLine, endLine, result) }
+                        mi = mi + 1
+                    }
+                }
+            }
+            i = i + 1
+        }
+        out = result
+    }
+
+    void hintsOfFn(const ASTFunction fn, const int startLine, const int endLine,
+                   List<LspSym> result) {
+        LspNavVisitor v = new LspNavVisitor(this.navSm)
+        v.mode = navModeCalls()
+        v.visit(fn)
+        SymbolTable scope = this.scopeOfAstFn(fn)
+        int i = 0
+        while i < v.calls.size() {
+            LspCallInfo call = v.calls.get(i)
+            SemaFunctionBase fb = this.functionOfCall(call.name, call.node, scope)
+            if fb != null {
+                List<SemaParam> params = fb.getParams()
+                int ai = 0
+                while ai < call.args.size() {
+                    if ai < params.size() {
+                        LspUse arg = call.args.get(ai)
+                        bool inRange = arg.line >= startLine && arg.line <= endLine
+                        if inRange {
+                            string pn = params.get(ai).getName()
+                            if str.isEmpty(pn) == false {
+                                result.add(new LspSym(str.concat(pn, ":"), 2,
+                                           arg.line, arg.col, "", ""))
+                            }
+                        }
+                    }
+                    ai = ai + 1
+                }
+            }
+            i = i + 1
+        }
+    }
+
+    // functionOfCall — resolve a CALL to its function: name-in-scope first (a
+    // free function), then the receiver's class (a method). This is the one
+    // place both hint and signature resolution funnel through.
+    SemaFunctionBase functionOfCall(const string name, const ASTCall node,
+                                    const SymbolTable scope) {
+        Symbol sym = this.resolveName(scope, name)
+        if sym != null {
+            if sym.getKind() == SymbolKind.FUNCTION {
+                SemaNode ref = sym.getRef()
+                if ref != null {
+                    SemaFunctionBase fb = ref.asFunctionBase()
+                    if fb != null { out = fb  return }
+                }
+            }
+        }
+        if node != null {
+            ASTExpr recv = node.getParent()
+            if recv != null {
+                SemaClassType rc = this.receiverClassOf(recv, scope)
+                if rc != null {
+                    SemaClassMethod m = rc.LookupMethod(name)
+                    if m != null { out = m  return }
+                }
+            }
+        }
+        out = null
+    }
+
+    // ── type definition ──────────────────────────────────────────────────────
+
+    // typeDefinitionOf — the declaration of the TARGET'S TYPE. A variable of a
+    // class type jumps to the class; a class jumps to itself; builtins have no
+    // declaration and answer nothing (reference parity).
+    public LspLoc typeDefinitionOf(const LspTarget t) {
+        LspLoc loc = new LspLoc()
+        if this.navValid == false { out = loc  return }
+        if t.kind == 3 { out = this.declLocationOf(t)  return }
+        if t.kind != 2 { out = loc  return }
+        if str.isEmpty(t.varTypeName) { out = loc  return }
+        // Resolve the type name where the use sits: same scope rules as any
+        // other name, but through the TYPE-aware lookup (a same-named ctor or
+        // variable must not shadow the type).
+        ASTFunction fn = this.enclosingAstFn(t.useLine)
+        SymbolTable scope = this.scopeOfAstFn(fn)
+        if scope == null { out = loc  return }
+        if this.navReg == null { out = loc  return }
+        Symbol sym = this.navReg.LookupNamedType(t.varTypeName, scope)
+        if sym == null { out = loc  return }
+        SemaType ty = sym.getTypeRef()
+        if ty == null { out = loc  return }
+        SemaClassType ct = ty.asClass()
+        if ct == null { out = loc  return }
+        SemaModule dm = ct.getModule()
+        if dm == null { out = loc  return }
+        SourceManager csm = this.smFor(dm.getName())
+        if csm == null { out = loc  return }
+        SourceLocation cl = ct.getAST().getLoc()
+        if cl == null { out = loc  return }
+        loc.ok = true
+        loc.file = dm.getName()
+        loc.line = csm.getLineNumber(cl)
+        loc.col = csm.getColumnNumber(cl)
+        out = loc
+    }
+
+    // tokensOfFn — collect + resolve the uses of one body. LspSym reuse: line/
+    // col carry the position, kind carries the TOKEN TYPE, name the text (its
+    // length is the token length).
+    void tokensOfFn(const ASTFunction fn, List<LspSym> result) {
+        LspNavVisitor v = new LspNavVisitor(this.navSm)
+        v.mode = navModeCollect()
+        v.wantName = ""
+        v.visit(fn)
+        SymbolTable scope = this.scopeOfAstFn(fn)
+        int i = 0
+        while i < v.uses.size() {
+            LspUse u = v.uses.get(i)
+            string nm = u.name
+            if str.isEmpty(nm) == false {
+                Symbol sym = this.resolveName(scope, nm)
+                if sym != null {
+                    int tt = tokenTypeOf(sym.getKind())
+                    if tt >= 0 {
+                        result.add(new LspSym(nm, tt, u.line, u.col, "", ""))
+                    }
+                }
+            }
+            i = i + 1
+        }
+    }
+
+}

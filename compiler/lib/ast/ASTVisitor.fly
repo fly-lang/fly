@@ -57,4 +57,8 @@ public interface ASTVisitor {
     public void visit(const ASTNullValue node)
     public void visit(const ASTUnsetValue node)
     public void visit(const ASTEnumEntry node)
+    // Appended LAST on purpose: this interface is a vtable, and inserting a
+    // method in the middle shifts every slot after it — the mis-dispatch the
+    // codebase documents next to SemaExpr.isVarExpr.
+    public void visit(const ASTArrayAccess node)
 }

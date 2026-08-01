@@ -36,48 +36,48 @@ suite CodeGenErrorSuite {
                     if n < 0 { fail 7 }
                     out = n
                 }
-                int main() {
+                void main() {
                     int neg = 0 - 1
                     int a = 0
                     handle {
                         a = classify(neg)
                     }
                     int b = classify(5)
-                    out = a + b
+                    fail a + b
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "%error = type"), 11)
-            assert.assertTrue(fly.str.contains(ir, "store i32 7"), 12)        // fail 7 → error.code
-            assert.assertTrue(fly.str.contains(ir, "ecode"), 13)              // GEP to error.code
-            assert.assertTrue(fly.str.contains(ir, "lasterr"), 14)            // per-function slot
-            assert.assertTrue(fly.str.contains(ir, "handle.safe"), 15)        // handle continuation
+            assert.assertTrue(str.contains(ir, "%error = type"), 11)
+            assert.assertTrue(str.contains(ir, "store i32 7"), 12)        // fail 7 → error.code
+            assert.assertTrue(str.contains(ir, "ecode"), 13)              // GEP to error.code
+            assert.assertTrue(str.contains(ir, "lasterr"), 14)            // per-function slot
+            assert.assertTrue(str.contains(ir, "handle.safe"), 15)        // handle continuation
         }
         case "implicit `error` var reads lasterr != 0 (i1 condition)": {
-            string ir = cgIR("void boom() { fail 5 }  int main() { handle { boom() }  int r = 0  if error { r = 1 }  out = r }")
-            assert.assertTrue(fly.str.contains(ir, "lerr"), 21)               // load of lasterr
-            assert.assertTrue(fly.str.contains(ir, "eset"), 22)               // icmp ne 0 → i1
-            assert.assertTrue(fly.str.contains(ir, "br i1"), 23)              // valid bool branch
+            string ir = cgIR("void boom() { fail 5 }  void main() { handle { boom() }  int r = 0  if error { r = 1 }  fail r }")
+            assert.assertTrue(str.contains(ir, "lerr"), 21)               // load of lasterr
+            assert.assertTrue(str.contains(ir, "eset"), 22)               // icmp ne 0 → i1
+            assert.assertTrue(str.contains(ir, "br i1"), 23)              // valid bool branch
         }
         case "fail inside the handle frame jumps to handle.safe (no early return)": {
             string ir = cgIR("
-                int main() { int reached = 0
+                void main() { int reached = 0
                     handle { fail 9
                         reached = 1
                     }
                     int r = 0
                     if error { r = 1 }
-                    out = r
+                    fail r
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "handle.safe"), 31)
-            assert.assertTrue(fly.str.contains(ir, "afterfail"), 32)          // dead-code park block
-            assert.assertTrue(fly.str.contains(ir, "store i32 9"), 33)
+            assert.assertTrue(str.contains(ir, "handle.safe"), 31)
+            assert.assertTrue(str.contains(ir, "afterfail"), 32)          // dead-code park block
+            assert.assertTrue(str.contains(ir, "store i32 9"), 33)
         }
         case "main wrapper: exit code = error.code when unhandled": {
             string ir = cgIR("void fetchData() { fail 42 }  void main() { fetchData() }")
-            assert.assertTrue(fly.str.contains(ir, "mainerr"), 41)            // ret error.code path
-            assert.assertTrue(fly.str.contains(ir, "mainok"), 42)             // clean-exit path
-            assert.assertTrue(fly.str.contains(ir, "mfail"), 43)              // code != 0 check
+            assert.assertTrue(str.contains(ir, "mainerr"), 41)            // ret error.code path
+            assert.assertTrue(str.contains(ir, "mainok"), 42)             // clean-exit path
+            assert.assertTrue(str.contains(ir, "mfail"), 43)              // code != 0 check
         }
         case "fail with three operands writes code, str and obj slots": {
             string ir = cgIR("
@@ -87,12 +87,11 @@ suite CodeGenErrorSuite {
                 void boom() { Ctx c = new Ctx()
                     fail 42, c
                 }
-                int main() { handle { boom() }
-                    out = 0
+                void main() { handle { boom() }
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "store i32 42"), 51)       // code slot
-            assert.assertTrue(fly.str.contains(ir, "efld"), 52)               // str/obj field stores
+            assert.assertTrue(str.contains(ir, "store i32 42"), 51)       // code slot
+            assert.assertTrue(str.contains(ir, "efld"), 52)               // str/obj field stores
         }
     }
 }

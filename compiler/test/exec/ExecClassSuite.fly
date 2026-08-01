@@ -1,0 +1,124 @@
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExecClassSuite — EXECUTED class semantics on REAL instances (bug-hunt
+// Phase 1): construction, field state, dispatch through base-typed vars,
+// inherited methods, composition, struct fields stored inline, and static
+// fields (module globals since the B030 fix).
+//
+// Assert codes: 1xx construction/state, 2xx dispatch, 3xx composition,
+// 4xx struct fields, 5xx static fields.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class ExecCounter {
+    int value
+    public ExecCounter(const int start) { this.value = start }
+    public void bump() { this.value = this.value + 1 }
+    public int read() { out = this.value }
+}
+
+public class ExecAnimal {
+    public ExecAnimal() { }
+    public int speak() { out = 1 }
+    public int legs() { out = 4 }
+}
+
+public class ExecDog : ExecAnimal {
+    public ExecDog() { }
+    public int speak() { out = 2 }
+}
+
+public class ExecHolder {
+    ExecCounter inner
+    public ExecHolder(const ExecCounter c) { this.inner = c }
+    public int peek() { out = this.inner.read() }
+}
+
+struct ExecPt { int x  int y }
+
+public class ExecReg {
+    static int count = 0
+    public ExecReg() {
+        ExecReg.count = ExecReg.count + 1
+    }
+}
+
+public class ExecShape {
+    ExecPt origin
+    public ExecShape() {
+        ExecPt p = new ExecPt()
+        p.x = 3
+        p.y = 4
+        this.origin = p
+    }
+    public int span() { out = this.origin.x * 10 + this.origin.y }
+}
+
+suite ExecClassSuite {
+
+    void constructionTest() {
+        case "constructor argument lands in the field": {
+            ExecCounter c = new ExecCounter(10)
+            assert.assertEqI(c.read(), 10, 101)
+        }
+        case "methods mutate instance state": {
+            ExecCounter c = new ExecCounter(0)
+            c.bump()
+            c.bump()
+            c.bump()
+            assert.assertEqI(c.read(), 3, 111)
+        }
+        case "instances are independent": {
+            ExecCounter a = new ExecCounter(1)
+            ExecCounter b = new ExecCounter(100)
+            a.bump()
+            assert.assertEqI(a.read(), 2, 121)
+            assert.assertEqI(b.read(), 100, 122)
+        }
+    }
+
+    void dispatchTest() {
+        case "override wins through a base-typed variable": {
+            ExecAnimal x = new ExecDog()
+            assert.assertEqI(x.speak(), 2, 201)
+        }
+        case "inherited method stays available": {
+            ExecDog d = new ExecDog()
+            assert.assertEqI(d.legs(), 4, 211)
+        }
+        case "base instance keeps the base behavior": {
+            ExecAnimal a = new ExecAnimal()
+            assert.assertEqI(a.speak(), 1, 221)
+        }
+    }
+
+    void compositionTest() {
+        case "a class field holding another class": {
+            ExecCounter c = new ExecCounter(41)
+            ExecHolder h = new ExecHolder(c)
+            c.bump()
+            assert.assertEqI(h.peek(), 42, 301)          // holder aliases the object
+        }
+    }
+
+    void staticFieldTest() {
+        case "static field counts across instances (B030)": {
+            int before = ExecReg.count
+            ExecReg a = new ExecReg()
+            ExecReg b = new ExecReg()
+            assert.assertEqI(ExecReg.count - before, 2, 501)
+        }
+        case "static field is writable from outside": {
+            ExecReg.count = 7
+            assert.assertEqI(ExecReg.count, 7, 511)
+            ExecReg.count = 0
+        }
+    }
+
+    void structFieldTest() {
+        case "struct field lives inline in the class": {
+            ExecShape s = new ExecShape()
+            assert.assertEqI(s.span(), 34, 401)
+        }
+    }
+}

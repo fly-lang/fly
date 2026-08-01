@@ -1,5 +1,6 @@
 namespace fly.compiler.basic
 import fly.compiler.basic.*
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OperatorPrecedence — precedence levels for binary/ternary operators, ported
@@ -36,36 +37,36 @@ public enum Prec {
 // getBinOpPrecedence — precedence of a binary operator given its spelling.
 // Returns Prec.UNKNOWN for anything that is not a binary operator.
 public Prec getBinOpPrecedence(const string op) {
-    if fly.str.equals(op, ",") { out = Prec.COMMA return }
+    if str.equals(op, ",") { out = Prec.COMMA return }
 
-    if fly.str.equals(op, "=")   || fly.str.equals(op, "*=")  || fly.str.equals(op, "/=")
-    || fly.str.equals(op, "%=")  || fly.str.equals(op, "+=")  || fly.str.equals(op, "-=")
-    || fly.str.equals(op, "<<=") || fly.str.equals(op, ">>=") || fly.str.equals(op, "&=")
-    || fly.str.equals(op, "^=")  || fly.str.equals(op, "|=") {
+    if str.equals(op, "=")   || str.equals(op, "*=")  || str.equals(op, "/=")
+    || str.equals(op, "%=")  || str.equals(op, "+=")  || str.equals(op, "-=")
+    || str.equals(op, "<<=") || str.equals(op, ">>=") || str.equals(op, "&=")
+    || str.equals(op, "^=")  || str.equals(op, "|=") {
         out = Prec.ASSIGNMENT
         return
     }
 
-    if fly.str.equals(op, "?")  { out = Prec.CONDITIONAL return }
-    if fly.str.equals(op, "||") { out = Prec.LOGICALOR   return }
-    if fly.str.equals(op, "&&") { out = Prec.LOGICALAND  return }
-    if fly.str.equals(op, "|")  { out = Prec.INCLUSIVEOR return }
-    if fly.str.equals(op, "^")  { out = Prec.EXCLUSIVEOR return }
-    if fly.str.equals(op, "&")  { out = Prec.AND         return }
+    if str.equals(op, "?")  { out = Prec.CONDITIONAL return }
+    if str.equals(op, "||") { out = Prec.LOGICALOR   return }
+    if str.equals(op, "&&") { out = Prec.LOGICALAND  return }
+    if str.equals(op, "|")  { out = Prec.INCLUSIVEOR return }
+    if str.equals(op, "^")  { out = Prec.EXCLUSIVEOR return }
+    if str.equals(op, "&")  { out = Prec.AND         return }
 
-    if fly.str.equals(op, "==") || fly.str.equals(op, "!=") { out = Prec.EQUALITY return }
+    if str.equals(op, "==") || str.equals(op, "!=") { out = Prec.EQUALITY return }
 
-    if fly.str.equals(op, "<=") || fly.str.equals(op, "<")
-    || fly.str.equals(op, ">=") || fly.str.equals(op, ">") {
+    if str.equals(op, "<=") || str.equals(op, "<")
+    || str.equals(op, ">=") || str.equals(op, ">") {
         out = Prec.RELATIONAL
         return
     }
 
-    if fly.str.equals(op, "<<") || fly.str.equals(op, ">>") { out = Prec.SHIFT return }
+    if str.equals(op, "<<") || str.equals(op, ">>") { out = Prec.SHIFT return }
 
-    if fly.str.equals(op, "+") || fly.str.equals(op, "-") { out = Prec.ADDITIVE return }
+    if str.equals(op, "+") || str.equals(op, "-") { out = Prec.ADDITIVE return }
 
-    if fly.str.equals(op, "*") || fly.str.equals(op, "/") || fly.str.equals(op, "%") {
+    if str.equals(op, "*") || str.equals(op, "/") || str.equals(op, "%") {
         out = Prec.MULTIPLICATIVE
         return
     }

@@ -33,8 +33,12 @@ suite ASTHelpersSuite {
         case "precedence": {
             assert.assertGtI(binPrec("*"), binPrec("+"), 10)
             assert.assertGtI(binPrec("+"), binPrec("<"), 11)
-            assert.assertGtI(binPrec("&&"), binPrec("||"), 12)
-            assert.assertEqI(binPrec("foo"), 0, 13)
+            // FLAT table (B011): && and || share ONE left-to-right level,
+            // and the whole logic/bitwise/shift group sits below relational.
+            assert.assertEqI(binPrec("&&"), binPrec("||"), 12)
+            assert.assertEqI(binPrec("&"), binPrec("<<"), 13)
+            assert.assertGtI(binPrec("=="), binPrec("|"), 14)
+            assert.assertEqI(binPrec("foo"), 0, 15)
         }
         case "operator mapping": {
             assert.assertTrue(binKindFor("==") == ASTBinaryKind.OP_BINARY_COMPARE_EQ, 14)

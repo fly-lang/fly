@@ -4,6 +4,7 @@ import fly.compiler.sema.*
 import fly.compiler.ast.*
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenIntrinsics
+import fly.compiler.codegen.CodeGenTrace
 import llvm.api.*
 import fly.mem
 import fly.data.List
@@ -42,6 +43,14 @@ public class CodeGenStmt {
                 SemaExpr ainit = node.getExpr()
                 if ainit != null {
                     pointer av = cge.gen(ainit)
+                    // `int[] j = k` binds a SECOND OWNER to one buffer: retain, or
+                    // the first scope exit frees it under the other name. This is
+                    // one of TWO retain sites — the other is CodeGenExprOps.assign —
+                    // because a declaration with an initializer and a plain
+                    // assignment are independent paths here (the reference routes
+                    // both through one). Missing this one breaks the commonest
+                    // shape of all.
+                    CodeGenArray.retainValueIfLValue(cge, av, ainit)
                     llvm.buildStore(b, av, aalloca)
                 } else {
                     CodeGenArray.storeDefault(cge, aalloca, vt.asArray())
@@ -85,6 +94,7 @@ public class CodeGenStmt {
         if cge.isTerminated() { return }
         SemaExpr e = node.getExpr()
         if e != null { pointer ignore = cge.gen(e) }
+        CodeGenTrace.emitExit(cge)
         LLVM llvm = cge.getLLVM()
         pointer r
         llvm.buildRetVoid(cge.getBuilder(), r)
@@ -188,9 +198,11 @@ public class CodeGenStmt {
     }
 
     // switchStmt — buildSwitch over the selector; one block per case; break exits.
-    // A case with NO statements (Sema marks it with a null block) FALLS THROUGH to
-    // the next case (or default/exit) — doc 9.4; a case with statements implicitly
-    // breaks to swexit. Case blocks are pre-created so a fall-through can branch
+    // C fallthrough (doc 9.4, aligned with the reference B024 fix): a case body
+    // left OPEN (no break) falls through to the NEXT case body, the last one into
+    // default/exit; an explicit `break` branches to swexit via breakTarget. A case
+    // with NO statements (Sema marks it with a null block) shares the next body
+    // the same way. Case blocks are pre-created so a fall-through can branch
     // forward to the next case's block.
     public static void switchStmt(const CodeGenExpr cge, const SemaSwitchStmt node) {
         LLVM llvm = cge.getLLVM()
@@ -235,15 +247,13 @@ public class CodeGenStmt {
             pointer caseBB = caseBBs.get(i)
             cge.position(caseBB)
             SemaStmt cs = r.getStmt()
-            if cs != null {
-                cs.accept(cge)
-                cge.br(exitBB)
-            } else {
-                // empty case: fall through to the NEXT case body (or default/exit)
-                pointer nextBB = defaultBB
-                if i + 1 < n { nextBB = caseBBs.get(i + 1) }
-                cge.br(nextBB)
-            }
+            // fall-through target: the next case body, or default/exit after the
+            // last case. br() is a no-op when the body already terminated (break/
+            // return/fail), so only OPEN bodies fall through (B023).
+            pointer nextBB = defaultBB
+            if i + 1 < n { nextBB = caseBBs.get(i + 1) }
+            if cs != null { cs.accept(cge) }
+            cge.br(nextBB)
             i = i + 1
         }
 

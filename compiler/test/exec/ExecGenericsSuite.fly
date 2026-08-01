@@ -1,0 +1,84 @@
+import fly.assert
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExecGenericsSuite — EXECUTED monomorphization semantics (bug-hunt Phase 1):
+// instantiation independence, non-int type arguments, generic free functions
+// with inference, and bounds.
+//
+// Assert codes: 1xx class instantiation, 2xx inference, 3xx bounds, 4xx mixes.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class ExecBox<T> {
+    T v
+    public ExecBox(T x) { this.v = x }
+    public T get() { out = this.v }
+    public void set(T x) { this.v = x }
+}
+
+public class ExecBeast {
+    public ExecBeast() { }
+    public int legs() { out = 4 }
+}
+
+public class ExecPen<T : ExecBeast> {
+    T beast
+    public ExecPen(T b) { this.beast = b }
+    public int count() { out = this.beast.legs() }
+}
+
+int execGenIdentity<T>(const T x) {
+    out = x
+}
+
+suite ExecGenericsSuite {
+
+    void instantiationTest() {
+        case "int box round-trips": {
+            ExecBox<int> b = new ExecBox<int>(41)
+            b.set(b.get() + 1)
+            assert.assertEqI(b.get(), 42, 101)
+        }
+        case "string box round-trips": {
+            ExecBox<string> b = new ExecBox<string>("hi")
+            assert.assertStr(b.get(), "hi", 111)
+            b.set("there")
+            assert.assertStr(b.get(), "there", 112)
+        }
+        case "long box keeps 64-bit values": {
+            ExecBox<long> b = new ExecBox<long>(4294967296)
+            assert.assertEqL(b.get(), 4294967296, 121)
+        }
+        case "two instantiations do not interfere": {
+            ExecBox<int> a = new ExecBox<int>(1)
+            ExecBox<string> s = new ExecBox<string>("x")
+            a.set(2)
+            assert.assertEqI(a.get(), 2, 131)
+            assert.assertStr(s.get(), "x", 132)
+        }
+    }
+
+    void inferenceTest() {
+        case "generic function infers from the argument": {
+            int r = execGenIdentity(41) + 1
+            assert.assertEqI(r, 42, 201)
+        }
+    }
+
+    void boundsTest() {
+        case "bounded type param dispatches through the bound": {
+            ExecBeast a = new ExecBeast()
+            ExecPen<ExecBeast> p = new ExecPen<ExecBeast>(a)
+            assert.assertEqI(p.count(), 4, 301)
+        }
+    }
+
+    void mixTest() {
+        case "box of a user class": {
+            ExecBeast a = new ExecBeast()
+            ExecBox<ExecBeast> b = new ExecBox<ExecBeast>(a)
+            ExecBeast back = b.get()
+            assert.assertEqI(back.legs(), 4, 401)
+        }
+    }
+}

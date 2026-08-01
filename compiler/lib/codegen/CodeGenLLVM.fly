@@ -35,11 +35,11 @@ public class CodeGenLLVM {
         int n = (int)addrs.size()
         if n == 0 { out = 0  return }
         pointer sz = n * 8
-        pointer buf = fly.mem.alloc(sz)
+        pointer buf = mem.alloc(sz)
         int i = 0
         while i < n {
             pointer v = addrs.get(i)
-            fly.mem.writePtr(buf, i * 8, v)
+            mem.writePtr(buf, i * 8, v)
             i = i + 1
         }
         out = buf
@@ -48,7 +48,7 @@ public class CodeGenLLVM {
     public void freeBuf(const pointer buf, const int count) {
         if buf != 0 {
             pointer sz = count * 8
-            fly.mem.free(buf, sz)
+            mem.free(buf, sz)
         }
     }
 
@@ -100,7 +100,7 @@ public class CodeGenLLVM {
     // globalString — emit a private constant `[N x i8]` global holding `bytes`
     // (null-terminated) and return the global (an `i8*` under opaque pointers).
     public pointer globalString(const pointer mod, const pointer ctx, const string bytes) {
-        int n = fly.str.len(bytes)
+        int n = str.len(bytes)
         pointer strConst
         this.llvm.constStringInContext(ctx, bytes, n, true, strConst)
         pointer arrTy

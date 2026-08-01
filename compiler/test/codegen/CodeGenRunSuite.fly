@@ -32,12 +32,12 @@ suite CodeGenRunSuite {
             string ir = cgIR("
                 int add(const int a, const int b) { out = a + b }
                 int fact(const int n) { if n <= 1 { out = 1 } else { out = n * fact(n - 1) } }
-                int main() { int s = add(40, 2)
+                void main() { int s = add(40, 2)
                     int f = fact(4)
-                    out = s
+                    fail s
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "define i32 @main(i32"), 11)
+            assert.assertTrue(str.contains(ir, "define i32 @main(i32"), 11)
         }
         case "class + new + virtual method → would exit 42": {
             string ir = cgIR("
@@ -48,11 +48,11 @@ suite CodeGenRunSuite {
                     }
                     public int sum() { out = this.x + this.y }
                 }
-                int main() { Point p = new Point(40, 2)
-                    out = p.sum()
+                void main() { Point p = new Point(40, 2)
+                    fail p.sum()
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "define i32 @main(i32"), 21)
+            assert.assertTrue(str.contains(ir, "define i32 @main(i32"), 21)
         }
         case "single inheritance + override dispatch → would exit 11": {
             string ir = cgIR("
@@ -65,13 +65,13 @@ suite CodeGenRunSuite {
                     public int sound() { out = 7 }
                 }
                 int poke(Animal a) { out = a.sound() }
-                int main() { Dog d = new Dog()
+                void main() { Dog d = new Dog()
                     int s = poke(d)
                     int l = d.getLegs()
-                    out = s + l
+                    fail s + l
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "define i32 @main(i32"), 31)
+            assert.assertTrue(str.contains(ir, "define i32 @main(i32"), 31)
         }
         case "enums → would exit 33": {
             string ir = cgIR("
@@ -80,11 +80,11 @@ suite CodeGenRunSuite {
                     if c == Color.GREEN { r = 22 } elsif c == Color.BLUE { r = 33 }
                     out = r
                 }
-                int main() { Color c = Color.BLUE
-                    out = classify(c)
+                void main() { Color c = Color.BLUE
+                    fail classify(c)
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "define i32 @main(i32"), 41)
+            assert.assertTrue(str.contains(ir, "define i32 @main(i32"), 41)
         }
         case "fail / handle → would exit 5": {
             string ir = cgIR("
@@ -92,14 +92,14 @@ suite CodeGenRunSuite {
                     if n < 0 { fail 7 }
                     out = n
                 }
-                int main() { int neg = 0 - 1
+                void main() { int neg = 0 - 1
                     int a = 0
                     handle { a = classify(neg) }
                     int b = classify(5)
-                    out = a + b
+                    fail a + b
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "define i32 @main(i32"), 51)
+            assert.assertTrue(str.contains(ir, "define i32 @main(i32"), 51)
         }
         case "generics Wrapper<int> → would exit 42": {
             string ir = cgIR("
@@ -107,11 +107,11 @@ suite CodeGenRunSuite {
                     public Wrapper(const T v) { this.value = v }
                     public T get() { out = this.value }
                 }
-                int main() { Wrapper<int> w = new Wrapper<int>(42)
-                    out = w.get()
+                void main() { Wrapper<int> w = new Wrapper<int>(42)
+                    fail w.get()
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "define i32 @main(i32"), 61)
+            assert.assertTrue(str.contains(ir, "define i32 @main(i32"), 61)
         }
         case "alloc tracking (free at scope exit) → would exit 42": {
             string ir = cgIR("
@@ -119,12 +119,12 @@ suite CodeGenRunSuite {
                     public Box(const int x) { this.v = x }
                     public int get() { out = this.v }
                 }
-                int main() { Box b = new Box(42)
+                void main() { Box b = new Box(42)
                     int r = b.get()
-                    out = r
+                    fail r
                 }
             ")
-            assert.assertTrue(fly.str.contains(ir, "define i32 @main(i32"), 71)
+            assert.assertTrue(str.contains(ir, "define i32 @main(i32"), 71)
         }
     }
 }

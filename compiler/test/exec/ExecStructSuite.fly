@@ -1,0 +1,110 @@
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExecStructSuite — EXECUTED struct-by-value semantics (bug-hunt Phase 1).
+// The self-host implements the documented VALUE model (assignment copies);
+// the pinned STAGE=0 seed still aliases (B028, fixed on the reference HEAD).
+// Struct VALUE LITERALS (`{x = 1, y = 2}`) are implemented since the B029 fix
+// (expected-type driven: the literal needs a struct-typed declaration target).
+//
+// Assert codes: 1xx fields, 2xx copy semantics, 3xx params, 4xx out returns,
+// 5xx literals.
+// ─────────────────────────────────────────────────────────────────────────────
+
+struct ExecSPt { int x  int y }
+
+int execStructRead(const ExecSPt p) {
+    out = p.x * 10 + p.y
+}
+
+void execStructMut(ExecSPt p) {
+    p.x = 7
+}
+
+ExecSPt execStructMake(const int v) {
+    ExecSPt t = new ExecSPt()
+    t.x = v
+    t.y = v * 2
+    out = t
+}
+
+suite ExecStructSuite {
+
+    void fieldTest() {
+        case "new struct starts zeroed": {
+            ExecSPt p = new ExecSPt()
+            assert.assertEqI(p.x * 10 + p.y, 0, 101)
+        }
+        case "field writes read back": {
+            ExecSPt p = new ExecSPt()
+            p.x = 3
+            p.y = 4
+            assert.assertEqI(p.x * 10 + p.y, 34, 111)
+        }
+    }
+
+    void copyTest() {
+        case "assignment copies by value (reference aliases: B028)": {
+            ExecSPt a = new ExecSPt()
+            a.x = 1
+            ExecSPt b = a
+            b.x = 9
+            assert.assertEqI(a.x, 1, 201)                // the docs' value model
+            assert.assertEqI(b.x, 9, 202)
+        }
+    }
+
+    void paramTest() {
+        case "const struct param reads the caller's fields": {
+            ExecSPt a = new ExecSPt()
+            a.x = 3
+            a.y = 4
+            assert.assertEqI(execStructRead(a), 34, 301)
+        }
+        case "non-const struct param writes back to the caller": {
+            ExecSPt a = new ExecSPt()
+            a.x = 3
+            execStructMut(a)
+            assert.assertEqI(a.x, 7, 311)                // writable params are outputs
+        }
+    }
+
+    void literalTest() {
+        case "struct literal initializes named fields (B029)": {
+            ExecSPt p = {x = 3, y = 4}
+            assert.assertEqI(p.x * 10 + p.y, 34, 501)
+        }
+        case "omitted fields default to zero": {
+            ExecSPt p = {x = 5}
+            assert.assertEqI(p.x, 5, 511)
+            assert.assertEqI(p.y, 0, 512)
+        }
+        case "literal fields may be expressions": {
+            int base = 4
+            ExecSPt p = {x = base + 1, y = base * 2}
+            assert.assertEqI(p.x, 5, 521)
+            assert.assertEqI(p.y, 8, 522)
+        }
+        case "literal-initialized structs copy by value": {
+            ExecSPt a = {x = 1, y = 2}
+            ExecSPt b = a
+            b.x = 9
+            assert.assertEqI(a.x, 1, 531)
+            assert.assertEqI(b.x, 9, 532)
+        }
+    }
+
+    void outReturnTest() {
+        case "struct returned via out carries its fields": {
+            ExecSPt p = execStructMake(6)
+            assert.assertEqI(p.x, 6, 401)
+            assert.assertEqI(p.y, 12, 402)
+        }
+        case "two returned structs stay independent": {
+            ExecSPt a = execStructMake(1)
+            ExecSPt b = execStructMake(2)
+            a.x = 99
+            assert.assertEqI(b.x, 2, 411)                // no shared callee frame
+        }
+    }
+}

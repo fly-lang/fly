@@ -62,6 +62,7 @@ public class ASTNumberValue : ASTValue {
     }
 
     public string getValue() { out = this.value }
+    public ASTNumberValue asNumberValue() { out = this }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }
@@ -97,17 +98,26 @@ public class ASTArrayValue : ASTValue {
     public void accept(const ASTVisitor v) { v.visit(this) }
 }
 
+// ASTStructValue — `{name = expr, ...}` struct literal (B029): parallel
+// name/expr lists in source order (the parser splits the pairs, so sema never
+// needs an ASTBinary downcast).
 public class ASTStructValue : ASTValue {
 
-    List<ASTExpr> values
+    List<string> names
+    List<ASTExpr> exprs
 
     public ASTStructValue(const SourceLocation loc) {
         super(ASTValueKind.VAL_STRUCT, loc)
-        this.values = new List<ASTExpr>()
+        this.names = new List<string>()
+        this.exprs = new List<ASTExpr>()
     }
 
-    public List<ASTExpr> getValues() { out = this.values }
-    public void setValues(const List<ASTExpr> v) { this.values = v }
+    public List<string> getNames() { out = this.names }
+    public List<ASTExpr> getExprs() { out = this.exprs }
+    public void addField(const string name, const ASTExpr e) {
+        this.names.add(name)
+        this.exprs.add(e)
+    }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

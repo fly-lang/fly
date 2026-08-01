@@ -11,7 +11,7 @@
 # `suite <Name>: N cases, ...` summary) lands in the captured log, so a failure
 # names the exact assertion.
 #
-# Scope: ONLY std/test. Compiler, driver, and flyp suites run in their own scripts.
+# Scope: ONLY std/test. Compiler, driver and tool suites run in their own scripts.
 # ─────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 # Scripts live in ci/linux/; operate from the project root (two levels up).
@@ -29,8 +29,9 @@ mkdir -p "$OUT"
 # -- Stage plumbing: WHICH compiler runs the tests. ----------------------------
 # STAGE=N runs the suites with build/stageN's own compiler — each stage tests the
 # compiler it just produced, so every step of the bootstrap is covered:
-#   STAGE=0  the pinned REFERENCE seed that stage0 downloaded, with its bundled
-#            runtime/std. A failure here is a SOURCE-level problem.
+#   STAGE=0  the pinned REFERENCE seed that stage0 downloaded. The suites
+#            compile the in-tree std sources (-L), so a failure here is a
+#            SOURCE-level problem (from 0.13.14 the seed ships no std of its own).
 #   STAGE=1  the self-host stage1 just built WITH the reference. A failure here
 #            that passed at 0 is the self-host's own codegen.
 #   STAGE=2  the self-host stage2 just built WITH the self-host — the shipped
@@ -78,9 +79,113 @@ if [ ! -d "$(dirname "$FLY")/../lib" ]; then
     exit 1
 fi
 
+# Seed link extras. The self-host driver links the fly_tls_stub archive (tls_*
+# primitives) by itself; the reference seed only auto-links
+# fly_std_lib/fly_runtime_lib from <exe>/../lib — so under the seed (stage1's
+# interleaved pass) a tls-touching suite (TlsSuite, HttpSuite) would not link.
+# Both drivers DO link every archive at the top level of a -L dir, so stage the
+# stub ALONE in a scratch dir (alone: fly_tls_lib next to it is the real
+# backend with Schannel/OpenSSL system deps, and must not race the stub for
+# extraction).
+EXTRA_L=""
+FLY_LIB_DIR="$(dirname "$FLY")/../lib"
+for ext in a lib; do
+    if [ -f "$FLY_LIB_DIR/fly_tls_stub.$ext" ]; then
+        mkdir -p "$OUT/_seed_link"
+        cp -f "$FLY_LIB_DIR/fly_tls_stub.$ext" "$OUT/_seed_link/"
+        EXTRA_L="-L $OUT/_seed_link"
+        break
+    fi
+done
+
+# ── Selector (mirror of test_std.ps1) ─────────────────────────────────────────
+# Optional $1 (or $FLY_TEST_SUITE): a suite name, a qualified ns.SuiteName, or a
+# NAMESPACE — matched like the compiler's --suite=<sel>. Empty = every suite.
+SEL="${1:-${FLY_TEST_SUITE:-}}"
+
+suite_sel_match() {                      # $1=file $2=basename → 0 when selected
+    [ -z "$SEL" ] && return 0
+    [ "$2" = "$SEL" ] && return 0
+    ns=$(grep -m1 -E '^namespace +[A-Za-z0-9_.]+' "$1" | sed -E 's/^namespace +//;s/[^A-Za-z0-9_.].*$//')
+    [ -z "$ns" ] && return 1             # namespace-less: bare name only
+    [ "$ns" = "$SEL" ] && return 0
+    [ "$ns.$2" = "$SEL" ] && return 0
+    case "$ns" in "$SEL".*) return 0 ;; esac
+    return 1
+}
+
+selected=""
+for t in $(find std/test -name '*Suite.fly' | sort); do
+    name=$(basename "$t" .fly)
+    if suite_sel_match "$t" "$name"; then selected="$selected $t"; fi
+done
+if [ -z "$(echo "$selected" | tr -d ' ')" ]; then
+    echo "error: no suite or namespace matches '$SEL' under std/test" >&2
+    exit 1
+fi
+
+# ── Run mode (mirror of test_std.ps1) ─────────────────────────────────────────
+# ONE-SHOT (default for the self-host stages): one `--suite[=SEL]` build — the
+# std tree compiles ONCE into a single test binary (unblocked by the B036 fix:
+# identity-strong specialization keys). Reports are DEDUPED by suite name with
+# the worst failure kept: OsProcSuite's spawnSuccessTest re-runs the binary as
+# a child BY DESIGN, duplicating every report line. Per-suite loop kept for
+# STAGE=0 (the pinned seed) and FLY_TEST_PER_SUITE=1 (debugging).
+if [ "$STAGE" != "0" ] && [ "${FLY_TEST_PER_SUITE:-}" != "1" ]; then
+    log="$OUT/_std_oneshot.log"
+    if [ -n "$SEL" ]; then
+        "$FLY" --suite="$SEL" --src-dir std -o std_all --out-dir "$OUT" -L "$STD" $EXTRA_L >"$log" 2>&1
+    else
+        "$FLY" --suite --src-dir std -o std_all --out-dir "$OUT" -L "$STD" $EXTRA_L >"$log" 2>&1
+    fi
+    code=$?
+
+    pass=0
+    fail=0
+    reported=""
+    # dedup: sort by name then TAKE THE WORST (max failed) per suite
+    while IFS=' ' read -r name nfail; do
+        [ -z "$name" ] && continue
+        reported="$reported $name"
+        if [ "$nfail" = "0" ]; then
+            echo "  PASS          $name"
+            pass=$((pass + 1))
+        else
+            echo "  RUN  FAIL     $name ($nfail failed)"
+            fail=$((fail + 1))
+        fi
+    done < <(grep -E '^suite [A-Za-z0-9_]+: [0-9]+ cases, [0-9]+ passed, [0-9]+ failed' "$log" \
+             | sed -E 's/^suite ([A-Za-z0-9_]+):.*, ([0-9]+) failed$/\1 \2/' \
+             | sort -k1,1 -k2,2nr | sort -u -k1,1 || true)
+
+    if [ -z "$(echo "$reported" | tr -d ' ')" ]; then
+        echo "  COMPILE FAIL  (exit $code) - $log"
+        grep -m6 -E 'error:|broken|abort' "$log" | sed 's/^/      /' || tail -6 "$log" | sed 's/^/      /'
+        exit 1
+    fi
+
+    if [ "$fail" -gt 0 ]; then
+        grep -m12 -E 'FAIL\(' "$log" | sed 's/^/      /' || true
+    fi
+
+    missing=0
+    for t in $selected; do
+        name=$(basename "$t" .fly)
+        case " $reported " in
+            *" $name "*) ;;
+            *) echo "  NO REPORT     $name (run aborted before it? exit $code)"; missing=$((missing + 1)) ;;
+        esac
+    done
+
+    echo "─────────────────────────────────────────────"
+    echo "  $pass passed, $fail failed, $missing unreported (one-shot, exit $code)"
+    [ "$fail" -eq 0 ] && [ "$missing" -eq 0 ] && [ "$code" -eq 0 ]
+    exit $?
+fi
+
 pass=0
 fail=0
-for t in $(find std/test -name '*Suite.fly' | sort); do
+for t in $selected; do
     name=$(basename "$t" .fly)
     log="$OUT/_std_$name.log"
     # One-shot: --suite compiles AND runs; fly's exit code is the run's code (or
@@ -88,7 +193,7 @@ for t in $(find std/test -name '*Suite.fly' | sort); do
     # by name from the source root — `std`, not std/test, so the fly.meta SOURCE
     # under std/lib/meta stays pullable (suite names also repeat across trees:
     # ManifestSuite exists in compiler/test too).
-    if "$FLY" --suite="$name" --src-dir std -o "std_$name" --out-dir "$OUT" -L "$STD" >"$log" 2>&1; then
+    if "$FLY" --suite="$name" --src-dir std -o "std_$name" --out-dir "$OUT" -L "$STD" $EXTRA_L >"$log" 2>&1; then
         echo "  PASS          $name"
         pass=$((pass + 1))
     else

@@ -1,0 +1,921 @@
+namespace fly.runtime
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TLS — the real backend on Windows: Schannel (SSPI). Built into fly_tls_lib.lib
+// and linked ONLY when the build asks for it with --tls, ahead of fly_tls_stub,
+// which then never has its member extracted. See runtime/lib/TlsStub.fly for the
+// whole rationale; this file defines exactly the same seven symbols as that stub
+// and as runtime/lib/TlsOpenSSL.fly on Linux.
+//
+// ITS GENERATED HEADER IS DISCARDED by build_runtime: TlsStub's header is the
+// canonical declaration, because it is the one that exists on every platform.
+//
+// ── the layouts, which are where Schannel implementations go wrong ───────────
+// Everything below is built byte by byte, so the offsets are load-bearing. On
+// x64:
+//   SecBuffer      16 bytes: cbBuffer u32@0, BufferType u32@4, pvBuffer ptr@8
+//   SecBufferDesc  16 bytes: ulVersion u32@0, cBuffers u32@4, pBuffers ptr@8
+//                  — SIXTEEN, not 24. A 24-byte stride here corrupts every
+//                    handshake silently rather than failing.
+//   CredHandle     16 bytes (two ULONG_PTR); CtxtHandle likewise
+//   TimeStamp       8 bytes
+//   SCHANNEL_CRED  80 bytes, dwVersion u32@0, dwFlags u32@72
+//   SecPkgContext_StreamSizes 20 bytes: cbHeader@0, cbTrailer@4, cbMaximumMessage@8
+//
+// ── two dialect constraints this file is shaped by ───────────────────────────
+// 1. A VALUE-RETURNING function declared in namespace fly.runtime crashes the
+//    compiler outright. Every helper here is therefore `void f(…, out)`, which
+//    is the runtime's existing convention anyway.
+// 2. An INTERNAL call placed after a ptrPoke* can be dropped by the C-ABI
+//    emission (the same miscompile net_bind/net_connect are monolithic for). So
+//    each entry point below is one long function: it calls only EXTERNS after it
+//    starts writing memory. That, and not taste, is why there is no handshake
+//    helper.
+//
+// Hex literals do not exist in this dialect, so every HRESULT is decimal:
+//   SEC_E_OK                   0
+//   SEC_I_CONTINUE_NEEDED      0x00090312 =      590610
+//   SEC_I_CONTEXT_EXPIRED      0x00090317 =      590615
+//   SEC_E_INCOMPLETE_MESSAGE   0x80090318 = -2146893032
+//
+// Hostname verification is NOT a separate call as it is with OpenSSL: Schannel
+// validates the certificate against the pszTargetName passed to
+// InitializeSecurityContext, provided the credential does not carry
+// SCH_CRED_MANUAL_CRED_VALIDATION. `verify == 0` is what turns that off, and it
+// is the only thing that does.
+//
+// TlsCtx heap layout (96 bytes):
+//   [0..7]   long    sock
+//   [8..15]  pointer cred        CredHandle block (16 bytes)
+//   [16..23] pointer ctx         CtxtHandle block (16 bytes)
+//   [24..27] int     cbHeader
+//   [28..31] int     cbTrailer
+//   [32..35] int     cbMaxMessage
+//   [36..39] int     lastError
+//   [40..47] pointer encBuf      ciphertext read from the socket, not yet used
+//   [48..51] int     encLen
+//   [52..55] int     encCap
+//   [56..63] pointer decBuf      plaintext decrypted and not yet handed out
+//   [64..67] int     decLen
+//   [68..71] int     decOff
+//   [72..75] int     decCap
+//   [76..79] int     hasCtx      1 once the CtxtHandle is real and must be freed
+//   [80..87] pointer ioBuf       scratch for one outgoing record
+//   [88..91] int     ioCap
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── libc, Winsock and SSPI externs ───────────────────────────────────────────
+//
+// Declared HERE rather than taken from runtime.fly.h: this file declares
+// namespace fly.runtime itself, and the self-host resolves a fly.runtime.* call
+// against the current namespace BEFORE consulting an imported header. The
+// header generated for this file is discarded, so nothing downstream sees a
+// duplicate.
+// LocalAlloc/LocalFree instead of malloc/free, and WSASend/WSARecv instead of
+// send/recv, for a reason that is invisible until stage2: the self-host emits a
+// MANGLED THUNK DEFINITION for every extern declared in namespace fly.runtime.
+// Declaring a symbol the main runtime also declares therefore produces a
+// duplicate definition the moment a program links both archives — which only a
+// --tls build does, so it never showed up in CI. The four names below are ones
+// RuntimeWindows.fly does not declare. LMEM_ZEROINIT (64) also spares us the
+// explicit zeroing.
+public void LocalAlloc(const int flags, const ulong size, pointer out) {}
+public void LocalFree(const pointer ptr, pointer out) {}
+// WSABUF on x64: len u32@0, buf ptr@8 — 16 bytes. WSASend takes dwFlags BY
+// VALUE, WSARecv takes lpFlags as a POINTER; both report the byte count through
+// an out DWORD and return 0 on success.
+public void WSASend(const long s, const pointer bufs, const int count, const pointer sentOut, const int flags, const pointer ov, const pointer cr, int out) {}
+public void WSARecv(const long s, const pointer bufs, const int count, const pointer recvdOut, const pointer flagsInOut, const pointer ov, const pointer cr, int out) {}
+
+public void AcquireCredentialsHandleA(const pointer principal, const pointer package,
+                                      const int credUse, const pointer logonId,
+                                      const pointer authData, const pointer getKeyFn,
+                                      const pointer getKeyArg, const pointer credHandle,
+                                      const pointer expiry, int out) {}
+public void FreeCredentialsHandle(const pointer cred, int out) {}
+// TWELVE arguments — more than anything else in this repo. Verified against a
+// live Schannel before this file was written: with a real credential it returns
+// SEC_I_CONTINUE_NEEDED and a 167-byte ClientHello beginning 22 3.
+public void InitializeSecurityContextA(const pointer cred, const pointer ctx,
+                                       const pointer targetName, const int contextReq,
+                                       const int reserved1, const int targetDataRep,
+                                       const pointer input, const int reserved2,
+                                       const pointer newCtx, const pointer output,
+                                       const pointer ctxAttr, const pointer expiry,
+                                       int out) {}
+public void DeleteSecurityContext(const pointer ctx, int out) {}
+public void FreeContextBuffer(const pointer buf, int out) {}
+public void QueryContextAttributesA(const pointer ctx, const int attr, const pointer buf, int out) {}
+public void EncryptMessage(const pointer ctx, const int qop, const pointer msg, const int seqNo, int out) {}
+public void DecryptMessage(const pointer ctx, const pointer msg, const int seqNo, const pointer qop, int out) {}
+public void ApplyControlToken(const pointer ctx, const pointer input, int out) {}
+
+// tlsToCStr — a NUL-terminated heap copy of a Fly string. Same shape as toCStr in
+// RuntimeWindows.fly, which is the proven way to do this in namespace
+// fly.runtime: `void` plus a trailing out-param, never a return.
+//
+// The tls prefix is NOT decoration: `private` does not make the symbol internal
+// here — it is still emitted under its plain name — so calling it toCStr made
+// this archive collide with the runtime's own at link time.
+private void tlsToCStr(const string s, pointer out) {
+    int n = 0
+    fly.llvm.strSize(s, n)
+    pointer src = 0
+    fly.llvm.strGetPtr(s, src)
+    pointer buf = 0
+    fly.runtime.LocalAlloc(64, n + 1, buf)
+    int i = 0
+    while i < n {
+        byte b = 0
+        fly.llvm.ptrByteAt(src, i, b)
+        fly.llvm.ptrPokeByte(buf, i, b)
+        i = i + 1
+    }
+    byte z = 0
+    fly.llvm.ptrPokeByte(buf, n, z)
+    out = buf
+}
+
+// tls_available — 1: Schannel ships with Windows, so a --tls build always has a
+// working backend here. There is no libssl-style "installed?" question.
+public void tls_available(int out) {
+    out = 1
+}
+
+// tls_connect — wrap an already-connected socket in a TLS session and run the
+// handshake to completion. Returns a TlsCtx handle, or 0 on any failure.
+//
+// One function on purpose (see the header): after the first ptrPoke an internal
+// call can be dropped, so everything it calls from that point on is an extern.
+public void tls_connect(const long sock, const pointer sniHost, const int verify, pointer out) {
+    out = 0
+    if sock < 0 { return }
+
+    // The SSPI package name, built FIRST — this is the one internal call in the
+    // function, and it has to happen before any ptrPoke for the C-ABI emission
+    // to keep it. Passing NULL here does not "use the default": it fails with
+    // SEC_E_SECPKG_NOT_FOUND, which was the first thing this backend got wrong.
+    pointer pkg = 0
+    tlsToCStr("Microsoft Unified Security Protocol Provider", pkg)
+
+    // Every allocation next, while calls are still safe to make.
+    pointer h = 0
+    fly.runtime.LocalAlloc(64, 96, h)
+    pointer cred = 0
+    fly.runtime.LocalAlloc(64, 16, cred)
+    pointer ctxh = 0
+    fly.runtime.LocalAlloc(64, 16, ctxh)
+    pointer sc = 0
+    fly.runtime.LocalAlloc(64, 80, sc)
+    pointer tsBuf = 0
+    fly.runtime.LocalAlloc(64, 8, tsBuf)
+    pointer attrBuf = 0
+    fly.runtime.LocalAlloc(64, 4, attrBuf)
+    pointer inDesc = 0
+    fly.runtime.LocalAlloc(64, 16, inDesc)
+    pointer inBufs = 0
+    fly.runtime.LocalAlloc(64, 32, inBufs)              // two SecBuffers
+    pointer outDesc = 0
+    fly.runtime.LocalAlloc(64, 16, outDesc)
+    pointer outBufs = 0
+    fly.runtime.LocalAlloc(64, 16, outBufs)             // one SecBuffer
+    pointer sizes = 0
+    fly.runtime.LocalAlloc(64, 20, sizes)
+    // A TLS record tops out at 16384 bytes of payload plus header and MAC; 32768
+    // holds any single record with room to spare, and the handshake never needs
+    // to hold more than one plus a fragment.
+    int encCap = 32768
+    pointer encBuf = 0
+    fly.runtime.LocalAlloc(64, encCap, encBuf)
+    // WSABUF (len u32@0, buf ptr@8) plus the two out-DWORDs the Winsock calls
+    // report through, and the throwaway LocalFree result.
+    pointer wsaBuf = 0
+    fly.runtime.LocalAlloc(64, 16, wsaBuf)
+    pointer nbuf = 0
+    fly.runtime.LocalAlloc(64, 4, nbuf)
+    pointer flagsBuf = 0
+    fly.runtime.LocalAlloc(64, 4, flagsBuf)
+    pointer discard = 0
+
+    bool alloced = h != 0 && cred != 0 && ctxh != 0 && sc != 0 && encBuf != 0
+    if alloced == false { return }
+
+    fly.llvm.memset(h, 0, 96)
+    fly.llvm.memset(cred, 0, 16)
+    fly.llvm.memset(ctxh, 0, 16)
+    fly.llvm.memset(sc, 0, 80)
+
+    // SCHANNEL_CRED. dwVersion = SCHANNEL_CRED_VERSION (4).
+    // dwFlags: SCH_CRED_NO_DEFAULT_CREDS (16) always — a client certificate must
+    // never be sent just because one happens to be in the store. Plus either
+    // SCH_CRED_AUTO_CRED_VALIDATION (32), which is what makes this real TLS, or
+    // SCH_CRED_MANUAL_CRED_VALIDATION (8) when the caller asked for no checking.
+    fly.llvm.ptrPokeInt(sc, 0, 4)
+    int credFlags = 48
+    if verify == 0 { credFlags = 24 }
+    fly.llvm.ptrPokeInt(sc, 72, credFlags)
+
+    int st = 0
+    fly.runtime.AcquireCredentialsHandleA(0, pkg, 2, 0, sc, 0, 0, cred, tsBuf, st)
+    if st != 0 {
+        fly.runtime.LocalFree(pkg, discard)
+        fly.runtime.LocalFree(sc, discard)
+        fly.runtime.LocalFree(tsBuf, discard)
+        fly.runtime.LocalFree(attrBuf, discard)
+        fly.runtime.LocalFree(inDesc, discard)
+        fly.runtime.LocalFree(inBufs, discard)
+        fly.runtime.LocalFree(outDesc, discard)
+        fly.runtime.LocalFree(outBufs, discard)
+        fly.runtime.LocalFree(sizes, discard)
+        fly.runtime.LocalFree(wsaBuf, discard)
+        fly.runtime.LocalFree(nbuf, discard)
+        fly.runtime.LocalFree(flagsBuf, discard)
+        fly.runtime.LocalFree(encBuf, discard)
+        fly.runtime.LocalFree(h, discard)
+        fly.runtime.LocalFree(cred, discard)
+        fly.runtime.LocalFree(ctxh, discard)
+        return
+    }
+
+    // ISC_REQ_REPLAY_DETECT 4 | SEQUENCE_DETECT 8 | CONFIDENTIALITY 16 |
+    // ALLOCATE_MEMORY 256 | STREAM 32768 = 33052. STREAM is what makes Schannel
+    // behave as a byte stream rather than a datagram layer; ALLOCATE_MEMORY
+    // makes it hand back tokens we release with FreeContextBuffer.
+    int req = 33052
+    int encLen = 0
+    bool first = true
+    // usedInput tracks whether the input descriptor has actually been filled.
+    // Without it, a handshake that ended on the very first round would read
+    // SECBUFFER_EXTRA out of a buffer nothing ever wrote.
+    bool usedInput = false
+    bool done = false
+    bool failed = false
+    int guard = 0
+
+    while done == false {
+        // Rebuild the output descriptor every round: Schannel overwrites it.
+        fly.llvm.ptrPokeInt(outBufs, 0, 0)
+        fly.llvm.ptrPokeInt(outBufs, 4, 2)          // SECBUFFER_TOKEN
+        fly.llvm.ptrPokeLong(outBufs, 8, 0)
+        fly.llvm.ptrPokeInt(outDesc, 0, 0)          // SECBUFFER_VERSION
+        fly.llvm.ptrPokeInt(outDesc, 4, 1)
+        fly.llvm.ptrPokeLong(outDesc, 8, outBufs)
+
+        if first {
+            fly.runtime.InitializeSecurityContextA(cred, 0, sniHost, req, 0, 16,
+                                                   0, 0, ctxh, outDesc, attrBuf, tsBuf, st)
+            first = false
+        } else {
+            // Input is two buffers: the ciphertext we have, and an empty slot
+            // Schannel fills with SECBUFFER_EXTRA when our buffer held more than
+            // one record. Losing that leftover is the classic Schannel bug.
+            fly.llvm.ptrPokeInt(inBufs, 0, encLen)
+            fly.llvm.ptrPokeInt(inBufs, 4, 2)       // SECBUFFER_TOKEN
+            fly.llvm.ptrPokeLong(inBufs, 8, encBuf)
+            fly.llvm.ptrPokeInt(inBufs, 16, 0)
+            fly.llvm.ptrPokeInt(inBufs, 20, 0)      // SECBUFFER_EMPTY
+            fly.llvm.ptrPokeLong(inBufs, 24, 0)
+            fly.llvm.ptrPokeInt(inDesc, 0, 0)
+            fly.llvm.ptrPokeInt(inDesc, 4, 2)
+            fly.llvm.ptrPokeLong(inDesc, 8, inBufs)
+            fly.runtime.InitializeSecurityContextA(cred, ctxh, sniHost, req, 0, 16,
+                                                   inDesc, 0, ctxh, outDesc, attrBuf, tsBuf, st)
+            usedInput = true
+        }
+
+        // Whatever it produced goes to the peer, success or not: an alert is
+        // also an output token, and the peer is owed it.
+        int tokLen = 0
+        fly.llvm.ptrReadInt(outBufs, 0, tokLen)
+        long tokL = 0
+        fly.llvm.ptrReadLong(outBufs, 8, tokL)
+        pointer tok = 0
+        tok = tokL
+        if tokLen > 0 {
+            if tok != 0 {
+                int off = 0
+                bool sending = true
+                while sending {
+                    fly.llvm.ptrPokeInt(wsaBuf, 0, tokLen - off)
+                    fly.llvm.ptrPokeLong(wsaBuf, 8, tok + off)
+                    fly.llvm.ptrPokeInt(nbuf, 0, 0)
+                    int rc = 0
+                    fly.runtime.WSASend(sock, wsaBuf, 1, nbuf, 0, 0, 0, rc)
+                    int wrote = 0
+                    if rc == 0 { fly.llvm.ptrReadInt(nbuf, 0, wrote) }
+                    if wrote <= 0 { sending = false  failed = true } else {
+                        off = off + wrote
+                        if off >= tokLen { sending = false }
+                    }
+                }
+                int fr = 0
+                fly.runtime.FreeContextBuffer(tok, fr)
+            }
+        }
+
+        if failed { done = true } else {
+            if st == 0 {
+                // Handshake complete. Anything Schannel did not consume is the
+                // first application data and must survive into tls_recv.
+                if usedInput {
+                    int xType = 0
+                    fly.llvm.ptrReadInt(inBufs, 20, xType)
+                    int xLen = 0
+                    fly.llvm.ptrReadInt(inBufs, 16, xLen)
+                    if xType == 5 {                 // SECBUFFER_EXTRA
+                        if xLen > 0 {
+                            // Schannel reports EXTRA as a COUNT, and the bytes
+                            // are the TAIL of our own buffer — not a pointer we
+                            // can dereference.
+                            fly.llvm.memcpy(encBuf, encBuf + (encLen - xLen), xLen)
+                            encLen = xLen
+                        } else { encLen = 0 }
+                    } else { encLen = 0 }
+                } else { encLen = 0 }
+                done = true
+            } else {
+                bool more = st == 590610 || st == -2146893032
+                if more == false { failed = true  done = true } else {
+                    if st == 590610 {
+                        // The round consumed our buffer unless it said otherwise.
+                        int xType = 0
+                        fly.llvm.ptrReadInt(inBufs, 20, xType)
+                        int xLen = 0
+                        fly.llvm.ptrReadInt(inBufs, 16, xLen)
+                        if xType == 5 {
+                            if xLen > 0 {
+                                fly.llvm.memcpy(encBuf, encBuf + (encLen - xLen), xLen)
+                                encLen = xLen
+                            } else { encLen = 0 }
+                        } else { encLen = 0 }
+                    }
+                    // SEC_E_INCOMPLETE_MESSAGE keeps encLen as it stands: the
+                    // bytes are a partial record and the rest is still in flight.
+                    if encLen >= encCap { failed = true  done = true } else {
+                        fly.llvm.ptrPokeInt(wsaBuf, 0, encCap - encLen)
+                        fly.llvm.ptrPokeLong(wsaBuf, 8, encBuf + encLen)
+                        fly.llvm.ptrPokeInt(nbuf, 0, 0)
+                        fly.llvm.ptrPokeInt(flagsBuf, 0, 0)
+                        int rc = 0
+                        fly.runtime.WSARecv(sock, wsaBuf, 1, nbuf, flagsBuf, 0, 0, rc)
+                        int got = 0
+                        if rc == 0 { fly.llvm.ptrReadInt(nbuf, 0, got) }
+                        if got <= 0 { failed = true  done = true } else {
+                            encLen = encLen + got
+                        }
+                    }
+                }
+            }
+        }
+        guard = guard + 1
+        // A peer that neither completes nor errors would otherwise spin here
+        // forever. No real handshake takes anything like this many rounds.
+        if guard > 64 { failed = true  done = true }
+    }
+
+    if failed {
+        int d1 = 0
+        int d2 = 0
+        fly.runtime.DeleteSecurityContext(ctxh, d1)
+        fly.runtime.FreeCredentialsHandle(cred, d2)
+        fly.runtime.LocalFree(pkg, discard)
+        fly.runtime.LocalFree(sc, discard)
+        fly.runtime.LocalFree(tsBuf, discard)
+        fly.runtime.LocalFree(attrBuf, discard)
+        fly.runtime.LocalFree(inDesc, discard)
+        fly.runtime.LocalFree(inBufs, discard)
+        fly.runtime.LocalFree(outDesc, discard)
+        fly.runtime.LocalFree(outBufs, discard)
+        fly.runtime.LocalFree(sizes, discard)
+        fly.runtime.LocalFree(wsaBuf, discard)
+        fly.runtime.LocalFree(nbuf, discard)
+        fly.runtime.LocalFree(flagsBuf, discard)
+        fly.runtime.LocalFree(encBuf, discard)
+        fly.runtime.LocalFree(h, discard)
+        fly.runtime.LocalFree(cred, discard)
+        fly.runtime.LocalFree(ctxh, discard)
+        return
+    }
+
+    // Record sizes decide how a payload is framed, so a failure here is fatal
+    // rather than something to guess around.
+    int qs = 0
+    fly.runtime.QueryContextAttributesA(ctxh, 4, sizes, qs)   // SECPKG_ATTR_STREAM_SIZES
+    if qs != 0 {
+        int d1 = 0
+        int d2 = 0
+        fly.runtime.DeleteSecurityContext(ctxh, d1)
+        fly.runtime.FreeCredentialsHandle(cred, d2)
+        fly.runtime.LocalFree(pkg, discard)
+        fly.runtime.LocalFree(sc, discard)
+        fly.runtime.LocalFree(tsBuf, discard)
+        fly.runtime.LocalFree(attrBuf, discard)
+        fly.runtime.LocalFree(inDesc, discard)
+        fly.runtime.LocalFree(inBufs, discard)
+        fly.runtime.LocalFree(outDesc, discard)
+        fly.runtime.LocalFree(outBufs, discard)
+        fly.runtime.LocalFree(sizes, discard)
+        fly.runtime.LocalFree(wsaBuf, discard)
+        fly.runtime.LocalFree(nbuf, discard)
+        fly.runtime.LocalFree(flagsBuf, discard)
+        fly.runtime.LocalFree(encBuf, discard)
+        fly.runtime.LocalFree(h, discard)
+        fly.runtime.LocalFree(cred, discard)
+        fly.runtime.LocalFree(ctxh, discard)
+        return
+    }
+    int cbHeader = 0
+    int cbTrailer = 0
+    int cbMax = 0
+    fly.llvm.ptrReadInt(sizes, 0, cbHeader)
+    fly.llvm.ptrReadInt(sizes, 4, cbTrailer)
+    fly.llvm.ptrReadInt(sizes, 8, cbMax)
+
+    int ioCap = cbHeader + cbMax + cbTrailer
+    pointer ioBuf = 0
+    fly.runtime.LocalAlloc(64, ioCap, ioBuf)
+    int decCap = cbMax + 1
+    pointer decBuf = 0
+    fly.runtime.LocalAlloc(64, decCap, decBuf)
+
+    fly.llvm.ptrPokeLong(h, 0, sock)
+    fly.llvm.ptrPokeLong(h, 8, cred)
+    fly.llvm.ptrPokeLong(h, 16, ctxh)
+    fly.llvm.ptrPokeInt(h, 24, cbHeader)
+    fly.llvm.ptrPokeInt(h, 28, cbTrailer)
+    fly.llvm.ptrPokeInt(h, 32, cbMax)
+    fly.llvm.ptrPokeInt(h, 36, 0)
+    fly.llvm.ptrPokeLong(h, 40, encBuf)
+    fly.llvm.ptrPokeInt(h, 48, encLen)
+    fly.llvm.ptrPokeInt(h, 52, encCap)
+    fly.llvm.ptrPokeLong(h, 56, decBuf)
+    fly.llvm.ptrPokeInt(h, 64, 0)
+    fly.llvm.ptrPokeInt(h, 68, 0)
+    fly.llvm.ptrPokeInt(h, 72, decCap)
+    fly.llvm.ptrPokeInt(h, 76, 1)
+    fly.llvm.ptrPokeLong(h, 80, ioBuf)
+    fly.llvm.ptrPokeInt(h, 88, ioCap)
+    fly.runtime.LocalFree(pkg, discard)
+    fly.runtime.LocalFree(sc, discard)
+    fly.runtime.LocalFree(tsBuf, discard)
+    fly.runtime.LocalFree(attrBuf, discard)
+    fly.runtime.LocalFree(inDesc, discard)
+    fly.runtime.LocalFree(inBufs, discard)
+    fly.runtime.LocalFree(outDesc, discard)
+    fly.runtime.LocalFree(outBufs, discard)
+    fly.runtime.LocalFree(sizes, discard)
+    fly.runtime.LocalFree(wsaBuf, discard)
+    fly.runtime.LocalFree(nbuf, discard)
+    fly.runtime.LocalFree(flagsBuf, discard)
+    out = h
+}
+
+// tls_send — encrypt and write. Returns the number of PLAINTEXT bytes written,
+// which is what a caller can compare against what it asked for; < 0 on error.
+public void tls_send(const pointer ctx, const pointer buf, const int n, long out) {
+    out = 0 - 1
+    if ctx == 0 { return }
+    if n <= 0 { out = 0  return }
+
+    long sockL = 0
+    fly.llvm.ptrReadLong(ctx, 0, sockL)
+    long ctxhL = 0
+    fly.llvm.ptrReadLong(ctx, 16, ctxhL)
+    pointer ctxh = 0
+    ctxh = ctxhL
+    int cbHeader = 0
+    int cbTrailer = 0
+    int cbMax = 0
+    fly.llvm.ptrReadInt(ctx, 24, cbHeader)
+    fly.llvm.ptrReadInt(ctx, 28, cbTrailer)
+    fly.llvm.ptrReadInt(ctx, 32, cbMax)
+    long ioL = 0
+    fly.llvm.ptrReadLong(ctx, 80, ioL)
+    pointer ioBuf = 0
+    ioBuf = ioL
+
+    pointer msgDesc = 0
+    fly.runtime.LocalAlloc(64, 16, msgDesc)
+    pointer bufs = 0
+    fly.runtime.LocalAlloc(64, 64, bufs)                 // four SecBuffers
+    pointer wsaBuf = 0
+    fly.runtime.LocalAlloc(64, 16, wsaBuf)
+    pointer nbuf = 0
+    fly.runtime.LocalAlloc(64, 4, nbuf)
+    pointer discard = 0
+    if msgDesc == 0 { return }
+    if bufs == 0 { return }
+
+    int sent = 0
+    bool bad = false
+    while sent < n {
+        if bad { sent = n } else {
+            int chunk = n - sent
+            if chunk > cbMax { chunk = cbMax }
+            // The three parts must be laid out CONTIGUOUSLY in one buffer:
+            // Schannel writes header and trailer around the payload in place,
+            // and the record then goes out as a single write.
+            fly.llvm.memcpy(ioBuf + cbHeader, buf + sent, chunk)
+
+            fly.llvm.ptrPokeInt(bufs, 0, cbHeader)
+            fly.llvm.ptrPokeInt(bufs, 4, 7)          // SECBUFFER_STREAM_HEADER
+            fly.llvm.ptrPokeLong(bufs, 8, ioBuf)
+            fly.llvm.ptrPokeInt(bufs, 16, chunk)
+            fly.llvm.ptrPokeInt(bufs, 20, 1)         // SECBUFFER_DATA
+            fly.llvm.ptrPokeLong(bufs, 24, ioBuf + cbHeader)
+            fly.llvm.ptrPokeInt(bufs, 32, cbTrailer)
+            fly.llvm.ptrPokeInt(bufs, 36, 6)         // SECBUFFER_STREAM_TRAILER
+            fly.llvm.ptrPokeLong(bufs, 40, ioBuf + cbHeader + chunk)
+            fly.llvm.ptrPokeInt(bufs, 48, 0)
+            fly.llvm.ptrPokeInt(bufs, 52, 0)         // SECBUFFER_EMPTY
+            fly.llvm.ptrPokeLong(bufs, 56, 0)
+            fly.llvm.ptrPokeInt(msgDesc, 0, 0)
+            fly.llvm.ptrPokeInt(msgDesc, 4, 4)
+            fly.llvm.ptrPokeLong(msgDesc, 8, bufs)
+
+            int st = 0
+            fly.runtime.EncryptMessage(ctxh, 0, msgDesc, 0, st)
+            if st != 0 { bad = true } else {
+                // The encrypted sizes come BACK in the buffers: the trailer in
+                // particular is not always cbTrailer.
+                int h0 = 0
+                int d0 = 0
+                int t0 = 0
+                fly.llvm.ptrReadInt(bufs, 0, h0)
+                fly.llvm.ptrReadInt(bufs, 16, d0)
+                fly.llvm.ptrReadInt(bufs, 32, t0)
+                int total = h0 + d0 + t0
+                int off = 0
+                while off < total {
+                    fly.llvm.ptrPokeInt(wsaBuf, 0, total - off)
+                    fly.llvm.ptrPokeLong(wsaBuf, 8, ioBuf + off)
+                    fly.llvm.ptrPokeInt(nbuf, 0, 0)
+                    int rc = 0
+                    fly.runtime.WSASend(sockL, wsaBuf, 1, nbuf, 0, 0, 0, rc)
+                    int wrote = 0
+                    if rc == 0 { fly.llvm.ptrReadInt(nbuf, 0, wrote) }
+                    if wrote <= 0 { bad = true  off = total } else { off = off + wrote }
+                }
+                if bad == false { sent = sent + chunk }
+            }
+        }
+    }
+
+    fly.runtime.LocalFree(msgDesc, discard)
+    fly.runtime.LocalFree(wsaBuf, discard)
+    fly.runtime.LocalFree(nbuf, discard)
+    fly.runtime.LocalFree(bufs, discard)
+    if bad {
+        fly.llvm.ptrPokeInt(ctx, 36, 0 - 1)
+        out = 0 - 1
+        return
+    }
+    out = sent
+}
+
+// tls_recv — decrypt and read. Returns bytes placed in buf, 0 at a clean end of
+// session, < 0 on error. Short reads are normal and expected: this is a stream.
+public void tls_recv(const pointer ctx, const pointer buf, const int n, long out) {
+    out = 0 - 1
+    if ctx == 0 { return }
+    if n <= 0 { out = 0  return }
+
+    // Anything already decrypted goes out first — a single TLS record can hold
+    // more than the caller asked for, and the remainder has to survive.
+    int decLen = 0
+    int decOff = 0
+    fly.llvm.ptrReadInt(ctx, 64, decLen)
+    fly.llvm.ptrReadInt(ctx, 68, decOff)
+    long decL = 0
+    fly.llvm.ptrReadLong(ctx, 56, decL)
+    pointer decBuf = 0
+    decBuf = decL
+    if decOff < decLen {
+        int avail = decLen - decOff
+        int take = avail
+        if take > n { take = n }
+        fly.llvm.memcpy(buf, decBuf + decOff, take)
+        fly.llvm.ptrPokeInt(ctx, 68, decOff + take)
+        out = take
+        return
+    }
+
+    long sockL = 0
+    fly.llvm.ptrReadLong(ctx, 0, sockL)
+    long ctxhL = 0
+    fly.llvm.ptrReadLong(ctx, 16, ctxhL)
+    pointer ctxh = 0
+    ctxh = ctxhL
+    long encL = 0
+    fly.llvm.ptrReadLong(ctx, 40, encL)
+    pointer encBuf = 0
+    encBuf = encL
+    int encLen = 0
+    int encCap = 0
+    fly.llvm.ptrReadInt(ctx, 48, encLen)
+    fly.llvm.ptrReadInt(ctx, 52, encCap)
+    int decCap = 0
+    fly.llvm.ptrReadInt(ctx, 72, decCap)
+
+    pointer msgDesc = 0
+    fly.runtime.LocalAlloc(64, 16, msgDesc)
+    pointer bufs = 0
+    fly.runtime.LocalAlloc(64, 64, bufs)
+    pointer wsaBuf = 0
+    fly.runtime.LocalAlloc(64, 16, wsaBuf)
+    pointer nbuf = 0
+    fly.runtime.LocalAlloc(64, 4, nbuf)
+    pointer flagsBuf = 0
+    fly.runtime.LocalAlloc(64, 4, flagsBuf)
+    pointer discard = 0
+    if msgDesc == 0 { return }
+    if bufs == 0 { return }
+
+    long result = 0 - 1
+    bool settled = false
+    int guard = 0
+    while settled == false {
+        if encLen == 0 {
+            fly.llvm.ptrPokeInt(wsaBuf, 0, encCap)
+            fly.llvm.ptrPokeLong(wsaBuf, 8, encBuf)
+            fly.llvm.ptrPokeInt(nbuf, 0, 0)
+            fly.llvm.ptrPokeInt(flagsBuf, 0, 0)
+            int rc = 0
+            fly.runtime.WSARecv(sockL, wsaBuf, 1, nbuf, flagsBuf, 0, 0, rc)
+            int got = 0 - 1
+            if rc == 0 { fly.llvm.ptrReadInt(nbuf, 0, got) }
+            if got == 0 { result = 0  settled = true } else {
+                if got < 0 { result = 0 - 1  settled = true } else { encLen = got }
+            }
+        }
+        if settled == false {
+            fly.llvm.ptrPokeInt(bufs, 0, encLen)
+            fly.llvm.ptrPokeInt(bufs, 4, 1)          // SECBUFFER_DATA
+            fly.llvm.ptrPokeLong(bufs, 8, encBuf)
+            fly.llvm.ptrPokeInt(bufs, 16, 0)
+            fly.llvm.ptrPokeInt(bufs, 20, 0)
+            fly.llvm.ptrPokeLong(bufs, 24, 0)
+            fly.llvm.ptrPokeInt(bufs, 32, 0)
+            fly.llvm.ptrPokeInt(bufs, 36, 0)
+            fly.llvm.ptrPokeLong(bufs, 40, 0)
+            fly.llvm.ptrPokeInt(bufs, 48, 0)
+            fly.llvm.ptrPokeInt(bufs, 52, 0)
+            fly.llvm.ptrPokeLong(bufs, 56, 0)
+            fly.llvm.ptrPokeInt(msgDesc, 0, 0)
+            fly.llvm.ptrPokeInt(msgDesc, 4, 4)
+            fly.llvm.ptrPokeLong(msgDesc, 8, bufs)
+
+            int st = 0
+            fly.runtime.DecryptMessage(ctxh, msgDesc, 0, 0, st)
+            if st == -2146893032 {
+                // SEC_E_INCOMPLETE_MESSAGE — a partial record. Keep what we have
+                // and read more; this is the normal case on a busy connection,
+                // not an error.
+                if encLen >= encCap { result = 0 - 1  settled = true } else {
+                    fly.llvm.ptrPokeInt(wsaBuf, 0, encCap - encLen)
+                    fly.llvm.ptrPokeLong(wsaBuf, 8, encBuf + encLen)
+                    fly.llvm.ptrPokeInt(nbuf, 0, 0)
+                    fly.llvm.ptrPokeInt(flagsBuf, 0, 0)
+                    int rc2 = 0
+                    fly.runtime.WSARecv(sockL, wsaBuf, 1, nbuf, flagsBuf, 0, 0, rc2)
+                    int got2 = 0
+                    if rc2 == 0 { fly.llvm.ptrReadInt(nbuf, 0, got2) }
+                    if got2 <= 0 { result = 0 - 1  settled = true } else { encLen = encLen + got2 }
+                }
+            } else {
+                bool okStatus = st == 0 || st == 590615
+                if okStatus == false { result = 0 - 1  settled = true } else {
+                    // Walk the four buffers: one comes back SECBUFFER_DATA with
+                    // the plaintext, and one may come back SECBUFFER_EXTRA with
+                    // the start of the NEXT record. Their positions are not
+                    // fixed, which is why this is a scan and not an index.
+                    int plainLen = 0
+                    pointer plainPtr = 0
+                    int extraLen = 0
+                    pointer extraPtr = 0
+                    int bi = 0
+                    while bi < 4 {
+                        int bt = 0
+                        fly.llvm.ptrReadInt(bufs, bi * 16 + 4, bt)
+                        int bl = 0
+                        fly.llvm.ptrReadInt(bufs, bi * 16, bl)
+                        long bpL = 0
+                        fly.llvm.ptrReadLong(bufs, bi * 16 + 8, bpL)
+                        if bt == 1 {
+                            if plainLen == 0 {
+                                plainLen = bl
+                                plainPtr = bpL
+                            }
+                        }
+                        if bt == 5 {
+                            extraLen = bl
+                            extraPtr = bpL
+                        }
+                        bi = bi + 1
+                    }
+
+                    if st == 590615 {
+                        // SEC_I_CONTEXT_EXPIRED: the peer sent close_notify. A
+                        // clean end of session, reported as 0 like a POSIX read.
+                        result = 0
+                        settled = true
+                        encLen = 0
+                    } else {
+                        int copied = 0
+                        if plainLen > 0 {
+                            if plainPtr != 0 {
+                                int keep = plainLen
+                                if keep > decCap { keep = decCap }
+                                fly.llvm.memcpy(decBuf, plainPtr, keep)
+                                decLen = keep
+                                decOff = 0
+                                copied = keep
+                            }
+                        }
+                        // The leftover must be moved BEFORE decBuf is read from,
+                        // because it lives inside encBuf and the next read
+                        // overwrites the front of it.
+                        if extraLen > 0 {
+                            if extraPtr != 0 {
+                                fly.llvm.memcpy(encBuf, extraPtr, extraLen)
+                                encLen = extraLen
+                            } else { encLen = 0 }
+                        } else { encLen = 0 }
+
+                        if copied > 0 {
+                            int take = copied
+                            if take > n { take = n }
+                            fly.llvm.memcpy(buf, decBuf, take)
+                            decOff = take
+                            result = take
+                            settled = true
+                        }
+                        // copied == 0 happens for a record carrying no
+                        // application data (a renegotiation or an empty frame):
+                        // loop and read the next one rather than reporting EOF.
+                    }
+                }
+            }
+        }
+        guard = guard + 1
+        if guard > 64 {
+            if settled == false { result = 0 - 1  settled = true }
+        }
+    }
+
+    fly.llvm.ptrPokeInt(ctx, 48, encLen)
+    fly.llvm.ptrPokeInt(ctx, 64, decLen)
+    fly.llvm.ptrPokeInt(ctx, 68, decOff)
+    fly.runtime.LocalFree(msgDesc, discard)
+    fly.runtime.LocalFree(wsaBuf, discard)
+    fly.runtime.LocalFree(nbuf, discard)
+    fly.runtime.LocalFree(flagsBuf, discard)
+    fly.runtime.LocalFree(bufs, discard)
+    out = result
+}
+
+// tls_shutdown — send close_notify. Idempotent; ignores a null context. Best
+// effort by design: the socket may already be gone, and that is not a failure
+// worth reporting to a caller that is closing anyway.
+public void tls_shutdown(const pointer ctx) {
+    pointer discard = 0
+    if ctx == 0 { return }
+    int hasCtx = 0
+    fly.llvm.ptrReadInt(ctx, 76, hasCtx)
+    if hasCtx == 0 { return }
+
+    long sockL = 0
+    fly.llvm.ptrReadLong(ctx, 0, sockL)
+    long ctxhL = 0
+    fly.llvm.ptrReadLong(ctx, 16, ctxhL)
+    pointer ctxh = 0
+    ctxh = ctxhL
+    long credL = 0
+    fly.llvm.ptrReadLong(ctx, 8, credL)
+    pointer cred = 0
+    cred = credL
+
+    pointer desc = 0
+    fly.runtime.LocalAlloc(64, 16, desc)
+    pointer sb = 0
+    fly.runtime.LocalAlloc(64, 16, sb)
+    pointer tokenVal = 0
+    fly.runtime.LocalAlloc(64, 4, tokenVal)
+    pointer outDesc = 0
+    fly.runtime.LocalAlloc(64, 16, outDesc)
+    pointer outBufs = 0
+    fly.runtime.LocalAlloc(64, 16, outBufs)
+    pointer tsBuf = 0
+    fly.runtime.LocalAlloc(64, 8, tsBuf)
+    pointer attrBuf = 0
+    fly.runtime.LocalAlloc(64, 4, attrBuf)
+    pointer wsaBuf = 0
+    fly.runtime.LocalAlloc(64, 16, wsaBuf)
+    pointer nbuf = 0
+    fly.runtime.LocalAlloc(64, 4, nbuf)
+    if desc == 0 { return }
+    if sb == 0 { return }
+
+    // SCHANNEL_SHUTDOWN = 1, handed in as a one-DWORD SECBUFFER_TOKEN.
+    fly.llvm.ptrPokeInt(tokenVal, 0, 1)
+    fly.llvm.ptrPokeInt(sb, 0, 4)
+    fly.llvm.ptrPokeInt(sb, 4, 2)                   // SECBUFFER_TOKEN
+    fly.llvm.ptrPokeLong(sb, 8, tokenVal)
+    fly.llvm.ptrPokeInt(desc, 0, 0)
+    fly.llvm.ptrPokeInt(desc, 4, 1)
+    fly.llvm.ptrPokeLong(desc, 8, sb)
+    int ac = 0
+    fly.runtime.ApplyControlToken(ctxh, desc, ac)
+    if ac == 0 {
+        fly.llvm.ptrPokeInt(outBufs, 0, 0)
+        fly.llvm.ptrPokeInt(outBufs, 4, 2)
+        fly.llvm.ptrPokeLong(outBufs, 8, 0)
+        fly.llvm.ptrPokeInt(outDesc, 0, 0)
+        fly.llvm.ptrPokeInt(outDesc, 4, 1)
+        fly.llvm.ptrPokeLong(outDesc, 8, outBufs)
+        int st = 0
+        fly.runtime.InitializeSecurityContextA(cred, ctxh, 0, 33052, 0, 16,
+                                               0, 0, ctxh, outDesc, attrBuf, tsBuf, st)
+        int tokLen = 0
+        fly.llvm.ptrReadInt(outBufs, 0, tokLen)
+        long tokL = 0
+        fly.llvm.ptrReadLong(outBufs, 8, tokL)
+        pointer tok = 0
+        tok = tokL
+        if tokLen > 0 {
+            if tok != 0 {
+                fly.llvm.ptrPokeInt(wsaBuf, 0, tokLen)
+                fly.llvm.ptrPokeLong(wsaBuf, 8, tok)
+                fly.llvm.ptrPokeInt(nbuf, 0, 0)
+                int wrc = 0
+                fly.runtime.WSASend(sockL, wsaBuf, 1, nbuf, 0, 0, 0, wrc)
+                int fr = 0
+                fly.runtime.FreeContextBuffer(tok, fr)
+            }
+        }
+    }
+    fly.runtime.LocalFree(desc, discard)
+    fly.runtime.LocalFree(sb, discard)
+    fly.runtime.LocalFree(tokenVal, discard)
+    fly.runtime.LocalFree(outDesc, discard)
+    fly.runtime.LocalFree(outBufs, discard)
+    fly.runtime.LocalFree(tsBuf, discard)
+    fly.runtime.LocalFree(attrBuf, discard)
+    fly.runtime.LocalFree(wsaBuf, discard)
+    fly.runtime.LocalFree(nbuf, discard)
+}
+
+// tls_free — release the session. Idempotent; ignores a null context. Does NOT
+// close the underlying socket, which belongs to the caller.
+public void tls_free(const pointer ctx) {
+    pointer discard = 0
+    if ctx == 0 { return }
+    int hasCtx = 0
+    fly.llvm.ptrReadInt(ctx, 76, hasCtx)
+    long ctxhL = 0
+    fly.llvm.ptrReadLong(ctx, 16, ctxhL)
+    pointer ctxh = 0
+    ctxh = ctxhL
+    long credL = 0
+    fly.llvm.ptrReadLong(ctx, 8, credL)
+    pointer cred = 0
+    cred = credL
+    long encL = 0
+    fly.llvm.ptrReadLong(ctx, 40, encL)
+    pointer encBuf = 0
+    encBuf = encL
+    long decL = 0
+    fly.llvm.ptrReadLong(ctx, 56, decL)
+    pointer decBuf = 0
+    decBuf = decL
+    long ioL = 0
+    fly.llvm.ptrReadLong(ctx, 80, ioL)
+    pointer ioBuf = 0
+    ioBuf = ioL
+
+    if hasCtx != 0 {
+        int d1 = 0
+        fly.runtime.DeleteSecurityContext(ctxh, d1)
+    }
+    int d2 = 0
+    if cred != 0 { fly.runtime.FreeCredentialsHandle(cred, d2) }
+    // Cleared before the free so a double tls_free finds a null context rather
+    // than a dangling one.
+    fly.llvm.ptrPokeInt(ctx, 76, 0)
+    fly.llvm.ptrPokeLong(ctx, 16, 0)
+    fly.llvm.ptrPokeLong(ctx, 8, 0)
+    if encBuf != 0 { fly.runtime.LocalFree(encBuf, discard) }
+    if decBuf != 0 { fly.runtime.LocalFree(decBuf, discard) }
+    if ioBuf != 0 { fly.runtime.LocalFree(ioBuf, discard) }
+    if ctxh != 0 { fly.runtime.LocalFree(ctxh, discard) }
+    if cred != 0 { fly.runtime.LocalFree(cred, discard) }
+    fly.runtime.LocalFree(ctx, discard)
+}
+
+// tls_last_error — the backend's last error code for this context, 0 when none.
+public void tls_last_error(const pointer ctx, int out) {
+    if ctx == 0 { out = 0  return }
+    int e = 0
+    fly.llvm.ptrReadInt(ctx, 36, e)
+    out = e
+}

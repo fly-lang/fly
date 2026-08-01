@@ -2,7 +2,9 @@ namespace fly.compiler.sema
 
 import fly.compiler.sema.*
 import fly.compiler.ast.*
+import fly.compiler.basic.*
 import fly.data.List
+import fly.str
 
 // ResolverDecl — declaration resolution companion: functions, params, locals.
 public class ResolverDecl {
@@ -112,7 +114,26 @@ public class ResolverDecl {
             fb.setReturnType(rtt)
             bool isVoidRet = false
             if rtt != null { isVoidRet = rtt.isVoid() }
+            // `main` is the entry point and must be `void main()`: its exit code is
+            // decided by the error protocol — 0 when the program ends clean, the
+            // unhandled error's code otherwise — never by `out`. Giving it a return
+            // type handed the wrapper an out slot to return instead.
+            // Diagnose and carry on as if void: do NOT return early, or the symbol
+            // below never gets its param types and an in-process caller (cgIR in the
+            // test suites) walks that half-built signature straight into an AV.
+            bool mainBadRet = false
             if isVoidRet == false {
+                if str.equals(node.getName(), "main") { mainBadRet = true }
+            }
+            if mainBadRet {
+                r.diag(node.getLoc(), DiagID.err_sema_main_with_return)
+                // Degrade it to `void main()` for everything downstream. Emitting the
+                // diagnostic is not enough on its own: a caller that keeps going after
+                // an error (cgIR, which the test suites use to compile in-process) would
+                // reach emitMainWrapper, see a non-void return, allocate an out slot and
+                // pass an argument the function no longer declares — arity mismatch, AV.
+                fb.setReturnType(SemaBuiltin.getVoidType())
+            } elsif isVoidRet == false {
                 List<ASTModifier> noMods = new List<ASTModifier>()
                 ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rt, "out", noMods, null)
                 outAst.accept(r)
@@ -124,20 +145,32 @@ public class ResolverDecl {
             // function stays void at the ABI level; `out[i] = …` — rewritten by the parser
             // to `__out_i = …` — stores through each out pointer). Mirrors the reference.
             List<ASTType> rts = node.getReturnTypes()
-            int ri = 0
-            while ri < rts.size() {
-                ASTType rti = rts.get(ri)
-                rti.accept(r)
-                List<ASTModifier> noMods = new List<ASTModifier>()
-                string on = fly.str.concat("__out_", fly.str.convert(ri))
-                ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rti, on, noMods, null)
-                outAst.accept(r)
-                fb.addParam(r.getCurrentParam())
-                ri = ri + 1
+            // Same rule for the multi-return form — doubly wrong here, since
+            // emitMainWrapper only ever looks at getReturnType(): the __out_i slots
+            // would never be passed and the call would be built short. As above,
+            // diagnose and fall through rather than returning.
+            bool mainMulti = false
+            if rts.size() > 0 {
+                if str.equals(node.getName(), "main") { mainMulti = true }
             }
-            // Record ALL of them: getParamTypes() must drop every synthetic slot,
-            // not just one, or a `A,B f(x)` call never matches its own signature.
-            fb.setOutParamCount((int)rts.size())
+            if mainMulti {
+                r.diag(node.getLoc(), DiagID.err_sema_main_with_return)
+            } else {
+                int ri = 0
+                while ri < rts.size() {
+                    ASTType rti = rts.get(ri)
+                    rti.accept(r)
+                    List<ASTModifier> noMods = new List<ASTModifier>()
+                    string on = str.concat("__out_", str.convert(ri))
+                    ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rti, on, noMods, null)
+                    outAst.accept(r)
+                    fb.addParam(r.getCurrentParam())
+                    ri = ri + 1
+                }
+                // Record ALL of them: getParamTypes() must drop every synthetic slot,
+                // not just one, or a `A,B f(x)` call never matches its own signature.
+                fb.setOutParamCount((int)rts.size())
+            }
         }
 
         Symbol sym = fb.getDeclSymbol()

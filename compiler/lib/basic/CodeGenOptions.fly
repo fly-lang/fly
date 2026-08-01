@@ -1,5 +1,6 @@
 namespace fly.compiler.basic
 import fly.compiler.basic.*
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenOptions — a 1:1 port of the directly-declared members of the reference
@@ -34,6 +35,14 @@ public class CodeGenOptions {
     bool pie
     bool staticPie
     bool debugSymbols
+    // traceCalls (--trace-calls) — instrument every user function/method with
+    // fly.log enter/exit hooks at codegen time (see codegen/CodeGenTrace.fly).
+    bool traceCalls
+    // enableTls (--tls) — link the real TLS backend plus -lssl -lcrypto instead of
+    // the always-present no-op stub. Opt-in because `-lssl` needs the development
+    // symlink, so making it unconditional would break every link on a machine that
+    // has only the runtime package.
+    bool enableTls
 
     // ── scalars / strings ──
     int optLevel              // OptimizationLevel (-O)
@@ -107,6 +116,8 @@ public class CodeGenOptions {
         this.pie = false
         this.staticPie = false
         this.debugSymbols = false
+        this.traceCalls = false
+        this.enableTls = false
         this.optLevel = 0
         this.jobs = 0
         this.bbSections = ""
@@ -186,6 +197,10 @@ public class CodeGenOptions {
     public void setStaticPie(const bool b) { this.staticPie = b }
     public bool getDebugSymbols() { out = this.debugSymbols }
     public void setDebugSymbols(const bool b) { this.debugSymbols = b }
+    public bool getTraceCalls() { out = this.traceCalls }
+    public void setTraceCalls(const bool b) { this.traceCalls = b }
+    public bool getEnableTls() { out = this.enableTls }
+    public void setEnableTls(const bool b) { this.enableTls = b }
 
     // ── scalar / string accessors ──
     public int getOptLevel()      { out = this.optLevel }
@@ -224,7 +239,7 @@ public class CodeGenOptions {
     public void setRecordCommandLine(const string s) { this.recordCommandLine = s }
     public string getDebugPrefixMap() { out = this.debugPrefixMap }
     public void addDebugPrefixMap(const string pair) {
-        this.debugPrefixMap = fly.str.concat(this.debugPrefixMap, fly.str.concat(pair, ";"))
+        this.debugPrefixMap = str.concat(this.debugPrefixMap, str.concat(pair, ";"))
     }
     public string getFloatABI()   { out = this.floatABI }
     public void setFloatABI(const string s) { this.floatABI = s }
@@ -285,62 +300,62 @@ public class CodeGenOptions {
 
     // ── linker options (consumed by the ToolChain port) ──
     public void addLinkerOption(const string flag) {
-        this.linkerOptions = fly.str.concat(this.linkerOptions, fly.str.concat(flag, ";"))
+        this.linkerOptions = str.concat(this.linkerOptions, str.concat(flag, ";"))
     }
     public string getLinkerOptions() { out = this.linkerOptions }
 
     // ── -fno-builtin-<name> functions ──
     public void addNoBuiltinFunc(const string name) {
-        this.noBuiltinFuncs = fly.str.concat(this.noBuiltinFuncs, fly.str.concat(name, ";"))
+        this.noBuiltinFuncs = str.concat(this.noBuiltinFuncs, str.concat(name, ";"))
     }
     public string getNoBuiltinFuncs() { out = this.noBuiltinFuncs }
     // isNoBuiltinFunc — is this a libc/libm function no longer treated as a
     // builtin because a -fno-builtin-* option named it?
     public bool isNoBuiltinFunc(const string name) {
-        string needle = fly.str.concat(";", fly.str.concat(name, ";"))
-        out = fly.str.contains(this.noBuiltinFuncs, needle)
+        string needle = str.concat(";", str.concat(name, ";"))
+        out = str.contains(this.noBuiltinFuncs, needle)
     }
 
     // ── other ";"-delimited list fields (add appends, get returns the raw list;
     // callers iterate with the driver's segCount/segAt) ──
     public void addDependentLibrary(const string s) {
-        this.dependentLibraries = fly.str.concat(this.dependentLibraries, fly.str.concat(s, ";"))
+        this.dependentLibraries = str.concat(this.dependentLibraries, str.concat(s, ";"))
     }
     public string getDependentLibraries() { out = this.dependentLibraries }
     public void addLinkBitcodeFile(const string s) {
-        this.linkBitcodeFiles = fly.str.concat(this.linkBitcodeFiles, fly.str.concat(s, ";"))
+        this.linkBitcodeFiles = str.concat(this.linkBitcodeFiles, str.concat(s, ";"))
     }
     public string getLinkBitcodeFiles() { out = this.linkBitcodeFiles }
     public void addRewriteMapFile(const string s) {
-        this.rewriteMapFiles = fly.str.concat(this.rewriteMapFiles, fly.str.concat(s, ";"))
+        this.rewriteMapFiles = str.concat(this.rewriteMapFiles, str.concat(s, ";"))
     }
     public string getRewriteMapFiles() { out = this.rewriteMapFiles }
     public void addReciprocal(const string s) {
-        this.reciprocals = fly.str.concat(this.reciprocals, fly.str.concat(s, ";"))
+        this.reciprocals = str.concat(this.reciprocals, str.concat(s, ";"))
     }
     public string getReciprocals() { out = this.reciprocals }
     public void addDefaultFunctionAttr(const string s) {
-        this.defaultFunctionAttrs = fly.str.concat(this.defaultFunctionAttrs, fly.str.concat(s, ";"))
+        this.defaultFunctionAttrs = str.concat(this.defaultFunctionAttrs, str.concat(s, ";"))
     }
     public string getDefaultFunctionAttrs() { out = this.defaultFunctionAttrs }
     public void addPassPlugin(const string s) {
-        this.passPlugins = fly.str.concat(this.passPlugins, fly.str.concat(s, ";"))
+        this.passPlugins = str.concat(this.passPlugins, str.concat(s, ";"))
     }
     public string getPassPlugins() { out = this.passPlugins }
     public void addSanitizeCoverageAllowlistFile(const string s) {
-        this.sanitizeCoverageAllowlistFiles = fly.str.concat(this.sanitizeCoverageAllowlistFiles, fly.str.concat(s, ";"))
+        this.sanitizeCoverageAllowlistFiles = str.concat(this.sanitizeCoverageAllowlistFiles, str.concat(s, ";"))
     }
     public string getSanitizeCoverageAllowlistFiles() { out = this.sanitizeCoverageAllowlistFiles }
     public void addSanitizeCoverageBlocklistFile(const string s) {
-        this.sanitizeCoverageBlocklistFiles = fly.str.concat(this.sanitizeCoverageBlocklistFiles, fly.str.concat(s, ";"))
+        this.sanitizeCoverageBlocklistFiles = str.concat(this.sanitizeCoverageBlocklistFiles, str.concat(s, ";"))
     }
     public string getSanitizeCoverageBlocklistFiles() { out = this.sanitizeCoverageBlocklistFiles }
     public void addSanitizeRecover(const string s) {
-        this.sanitizeRecover = fly.str.concat(this.sanitizeRecover, fly.str.concat(s, ";"))
+        this.sanitizeRecover = str.concat(this.sanitizeRecover, str.concat(s, ";"))
     }
     public string getSanitizeRecover() { out = this.sanitizeRecover }
     public void addSanitizeTrap(const string s) {
-        this.sanitizeTrap = fly.str.concat(this.sanitizeTrap, fly.str.concat(s, ";"))
+        this.sanitizeTrap = str.concat(this.sanitizeTrap, str.concat(s, ";"))
     }
     public string getSanitizeTrap() { out = this.sanitizeTrap }
 }

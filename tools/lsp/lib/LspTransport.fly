@@ -1,0 +1,222 @@
+namespace fly.lsp
+
+import fly.str
+import fly.mem
+import fly.json
+import fly.os.io
+import fly.os.io.Reader
+import fly.os.io.Writer
+import fly.os.io.Buf
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LspTransport — stdin/stdout JSON-RPC framing. Port of tools/lsp/LspTransport.
+//
+//   Content-Length: <N>\r\n
+//   \r\n
+//   <N bytes of JSON>
+//
+// This file is the reason setBinaryMode exists (Phase 0): on Windows a text-mode
+// fd 0 collapses every \r\n and treats 0x1A as EOF, and a text-mode fd 1 turns
+// the frame's \r\n into \r\r\n — either direction alone is enough to desync the
+// framing forever. main() flips both fds before the first read.
+//
+// Reads go through io.readExact — one byte at a time for headers (they end at a
+// byte we cannot know in advance), one exact block for the body. The per-byte
+// Buf allocation is fine at header scale (~40 bytes per message).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── the pure half, extracted so it can be tested ─────────────────────────────
+//
+// send/sendResult/… below are thin wrappers over these. The split is not
+// decoration: the transport's reader and writer are bound to fd 0 and fd 1, so
+// a unit test cannot call the methods without consuming the harness's own
+// stdin and scribbling on its stdout. Everything that can be checked without a
+// real stream lives here and is checked directly; the fd path is proved end to
+// end by ci/*/test_lsp.*.
+
+// frameFor — the LSP frame for `body`: header, CRLFCRLF, then exactly len bytes.
+public string frameFor(const string body) {
+    pointer crlf2 = mem.alloc(4)
+    mem.writeByte(crlf2, 0, 13)
+    mem.writeByte(crlf2, 1, 10)
+    mem.writeByte(crlf2, 2, 13)
+    mem.writeByte(crlf2, 3, 10)
+    string sep = ""
+    str.fromBytes(crlf2, 4, sep)
+    out = str.concat("Content-Length: ",
+          str.concat(str.convert(str.len(body)),
+          str.concat(sep, body)))
+}
+
+// idNodeOf — an id given as its own JSON TEXT, back as a node. Number, string
+// and null all round-trip without this file knowing which it was; anything
+// unparseable degrades to null rather than corrupting the response.
+public pointer idNodeOf(const string idJson) {
+    int pe = 0
+    pointer idNode = json.parse(idJson, pe)
+    if pe != 0 { idNode = json.newNull() }
+    out = idNode
+}
+
+// resultJson — the serialized success response for `id`. TAKES OWNERSHIP of
+// `result` (0 = null result).
+public string resultJson(const string idJson, const pointer result) {
+    pointer o = json.newObject()
+    json.put(o, "jsonrpc", json.newString("2.0"))
+    json.put(o, "id", idNodeOf(idJson))
+    pointer res = result
+    if res == 0 { res = json.newNull() }
+    json.put(o, "result", res)
+    string s = json.write(o)
+    json.freeValue(o)
+    out = s
+}
+
+// errorJson — the serialized error response for `id`.
+public string errorJson(const string idJson, const int code, const string message) {
+    pointer o = json.newObject()
+    json.put(o, "jsonrpc", json.newString("2.0"))
+    json.put(o, "id", idNodeOf(idJson))
+    pointer err = json.newObject()
+    json.put(err, "code", json.newInt(code))
+    json.put(err, "message", json.newString(message))
+    json.put(o, "error", err)
+    string s = json.write(o)
+    json.freeValue(o)
+    out = s
+}
+
+// notificationJson — the serialized server-push notification. TAKES OWNERSHIP
+// of `params` (0 = an empty object).
+public string notificationJson(const string method, const pointer params) {
+    pointer o = json.newObject()
+    json.put(o, "jsonrpc", json.newString("2.0"))
+    json.put(o, "method", json.newString(method))
+    pointer p = params
+    if p == 0 { p = json.newObject() }
+    json.put(o, "params", p)
+    string s = json.write(o)
+    json.freeValue(o)
+    out = s
+}
+
+public class LspTransport {
+    Reader in
+    Writer outW
+
+    public LspTransport() {
+        this.in = io.fileReader(0)
+        this.outW = io.fileWriter(1)
+    }
+
+    // readByte — the next byte of stdin as 0..255, or -1 at EOF.
+    int readByte() {
+        Buf b = io.readExact(this.in, 1)
+        if b.size < 1 {
+            if b.ptr != 0 { mem.free(b.ptr, b.cap) }
+            out = 0 - 1
+            return
+        }
+        byte v = mem.readByte(b.ptr, 0)
+        mem.free(b.ptr, b.cap)
+        int r = v
+        out = r & 255
+    }
+
+    // readMessage — the next framed message BODY, "" at EOF or on a framing
+    // error. The caller cannot tell those apart and does not need to: both mean
+    // the session is over (reference parity: readMessage() → nullopt).
+    public string readMessage() {
+        int contentLength = 0
+        bool inHeaders = true
+        while inHeaders {
+            // one header line, CR stripped, LF terminated
+            string line = ""
+            pointer acc = mem.alloc(256)
+            int accLen = 0
+            bool lineDone = false
+            bool eof = false
+            while lineDone == false {
+                int c = this.readByte()
+                if c < 0 { lineDone = true  eof = true }
+                elsif c == 10 { lineDone = true }
+                elsif c == 13 { lineDone = false }
+                else {
+                    if accLen < 256 { mem.writeByte(acc, accLen, (byte)c)  accLen = accLen + 1 }
+                }
+            }
+            if eof {
+                mem.free(acc, 256)
+                out = ""
+                return
+            }
+            if accLen == 0 {
+                mem.free(acc, 256)
+                inHeaders = false                    // blank line → end of headers
+            } else {
+                pointer cp = mem.alloc(accLen)
+                mem.copy(cp, acc, accLen)
+                mem.free(acc, 256)
+                str.fromBytes(cp, accLen, line)  // takes ownership of cp
+                if str.startsWith(line, "Content-Length: ") {
+                    string num = str.substring(line, 16, str.len(line))
+                    int v = 0
+                    int di = 0
+                    int dn = str.len(num)
+                    while di < dn {
+                        byte db = 0
+                        str.byteAt(num, di, db)
+                        int dc = db
+                        dc = dc & 255
+                        bool digit = dc >= 48 && dc <= 57
+                        if digit { v = v * 10 + (dc - 48) }
+                        di = di + 1
+                    }
+                    contentLength = v
+                }
+            }
+        }
+        if contentLength <= 0 { out = ""  return }
+
+        Buf body = io.readExact(this.in, contentLength)
+        if body.size < contentLength {
+            if body.ptr != 0 { mem.free(body.ptr, body.cap) }
+            out = ""
+            return
+        }
+        string s = ""
+        str.fromBytes(body.ptr, contentLength, s)   // takes ownership
+        out = s
+    }
+
+    // send — frame `body` and write it to stdout.
+    public void send(const string body) {
+        io.writeString(this.outW, frameFor(body))
+    }
+
+    // sendNode — serialize a fly.json tree, send it, AND FREE IT. Every response
+    // path funnels through here so no caller can leak or double-free a tree.
+    public void sendNode(const pointer root) {
+        if root == 0 { return }
+        string body = json.write(root)
+        json.freeValue(root)
+        this.send(body)
+    }
+
+    // sendResult — success response for request `idJson` (the id's own JSON
+    // text, spliced back verbatim — number, string or null all round-trip).
+    public void sendResult(const string idJson, const pointer result) {
+        this.send(resultJson(idJson, result))
+    }
+
+    // sendError — error response for request `idJson`.
+    public void sendError(const string idJson, const int code, const string message) {
+        this.send(errorJson(idJson, code, message))
+    }
+
+    // sendNotification — server-push notification (no id). Takes ownership of
+    // `params`.
+    public void sendNotification(const string method, const pointer params) {
+        this.send(notificationJson(method, params))
+    }
+}

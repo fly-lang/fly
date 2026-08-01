@@ -23,20 +23,20 @@ public string hostTripleStr() {
 
     byte zero = 0
     int len = 0
-    byte b = fly.mem.readByte(p, len)
+    byte b = mem.readByte(p, len)
     while b != zero {
         len = len + 1
-        b = fly.mem.readByte(p, len)
+        b = mem.readByte(p, len)
     }
     string s = ""
-    fly.str.fromBytes(p, len, s)
+    str.fromBytes(p, len, s)
     out = s
 }
 
 // hostArch — the host's Arch (UNKNOWN if detection failed/unrecognised).
 public Arch hostArch() {
     string t = hostTripleStr()
-    if fly.str.isEmpty(t) { out = Arch.UNKNOWN  return }
+    if str.isEmpty(t) { out = Arch.UNKNOWN  return }
     Triple tr = tripleParse(t)
     out = tr.getArch()
 }

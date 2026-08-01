@@ -1,0 +1,247 @@
+import fly.assert
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExecStringSuite — EXECUTED string value semantics (bug-hunt Phase 1):
+// equality (operator vs str.equals), rebinding under clone-on-store, const
+// strings, strings returned via out, concat chains, raw escapes.
+//
+// Assert codes: 1xx equality, 2xx rebinding, 3xx out-returns, 4xx concat,
+// 5xx raw literals.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// FREE function on purpose: a suite helper called through `this` AVs (B018).
+string execStringMale() {
+    string built = str.concat("ma", "le")
+    out = built
+}
+
+// Returns a BORROWED string — its own parameter. Per the ownership rule the
+// store into `out` clones, which is what makes every call result independently
+// owned; without the clone the caller and the caller's argument would share one
+// buffer and free it twice.
+string execStringEcho(const string s) {
+    out = s
+}
+
+// Reassigns its own NON-CONST parameter, which per §5.2 is an OUTPUT parameter:
+// the write reaches the caller's variable. For a string that also means the
+// caller ends up owning the new buffer and must not free the old one twice.
+string execStringOverwrite(string s) {
+    s = "overwritten"
+    out = s
+}
+
+// Binds a CONST parameter to a local and rebinds the local. The bind clones, so
+// nothing here may reach the caller's string.
+string execStringLocalCopy(const string s) {
+    string local = s
+    local = "local only"
+    out = local
+}
+
+// Holds a string and hands it back. Both directions cross an owned slot: the
+// constructor's store clones into the field, and `out = this.text` clones out.
+public class ExecStringBox {
+    string text
+    public ExecStringBox(const string t) { this.text = t }
+    public string read() { out = this.text }
+    public void write(const string t) { this.text = t }
+}
+
+suite ExecStringSuite {
+
+    void equalityTest() {
+        case "operator == compares content not identity": {
+            string a = str.concat("a", "b")              // heap-built "ab"
+            bool same = a == "ab"
+            assert.assertTrue(same, 101)
+        }
+        case "operator != on different content": {
+            string a = str.concat("a", "b")
+            bool diff = a != "ba"
+            assert.assertTrue(diff, 111)
+        }
+        case "str.equals agrees with the operator": {
+            string a = str.concat("xy", "z")
+            assert.assertTrue(str.equals(a, "xyz"), 121)
+        }
+        case "empty strings are equal": {
+            string a = ""
+            bool same = a == ""
+            assert.assertTrue(same, 131)
+            assert.assertTrue(str.isEmpty(a), 132)
+        }
+    }
+
+    void rebindTest() {
+        case "rebinding replaces the value": {
+            string s = str.concat("first", "!")
+            s = "second"
+            assert.assertStr(s, "second", 201)
+        }
+        case "rebinding one variable leaves its source alone": {
+            string a = str.concat("or", "ig")
+            string b = a
+            b = "changed"
+            assert.assertStr(a, "orig", 211)
+            assert.assertStr(b, "changed", 212)
+        }
+        // NOTE: `const string k = "fixed"` would belong here, but const LOCALS
+        // are rejected by the self-host parser — BUGS.md B022 (reference OK).
+    }
+
+    void outReturnTest() {
+        case "a heap-built string survives the return": {
+            string got = execStringMale()
+            assert.assertStr(got, "male", 301)
+            assert.assertEqI(str.len(got), 4, 302)
+        }
+        case "returned strings are independent per call": {
+            string one = execStringMale()
+            string two = execStringMale()
+            one = "other"
+            assert.assertStr(two, "male", 311)
+        }
+    }
+
+    void concatTest() {
+        case "chained concat builds left to right": {
+            string s = str.concat(str.concat("a", "b"), str.concat("c", "d"))
+            assert.assertStr(s, "abcd", 401)
+            assert.assertEqI(str.len(s), 4, 402)
+        }
+        case "concat with empty operands": {
+            string s = str.concat("", "x")
+            assert.assertStr(s, "x", 411)
+            string t = str.concat(s, "")
+            assert.assertStr(t, "x", 412)
+        }
+        case "repeated self-concat grows the value": {
+            string s = "ab"
+            s = str.concat(s, s)                          // abab
+            s = str.concat(s, s)                          // abababab
+            assert.assertEqI(str.len(s), 8, 421)
+            assert.assertStr(s, "abababab", 422)
+        }
+    }
+
+    void constLocalTest() {
+        case "const locals parse, initialize and read (B022)": {
+            const string k = "fixed"
+            const int n = 5
+            assert.assertStr(k, "fixed", 601)
+            assert.assertEqI(n, 5, 602)
+            int twice = n + n
+            assert.assertEqI(twice, 10, 603)
+        }
+    }
+
+    // ── Ownership (docs §6.6) ──────────────────────────────────────────────
+    // The invariant: every owned string slot holds a buffer that nothing else
+    // owns. Each case below pins one of the three stores that keep it true —
+    // literal copied, lvalue cloned, fresh producer moved — from a direction
+    // the cases above do not reach. None of it is observable by reading a
+    // string once; it takes two owners and a mutation to tell a clone from an
+    // alias, which is what these do.
+    void ownershipTest() {
+        case "a non-const string parameter writes back to the caller (§5.2)": {
+            // Not a copy: a non-const parameter IS an output parameter, so the
+            // callee's store reaches `mine`. What ownership adds is that `mine`
+            // now owns the NEW buffer — rebinding it afterwards must free that
+            // one and not the buffer it held before the call.
+            string mine = str.concat("keep", "me")
+            string got = execStringOverwrite(mine)
+            assert.assertStr(mine, "overwritten", 701)
+            assert.assertStr(got, "overwritten", 702)
+            mine = "rebound"
+            assert.assertStr(mine, "rebound", 703)
+            assert.assertStr(got, "overwritten", 704)
+        }
+        case "binding a const parameter clones it": {
+            // The callee rebinds its own local, never the parameter, so nothing
+            // can reach the caller — this is the read-only direction of the same
+            // rule the case above exercises from the writable side.
+            string mine = str.concat("un", "touched")
+            string got = execStringLocalCopy(mine)
+            assert.assertStr(mine, "untouched", 705)
+            assert.assertStr(got, "local only", 706)
+        }
+        case "returning a borrowed parameter returns a clone": {
+            // The result must survive the argument being rebound: if `out = s`
+            // handed back the caller's own buffer, rebinding would free it and
+            // `echoed` would read freed memory.
+            string src = str.concat("bor", "rowed")
+            string echoed = execStringEcho(src)
+            src = "gone"
+            assert.assertStr(echoed, "borrowed", 711)
+            assert.assertStr(src, "gone", 712)
+        }
+        case "a field owns its own buffer in both directions": {
+            string given = str.concat("in", "it")
+            ExecStringBox box = new ExecStringBox(given)
+            given = "changed"                       // must not reach the field
+            string read = box.read()
+            assert.assertStr(read, "init", 721)
+
+            box.write("second")
+            read = box.read()                       // rebinding a clone is safe
+            assert.assertStr(read, "second", 722)
+        }
+        case "a literal initializer is copied, not aliased to the constant": {
+            // Two variables from the SAME literal must not share a buffer: the
+            // first to be reassigned would free it under the second.
+            string a = "shared"
+            string b = "shared"
+            a = str.concat("re", "bound")
+            assert.assertStr(b, "shared", 731)
+            assert.assertStr(a, "rebound", 732)
+        }
+        case "the empty string owns no heap and survives every store": {
+            // Empty clones allocate nothing and their free is a no-op — the one
+            // case where two owners CAN hold the same (null) buffer safely.
+            string e = ""
+            string f = e
+            string g = str.concat("", "")
+            e = "now full"
+            assert.assertTrue(str.isEmpty(f), 741)
+            assert.assertTrue(str.isEmpty(g), 742)
+            assert.assertStr(e, "now full", 743)
+        }
+        case "repeated rebinding in a loop keeps the last value": {
+            // Every iteration frees the previous buffer before storing the new
+            // one. A missing free leaks; a free of the wrong buffer corrupts the
+            // value that follows.
+            string s = "start"
+            int i = 0
+            while i < 500 {
+                s = str.concat("v", "alue")
+                i = i + 1
+            }
+            assert.assertStr(s, "value", 751)
+            assert.assertEqI(str.len(s), 5, 752)
+        }
+        case "strings inside an array are borrowed, not owned by it": {
+            // The array frees nothing per element, and the elements here are
+            // literals: pointers into static memory, allocating nothing.
+            string[] xs = {"alpha", "beta", "gamma"}
+            int total = 0
+            for s in xs {
+                total = total + str.len(s)
+            }
+            assert.assertEqI(total, 14, 761)
+        }
+    }
+
+    void rawLiteralTest() {
+        case "backslash-n stays two raw characters": {
+            string s = "a\nb"
+            assert.assertEqI(str.len(s), 4, 501)         // a, backslash, n, b
+        }
+        case "substring picks out the raw backslash pair": {
+            string s = "x\ty"
+            string mid = str.substring(s, 1, 3)
+            assert.assertEqI(str.len(mid), 2, 511)
+        }
+    }
+}

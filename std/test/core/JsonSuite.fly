@@ -1,0 +1,611 @@
+import fly.json
+import fly.str
+import fly.mem
+import fly.assert
+
+// dq — a one-byte string holding a double quote (34). Fly string literals keep
+// escapes RAW, so a `"` cannot come from a literal; build it byte-wise. Same
+// trick as StrSuite's asciiChar.
+string dq() {
+    pointer buf = mem.alloc(1)
+    mem.writeByte(buf, 0, 34)
+    str.fromBytes(buf, 1, out)
+}
+
+// mkJson — turn a `|`-placeholder template into real JSON by replacing every
+// `|` with a double quote, so a case can spell a payload readably.
+string mkJson(const string tpl) {
+    out = str.replace(tpl, "|", dq())
+}
+
+// byteOf — the i-th byte of s as an int (byte widens to int by zero extension).
+int byteOf(const string s, const int i) {
+    byte b = 0
+    str.byteAt(s, i, b)
+    out = b & 255
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// JsonSuite — fly.json (std/lib/json.fly): the reader, the escape decoder and
+// the writer. Promoted from the compiler's private fly.driver.json, which was
+// parse-only and rejected every escape beyond \" \\ \/ — the 5xx band is the
+// coverage that promotion bought, and the 6xx/7xx bands cover the new writer.
+//
+// A value is an OPAQUE `pointer` handle, deliberately: see the header comment in
+// std/lib/json.fly for why a class would not survive the .fly.h boundary.
+// kind(0) is -1, so a "missing" lookup answers every predicate with false.
+//
+// Numbers keep their raw literal text (std has no string→double), hence
+// asNumber() is pinned at 0.0 and asInt() parses the integral part. That is the
+// documented contract, not an oversight.
+//
+// Assert codes: 1xx scalars/kinds, 2xx arrays, 3xx objects, 4xx parse errors,
+// 5xx escapes on read, 6xx escapes on write, 7xx writer and round-trip.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite JsonSuite {
+
+    // ── kinds and scalar accessors ───────────────────────────────────────────
+    void scalarTest() {
+        case "null parses to the null kind": {
+            int e = 0
+            pointer v = json.parse("null", e)
+            assert.assertEqI(e, 0, 101)
+            assert.assertEqI(json.kind(v), 0, 102)
+            assert.assertTrue(json.isNull(v), 103)
+            assert.assertFalse(json.isBool(v), 104)
+            json.freeValue(v)
+        }
+        case "true and false parse to bools": {
+            int e1 = 0
+            pointer t = json.parse("true", e1)
+            assert.assertEqI(e1, 0, 105)
+            assert.assertTrue(json.isBool(t), 106)
+            assert.assertTrue(json.asBool(t), 107)
+            json.freeValue(t)
+
+            int e2 = 0
+            pointer f = json.parse("false", e2)
+            assert.assertEqI(e2, 0, 108)
+            assert.assertFalse(json.asBool(f), 109)
+            json.freeValue(f)
+        }
+        case "an integer keeps its literal and reads back with asInt": {
+            int e = 0
+            pointer v = json.parse("42", e)
+            assert.assertEqI(e, 0, 110)
+            assert.assertTrue(json.isNumber(v), 111)
+            assert.assertEqI(json.asInt(v), 42, 112)
+            assert.assertStr(json.asString(v), "42", 113)
+            json.freeValue(v)
+        }
+        case "a negative integer and a fraction": {
+            int e1 = 0
+            pointer n = json.parse("-7", e1)
+            assert.assertEqI(json.asInt(n), 0 - 7, 114)
+            json.freeValue(n)
+
+            int e2 = 0
+            pointer f = json.parse("3.5", e2)
+            assert.assertStr(json.asString(f), "3.5", 115)
+            // asInt stops at the '.', so it yields the integral part.
+            assert.assertEqI(json.asInt(f), 3, 116)
+            json.freeValue(f)
+        }
+        case "an exponent form is consumed whole": {
+            int e = 0
+            pointer v = json.parse("1e10", e)
+            assert.assertEqI(e, 0, 117)
+            assert.assertStr(json.asString(v), "1e10", 118)
+            json.freeValue(v)
+        }
+        case "asNumber is pinned at 0.0 — std has no string to double": {
+            int e = 0
+            pointer v = json.parse("42", e)
+            assert.assertApprox(json.asNumber(v), 0.0, 119)
+            json.freeValue(v)
+        }
+        case "a string parses to the string kind": {
+            int e = 0
+            pointer v = json.parse(mkJson("|hi|"), e)
+            assert.assertEqI(e, 0, 120)
+            assert.assertTrue(json.isString(v), 121)
+            assert.assertStr(json.asString(v), "hi", 122)
+            json.freeValue(v)
+        }
+        case "an empty string value": {
+            int e = 0
+            pointer v = json.parse(mkJson("||"), e)
+            assert.assertEqI(e, 0, 123)
+            assert.assertTrue(json.isString(v), 124)
+            assert.assertEmpty(json.asString(v), 125)
+            json.freeValue(v)
+        }
+        case "a null handle answers every predicate safely": {
+            assert.assertEqI(json.kind(0), 0 - 1, 126)
+            assert.assertFalse(json.isNull(0), 127)
+            assert.assertFalse(json.isArray(0), 128)
+            assert.assertFalse(json.asBool(0), 129)
+            assert.assertEmpty(json.asString(0), 130)
+            assert.assertEqI(json.asInt(0), 0, 131)
+            assert.assertEqI(json.size(0), 0, 132)
+            json.freeValue(0)
+        }
+        case "accessors of the wrong kind return the neutral value": {
+            int e = 0
+            pointer v = json.parse(mkJson("|text|"), e)
+            assert.assertEqI(json.asInt(v), 0, 133)
+            assert.assertFalse(json.asBool(v), 134)
+            assert.assertEqI(json.size(v), 0, 135)
+            assert.assertEqI(json.keyCount(v), 0, 136)
+            json.freeValue(v)
+        }
+        case "leading whitespace is skipped": {
+            int e = 0
+            pointer v = json.parse("   true", e)
+            assert.assertEqI(e, 0, 137)
+            assert.assertTrue(json.asBool(v), 138)
+            json.freeValue(v)
+        }
+    }
+
+    // ── arrays ───────────────────────────────────────────────────────────────
+    void arrayTest() {
+        case "a flat array of numbers": {
+            int e = 0
+            pointer v = json.parse("[1,2,3]", e)
+            assert.assertEqI(e, 0, 201)
+            assert.assertTrue(json.isArray(v), 202)
+            assert.assertEqI(json.size(v), 3, 203)
+            assert.assertEqI(json.asInt(json.at(v, 0)), 1, 204)
+            assert.assertEqI(json.asInt(json.at(v, 2)), 3, 205)
+            json.freeValue(v)
+        }
+        case "an empty array": {
+            int e = 0
+            pointer v = json.parse("[]", e)
+            assert.assertEqI(e, 0, 206)
+            assert.assertTrue(json.isArray(v), 207)
+            assert.assertEqI(json.size(v), 0, 208)
+            json.freeValue(v)
+        }
+        case "an out-of-range index yields a null handle": {
+            int e = 0
+            pointer v = json.parse("[1]", e)
+            assert.assertNull(json.at(v, 1), 209)
+            assert.assertNull(json.at(v, 0 - 1), 210)
+            json.freeValue(v)
+        }
+        case "whitespace between elements": {
+            int e = 0
+            pointer v = json.parse("[ 1 , 2 ]", e)
+            assert.assertEqI(e, 0, 211)
+            assert.assertEqI(json.size(v), 2, 212)
+            assert.assertEqI(json.asInt(json.at(v, 1)), 2, 213)
+            json.freeValue(v)
+        }
+        case "nested arrays": {
+            int e = 0
+            pointer v = json.parse("[[1],[2,3]]", e)
+            assert.assertEqI(e, 0, 214)
+            assert.assertEqI(json.size(v), 2, 215)
+            pointer inner = json.at(v, 1)
+            assert.assertTrue(json.isArray(inner), 216)
+            assert.assertEqI(json.size(inner), 2, 217)
+            assert.assertEqI(json.asInt(json.at(inner, 1)), 3, 218)
+            json.freeValue(v)
+        }
+        case "an array of strings — the registry version-list shape": {
+            int e = 0
+            pointer v = json.parse(mkJson("[|0.1.0|,|0.2.0|]"), e)
+            assert.assertEqI(e, 0, 219)
+            assert.assertEqI(json.size(v), 2, 220)
+            assert.assertTrue(json.isString(json.at(v, 0)), 221)
+            assert.assertStr(json.asString(json.at(v, 1)), "0.2.0", 222)
+            json.freeValue(v)
+        }
+        case "an array growing past its initial capacity of 4": {
+            int e = 0
+            pointer v = json.parse("[0,1,2,3,4,5,6,7,8,9]", e)
+            assert.assertEqI(e, 0, 223)
+            assert.assertEqI(json.size(v), 10, 224)
+            assert.assertEqI(json.asInt(json.at(v, 9)), 9, 225)
+            json.freeValue(v)
+        }
+    }
+
+    // ── objects ──────────────────────────────────────────────────────────────
+    void objectTest() {
+        case "an object exposes its members by key and by position": {
+            int e = 0
+            pointer v = json.parse(mkJson("{|a|:1,|b|:|x|}"), e)
+            assert.assertEqI(e, 0, 301)
+            assert.assertTrue(json.isObject(v), 302)
+            assert.assertEqI(json.keyCount(v), 2, 303)
+            assert.assertStr(json.keyAt(v, 0), "a", 304)
+            assert.assertStr(json.keyAt(v, 1), "b", 305)
+            assert.assertTrue(json.has(v, "a"), 306)
+            assert.assertEqI(json.asInt(json.get(v, "a")), 1, 307)
+            assert.assertStr(json.asString(json.get(v, "b")), "x", 308)
+            json.freeValue(v)
+        }
+        case "an absent key": {
+            int e = 0
+            pointer v = json.parse(mkJson("{|a|:1}"), e)
+            assert.assertFalse(json.has(v, "zz"), 309)
+            assert.assertNull(json.get(v, "zz"), 310)
+            assert.assertEmpty(json.keyAt(v, 5), 311)
+            json.freeValue(v)
+        }
+        case "an empty object": {
+            int e = 0
+            pointer v = json.parse("{}", e)
+            assert.assertEqI(e, 0, 312)
+            assert.assertTrue(json.isObject(v), 313)
+            assert.assertEqI(json.keyCount(v), 0, 314)
+            json.freeValue(v)
+        }
+        case "a duplicate key replaces the value and keeps its position": {
+            int e = 0
+            pointer v = json.parse(mkJson("{|a|:1,|b|:2,|a|:9}"), e)
+            assert.assertEqI(e, 0, 315)
+            assert.assertEqI(json.keyCount(v), 2, 316)
+            assert.assertStr(json.keyAt(v, 0), "a", 317)
+            assert.assertEqI(json.asInt(json.get(v, "a")), 9, 318)
+            json.freeValue(v)
+        }
+        case "nested objects and arrays": {
+            int e = 0
+            pointer v = json.parse(mkJson("{|o|:{|k|:true},|a|:[1,2]}"), e)
+            assert.assertEqI(e, 0, 319)
+            pointer o = json.get(v, "o")
+            assert.assertTrue(json.isObject(o), 320)
+            assert.assertTrue(json.asBool(json.get(o, "k")), 321)
+            pointer a = json.get(v, "a")
+            assert.assertEqI(json.size(a), 2, 322)
+            json.freeValue(v)
+        }
+        case "an object growing past its initial capacity of 4": {
+            int e = 0
+            pointer v = json.parse(mkJson("{|a|:1,|b|:2,|c|:3,|d|:4,|e|:5,|f|:6}"), e)
+            assert.assertEqI(e, 0, 323)
+            assert.assertEqI(json.keyCount(v), 6, 324)
+            assert.assertStr(json.keyAt(v, 5), "f", 325)
+            assert.assertEqI(json.asInt(json.get(v, "f")), 6, 326)
+            json.freeValue(v)
+        }
+    }
+
+    // ── parse errors (the 30x band) ──────────────────────────────────────────
+    void parseErrorTest() {
+        case "a truncated literal is 301": {
+            int e = 0
+            pointer v = json.parse("tru", e)
+            assert.assertEqI(e, 301, 401)
+            json.freeValue(v)
+        }
+        case "an unexpected byte is 302": {
+            int e = 0
+            pointer v = json.parse("@", e)
+            assert.assertEqI(e, 302, 402)
+            json.freeValue(v)
+        }
+        case "an unterminated string is 303": {
+            int e = 0
+            pointer v = json.parse(mkJson("|abc"), e)
+            assert.assertEqI(e, 303, 403)
+            json.freeValue(v)
+        }
+        case "an unknown escape is 304": {
+            int e = 0
+            pointer v = json.parse(mkJson("|a\qb|"), e)
+            assert.assertEqI(e, 304, 404)
+            json.freeValue(v)
+        }
+        case "a missing comma in an array is 305": {
+            int e = 0
+            pointer v = json.parse("[1 2]", e)
+            assert.assertEqI(e, 305, 405)
+            json.freeValue(v)
+        }
+        case "a non-string object key is 306": {
+            int e = 0
+            pointer v = json.parse("{1:2}", e)
+            assert.assertEqI(e, 306, 406)
+            json.freeValue(v)
+        }
+        case "a missing colon is 307": {
+            int e = 0
+            pointer v = json.parse(mkJson("{|a| 1}"), e)
+            assert.assertEqI(e, 307, 407)
+            json.freeValue(v)
+        }
+        case "a missing comma between members is 308": {
+            int e = 0
+            pointer v = json.parse(mkJson("{|a|:1 |b|:2}"), e)
+            assert.assertEqI(e, 308, 408)
+            json.freeValue(v)
+        }
+        case "a short unicode escape is 309": {
+            int e = 0
+            pointer v = json.parse(mkJson("|\u12|"), e)
+            assert.assertEqI(e, 309, 409)
+            json.freeValue(v)
+        }
+        case "a non-hex unicode escape is 309": {
+            int e = 0
+            pointer v = json.parse(mkJson("|\u12zz|"), e)
+            assert.assertEqI(e, 309, 410)
+            json.freeValue(v)
+        }
+        case "a lone high surrogate is 310": {
+            int e = 0
+            pointer v = json.parse(mkJson("|\ud83d|"), e)
+            assert.assertEqI(e, 310, 411)
+            json.freeValue(v)
+        }
+        case "a lone low surrogate is 310": {
+            int e = 0
+            pointer v = json.parse(mkJson("|\ude00|"), e)
+            assert.assertEqI(e, 310, 412)
+            json.freeValue(v)
+        }
+        case "a well-formed document reports no error": {
+            int e = 0
+            pointer v = json.parse(mkJson("{|a|:[1,null,true]}"), e)
+            assert.assertEqI(e, 0, 413)
+            json.freeValue(v)
+        }
+    }
+
+    // ── escape decoding on read ──────────────────────────────────────────────
+    void escapeReadTest() {
+        case "the two-character escapes decode to their control bytes": {
+            int e = 0
+            pointer v = json.parse(mkJson("|a\nb|"), e)
+            assert.assertEqI(e, 0, 501)
+            string s = json.asString(v)
+            assert.assertEqI(str.len(s), 3, 502)
+            assert.assertEqI(byteOf(s, 1), 10, 503)
+            json.freeValue(v)
+        }
+        case "tab, backspace, formfeed and carriage return": {
+            int e = 0
+            pointer v = json.parse(mkJson("|\t\b\f\r|"), e)
+            assert.assertEqI(e, 0, 504)
+            string s = json.asString(v)
+            assert.assertEqI(str.len(s), 4, 505)
+            assert.assertEqI(byteOf(s, 0), 9, 506)
+            assert.assertEqI(byteOf(s, 1), 8, 507)
+            assert.assertEqI(byteOf(s, 2), 12, 508)
+            assert.assertEqI(byteOf(s, 3), 13, 509)
+            json.freeValue(v)
+        }
+        case "quote, backslash and solidus": {
+            int e = 0
+            pointer v = json.parse(mkJson("|\|\\\/|"), e)
+            assert.assertEqI(e, 0, 510)
+            string s = json.asString(v)
+            assert.assertEqI(str.len(s), 3, 511)
+            assert.assertEqI(byteOf(s, 0), 34, 512)
+            assert.assertEqI(byteOf(s, 1), 92, 513)
+            assert.assertEqI(byteOf(s, 2), 47, 514)
+            json.freeValue(v)
+        }
+        case "an ASCII code point via \u is one byte": {
+            int e = 0
+            pointer v = json.parse(mkJson("|\u0041|"), e)
+            assert.assertEqI(e, 0, 515)
+            assert.assertStr(json.asString(v), "A", 516)
+            json.freeValue(v)
+        }
+        case "a Latin-1 code point becomes two UTF-8 bytes": {
+            int e = 0
+            pointer v = json.parse(mkJson("|\u00e9|"), e)
+            assert.assertEqI(e, 0, 517)
+            string s = json.asString(v)
+            assert.assertEqI(str.len(s), 2, 518)
+            assert.assertEqI(byteOf(s, 0), 195, 519)
+            assert.assertEqI(byteOf(s, 1), 169, 520)
+            json.freeValue(v)
+        }
+        case "a BMP code point becomes three UTF-8 bytes": {
+            int e = 0
+            pointer v = json.parse(mkJson("|\u20ac|"), e)
+            assert.assertEqI(e, 0, 521)
+            string s = json.asString(v)
+            assert.assertEqI(str.len(s), 3, 522)
+            assert.assertEqI(byteOf(s, 0), 226, 523)
+            assert.assertEqI(byteOf(s, 1), 130, 524)
+            assert.assertEqI(byteOf(s, 2), 172, 525)
+            json.freeValue(v)
+        }
+        case "a surrogate pair becomes four UTF-8 bytes": {
+            int e = 0
+            pointer v = json.parse(mkJson("|\ud83d\ude00|"), e)
+            assert.assertEqI(e, 0, 526)
+            string s = json.asString(v)
+            assert.assertEqI(str.len(s), 4, 527)
+            assert.assertEqI(byteOf(s, 0), 240, 528)
+            assert.assertEqI(byteOf(s, 1), 159, 529)
+            assert.assertEqI(byteOf(s, 2), 152, 530)
+            assert.assertEqI(byteOf(s, 3), 128, 531)
+            json.freeValue(v)
+        }
+        case "an escaped object key decodes too": {
+            int e = 0
+            pointer v = json.parse(mkJson("{|a\tb|:1}"), e)
+            assert.assertEqI(e, 0, 532)
+            string k = json.keyAt(v, 0)
+            assert.assertEqI(str.len(k), 3, 533)
+            assert.assertEqI(byteOf(k, 1), 9, 534)
+            json.freeValue(v)
+        }
+        case "unescape decodes a bare body and reports its own errors": {
+            int e1 = 0
+            string ok = json.unescape(mkJson("x\ny"), e1)
+            assert.assertEqI(e1, 0, 535)
+            assert.assertEqI(byteOf(ok, 1), 10, 536)
+
+            int e2 = 0
+            string bad = json.unescape(mkJson("x\qy"), e2)
+            assert.assertEqI(e2, 304, 537)
+            assert.assertNotEmpty(bad, 538)
+        }
+    }
+
+    // ── escaping on write ────────────────────────────────────────────────────
+    void escapeWriteTest() {
+        case "a quote and a backslash are escaped": {
+            string src = mkJson("a|b")
+            string esc = json.escape(src)
+            assert.assertEqI(str.len(esc), 4, 601)
+            assert.assertEqI(byteOf(esc, 1), 92, 602)
+            assert.assertEqI(byteOf(esc, 2), 34, 603)
+        }
+        case "the named control escapes come back as two characters": {
+            int e = 0
+            pointer v = json.parse(mkJson("|\n\t|"), e)
+            string raw = json.asString(v)
+            string esc = json.escape(raw)
+            assert.assertEqI(str.len(esc), 4, 604)
+            assert.assertEqI(byteOf(esc, 0), 92, 605)
+            assert.assertEqI(byteOf(esc, 1), 110, 606)
+            assert.assertEqI(byteOf(esc, 3), 116, 607)
+            json.freeValue(v)
+        }
+        case "an unnamed control byte becomes \u00XX": {
+            int e = 0
+            pointer v = json.parse(mkJson("|\u0001|"), e)
+            string esc = json.escape(json.asString(v))
+            assert.assertStr(esc, "\u0001", 608)
+            json.freeValue(v)
+        }
+        case "bytes above 0x7f pass through — the input is already UTF-8": {
+            int e = 0
+            pointer v = json.parse(mkJson("|\u00e9|"), e)
+            string esc = json.escape(json.asString(v))
+            assert.assertEqI(str.len(esc), 2, 609)
+            assert.assertEqI(byteOf(esc, 0), 195, 610)
+            json.freeValue(v)
+        }
+        case "escaping an empty string": {
+            assert.assertEmpty(json.escape(""), 611)
+        }
+        case "escape and unescape round-trip": {
+            int e0 = 0
+            pointer v = json.parse(mkJson("|a\nb\|c|"), e0)
+            string raw = json.asString(v)
+            int e1 = 0
+            string back = json.unescape(json.escape(raw), e1)
+            assert.assertEqI(e1, 0, 612)
+            assert.assertStr(back, raw, 613)
+            json.freeValue(v)
+        }
+    }
+
+    // ── the writer ───────────────────────────────────────────────────────────
+    void writeTest() {
+        case "scalars serialize": {
+            pointer n = json.newInt(5)
+            assert.assertStr(json.write(n), "5", 701)
+            json.freeValue(n)
+
+            pointer b = json.newBool(true)
+            assert.assertStr(json.write(b), "true", 702)
+            json.freeValue(b)
+
+            pointer f = json.newBool(false)
+            assert.assertStr(json.write(f), "false", 703)
+            json.freeValue(f)
+
+            pointer z = json.newNull()
+            assert.assertStr(json.write(z), "null", 704)
+            json.freeValue(z)
+        }
+        case "a null handle writes null": {
+            assert.assertStr(json.write(0), "null", 705)
+        }
+        case "a string is quoted and escaped": {
+            pointer s = json.newString(mkJson("a|b"))
+            assert.assertStr(json.write(s), mkJson("|a\|b|"), 706)
+            json.freeValue(s)
+        }
+        case "an array of numbers": {
+            pointer a = json.newArray()
+            json.add(a, json.newInt(1))
+            json.add(a, json.newInt(2))
+            assert.assertStr(json.write(a), "[1,2]", 707)
+            assert.assertEqI(json.size(a), 2, 708)
+            json.freeValue(a)
+        }
+        case "an empty array and an empty object": {
+            pointer a = json.newArray()
+            assert.assertStr(json.write(a), "[]", 709)
+            json.freeValue(a)
+
+            pointer o = json.newObject()
+            assert.assertStr(json.write(o), "{}", 710)
+            json.freeValue(o)
+        }
+        case "an object writes its members in insertion order": {
+            pointer o = json.newObject()
+            json.put(o, "a", json.newInt(1))
+            json.put(o, "b", json.newString("x"))
+            assert.assertStr(json.write(o), mkJson("{|a|:1,|b|:|x|}"), 711)
+            json.freeValue(o)
+        }
+        case "put replaces a value in place": {
+            pointer o = json.newObject()
+            json.put(o, "a", json.newInt(1))
+            json.put(o, "b", json.newInt(2))
+            json.put(o, "a", json.newInt(9))
+            assert.assertEqI(json.keyCount(o), 2, 712)
+            assert.assertStr(json.write(o), mkJson("{|a|:9,|b|:2}"), 713)
+            json.freeValue(o)
+        }
+        case "add and put on the wrong kind are no-ops": {
+            pointer n = json.newInt(1)
+            json.add(n, json.newInt(2))
+            json.put(n, "k", json.newInt(3))
+            assert.assertStr(json.write(n), "1", 714)
+            json.freeValue(n)
+        }
+        case "nested containers": {
+            pointer root = json.newObject()
+            pointer arr = json.newArray()
+            json.add(arr, json.newInt(1))
+            json.put(root, "xs", arr)
+            assert.assertStr(json.write(root), mkJson("{|xs|:[1]}"), 715)
+            json.freeValue(root)
+        }
+        case "writePretty adds newlines and indentation": {
+            pointer a = json.newArray()
+            json.add(a, json.newInt(1))
+            string p = json.writePretty(a, 2)
+            assert.assertEqI(byteOf(p, 0), 91, 716)
+            assert.assertEqI(byteOf(p, 1), 10, 717)
+            assert.assertEqI(byteOf(p, 2), 32, 718)
+            assert.assertEqI(byteOf(p, 4), 49, 719)
+            // indent <= 0 is exactly the compact form
+            assert.assertStr(json.writePretty(a, 0), "[1]", 720)
+            json.freeValue(a)
+        }
+        case "parse then write round-trips a document": {
+            string doc = mkJson("{|name|:|fly|,|vers|:[|0.1.0|,|0.2.0|],|ok|:true,|n|:null}")
+            int e = 0
+            pointer v = json.parse(doc, e)
+            assert.assertEqI(e, 0, 721)
+            assert.assertStr(json.write(v), doc, 722)
+            json.freeValue(v)
+        }
+        case "a control byte survives the parse and write round-trip": {
+            string doc = mkJson("{|k|:|a\nb|}")
+            int e = 0
+            pointer v = json.parse(doc, e)
+            assert.assertEqI(e, 0, 723)
+            assert.assertStr(json.write(v), doc, 724)
+            json.freeValue(v)
+        }
+    }
+}

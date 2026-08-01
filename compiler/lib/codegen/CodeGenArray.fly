@@ -5,6 +5,8 @@ import fly.compiler.ast.*
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenModule
 import fly.compiler.codegen.CodeGenLLVM
+import fly.compiler.codegen.CodeGenClass
+import fly.compiler.codegen.CodeGenError
 import llvm.api.*
 import fly.data.List
 
@@ -37,7 +39,7 @@ public class CodeGenArray {
         pointer ptrTy = cge.ptrType()
 
         SemaArrayType at = node.getType().asArray()
-        pointer elemLL = cge.lowerType(at.getElementType())
+        pointer elemLL = CodeGenArray.elementLlvmType(cge, at.getElementType())
         List<SemaExpr> vals = node.getValues()
         int n = (int)vals.size()
 
@@ -53,7 +55,7 @@ public class CodeGenArray {
             llvm.constInt(i64t, (long)n, false, nConst)
             pointer total
             llvm.buildMul(b, nConst, elemSz, "arrbytes", total)
-            dataPtr = cgm.emitMalloc(total)
+            dataPtr = cgm.emitRCBufferAlloc(total)
             int i = 0
             while i < n {
                 SemaExpr el = vals.get(i)
@@ -80,17 +82,518 @@ public class CodeGenArray {
         node.setLlvmValue(sv)
     }
 
-    // storeDefault — an array local with no initializer. Emits {null,0} for both
-    // `T[]` and `T[N]`. (A sized `T[N]` that mallocs N zero-initialised elements is
-    // a follow-up; an empty array is memory-safe — for-in over it iterates zero
-    // times and nothing dereferences the null data without a prior store.)
+    // storeDefault — an array local with no initializer.
+    //
+    // `T[N]` means N ZERO-INITIALISED elements (B048 rule 1): malloc N*sizeof(T),
+    // memset it and store {data, N}, so a for-in runs N times. This used to emit
+    // {null, 0} for every shape, which made `int[3] k` an EMPTY array — the
+    // reference iterated it 3 times and the self-host 0, a silent divergence in
+    // perfectly ordinary code.
+    // `T[0]` keeps the {null, 0} form: zero elements needs no buffer, and it is the
+    // natural limit case (B048 rule 3).
+    // `T[]` with no initializer is rejected in Sema (B048 rule 2); the {null, 0}
+    // fallback below just keeps codegen total if one ever reaches here.
     public static void storeDefault(const CodeGenExpr cge, const pointer alloca, const SemaArrayType at) {
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        pointer ctx = cgm.getCtx()
         pointer arrTy = cge.lowerType(at)
+        pointer i64t
+        llvm.int64TypeInContext(ctx, i64t)
+
         pointer zero
         llvm.constNull(arrTy, zero)
-        llvm.buildStore(b, zero, alloca)
+
+        SemaExpr se = at.getSizeExpr()
+        if se == null {
+            // `T[]` with no initializer — rejected in Sema; {null, 0} keeps codegen
+            // total if one ever gets here.
+            llvm.buildStore(b, zero, alloca)
+            return
+        }
+        // NOTE `T[0]` is NOT special-cased into the {null, 0} form. Detecting a
+        // literal zero here would need a narrowing virtual on SemaExpr, and this
+        // codebase documents that adding one MIS-DISPATCHES under the bootstrap
+        // (the vtable-shift gotcha next to isVarExpr, probed 2026-07-04). Allocating
+        // zero bytes is observably the same empty array — len is 0, so a for-in runs
+        // zero times — it just differs from the reference in IR shape, not meaning.
+
+        // The length literal resolves as `int` (i32) but the fat pointer's len field
+        // and the byte-count arithmetic are both i64 — widen before either is used,
+        // or the multiply and the insertvalue get mismatched operand types.
+        pointer lenV = cge.gen(se)
+        lenV = cge.coerce(lenV, se.getType(), SemaBuiltin.getLongType())
+        pointer elemLL = CodeGenArray.elementLlvmType(cge, at.getElementType())
+        pointer elemSz
+        llvm.sizeOf(elemLL, elemSz)
+        pointer total
+        llvm.buildMul(b, lenV, elemSz, "arrbytes", total)
+        // emitRCBufferAlloc zeroes the WHOLE block, header included, so the explicit
+        // memset that used to stand here is now redundant — the elements are still
+        // observable before anything stores to them (a for-in reads all N straight
+        // away), the zeroing has simply moved into the allocator.
+        pointer dataPtr = cgm.emitRCBufferAlloc(total)
+
+        // An array of CLASSES is born FULL: one `new C()` per index, built with the
+        // no-argument constructor. The buffer alone would be a row of nulls and the
+        // first method call on an element would dereference one.
+        //
+        // The instances belong to the PROGRAM, not to the array: releasing the
+        // array drops the pointer buffer and never touches them (docs §6.6 — an
+        // object is freed by whoever is responsible for it). The preallocation is a
+        // convenience of construction, not a transfer of responsibility.
+        SemaType elemT = at.getElementType()
+        SemaClassType elemCls = null
+        if elemT != null { elemCls = elemT.asClass() }
+        if elemCls != null {
+            if elemCls.getClassKind() != SemaClassKind.STRUCT {
+                CodeGenArray.fillWithInstances(cge, dataPtr, lenV, elemCls)
+            }
+        }
+
+        pointer s1
+        llvm.buildInsertValue(b, zero, dataPtr, 0, "arr.d", s1)
+        pointer sv
+        llvm.buildInsertValue(b, s1, lenV, 1, "arr.l", sv)
+        llvm.buildStore(b, sv, alloca)
+    }
+
+    // slotOf — the ADDRESS of the %array fat pointer behind an array-typed
+    // expression. A variable-like expression (local, param, attribute, instance
+    // var) or a class field (`obj.rows`) has real storage, so its address is taken
+    // directly. Anything else — a call result, an array literal — is a VALUE with
+    // no home: it is materialised into a stack slot and that slot's address comes
+    // back instead.
+    //
+    // The fallback is not a nicety. `genAddr` on a call or a literal hands back the
+    // rvalue itself, and every consumer here uses the result as a POINTER, so
+    // `for x in f()` and `for x in {1,2,3}` built `getelementptr %array, %array`
+    // and the module failed verification. One helper closes that and gives the
+    // subscript a correct base for every shape of expression.
+    //
+    // The alloca is hoisted into the entry block by LLVM.buildAlloca, so a call in
+    // a loop reuses one slot; the store stays here, where the value is computed.
+    public static pointer slotOf(const CodeGenExpr cge, const SemaExpr e) {
+        if e.isVarExpr() { out = cge.genAddr(e)  return }
+        if e.getKind() == SemaKind.MEMBER { out = cge.genAddr(e)  return }
+        // A ROW of a nested array (`m[1]` in `m[1][2]`) is an inline %array inside
+        // the outer buffer, and arrayAccess already hands back its ADDRESS — that
+        // address IS the slot. Materialising it like a value stored the pointer
+        // into field 0 of a fresh %array and left field 1 undefined, so the outer
+        // subscript then indexed from the row's own struct: `m[1][2]` read the low
+        // half of its len field and returned 3 instead of 5.
+        if e.getKind() == SemaKind.ARRAY_ACCESS {
+            SemaType aet = e.getType()
+            if aet != null {
+                if aet.isArray() { out = cge.gen(e)  return }
+            }
+        }
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        pointer v = cge.gen(e)
+        pointer ty = cge.lowerType(e.getType())
+        pointer slot
+        llvm.buildAlloca(b, ty, "arr.tmp", slot)
+        llvm.buildStore(b, v, slot)
+        out = slot
+    }
+
+    // elementLlvmType — the LLVM type ONE element occupies inside the buffer.
+    //
+    // A STRUCT is stored INLINE, a CLASS or INTERFACE as a pointer, everything
+    // else as its own lowered type. That is exactly the rule CodeGenClass already
+    // applies to object FIELDS, so this delegates to it rather than restating it —
+    // an array element and a field are the same question ("how does this value sit
+    // inside a container?") and must not be allowed to drift apart.
+    //
+    // Before this, arrays went through the generic lowerType, which sends every
+    // class-shaped type — STRUCT included — to an opaque pointer. So `Pt[2] ps`
+    // was a buffer of pointers to nothing while `%Holder = { ptr, %Pt }` laid the
+    // same struct inline: the tree disagreed with itself, and struct arrays were
+    // unusable.
+    public static pointer elementLlvmType(const CodeGenExpr cge, const SemaType elemType) {
+        out = CodeGenClass.fieldLlvmType(cge.getCgm(), elemType)
+    }
+
+    // fillWithInstances — store one freshly built `new C()` in every slot of a
+    // class-element buffer. A counted loop rather than N unrolled copies: the
+    // length can be a runtime value, and even a constant one should not inline the
+    // whole construction sequence per index.
+    public static void fillWithInstances(const CodeGenExpr cge, const pointer dataPtr, const pointer lenV, const SemaClassType cls) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        CodeGenLLVM cg = cgm.getCg()
+        pointer ctx = cgm.getCtx()
+        pointer i64t
+        llvm.int64TypeInContext(ctx, i64t)
+        pointer ptrTy = cge.ptrType()
+
+        pointer idxA
+        llvm.buildAlloca(b, i64t, "anew.idx", idxA)
+        pointer zero64
+        llvm.constInt(i64t, 0, false, zero64)
+        llvm.buildStore(b, zero64, idxA)
+
+        pointer condBB = cge.newBlock("anew.cond")
+        pointer bodyBB = cge.newBlock("anew.body")
+        pointer endBB = cge.newBlock("anew.end")
+        cge.br(condBB)
+
+        cge.position(condBB)
+        pointer iCur
+        llvm.buildLoad2(b, i64t, idxA, "anew.i", iCur)
+        pointer cmp
+        llvm.buildICmp(b, 40, iCur, lenV, "anew.cmp", cmp)   // 40 = LLVMIntSLT
+        pointer cbr
+        llvm.buildCondBr(b, cmp, bodyBB, endBB, cbr)
+        cge.setTerminated(true)
+
+        cge.position(bodyBB)
+        pointer iBody
+        llvm.buildLoad2(b, i64t, idxA, "anew.ib", iBody)
+        pointer obj = CodeGenClass.emitDefaultInstance(cge, cls)
+        if obj != 0 {
+            List<pointer> gi = new List<pointer>()
+            gi.add(iBody)
+            pointer slot
+            cg.buildGEP2N(b, ptrTy, dataPtr, gi, "anew.slot", slot)
+            llvm.buildStore(b, obj, slot)
+        }
+        pointer one
+        llvm.constInt(i64t, 1, false, one)
+        pointer iNext
+        llvm.buildAdd(b, iBody, one, "anew.in", iNext)
+        llvm.buildStore(b, iNext, idxA)
+        cge.br(condBB)
+
+        cge.position(endBB)
+    }
+
+    // emitRetain — take one more reference to a buffer, given its DATA pointer.
+    //
+    // NULL-GUARDED, and not defensively: an array slot legitimately holds null.
+    // `int[0]` and a runtime size of zero both produce {null, 0}, and binding one
+    // of those to a second name is perfectly legal — without the guard the header
+    // read at -8 would dereference null.
+    public static void emitRetain(const CodeGenExpr cge, const pointer dataPtr) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        CodeGenLLVM cg = cgm.getCg()
+        pointer ctx = cgm.getCtx()
+        pointer i64t
+        llvm.int64TypeInContext(ctx, i64t)
+        pointer i8t
+        llvm.int8TypeInContext(ctx, i8t)
+        pointer ptrTy = cge.ptrType()
+
+        pointer nullp
+        llvm.constNull(ptrTy, nullp)
+        pointer isNull
+        llvm.buildICmp(b, 32, dataPtr, nullp, "aret.null", isNull)   // 32 = LLVMIntEQ
+        pointer liveBB = cge.newBlock("aret.live")
+        pointer doneBB = cge.newBlock("aret.done")
+        pointer cbr
+        llvm.buildCondBr(b, isNull, doneBB, liveBB, cbr)
+        cge.setTerminated(true)
+
+        cge.position(liveBB)
+        pointer hdr = CodeGenArray.headerOf(cge, dataPtr, "aret.hdr")
+        pointer rc
+        llvm.buildLoad2(b, i64t, hdr, "aret.rc", rc)
+        pointer one
+        llvm.constInt(i64t, 1, false, one)
+        pointer rc1
+        llvm.buildAdd(b, rc, one, "aret.rc1", rc1)
+        llvm.buildStore(b, rc1, hdr)
+        cge.br(doneBB)
+
+        cge.position(doneBB)
+    }
+
+    // headerOf — the refcount word, 8 bytes BEFORE the data pointer. The only
+    // place the `-8` appears, mirroring the `+8` in emitRCBufferAlloc.
+    public static pointer headerOf(const CodeGenExpr cge, const pointer dataPtr, const string name) {
+        LLVM llvm = cge.getLLVM()
+        CodeGenModule cgm = cge.getCgm()
+        CodeGenLLVM cg = cgm.getCg()
+        pointer i64t
+        llvm.int64TypeInContext(cgm.getCtx(), i64t)
+        pointer i8t
+        llvm.int8TypeInContext(cgm.getCtx(), i8t)
+        pointer neg8
+        llvm.constInt(i64t, -8, true, neg8)
+        List<pointer> gi = new List<pointer>()
+        gi.add(neg8)
+        pointer hdr
+        cg.buildGEP2N(cge.getBuilder(), i8t, dataPtr, gi, name, hdr)
+        out = hdr
+    }
+
+    // emitRelease — drop one reference to the buffer held in an %array SLOT, and
+    // free the block when the count reaches zero.
+    //
+    // Null-guarded for the same reason as the retain, plus one more: scope cleanup
+    // walks every registered local, including one whose declaration an early exit
+    // never reached.
+    //
+    // When the ELEMENTS are themselves arrays the walk goes one level down BEFORE
+    // the outer buffer is freed — and only once the outer count has hit zero, or a
+    // second owner would release the inner buffers twice. That is not a hole in the
+    // ownership rule: an inner array is itself reference counted, so what it gets
+    // is a DECREMENT, not a free. The recursion is driven by the static element
+    // type, so `int[][][]` unrolls to exactly three levels at compile time.
+    public static void emitRelease(const CodeGenExpr cge, const pointer slot, const SemaArrayType at) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        pointer ctx = cgm.getCtx()
+        pointer i64t
+        llvm.int64TypeInContext(ctx, i64t)
+        pointer ptrTy = cge.ptrType()
+        pointer arrTy = cgm.getArrayTy()
+
+        pointer f0
+        llvm.buildStructGEP2(b, arrTy, slot, 0, "arel.data.p", f0)
+        pointer dataPtr
+        llvm.buildLoad2(b, ptrTy, f0, "arel.data", dataPtr)
+
+        pointer nullp
+        llvm.constNull(ptrTy, nullp)
+        pointer isNull
+        llvm.buildICmp(b, 32, dataPtr, nullp, "arel.null", isNull)   // 32 = LLVMIntEQ
+        pointer liveBB = cge.newBlock("arel.live")
+        pointer doneBB = cge.newBlock("arel.done")
+        pointer cbr
+        llvm.buildCondBr(b, isNull, doneBB, liveBB, cbr)
+        cge.setTerminated(true)
+
+        cge.position(liveBB)
+        pointer hdr = CodeGenArray.headerOf(cge, dataPtr, "arel.hdr")
+        pointer rc
+        llvm.buildLoad2(b, i64t, hdr, "arel.rc", rc)
+        pointer one
+        llvm.constInt(i64t, 1, false, one)
+        pointer rc1
+        llvm.buildSub(b, rc, one, "arel.rc1", rc1)
+        llvm.buildStore(b, rc1, hdr)
+        pointer zero64
+        llvm.constInt(i64t, 0, false, zero64)
+        pointer isZero
+        llvm.buildICmp(b, 32, rc1, zero64, "arel.zero", isZero)
+        pointer freeBB = cge.newBlock("arel.free")
+        pointer cbr2
+        llvm.buildCondBr(b, isZero, freeBB, doneBB, cbr2)
+        cge.setTerminated(true)
+
+        cge.position(freeBB)
+        SemaType elemT = at.getElementType()
+        SemaArrayType innerT = null
+        if elemT != null { innerT = elemT.asArray() }
+        if innerT != null {
+            CodeGenArray.releaseElements(cge, slot, dataPtr, innerT)
+        }
+        cgm.freeHandle(hdr)
+        cge.br(doneBB)
+
+        cge.position(doneBB)
+    }
+
+    // releaseElements — release every element of a NESTED array before its own
+    // buffer goes back. Each element is an inline %array, so its address is the
+    // slot emitRelease already knows how to take, and the recursion needs no
+    // special case.
+    public static void releaseElements(const CodeGenExpr cge, const pointer slot, const pointer dataPtr, const SemaArrayType innerT) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        CodeGenLLVM cg = cgm.getCg()
+        pointer ctx = cgm.getCtx()
+        pointer i64t
+        llvm.int64TypeInContext(ctx, i64t)
+        pointer arrTy = cgm.getArrayTy()
+
+        pointer f1
+        llvm.buildStructGEP2(b, arrTy, slot, 1, "arel.len.p", f1)
+        pointer lenV
+        llvm.buildLoad2(b, i64t, f1, "arel.len", lenV)
+
+        pointer idxA
+        llvm.buildAlloca(b, i64t, "arel.i", idxA)
+        pointer zero64
+        llvm.constInt(i64t, 0, false, zero64)
+        llvm.buildStore(b, zero64, idxA)
+
+        pointer condBB = cge.newBlock("arel.inner.cond")
+        pointer bodyBB = cge.newBlock("arel.inner.body")
+        pointer endBB = cge.newBlock("arel.inner.end")
+        cge.br(condBB)
+
+        cge.position(condBB)
+        pointer iCur
+        llvm.buildLoad2(b, i64t, idxA, "arel.ic", iCur)
+        pointer cmp
+        llvm.buildICmp(b, 40, iCur, lenV, "arel.icmp", cmp)   // 40 = LLVMIntSLT
+        pointer cbr
+        llvm.buildCondBr(b, cmp, bodyBB, endBB, cbr)
+        cge.setTerminated(true)
+
+        cge.position(bodyBB)
+        pointer iBody
+        llvm.buildLoad2(b, i64t, idxA, "arel.ib", iBody)
+        List<pointer> gi = new List<pointer>()
+        gi.add(iBody)
+        pointer elemSlot
+        cg.buildGEP2N(b, arrTy, dataPtr, gi, "arel.elem", elemSlot)
+        CodeGenArray.emitRelease(cge, elemSlot, innerT)
+        pointer one
+        llvm.constInt(i64t, 1, false, one)
+        pointer iNext
+        llvm.buildAdd(b, iBody, one, "arel.in", iNext)
+        llvm.buildStore(b, iNext, idxA)
+        cge.br(condBB)
+
+        cge.position(endBB)
+    }
+
+    // retainValueIfLValue — take a reference when an array value comes from an
+    // LVALUE, and only then.
+    //
+    // Binding another name to an existing array makes a SECOND OWNER, and both
+    // release at scope exit: without the retain the first release frees a buffer
+    // the other name still points at.
+    //
+    // Deliberately NOT retained:
+    //   a CALL result — the callee already retained on the caller's behalf when it
+    //     ran `out = xs`, and its own local then released, so exactly one reference
+    //     arrives; retaining again would strand the buffer forever;
+    //   a LITERAL — born with a count of 1;
+    //   an ARGUMENT — a borrow, released by nobody;
+    //   the FOR-IN ITEM — a view, which never enters the alloc list at all.
+    //
+    // MEMBER is included, unlike the reference: `int[] j = obj.rows` without a
+    // retain gives `j` a scope-exit release on a buffer `obj` still points at. A
+    // retain too many leaks; a retain too few corrupts.
+    public static void retainValueIfLValue(const CodeGenExpr cge, const pointer arrVal, const SemaExpr rhs) {
+        if rhs == null { return }
+        bool isLv = rhs.isVarExpr()
+        if isLv == false {
+            if rhs.getKind() == SemaKind.MEMBER { isLv = true }
+        }
+        if isLv == false { return }
+        LLVM llvm = cge.getLLVM()
+        pointer dataPtr
+        llvm.buildExtractValue(cge.getBuilder(), arrVal, 0, "aret.src", dataPtr)
+        CodeGenArray.emitRetain(cge, dataPtr)
+    }
+
+    // oobCode — the dedicated failure code for an out-of-range subscript, 0x0BAD.
+    // It behaves like any other `fail`: it propagates, sets main's exit status,
+    // and can be caught with `handle`.
+    public static int oobCode() { out = 2989 }
+
+    // elementPtr — the ADDRESS of `base[index]`, bounds-checked.
+    //
+    // The check is TWO-SIDED (`0 <= i < len`) and SIGNED on purpose: testing only
+    // the upper bound would let a negative index read before the buffer, which is
+    // the quieter and nastier of the two failures.
+    public static pointer elementPtr(const CodeGenExpr cge, const SemaArrayAccess node) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        CodeGenLLVM cg = cgm.getCg()
+        pointer ctx = cgm.getCtx()
+        pointer i64t
+        llvm.int64TypeInContext(ctx, i64t)
+        pointer ptrTy = cge.ptrType()
+
+        SemaExpr baseE = node.getBase()
+        pointer arrTy = cge.lowerType(baseE.getType())
+        SemaArrayType at = baseE.getType().asArray()
+        pointer elemLL = CodeGenArray.elementLlvmType(cge, at.getElementType())
+
+        pointer arrPtr = CodeGenArray.slotOf(cge, baseE)
+        pointer f0
+        llvm.buildStructGEP2(b, arrTy, arrPtr, 0, "arr.data.p", f0)
+        pointer dataPtr
+        llvm.buildLoad2(b, ptrTy, f0, "arr.data", dataPtr)
+        pointer f1
+        llvm.buildStructGEP2(b, arrTy, arrPtr, 1, "arr.len.p", f1)
+        pointer lenV
+        llvm.buildLoad2(b, i64t, f1, "arr.len", lenV)
+
+        // The index is written in whatever integer width the source used; the len
+        // field is i64, so the comparison happens there.
+        SemaExpr idxE = node.getIndex()
+        pointer idxRaw = cge.gen(idxE)
+        pointer idxV = cge.coerce(idxRaw, idxE.getType(), SemaBuiltin.getLongType())
+
+        pointer zero64
+        llvm.constInt(i64t, 0, true, zero64)
+        pointer tooLow
+        llvm.buildICmp(b, 40, idxV, zero64, "arr.low", tooLow)     // 40 = LLVMIntSLT
+        pointer tooHigh
+        llvm.buildICmp(b, 39, idxV, lenV, "arr.high", tooHigh)     // 39 = LLVMIntSGE
+        pointer oob
+        llvm.buildOr(b, tooLow, tooHigh, "arr.oob", oob)
+
+        pointer failBB = cge.newBlock("arr.oob.fail")
+        pointer okBB = cge.newBlock("arr.oob.ok")
+        pointer cbr
+        llvm.buildCondBr(b, oob, failBB, okBB, cbr)
+        cge.setTerminated(true)
+
+        cge.position(failBB)
+        CodeGenError.failWithCode(cge, CodeGenArray.oobCode())
+
+        cge.position(okBB)
+        List<pointer> gidx = new List<pointer>()
+        gidx.add(idxV)
+        pointer elemPtr
+        cg.buildGEP2N(b, elemLL, dataPtr, gidx, "arr.elem", elemPtr)
+        out = elemPtr
+    }
+
+    // arrayAccess — the subscript as an expression. In addrMode it yields the
+    // element's ADDRESS (an assignment stores through it); otherwise it loads.
+    //
+    // An INLINE AGGREGATE element — a nested array today, a struct once those are
+    // stored inline — yields its ADDRESS in BOTH modes, because that is how this
+    // backend represents such a value everywhere else. Loading one by value hands
+    // the next subscript a %array where it expects a pointer and builds
+    // `getelementptr %array, %array`, which fails module verification.
+    public static void arrayAccess(const CodeGenExpr cge, const SemaArrayAccess node) {
+        // Capture addrMode BEFORE elementPtr: it calls gen() for the index, and
+        // gen() resets the flag to rvalue mode.
+        bool addr = cge.isAddrMode()
+        pointer elemPtr = CodeGenArray.elementPtr(cge, node)
+        SemaType et = node.getType()
+        // An INLINE AGGREGATE is a nested array or a STRUCT — both sit inside the
+        // buffer and are represented by their address everywhere else in this
+        // backend. Loading one by value hands the next consumer an aggregate where
+        // a pointer is required.
+        bool inlineAggregate = false
+        if et != null {
+            if et.isArray() {
+                inlineAggregate = true
+            } else {
+                SemaClassType ec = et.asClass()
+                if ec != null {
+                    if ec.getClassKind() == SemaClassKind.STRUCT { inlineAggregate = true }
+                }
+            }
+        }
+        if addr || inlineAggregate {
+            node.setLlvmValue(elemPtr)
+            return
+        }
+        LLVM llvm = cge.getLLVM()
+        pointer elemLL = CodeGenArray.elementLlvmType(cge, et)
+        pointer v
+        llvm.buildLoad2(cge.getBuilder(), elemLL, elemPtr, "arr.ld", v)
+        node.setLlvmValue(v)
     }
 
     // loopIn — `for item in arr` over a native array. Loads {data, len} from the
@@ -109,10 +612,10 @@ public class CodeGenArray {
         SemaExpr listE = node.getList()
         pointer arrTy = cge.lowerType(listE.getType())
         SemaArrayType at = listE.getType().asArray()
-        pointer elemLL = cge.lowerType(at.getElementType())
+        pointer elemLL = CodeGenArray.elementLlvmType(cge, at.getElementType())
 
-        pointer arrPtr = cge.genAddr(listE)            // %array alloca
-        pointer itemAddr = cge.genAddr(node.getItem()) // item local's alloca
+        pointer arrPtr = CodeGenArray.slotOf(cge, listE) // %array slot, whatever the shape
+        pointer itemAddr = cge.genAddr(node.getItem())   // item local's alloca
 
         pointer f0
         llvm.buildStructGEP2(b, arrTy, arrPtr, 0, "arrdata.p", f0)

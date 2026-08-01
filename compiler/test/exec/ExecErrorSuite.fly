@@ -1,0 +1,88 @@
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExecErrorSuite — EXECUTED fail/handle semantics, the SLICE testable inside a
+// suite (bug-hunt Phase 1).
+//
+// SYNTAX (B031, converged): unnamed `handle { }` + implicit `error` is the
+// canonical form on BOTH compilers now (the reference synthesizes the implicit
+// var; its named form is legacy). STAGE=0 needs the re-cut seed to go green.
+// RUNNER (B032, fixed): the per-statement fail-fast check is suppressed inside
+// a `handle` block, so a CAUGHT callee fail no longer fails the case — the
+// 3xx cases below pin that. Cross-frame propagation stays in standalone
+// probes (fly_difftest/probes/minimized/b031_*, b032_*).
+//
+// Assert codes: 1xx clean handle, 2xx direct-fail jump, 3xx caught callee fail.
+// ─────────────────────────────────────────────────────────────────────────────
+
+void execErrBoom() {
+    fail 7
+}
+
+suite ExecErrorSuite {
+
+    void cleanTest() {
+        case "clean handle leaves the error unset": {
+            int seen = 0
+            handle {
+                seen = 1
+            }
+            bool caught = error
+            assert.assertFalse(caught, 101)
+            assert.assertEqI(seen, 1, 102)
+        }
+    }
+
+    void directFailTest() {
+        case "direct fail jumps past the rest of the handle": {
+            int seen = 0
+            handle {
+                fail 5
+                seen = 1
+            }
+            bool caught = error
+            assert.assertTrue(caught, 201)
+            assert.assertEqI(seen, 0, 202)               // jumped to after the block
+        }
+        case "code after the handle keeps running": {
+            int seen = 0
+            handle {
+                fail 9
+            }
+            seen = seen + 1
+            bool caught = error
+            assert.assertTrue(caught, 211)
+            assert.assertEqI(seen, 1, 212)
+        }
+    }
+
+    void calleeFailTest() {
+        case "caught callee fail does not fail the case": {
+            handle {
+                execErrBoom()
+            }
+            bool caught = error
+            assert.assertTrue(caught, 301)
+        }
+        case "block continues after a callee fail (no unwinding)": {
+            int seen = 0
+            handle {
+                execErrBoom()
+                seen = seen + 1
+            }
+            bool caught = error
+            assert.assertTrue(caught, 311)
+            assert.assertEqI(seen, 1, 312)
+        }
+        case "handle consumes the error: next window is clean": {
+            handle {
+                execErrBoom()
+            }
+            handle {
+                int x = 1
+            }
+            bool caught = error
+            assert.assertFalse(caught, 321)
+        }
+    }
+}

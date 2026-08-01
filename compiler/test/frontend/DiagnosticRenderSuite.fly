@@ -28,11 +28,11 @@ suite DiagnosticRenderSuite {
             TextDiagnostic td = new TextDiagnostic()
             assert.assertStr(td.header(diag), "t.fly:1:22: error: use of undeclared 'zzz'", 1)
             string full = td.render(diag)
-            assert.assertTrue(fly.str.contains(full, "t.fly:1:22: error: use of undeclared 'zzz'"), 2)
-            assert.assertTrue(fly.str.contains(full, "void main() { return zzz }"), 3)
+            assert.assertTrue(str.contains(full, "t.fly:1:22: error: use of undeclared 'zzz'"), 2)
+            assert.assertTrue(str.contains(full, "void main() { return zzz }"), 3)
             // caret + tilde underline: 21 spaces, then ^~~ across 'zzz'
-            string expected = fly.str.concat(fly.str.repeat(" ", 21), "^~~")
-            assert.assertTrue(fly.str.contains(full, expected), 4)
+            string expected = str.concat(str.repeat(" ", 21), "^~~")
+            assert.assertTrue(str.contains(full, expected), 4)
         }
     }
 
@@ -91,53 +91,53 @@ suite DiagnosticRenderSuite {
             string json = log.toJson()
             // needles use real `"` bytes (a bare quote can't appear in a literal)
             string q = quoteChar()
-            string levelPair = fly.str.concat(q, fly.str.concat("level",
-                               fly.str.concat(q, fly.str.concat(":",
-                               fly.str.concat(q, fly.str.concat("error", q))))))
-            assert.assertTrue(fly.str.contains(json, levelPair), 41)
-            string colPair = fly.str.concat(q, fly.str.concat("column", fly.str.concat(q, ":22")))
-            assert.assertTrue(fly.str.contains(json, colPair), 42)
-            string linePair = fly.str.concat(q, fly.str.concat("line", fly.str.concat(q, ":1")))
-            assert.assertTrue(fly.str.contains(json, linePair), 43)
-            assert.assertTrue(fly.str.contains(json, "use of undeclared 'zzz'"), 44)
+            string levelPair = str.concat(q, str.concat("level",
+                               str.concat(q, str.concat(":",
+                               str.concat(q, str.concat("error", q))))))
+            assert.assertTrue(str.contains(json, levelPair), 41)
+            string colPair = str.concat(q, str.concat("column", str.concat(q, ":22")))
+            assert.assertTrue(str.contains(json, colPair), 42)
+            string linePair = str.concat(q, str.concat("line", str.concat(q, ":1")))
+            assert.assertTrue(str.contains(json, linePair), 43)
+            assert.assertTrue(str.contains(json, "use of undeclared 'zzz'"), 44)
             string txt = log.toText()
-            assert.assertTrue(fly.str.contains(txt, "error: t.fly:1:22: use of undeclared 'zzz'"), 45)
+            assert.assertTrue(str.contains(txt, "error: t.fly:1:22: use of undeclared 'zzz'"), 45)
         }
         case "add() records a pre-rendered entry (parser-error path)": {
             LogDiagnosticPrinter log = new LogDiagnosticPrinter()
             log.add("error", "p.fly", "3", "7", "unexpected token")
             assert.assertEqI(log.count(), 1, 50)
             string txt = log.toText()
-            assert.assertTrue(fly.str.contains(txt, "error: p.fly:3:7: unexpected token"), 51)
+            assert.assertTrue(str.contains(txt, "error: p.fly:3:7: unexpected token"), 51)
         }
         case "toTextReport prepends inputs/output header and separator": {
             LogDiagnosticPrinter log = new LogDiagnosticPrinter()
             log.add("error", "a.fly", "1", "1", "boom")
             string rep = log.toTextReport("a.fly b.fly", "out.o")
-            assert.assertTrue(fly.str.contains(rep, "inputs: a.fly b.fly"), 52)
-            assert.assertTrue(fly.str.contains(rep, "output: out.o"), 53)
-            assert.assertTrue(fly.str.contains(rep, "---"), 54)
-            assert.assertTrue(fly.str.contains(rep, "error: a.fly:1:1: boom"), 55)
+            assert.assertTrue(str.contains(rep, "inputs: a.fly b.fly"), 52)
+            assert.assertTrue(str.contains(rep, "output: out.o"), 53)
+            assert.assertTrue(str.contains(rep, "---"), 54)
+            assert.assertTrue(str.contains(rep, "error: a.fly:1:1: boom"), 55)
         }
         case "toJsonReport wraps the diagnostics array with inputs/output": {
             LogDiagnosticPrinter log = new LogDiagnosticPrinter()
             log.add("error", "a.fly", "1", "1", "boom")
             string rep = log.toJsonReport("a.fly", "out.o")
             string q = quoteChar()
-            assert.assertTrue(fly.str.startsWith(rep, "{"), 56)
-            string inputsKey = fly.str.concat(q, fly.str.concat("inputs", q))
-            assert.assertTrue(fly.str.contains(rep, inputsKey), 57)
-            string diagKey = fly.str.concat(q, fly.str.concat("diagnostics", fly.str.concat(q, ":[")))
-            assert.assertTrue(fly.str.contains(rep, diagKey), 58)
-            assert.assertTrue(fly.str.contains(rep, "boom"), 59)
+            assert.assertTrue(str.startsWith(rep, "{"), 56)
+            string inputsKey = str.concat(q, str.concat("inputs", q))
+            assert.assertTrue(str.contains(rep, inputsKey), 57)
+            string diagKey = str.concat(q, str.concat("diagnostics", str.concat(q, ":[")))
+            assert.assertTrue(str.contains(rep, diagKey), 58)
+            assert.assertTrue(str.contains(rep, "boom"), 59)
         }
         case "jsonEscape escapes backslashes and quotes": {
             // a quote becomes backslash+quote, a backslash becomes two backslashes
             LogDiagnosticPrinter log = new LogDiagnosticPrinter()
             string q = quoteChar()
             string bs = backslashChar()
-            string esc = log.jsonEscape(fly.str.concat(q, bs))
-            string want = fly.str.concat(bs, fly.str.concat(q, fly.str.concat(bs, bs)))
+            string esc = log.jsonEscape(str.concat(q, bs))
+            string want = str.concat(bs, str.concat(q, str.concat(bs, bs)))
             assert.assertStr(esc, want, 60)
         }
     }

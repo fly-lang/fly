@@ -51,6 +51,8 @@ public class ASTType : ASTNode {
     // to print a type (builtin keyword vs qualified name + generic args).
     public ASTBuiltinType asBuiltinType() { out = null }
     public ASTNamedType asNamedType() { out = null }
+    // Appended LAST so existing vtable slots do not shift.
+    public ASTArrayType asArrayType() { out = null }
 }
 
 public class ASTBuiltinType : ASTType {
@@ -118,6 +120,7 @@ public class ASTArrayType : ASTType {
 
     public ASTType getElementType() { out = this.elementType }
     public ASTExpr getSizeExpr() { out = this.size }
+    public ASTArrayType asArrayType() { out = this }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

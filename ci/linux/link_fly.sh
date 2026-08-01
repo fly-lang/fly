@@ -48,19 +48,26 @@ if [ "${FLY_BUNDLE_LLVM:-0}" = "1" ]; then
     [ -n "$SONAME" ] || { echo "error: cannot read libLLVM SONAME." >&2; exit 1; }
     cp -f "$LLVM_SO" "$LIB/$SONAME"
     cp -aLf "$LLD" "$OUT/ld.lld"
+    # The debugger, under its ORIGINAL LLVM names: lldb (driver) + lldb-server
+    # (lldb launches local processes through it; found via the liblldb-relative
+    # support-exe dir = this bin/) + lldb-dap (IDE/DAP) + lldb-argdumper.
+    # liblldb goes into lib/ under its SONAME (lldb's RUNPATH is $ORIGIN/../lib),
+    # same dance as libLLVM above.
+    for dbg in lldb lldb-server lldb-dap lldb-argdumper; do
+        cp -aLf "$FORK_LLVM/bin/$dbg" "$OUT/$dbg"
+    done
+    LLDB_SO="$(readlink -f "$FORK_LLVM/lib/liblldb.so")"
+    LLDB_SONAME="$(readelf -d "$LLDB_SO" | sed -n 's/.*Library soname: \[\(.*\)\].*/\1/p')"
+    [ -n "$LLDB_SONAME" ] || { echo "error: cannot read liblldb SONAME." >&2; exit 1; }
+    cp -f "$LLDB_SO" "$LIB/$LLDB_SONAME"
     RPATH='$ORIGIN/../lib'
 else
     RPATH="$(cd "$FORK_LLVM/lib" && pwd)"
 fi
 
 echo "stage$STAGE: linking $OUT/fly ..."
-"$LLD" -pie --hash-style=gnu --eh-frame-hdr -m elf_x86_64 \
-    -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o "$OUT/fly" \
-    "$MULTIARCH/Scrt1.o" "$MULTIARCH/crti.o" "$GCCDIR/crtbeginS.o" \
-    -L"$FORK_LLVM/lib" -L"$GCCDIR" -L"$MULTIARCH" \
-    "$OBJ" "$LIB/fly_std_lib.a" "$LIB/fly_runtime_lib.a" \
-    -lLLVM -rpath "$RPATH" \
-    -lstdc++ -lm -lgcc_s -lgcc -lc \
-    "$GCCDIR/crtendS.o" "$MULTIARCH/crtn.o"
+# The link itself lives in link_bin.sh, shared with build_lsp.sh; RPATH is
+# passed through because only this script knows about the LLVM bundling mode.
+FLY_LINK_RPATH="$RPATH" ci/linux/link_bin.sh "$OBJ" "$OUT/fly" --with-llvm
 
 echo "stage$STAGE: fly -> $OUT/fly (libs from $LIB)"

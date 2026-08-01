@@ -1,0 +1,50 @@
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExecMultiReturnSuite — EXECUTED multi-return call-site semantics (bug-hunt
+// Phase 1), complementing std MultiReturnSuite: expression contexts and
+// chaining. NOTE: there is NO syntax to consume out[1..n] at a call site —
+// `divmod(a,b)[1]` and `int q, int m = divmod(a,b)` are rejected by ALL
+// compilers while the docs never show a form (BUGS.md B027): the values past
+// the first are currently write-only.
+//
+// Assert codes: 1xx binding, 2xx expression contexts, 3xx chaining.
+// ─────────────────────────────────────────────────────────────────────────────
+
+int,int execMrDivmod(const int a, const int b) {
+    out[0] = a / b
+    out[1] = a % b
+}
+
+int,int execMrChained(const int a) {
+    int q = execMrDivmod(a, 3)
+    out[0] = q
+    out[1] = q + 1
+}
+
+suite ExecMultiReturnSuite {
+
+    void bindingTest() {
+        case "the call binds the first return slot": {
+            int q = execMrDivmod(17, 5)
+            assert.assertEqI(q, 3, 101)
+        }
+    }
+
+    void expressionTest() {
+        case "multi-return call inside arithmetic": {
+            int r = execMrDivmod(17, 5) * 2 + 1
+            assert.assertEqI(r, 7, 201)
+        }
+        case "multi-return call as a call argument": {
+            assert.assertEqI(execMrDivmod(23, 10), 2, 211)
+        }
+    }
+
+    void chainingTest() {
+        case "a multi-return callee calling another": {
+            int r = execMrChained(9)
+            assert.assertEqI(r, 3, 301)
+        }
+    }
+}

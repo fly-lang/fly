@@ -40,8 +40,14 @@ suite SameNamespaceSuite {
             List<ASTModule> mods = new List<ASTModule>()
             mods.add(ma)
             mods.add(mb)
-            SemaContext ctx = new SemaContext(null)
+            // Two modules, two parsers: SemaContext takes ONE engine, so `pa`'s is
+            // used. An error raised while resolving module B is still RECORDED —
+            // which is all the assert needs; only its rendered location would come
+            // from A's source manager.
+            DiagnosticsEngine diags = pa.getDiags()
+            SemaContext ctx = new SemaContext(diags)
             List<SemaModule> res = ctx.Resolve(mods, false)
+            assert.assertFalse(diags.hasErrorOccurred(), 99)
 
             CodeGenModule cgm = new CodeGenModule("t")
             TargetInfo ti = targetInfoCreate(new TargetOptions("x86_64-unknown-linux-gnu"))
@@ -52,10 +58,10 @@ suite SameNamespaceSuite {
             assert.assertTrue(ok, 3)            // module verifies → the call resolved
 
             cgm.emitIR("/tmp/cg/samens.ll")
-            string ir = fly.os.fs.readStr("/tmp/cg/samens.ll")
+            string ir = fs.readStr("/tmp/cg/samens.ll")
             // B's useIt emits a call into A's helperFn (its mangled name carries the name)
-            assert.assertTrue(fly.str.contains(ir, "helperFn"), 4)
-            assert.assertTrue(fly.str.contains(ir, "call"), 5)
+            assert.assertTrue(str.contains(ir, "helperFn"), 4)
+            assert.assertTrue(str.contains(ir, "call"), 5)
         }
     }
 }

@@ -1,0 +1,33 @@
+namespace fly.compiler.sema
+import fly.compiler.sema.SemaVisitor
+
+import fly.compiler.sema.SemaKind
+import fly.compiler.sema.SemaExpr
+import fly.compiler.sema.SemaType
+import fly.compiler.ast.ASTArrayAccess
+
+// SemaArrayAccess — a resolved `base[index]`. Its TYPE is the array's ELEMENT
+// type, which is what makes `int x = k[1]` type-check like any other int
+// expression.
+//
+// The node is direction-agnostic: codegen reads through it, or — when it is the
+// target of an assignment — stores through it. That is why it carries the two
+// operands and nothing about direction.
+public class SemaArrayAccess : SemaExpr {
+
+    ASTArrayAccess accessAst
+    SemaExpr base
+    SemaExpr index
+
+    public SemaArrayAccess(const ASTArrayAccess accessAst, const SemaExpr base, const SemaExpr index, const SemaType type) {
+        super(SemaKind.ARRAY_ACCESS, type)
+        this.accessAst = accessAst
+        this.base = base
+        this.index = index
+    }
+
+    public ASTArrayAccess getAST() { out = this.accessAst }
+    public SemaExpr getBase() { out = this.base }
+    public SemaExpr getIndex() { out = this.index }
+    public void accept(const SemaVisitor v) { v.visit(this) }
+}

@@ -237,14 +237,14 @@ suite MapSuite {
             }
             k = 0
             while k < 24 {
-                if (k % 2) == 0 { m.remove(k) }
+                if k % 2 == 0 { m.remove(k) }
                 k = k + 1
             }
             assert.assertEqI(m.size(), 12, 412)
             long bad = 0 - 1
             k = 0
             while k < 24 {
-                if (k % 2) == 0 {
+                if k % 2 == 0 {
                     if m.has(k) { bad = k }
                 } else {
                     if m.get(k) != k * 10 { bad = k }
@@ -284,14 +284,14 @@ suite MapSuite {
             long i = 0
             while i < 120 {
                 m.put(i, i + 1000)
-                if (i % 3) == 0 { m.remove(i) }
+                if i % 3 == 0 { m.remove(i) }
                 i = i + 1
             }
             assert.assertEqI(m.size(), 80, 504)
             long bad = 0 - 1
             i = 0
             while i < 120 {
-                if (i % 3) == 0 {
+                if i % 3 == 0 {
                     if m.has(i) { bad = i }
                 } else {
                     if m.get(i) != i + 1000 { bad = i }

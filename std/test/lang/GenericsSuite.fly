@@ -190,7 +190,10 @@ suite GenericsSuite {
             Point pt = new Point(3, 4)
             Wrapper<Point> w = new Wrapper<Point>(pt)
             pt.x = 30
-            assert.assertEqI(w.get().x, 30, 403)
+            // Hoisted: the reference cannot type `w.get().x` as an argument
+            // (chained call member access).
+            Point got = w.get()
+            assert.assertEqI(got.x, 30, 403)
         }
         case "mutations through the wrapper are visible outside": {
             Point pt = new Point(3, 4)
@@ -202,9 +205,13 @@ suite GenericsSuite {
             Point a = new Point(1, 1)
             Point b = new Point(2, 2)
             Wrapper<Point> w = new Wrapper<Point>(a)
-            assert.assertEqI(w.get().x, 1, 405)
+            // Hoisted: chained call member access as an argument is untyped on
+            // the reference (see above).
+            Point before = w.get()
+            assert.assertEqI(before.x, 1, 405)
             w.set(b)
-            assert.assertEqI(w.get().x, 2, 406)
+            Point after = w.get()
+            assert.assertEqI(after.x, 2, 406)
             assert.assertEqI(a.x, 1, 407)              // the old object is untouched
         }
     }
@@ -282,9 +289,13 @@ suite GenericsSuite {
         case "a class handle as a type parameter": {
             Point pt = new Point(5, 6)
             Pair<Point, int> p = new Pair<Point, int>(pt, 1)
-            assert.assertEqI(p.first().x, 5, 613)
+            // Hoisted: chained call member access as an argument is untyped on
+            // the reference (see above).
+            Point f1 = p.first()
+            assert.assertEqI(f1.x, 5, 613)
             pt.x = 50
-            assert.assertEqI(p.first().x, 50, 614)
+            Point f2 = p.first()
+            assert.assertEqI(f2.x, 50, 614)
         }
     }
 

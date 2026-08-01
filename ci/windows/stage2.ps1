@@ -53,5 +53,26 @@ if (-not $ok) {
     Get-ChildItem build/stage1/lib/* | ForEach-Object { Copy-Item $_.FullName build/stage2/lib/ -Force }
 }
 
+# ── the tools: built and tested with the compiler that just finished ─────────
+#
+# fly-lsp and fly-registry are PRODUCTS of the toolchain, not part of the
+# bootstrap: nothing downstream compiles against them, and --entry is a
+# self-host option the pinned seed rejects outright. They belong HERE rather
+# than in stage1 because the compiler that builds them should be the one that
+# ships — stage2's fly.exe, built by stage1's self-host, i.e. the self-hosting
+# fixpoint. A tool built at stage1 would carry the seed-built compiler's
+# codegen, which is not what a user gets.
+#
+# They are part of the stage, not an opt-in extra: build\stage2\bin is what the
+# release packages verbatim, so a tool that is not built here does not ship, and
+# a tool failure here is a real failure of the artifact.
+# test_dbg: the debugger is PROVISIONED (bundled by link_fly.ps1 from the fork
+# LLVM), not compiled — but it ships from build\stage2\bin like the tools, so
+# it is verified here with them.
+foreach ($step in 'build_lsp', 'test_lsp', 'build_registry', 'test_registry', 'test_tools', 'test_dbg') {
+    & ".\ci\windows\$step.ps1"
+    if ($LASTEXITCODE -ne 0) { Write-Host "error: $step.ps1 failed (exit $LASTEXITCODE)"; exit 1 }
+}
+
 Write-Host "stage2: done - build\stage2\bin\fly.exe"
 exit 0

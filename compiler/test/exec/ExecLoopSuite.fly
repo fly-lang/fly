@@ -1,0 +1,157 @@
+import fly.assert
+import fly.data.List
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExecLoopSuite — EXECUTED loop semantics (bug-hunt Phase 1): while, C-style
+// for, for-in over native arrays and List, break/continue in nested loops,
+// loop-variable scoping.
+//
+// Assert codes: 1xx while, 2xx for, 3xx for-in arrays, 4xx for-in List,
+// 5xx break/continue nesting, 6xx scoping.
+// ─────────────────────────────────────────────────────────────────────────────
+
+suite ExecLoopSuite {
+
+    void whileTest() {
+        case "while counts down": {
+            int n = 5
+            int steps = 0
+            while n > 0 {
+                n = n - 1
+                steps = steps + 1
+            }
+            assert.assertEqI(steps, 5, 101)
+        }
+        case "while true exits via break": {
+            int i = 0
+            while true {
+                i = i + 1
+                if i == 4 { break }
+            }
+            assert.assertEqI(i, 4, 111)
+        }
+        case "continue skips the rest of the body": {
+            int i = 0
+            int odd = 0
+            while i < 6 {
+                i = i + 1
+                if i % 2 == 0 { continue }
+                odd = odd + 1
+            }
+            assert.assertEqI(odd, 3, 121)
+        }
+    }
+
+    void forTest() {
+        case "classic accumulation": {
+            int sum = 0
+            for int i = 1; i <= 10; i++ {
+                sum = sum + i
+            }
+            assert.assertEqI(sum, 55, 201)
+        }
+        case "for body may never run": {
+            int hits = 0
+            for int i = 5; i < 5; i++ {
+                hits = hits + 1
+            }
+            assert.assertEqI(hits, 0, 211)
+        }
+        case "break exits the for early": {
+            int last = 0
+            for int i = 0; i < 100; i++ {
+                last = i
+                if i == 3 { break }
+            }
+            assert.assertEqI(last, 3, 221)
+        }
+    }
+
+    void forInArrayTest() {
+        case "for-in sums an int array literal": {
+            int[] xs = {1, 2, 3, 4}
+            int sum = 0
+            for x in xs {
+                sum = sum + x
+            }
+            assert.assertEqI(sum, 10, 301)
+        }
+        case "for-in over a fixed-size array": {
+            int[3] xs = {5, 6, 7}
+            int sum = 0
+            for x in xs {
+                sum = sum + x
+            }
+            assert.assertEqI(sum, 18, 311)
+        }
+        case "for-in over an empty annotated array": {
+            int[] xs = {}
+            int hits = 0
+            for x in xs {
+                hits = hits + 1
+            }
+            assert.assertEqI(hits, 0, 321)
+        }
+        case "for-in over nested arrays row by row": {
+            int[][] grid = {{1, 2}, {3, 4}, {5, 6}}
+            int sum = 0
+            for row in grid {
+                for v in row {
+                    sum = sum + v
+                }
+            }
+            assert.assertEqI(sum, 21, 331)
+        }
+    }
+
+    void forInListTest() {
+        case "for-in over a List of ints": {
+            List<int> l = new List<int>()
+            l.add(10)
+            l.add(20)
+            l.add(30)
+            int sum = 0
+            for v in l {
+                sum = sum + v
+            }
+            assert.assertEqI(sum, 60, 401)
+            l.free()
+        }
+    }
+
+    void nestingTest() {
+        case "break leaves only the inner loop": {
+            int total = 0
+            for int i = 0; i < 3; i++ {
+                for int j = 0; j < 10; j++ {
+                    if j == 2 { break }
+                    total = total + 1
+                }
+            }
+            assert.assertEqI(total, 6, 501)              // 2 inner steps × 3 outer
+        }
+        case "continue in the outer loop skips inner work": {
+            int total = 0
+            for int i = 0; i < 4; i++ {
+                if i % 2 == 0 { continue }
+                for int j = 0; j < 3; j++ {
+                    total = total + 1
+                }
+            }
+            assert.assertEqI(total, 6, 511)              // only i = 1 and 3 run inner
+        }
+    }
+
+    void scopingTest() {
+        case "loop variable name is reusable after the loop": {
+            int sum = 0
+            for int i = 0; i < 3; i++ {
+                sum = sum + i
+            }
+            for int i = 10; i < 12; i++ {
+                sum = sum + i
+            }
+            assert.assertEqI(sum, 24, 601)               // 0+1+2 + 10+11
+        }
+    }
+}

@@ -202,7 +202,48 @@ suite DriverCliSuite {
             assert.assertNotEmpty(d.axisErrorText(2), 134)
             assert.assertNotEmpty(d.axisErrorText(3), 135)
             assert.assertNotEmpty(d.axisErrorText(4), 136)
+            assert.assertNotEmpty(d.axisErrorText(5), 139)
+            assert.assertNotEmpty(d.axisErrorText(6), 140)
             assert.assertEmpty(d.axisErrorText(0), 137)
+        }
+    }
+
+    // ── --entry, the second-executable unlock ────────────────────────────────
+    //
+    // --entry names the file declaring main() instead of discovering it under
+    // the source root. That is what lets fly-lsp be built from a tree whose
+    // compiler/lib already declares one main(): discovery never runs, so the
+    // "multiple main() functions" error cannot fire, while every --src-dir root
+    // still resolves imports.
+    //
+    // entryError is kept separate from axisError so the latter's signature —
+    // which the cases above drive directly — stays untouched.
+    // entryError: 0=ok 5=with --lib/--lib-dyn 6=with --test/--suite.
+    void entryAxisTest() {
+        case "without --entry nothing is ever rejected": {
+            Driver d = new Driver()
+            assert.assertEqI(d.entryError(false, true, false, false), 0, 141)
+            assert.assertEqI(d.entryError(false, false, true, true), 0, 142)
+        }
+        case "--entry on a normal build is fine": {
+            Driver d = new Driver()
+            assert.assertEqI(d.entryError(true, false, false, false), 0, 143)
+        }
+        case "--entry with a library is rejected": {
+            // A library has no entry point at all, so naming one is meaningless
+            // rather than merely redundant.
+            Driver d = new Driver()
+            assert.assertEqI(d.entryError(true, true, false, false), 5, 144)
+            assert.assertEqI(d.entryError(true, false, true, false), 5, 145)
+        }
+        case "--entry with --test/--suite is rejected": {
+            // In test mode the SUITES are the entries.
+            Driver d = new Driver()
+            assert.assertEqI(d.entryError(true, false, false, true), 6, 146)
+        }
+        case "the library conflict is reported before the test one": {
+            Driver d = new Driver()
+            assert.assertEqI(d.entryError(true, true, false, true), 5, 147)
         }
     }
 }

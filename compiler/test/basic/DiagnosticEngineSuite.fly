@@ -50,7 +50,7 @@ suite DiagnosticEngineSuite {
             assert.assertEqI(sink.errorCount(), 1, 24)
             string msg = sink.getMessage(0)
             // "1:6: error: unexpected 'bad' at top level; ..."
-            assert.assertTrue(fly.str.startsWith(msg, "1:6: error: unexpected 'bad' at top level"), 25)
+            assert.assertTrue(str.startsWith(msg, "1:6: error: unexpected 'bad' at top level"), 25)
         }
     }
 
@@ -79,7 +79,7 @@ suite DiagnosticEngineSuite {
             pd.addStr("int")
             pd.emitWith(eng)
             assert.assertEqI(eng.getNumErrors(), 1, 40)
-            assert.assertTrue(fly.str.contains(sink.getMessage(0), "'int' is a reserved keyword"), 41)
+            assert.assertTrue(str.contains(sink.getMessage(0), "'int' is a reserved keyword"), 41)
         }
     }
 

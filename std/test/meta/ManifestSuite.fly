@@ -273,9 +273,9 @@ suite ManifestSuite {
             TestConfig t = new TestConfig()
             t.parallel = true
             t.failFast = false
-            m.test = t
-            assert.assertTrue(m.test.parallel, 301)
-            assert.assertFalse(m.test.failFast, 302)
+            m.tst = t
+            assert.assertTrue(m.tst.parallel, 301)
+            assert.assertFalse(m.tst.failFast, 302)
 
             Workspace w = new Workspace()
             w.members = {"a"}
@@ -298,8 +298,8 @@ suite ManifestSuite {
         case "writing through the manifest's own reference": {
             Manifest m = new Manifest()
             TestConfig t = new TestConfig()
-            m.test = t
-            m.test.parallel = true
+            m.tst = t
+            m.tst.parallel = true
             assert.assertTrue(t.parallel, 306)
         }
     }
@@ -361,7 +361,7 @@ suite ManifestSuite {
             tc.suites = {"std/test/*Suite.fly"}
             tc.parallel = false
             tc.failFast = false
-            m.test = tc
+            m.tst = tc
 
             // Read the whole shape back.
             assert.assertStr(m.name, "demo", 410)
@@ -382,8 +382,8 @@ suite ManifestSuite {
                 assert.assertStr(rr.url, "https://registry.invalid", 418)
             }
             assert.assertStr(joinAll(m.linkLibs), "m|pthread|", 419)
-            assert.assertStr(joinAll(m.test.suites), "std/test/*Suite.fly|", 420)
-            assert.assertFalse(m.test.parallel, 421)
+            assert.assertStr(joinAll(m.tst.suites), "std/test/*Suite.fly|", 420)
+            assert.assertFalse(m.tst.parallel, 421)
         }
         case "an empty manifest has empty strings throughout": {
             Manifest m = new Manifest()

@@ -57,29 +57,29 @@ public pointer argsNew() {
     int cap = 4
     pointer items = 0
     fly.runtime.mem_alloc(cap * 8, items)
-    fly.mem.writePtr(h, 0, items)
-    fly.mem.writeInt(h, 8, 0)
-    fly.mem.writeInt(h, 12, cap)
+    mem.writePtr(h, 0, items)
+    mem.writeInt(h, 8, 0)
+    mem.writeInt(h, 12, cap)
     out = h
 }
 
 // argsAdd — append a copy of 'a' to the ArgList, growing if needed.
 public void argsAdd(const pointer h, const string a) {
     if h == 0 { return }
-    pointer items = fly.mem.readPtr(h, 0)
-    int count = fly.mem.readInt(h, 8)
-    int cap = fly.mem.readInt(h, 12)
+    pointer items = mem.readPtr(h, 0)
+    int count = mem.readInt(h, 8)
+    int cap = mem.readInt(h, 12)
     if count == cap {
         int newCap = cap * 2
         pointer bigger = 0
         fly.runtime.mem_realloc(items, newCap * 8, bigger)
         items = bigger
-        fly.mem.writePtr(h, 0, items)
-        fly.mem.writeInt(h, 12, newCap)
+        mem.writePtr(h, 0, items)
+        mem.writeInt(h, 12, newCap)
     }
     pointer cs = strToCstr(a)
-    fly.mem.writePtr(items, count * 8, cs)
-    fly.mem.writeInt(h, 8, count + 1)
+    mem.writePtr(items, count * 8, cs)
+    mem.writeInt(h, 8, count + 1)
 }
 
 // exec — spawn 'path' with argv[0]=path followed by the ArgList args (h may be
@@ -89,8 +89,8 @@ public int exec(const string path, const pointer h) {
     int count = 0
     pointer items = 0
     if h != 0 {
-        items = fly.mem.readPtr(h, 0)
-        count = fly.mem.readInt(h, 8)
+        items = mem.readPtr(h, 0)
+        count = mem.readInt(h, 8)
     }
 
     // argv = [ path, args..., NULL ] → (count + 2) pointer slots.
@@ -99,15 +99,15 @@ public int exec(const string path, const pointer h) {
     fly.runtime.mem_alloc(slots * 8, argv)
 
     pointer cpath = strToCstr(path)
-    fly.mem.writePtr(argv, 0, cpath)
+    mem.writePtr(argv, 0, cpath)
 
     int i = 0
     while i < count {
-        pointer cs = fly.mem.readPtr(items, i * 8)
-        fly.mem.writePtr(argv, (i + 1) * 8, cs)
+        pointer cs = mem.readPtr(items, i * 8)
+        mem.writePtr(argv, (i + 1) * 8, cs)
         i = i + 1
     }
-    fly.mem.writePtr(argv, (count + 1) * 8, 0)
+    mem.writePtr(argv, (count + 1) * 8, 0)
 
     int code = 0
     fly.runtime.proc_exec(cpath, argv, code)
@@ -125,14 +125,63 @@ public int run(const string path) {
     out = exec(path, 0)
 }
 
+// execCapture — exec 'path' with the ArgList args, redirecting the child's STDOUT
+// to outPath (created/truncated), and wait for it. Returns the child exit code
+// (0..255), 128+signo if signalled, or -1 on spawn failure — the same contract as
+// exec(). The caller reads outPath afterwards.
+//
+// This exists because exec() INHERITS stdout, so there was no way to capture a
+// command's output without a shell: the driver used `sh -c "cmd > file"`, which
+// cannot run on Windows at all (no /bin/sh, and arg0's '/'→'\' normalisation
+// turns it into a nonexistent `\bin\sh`). Every capture call site was therefore
+// dead code there.
+//
+// STDERR IS INHERITED, not discarded: a failing command's diagnostics reach the
+// user instead of vanishing, which is a deliberate change from the `2>/dev/null`
+// the shell form used.
+public int execCapture(const string path, const pointer h, const string outPath) {
+    int count = 0
+    pointer items = 0
+    if h != 0 {
+        items = mem.readPtr(h, 0)
+        count = mem.readInt(h, 8)
+    }
+
+    // argv = [ path, args..., NULL ] → (count + 2) pointer slots.
+    int slots = count + 2
+    pointer argv = 0
+    fly.runtime.mem_alloc(slots * 8, argv)
+
+    pointer cpath = strToCstr(path)
+    mem.writePtr(argv, 0, cpath)
+
+    int i = 0
+    while i < count {
+        pointer cs = mem.readPtr(items, i * 8)
+        mem.writePtr(argv, (i + 1) * 8, cs)
+        i = i + 1
+    }
+    mem.writePtr(argv, (count + 1) * 8, 0)
+
+    pointer cout = strToCstr(outPath)
+    int code = 0
+    fly.runtime.proc_exec_redirect(cpath, argv, cout, code)
+
+    fly.runtime.mem_free(cpath, 0)
+    fly.runtime.mem_free(cout, 0)
+    fly.runtime.mem_free(argv, slots * 8)
+
+    out = code
+}
+
 // argsFree — release an ArgList and every C-string it owns.
 public void argsFree(const pointer h) {
     if h == 0 { return }
-    pointer items = fly.mem.readPtr(h, 0)
-    int count = fly.mem.readInt(h, 8)
+    pointer items = mem.readPtr(h, 0)
+    int count = mem.readInt(h, 8)
     int i = 0
     while i < count {
-        pointer cs = fly.mem.readPtr(items, i * 8)
+        pointer cs = mem.readPtr(items, i * 8)
         if cs != 0 { fly.runtime.mem_free(cs, 0) }
         i = i + 1
     }

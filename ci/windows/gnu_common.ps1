@@ -4,10 +4,10 @@
 #
 # Fly targets x86_64-w64-windows-gnu (llvm-mingw / UCRT), NOT -msvc: the whole
 # point is a self-contained toolchain that needs no Visual Studio. The pieces:
-#   * the fork LLVM already ships lld (build\llvm\bin\lld-link.exe); the SAME
-#     binary is the GNU-flavour linker when invoked as `ld.lld` (LLD self-selects
-#     the flavour from argv[0]), so we provision build\llvm\bin\ld.lld.exe as a
-#     copy of it - no extra download for the linker.
+#   * the fork LLVM ships lld under its ORIGINAL per-flavor install names
+#     (ld.lld.exe = GNU flavour, lld-link.exe = COFF; LLD self-selects the
+#     flavour from argv[0]) - stage0.ps1 extracts BOTH from the release artifact,
+#     no local rename/copy.
 #   * the mingw import libs + CRT startup objects + compiler-rt builtins come
 #     from mstorsjo/llvm-mingw, staged under build\mingw (fetched by stage0.ps1,
 #     cached like the LLVM fetch). These are the CRT-neutral, redistributable
@@ -47,14 +47,11 @@ $script:GNU_lldLink     = Join-Path $script:GNU_llvmBin 'lld-link.exe'
 $script:GNU_ldLld       = Join-Path $script:GNU_llvmBin 'ld.lld.exe'
 $script:GNU_builtinsLib = Join-Path $script:GNU_builtinsDir 'libclang_rt.builtins-x86_64.a'
 
-# Ensure build\llvm\bin\ld.lld.exe exists (a copy of the fork lld-link.exe). The
-# GNU-flavour driver is the same binary; the copy lets us fork it by that name.
-function Install-LdLld {
-    if (-not (Test-Path $script:GNU_lldLink)) {
-        throw "gnu_common: $script:GNU_lldLink not found - run ci\windows\stage0.ps1 (LLVM fetch) first."
-    }
+# Ensure build\llvm\bin\ld.lld.exe exists. It is extracted verbatim from the
+# fork LLVM release artifact by stage0.ps1 (original install name, no copy).
+function Assert-LdLld {
     if (-not (Test-Path $script:GNU_ldLld)) {
-        Copy-Item $script:GNU_lldLink $script:GNU_ldLld -Force
+        throw "gnu_common: $script:GNU_ldLld not found - run ci\windows\stage0.ps1 (LLVM fetch) first."
     }
 }
 
@@ -75,7 +72,7 @@ function Get-MingwLinkParts {
         # -lmingw32 brackets the builtins archive; the Win32 import libs follow.
         Post    = @(
             '-lmingw32', $script:GNU_builtinsLib, '-lmoldname', '-lmingwex', '-lmsvcrt',
-            '-ladvapi32', '-lshell32', '-luser32', '-lkernel32', '-lntdll', '-lsynchronization', '-lmingw32',
+            '-ladvapi32', '-lshell32', '-luser32', '-lkernel32', '-lntdll', '-lws2_32', '-lwinhttp', '-lsynchronization', '-lmingw32',
             (Join-Path $L 'crtend.o')
         )
     }

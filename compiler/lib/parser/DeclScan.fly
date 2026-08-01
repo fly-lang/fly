@@ -26,7 +26,10 @@ import fly.llvm
 
 // scanTopLevelDecls — scan `src` and return a ";"-delimited list whose FIRST
 // segment is "1" when the buffer declares a top-level main() ("0" otherwise),
-// followed by one segment per declared suite name, e.g. ";1;" or ";0;OsEnvSuite;".
+// followed by one segment per declared suite name. A suite in a file that
+// declares a `namespace a.b.c` is reported QUALIFIED (`a.b.c.OsEnvSuite`), a
+// namespace-less one bare (`OsEnvSuite`) — the namespace-aware `--suite`
+// selector matches on either form (Driver.declSuiteSelMatches).
 public string scanTopLevelDecls(const string src) {
     pointer p = 0
     fly.llvm.strGetPtr(src, p)
@@ -37,6 +40,8 @@ public string scanTopLevelDecls(const string src) {
     bool hasMain = false
     bool prevMain = false
     bool prevSuite = false
+    bool prevNsKw = false
+    string nsName = ""
     string suites = ""
     while i < n {
         int c = declByteP(p, i)
@@ -50,22 +55,43 @@ public string scanTopLevelDecls(const string src) {
             depth = depth + 1
             prevMain = false
             prevSuite = false
+            prevNsKw = false
             i = i + 1
         } elsif c == 125 {
             if depth > 0 { depth = depth - 1 }
             prevMain = false
             prevSuite = false
+            prevNsKw = false
             i = i + 1
         } elsif declIsIdentStart(c) {
             int s = i
             int e = declIdentEnd(p, n, i + 1)
             i = e
             if depth == 0 {
-                if prevSuite {
+                if prevNsKw {
+                    // `namespace a.b.c` — consume the dotted chain as one name
+                    int e2 = e
+                    bool goNs = true
+                    while goNs {
+                        if e2 < n && declByteP(p, e2) == 46 {
+                            int e3 = declIdentEnd(p, n, e2 + 1)
+                            e2 = e3
+                        } else { goNs = false }
+                    }
+                    nsName = str.substring(src, s, e2)
+                    i = e2
+                } elsif prevSuite {
                     // segAppend, never `x = concat(x, …)` (self-alias gotcha)
-                    string nm = fly.str.substring(src, s, e)
-                    suites = segAppend(suites, nm)
+                    string nm = str.substring(src, s, e)
+                    if str.isEmpty(nsName) {
+                        suites = segAppend(suites, nm)
+                    } else {
+                        string q1 = str.concat(".", nm)
+                        string q2 = str.concat(nsName, q1)
+                        suites = segAppend(suites, q2)
+                    }
                 }
+                prevNsKw = declWordIs(p, s, e, "namespace")
                 prevSuite = declWordIs(p, s, e, "suite")
                 prevMain = declWordIs(p, s, e, "main")
             }
@@ -74,18 +100,20 @@ public string scanTopLevelDecls(const string src) {
             if depth == 0 && prevMain { hasMain = true }
             prevMain = false
             prevSuite = false
+            prevNsKw = false
             i = i + 1
         } elsif c == 32 || c == 9 || c == 13 || c == 10 {
             i = i + 1               // whitespace keeps the prev-identifier flags
         } else {
             prevMain = false
             prevSuite = false
+            prevNsKw = false
             i = i + 1
         }
     }
     string head = ";0;"
     if hasMain { head = ";1;" }
-    out = fly.str.concat(head, suites)
+    out = str.concat(head, suites)
 }
 
 // declSkipLine — from just past "//", return the index of the newline (or n).
@@ -155,12 +183,12 @@ public bool declIsIdentBody(const int c) {
 
 // declWordIs — buffer[s..e) equals `w`, compared byte-wise without allocating.
 public bool declWordIs(const pointer p, const int s, const int e, const string w) {
-    int wl = fly.str.len(w)
+    int wl = str.len(w)
     if e - s != wl { out = false  return }
     int k = 0
     while k < wl {
         byte wb = 0
-        fly.str.byteAt(w, k, wb)
+        str.byteAt(w, k, wb)
         // masked int compare; a condition may not START with '(' (parser gotcha)
         int ai = declByteP(p, s + k)
         int bi = wb & 255

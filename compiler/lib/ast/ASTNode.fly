@@ -30,6 +30,9 @@ public class ASTNode : ASTBase {
     public ASTStringValue asStringValue() { out = null }
     public ASTArrayValue asArrayValue() { out = null }
     public ASTCall asCall() { out = null }
+    // asNumberValue — the header generator needs it to print an array's SIZE
+    // (`int[3]`) when that size is a literal. Appended last, same reason.
+    public ASTNumberValue asNumberValue() { out = null }
 
     // accept — virtual visitor dispatch. Concrete leaf nodes override this with
     // `v.visit(this)`; this base no-op lets a base-typed node (ASTExpr/ASTStmt/
