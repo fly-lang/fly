@@ -1923,11 +1923,7 @@ void CodeGenModule::EmitSuite(SemaClassType &Sema) {
     FLY_DEBUG_SCOPE_MSG("CodeGenModule", "EmitSuite",
                         "Suite: " + Sema.getAST().getName().str());
 
-    // --suite <Name>: when set, only the named suite gets the implicit main()
-    // (allows several suites in one compilation without duplicate mains).
     const std::string SuiteName = Sema.getAST().getName().str();
-    if (!CGOpts.SuiteName.empty() && CGOpts.SuiteName != SuiteName)
-        return;
 
     // Emit the TLS context pointer as a definition in this module
     GetOrCreateTestCtxPtr(Module, LLVMCtx, /*IsDefinition=*/true);
@@ -2095,11 +2091,8 @@ void CodeGenModule::EmitSuite(SemaClassType &Sema) {
         Builder->SetInsertPoint(ContBB);
     }
 
-    // --test <Method>: run only the matching test-method ("<f>" or "<f>Test")
+    // Every test-method runs: the --test <Method> filter went with the runner.
     for (auto &[Name, M] : TestMethods) {
-        if (!CGOpts.TestFilter.empty() &&
-            Name != CGOpts.TestFilter && Name != CGOpts.TestFilter + "Test")
-            continue;
         Builder->CreateCall(MethodFn, {Builder->CreateGlobalStringPtr(Name, "suitemethod")});
         CallMethod(M);
         CheckEscaped("body", /*CountAsCase=*/true);

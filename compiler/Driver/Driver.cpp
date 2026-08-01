@@ -25,7 +25,6 @@
 #include "llvm/Support/CrashRecoveryContext.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Process.h"
-#include "llvm/Support/Program.h"
 
 #include <utility>
 #include <filesystem>
@@ -117,8 +116,6 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
     app.add_flag("--version", showVersion, "Print version information");
     app.add_flag("--debug",         debugFlag,   "Print debug messages");
     app.add_flag("--debug-symbols", DebugSymbols,"Emit DWARF debug information (no verbose logging)");
-    app.add_option("--test",        TestFilter,  "Compile in test mode (enables test {} blocks); with --suite, the optional value runs only the named test-method")->expected(0, 1);
-    app.add_option("--suite",       SuiteName,   "Build the suite test executable and run it (fly exits with the run's code); the optional value selects one suite by name, discovered from the source directory")->expected(0, 1);
     app.add_flag("-v,--verbose",    Verbose,     "Show commands to run and use verbose output");
     app.add_flag("-w,--no-warning", NoWarnings,  "Suppress all warnings");
     // Output format: WHAT the backend produces. Default is an object file.
@@ -169,11 +166,6 @@ Driver::Driver(llvm::ArrayRef<const char *> ArrArgs) :
         }
         return;
     }
-
-    // --test and --suite take an optional value, so presence is tracked via
-    // count(): a bare --test still means "compile in test mode".
-    TestMode = app.count("--test") > 0;
-    SuiteRun = app.count("--suite") > 0;
 
     // Unknown --flags are reported as such; any other positional is rejected —
     // sources are not named on the command line, they are discovered from the
@@ -523,7 +515,7 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
 
     // Auto-detect / auto-name the output when no explicit -o was given on a linking
     // build. AutoDetectOutputType() infers the type from the entry AST (main → exe;
-    // suite or main+--test → test exe; otherwise lib) and auto-names the output —
+    // suite → test exe; otherwise lib) and auto-names the output —
     // from the entry file's stem, or from the stem discovery chose (suite name /
     // source-root name). --lib / --lib-dyn are still honoured there (they force a
     // library even with a main); only the auto-naming applies.
@@ -569,20 +561,14 @@ void Driver::BuildOptions(FileSystemOptions &FileSystemOpts,
         CodeGenOpts->DebugSymbols = true;
     }
 
-    // Test mode
-    if (TestMode) {
-        FLY_DEBUG_MSG("Set --test: compiling in test mode");
-        CodeGenOpts->TestMode = true;
-        CodeGenOpts->TestFilter = TestFilter;
-    }
-
-    // Suite run: test mode + suite/method selection; the run happens in Execute()
-    if (SuiteRun) {
-        FLY_DEBUG_MSG("Set --suite: test mode, run after build");
-        CodeGenOpts->TestMode = true;
-        CodeGenOpts->SuiteName = SuiteName;
-        CodeGenOpts->TestFilter = TestFilter;
-    }
+    // NOTE: there is no --test / --suite here any more. The CLI test RUNNER was
+    // removed in 0.13.15: the 0.14.x bootstrap runs every suite with the compiler
+    // each stage just produced (STAGE=N), so the seed never had to run them, and
+    // the reference kept a user-facing runner nothing exercised. What remains is
+    // the LANGUAGE: CodeGenModule emits a suite's implicit main() for every SUITE
+    // class it sees, so the reference still BUILDS a suite binary. What went with
+    // the runner is RUNNING it, selecting one suite by name, filtering a
+    // test-method, and enabling `test {}` blocks inside a plain main().
 
     // CodeGen options
     CodeGenOpts->CodeModel = TargetOpts->CodeModel;
@@ -649,34 +635,6 @@ bool Driver::Execute() {
                         CI->getDiagnostics().Report(diag::err_drv_archive) << EC.message();
                         return false;
                     }
-                }
-            }
-
-            // --suite: run the produced suite binary; its exit code becomes
-            // fly's own exit code (see Fly.cpp / getRunExitCode).
-            if (Success && SuiteRun) {
-                llvm::SmallString<256> ExePath(FO.getOutputFile());
-                if (T.isOSWindows() &&
-                    !llvm::StringRef(ExePath).ends_with_insensitive(".exe"))
-                    ExePath += ".exe";
-                llvm::sys::fs::make_absolute(ExePath);
-                std::string ErrMsg;
-                llvm::SmallVector<llvm::StringRef, 1> RunArgs = {ExePath.str()};
-                RunExitCode = llvm::sys::ExecuteAndWait(ExePath, RunArgs,
-                    /*Env=*/std::nullopt, /*Redirects=*/{}, /*SecondsToWait=*/0,
-                    /*MemoryLimit=*/0, &ErrMsg);
-                if (RunExitCode < 0) {
-                    // -1 = could not be executed at all; -2 = the child crashed
-                    // or was killed. ErrMsg can be EMPTY for a crashing child on
-                    // Windows, so always surface which case and the code.
-                    llvm::errs() << "error: suite binary '" << ExePath
-                                 << (RunExitCode == -1 ? "' could not be executed"
-                                                       : "' terminated abnormally (crash)")
-                                 << " (code " << RunExitCode << ")";
-                    if (!ErrMsg.empty())
-                        llvm::errs() << ": " << ErrMsg;
-                    llvm::errs() << "\n";
-                    Success = false;
                 }
             }
         }

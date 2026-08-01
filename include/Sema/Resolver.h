@@ -157,14 +157,12 @@ namespace fly {
     	// the names of the first one (' _out_0' garbage lookups).
     	std::deque<std::string> SyntheticParamNames;
 
-        // True when compiling in test mode (--test flag)
+        // True when compiling in test mode: inline `test {}` blocks are RESOLVED
+        // (visit(ASTTestStmt) strips them when this is off). Suites are NOT gated
+        // by it — CodeGenModule emits their main() either way. There is no CLI
+        // flag since 0.13.15: Frontend::AutoDetectOutputType sets it when the
+        // entry declares a `suite`, and API callers set it directly.
         bool TestMode = false;
-
-        // True while resolving the body of an inline test {} block
-        bool InTestBlock = false;
-
-        // True while resolving a suite test-method body
-        bool InSuiteTestMethod = false;
 
     public:
 

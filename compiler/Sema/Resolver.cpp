@@ -2844,9 +2844,6 @@ void Resolver::visit(ASTTestStmt &AST) {
     // Strip in non-test mode — zero IR emitted
     if (!TestMode) return;
 
-    bool SavedInTestBlock = InTestBlock;
-    InTestBlock = true;
-
     SemaBlockStmt *Body = SemaBuilder::CreateBlockStmt(nullptr);
     SemaBlockStmt *SavedBlock = CurrentSemaBlock;
     CurrentSemaBlock = Body;
@@ -2858,7 +2855,6 @@ void Resolver::visit(ASTTestStmt &AST) {
     ExitScope();
 
     CurrentSemaBlock = SavedBlock;
-    InTestBlock = SavedInTestBlock;
 
     // Emit the SemaTestStmt into the current block
     SemaTestStmt *SemaTest = new SemaTestStmt(&AST);
@@ -2892,8 +2888,6 @@ void Resolver::visit(ASTCaseStmt &AST) {
     SemaBlockStmt *CaseBody = SemaBuilder::CreateBlockStmt(nullptr);
     SemaBlockStmt *SavedBlock = CurrentSemaBlock;
     CurrentSemaBlock = CaseBody;
-    bool SavedInTestMethod = InSuiteTestMethod;
-    InSuiteTestMethod = true;
 
     EnterScope();
     if (AST.getStmt() && AST.getStmt()->getStmtKind() == ASTStmtKind::STMT_BLOCK) {
@@ -2902,7 +2896,6 @@ void Resolver::visit(ASTCaseStmt &AST) {
     }
     ExitScope();
 
-    InSuiteTestMethod = SavedInTestMethod;
     CurrentSemaBlock = SavedBlock;
 
     SemaCaseStmt *SemaCase = new SemaCaseStmt(&AST, std::move(Label), CaseBody);

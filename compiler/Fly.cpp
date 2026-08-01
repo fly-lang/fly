@@ -59,6 +59,7 @@ int main(int Argc, const char **Argv) {
     // Shutdown after execution
     llvm::llvm_shutdown();
 
-    // --suite propagates the executed suite's exit code (0 when unused).
-    return Success ? TheDriver.getRunExitCode() : 1;
+    // fly never runs what it builds (the --suite runner was removed in 0.13.15),
+    // so the exit code is the COMPILATION's: 0 on success, 1 on failure.
+    return Success ? 0 : 1;
 }

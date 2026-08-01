@@ -91,50 +91,32 @@ namespace {
 
     // ─── Suite / test options ────────────────────────────────────────────────
 
-    // --suite takes the suite NAME as its optional value: with no positional
-    // arguments on the CLI there is nothing it can swallow by mistake.
-    TEST_F(DriverTest, SuiteWithNameSpaceForm) {
-        const char *argv[] = {"fly", "--suite", "DemoSuite"};
-        Driver driver(argv);
-        CompilerInstance &CI = driver.BuildCompilerInstance();
-        EXPECT_TRUE(CI.getCodeGenOptions().TestMode);
-        EXPECT_EQ(CI.getCodeGenOptions().SuiteName, "DemoSuite");
-    }
-
-    TEST_F(DriverTest, SuiteWithNameEqForm) {
-        const char *argv[] = {"fly", "--suite=DemoSuite"};
-        Driver driver(argv);
-        CompilerInstance &CI = driver.BuildCompilerInstance();
-        EXPECT_TRUE(CI.getCodeGenOptions().TestMode);
-        EXPECT_EQ(CI.getCodeGenOptions().SuiteName, "DemoSuite");
-    }
-
-    // Bare --suite: every suite discovered under the source root runs.
-    TEST_F(DriverTest, SuiteWithoutName) {
+    // The CLI test RUNNER is gone (0.13.15): --suite (build the suite exe, run
+    // it, adopt its exit code) and --test (enable test {} blocks / filter a
+    // test-method) are no longer options. The 0.14.x bootstrap runs every suite
+    // with the compiler each stage produced, so nothing drove them here. Both
+    // must now be rejected as unknown options — a CLI error → Execute() false,
+    // exit 1 — exactly like the removed --shared above.
+    TEST_F(DriverTest, SuiteFlagIsGone) {
         const char *argv[] = {"fly", "--suite"};
         Driver driver(argv);
-        CompilerInstance &CI = driver.BuildCompilerInstance();
-        EXPECT_TRUE(CI.getCodeGenOptions().TestMode);
-        EXPECT_TRUE(CI.getCodeGenOptions().SuiteName.empty());
+        driver.BuildCompilerInstance();
+        EXPECT_FALSE(driver.Execute());
     }
 
-    // --suite Name --test Method: the method filter rides along.
-    TEST_F(DriverTest, SuiteWithTestMethodFilter) {
-        const char *argv[] = {"fly", "--suite", "DemoSuite", "--test", "sum"};
+    TEST_F(DriverTest, SuiteFlagWithNameIsGone) {
+        const char *argv[] = {"fly", "--suite=DemoSuite"};
         Driver driver(argv);
-        CompilerInstance &CI = driver.BuildCompilerInstance();
-        EXPECT_TRUE(CI.getCodeGenOptions().TestMode);
-        EXPECT_EQ(CI.getCodeGenOptions().SuiteName, "DemoSuite");
-        EXPECT_EQ(CI.getCodeGenOptions().TestFilter, "sum");
+        driver.BuildCompilerInstance();
+        EXPECT_FALSE(driver.Execute());
     }
 
-    // Bare --test: compile-only test mode (test {} blocks enabled, no run).
-    TEST_F(DriverTest, BareTestMode) {
+    TEST_F(DriverTest, TestFlagIsGone) {
         const char *argv[] = {"fly", "--test"};
         Driver driver(argv);
         CompilerInstance &CI = driver.BuildCompilerInstance();
-        EXPECT_TRUE(CI.getCodeGenOptions().TestMode);
-        EXPECT_TRUE(CI.getCodeGenOptions().SuiteName.empty());
+        EXPECT_FALSE(driver.Execute());
+        EXPECT_FALSE(CI.getCodeGenOptions().TestMode);
     }
 
     // ─── Input / output option parsing ───────────────────────────────────────
