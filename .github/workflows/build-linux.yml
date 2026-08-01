@@ -46,17 +46,19 @@ jobs:
       # $LLVM_VERSION in the script when bumping LLVM, and bump the -vN suffix
       # whenever the script's extracted file list changes: a stale cache passes
       # the script's completeness check and actions/cache never re-saves an
-      # existing key. (-v4: adds llvm/lib/clang — the compiler-rt builtins.)
+      # existing key. (-v4: adds llvm/lib/clang — the compiler-rt builtins;
+      # -v5: adds lldb, lldb-server, lldb-dap, lldb-argdumper, liblldb.so*.)
       - name: Cache fork LLVM (libxml2-off dylib)
         uses: actions/cache@v4
         with:
           path: build/llvm
-          key: fly-llvm-20.1.8-linux-x86_64-dylib-v4
+          key: fly-llvm-20.1.8-linux-x86_64-dylib-v5
 
       # ── Rust-style staged bootstrap (see ci/linux/stage1.sh) ─────────────────
       # stage0  ci/linux/stage0.sh: the downloaded bootstrap compiler ($FLY_VERSION) +
       #         its precompiled lib → build/stage0, and the fork LLVM →
-      #         build/llvm (libLLVM + ld.lld + compiler-rt; NO system packages).
+      #         build/llvm (libLLVM + ld.lld + compiler-rt + the lldb debugger
+      #         set; NO system packages).
       # stage1  ci/linux/stage1.sh: stage0 builds runtime, std, compiler and
       #         driver FROM IN-TREE SOURCES and links the first self-host fly,
       #         all into build/stage1 (build-only). The compiler is built

@@ -43,6 +43,14 @@ import fly.str
 // llvmMajor — the LLVM major version the self-host targets (libLLVM-20).
 public string llvmMajor() { out = "20" }
 
+// envPathSeparator — the $PATH list separator for host os name `osName`
+// (llvm::sys::EnvPathSeparator in the reference): ";" on Windows, whose PATH
+// entries are drive paths like "C:\...", ":" everywhere else. Pure, so
+// ToolChainSuite can pin both branches.
+public string envPathSeparator(const string osName) {
+    if str.equals(osName, "windows") { out = ";" } else { out = ":" }
+}
+
 // archToCompilerRTSuffix — compiler-rt arch suffix; "" if unsupported.
 public string archToCompilerRTSuffix(const Arch a) {
     if a == Arch.X86_64  { out = "x86_64"  return }
@@ -69,23 +77,37 @@ public class ToolChain {
     // resolveProg — resolve a program name to a full path via $PATH. The runtime's
     // proc_exec is raw execve (no PATH search, unlike the C++'s in-process LLD, which
     // never spawned), so the linker must be an absolute path. "" if not found.
+    // The list separator is the HOST's (envPathSeparator: ";" on Windows, ":"
+    // elsewhere — splitting a Windows PATH on ":" cuts at every drive letter and
+    // the search can never hit), and on Windows each dir is probed for `name`
+    // then `name.exe`, since the on-disk linker is `ld.lld.exe`.
     public string resolveProg(const string name) {
-        if str.contains(name, "/") { out = name  return }
+        if str.contains(name, "/") || path.isAbsolute(name) { out = name  return }
+        string hostOs = env.osname()
+        bool win = str.equals(hostOs, "windows")
+        string sep = envPathSeparator(hostOs)
         string pathEnv = env.get("PATH")
-        if str.isEmpty(pathEnv) { pathEnv = "/usr/bin:/bin" }
+        if str.isEmpty(pathEnv) {
+            if win { out = ""  return }
+            pathEnv = "/usr/bin:/bin"
+        }
         int from = 0
         int len = str.len(pathEnv)
         string found = ""
         bool go = true
         while go {
             string tail = str.substring(pathEnv, from, len)
-            int rel = str.indexOf(tail, ":")
+            int rel = str.indexOf(tail, sep)
             int end = len
             if rel >= 0 { end = from + rel }
             string dir = str.substring(pathEnv, from, end)
             if str.isEmpty(dir) == false {
                 string cand = path.join(dir, name)
                 if fs.exists(cand) { found = cand  go = false }
+                elsif win {
+                    string candExe = path.join(dir, str.concat(name, ".exe"))
+                    if fs.exists(candExe) { found = candExe  go = false }
+                }
             }
             if rel < 0 { go = false } else { from = end + 1 }
         }
@@ -111,15 +133,11 @@ public class ToolChain {
             string dir = path.dirname(exe)
             // Preferred: the fork LLD shipped under its native name (<exe_dir>/ld.lld,
             // ld64.lld or lld-link[.exe]) — LLD self-selects the flavor from argv[0].
+            // Only original LLVM tool names are bundled (no fly-specific renames).
             string bundled = path.join(dir, prog)
             string bundledExe = path.join(dir, str.concat(prog, ".exe"))
-            // Legacy fallback: a single-flavor `fly-lld` driver bundled by older builds.
-            string legacy = path.join(dir, "fly-lld")
-            string legacyExe = path.join(dir, "fly-lld.exe")
             if fs.exists(bundled) { p = bundled }
             elsif fs.exists(bundledExe) { p = bundledExe }
-            elsif fs.exists(legacy) { p = legacy }
-            elsif fs.exists(legacyExe) { p = legacyExe }
         }
         if str.isEmpty(p) { p = this.resolveProg(prog) }
         if str.isEmpty(p) { p = this.resolveProg(alt) }

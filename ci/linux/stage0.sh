@@ -55,7 +55,7 @@ FORK_LLVM="$BUILD_DIR/llvm"
 RT_BUILTINS="$FORK_LLVM/lib/clang/${LLVM_VERSION%%.*}/lib/x86_64-unknown-linux-gnu/libclang_rt.builtins.a"
 NEED_STATIC=0
 [ "${FLY_BUNDLE_LLVM:-0}" = "1" ] && [ ! -f "$FORK_LLVM/lib/liblldELF.a" ] && NEED_STATIC=1
-if [ ! -f "$FORK_LLVM/lib/libLLVM.so" ] || [ ! -f "$RT_BUILTINS" ] || [ "$NEED_STATIC" = "1" ]; then
+if [ ! -f "$FORK_LLVM/lib/libLLVM.so" ] || [ ! -f "$RT_BUILTINS" ] || [ ! -x "$FORK_LLVM/bin/lldb" ] || [ "$NEED_STATIC" = "1" ]; then
     url="https://github.com/fly-lang/llvm-project/releases/download/v${LLVM_VERSION}-linux-x86_64/llvm-${LLVM_VERSION}-x86_64-linux-gnu.tar.gz"
     mkdir -p "$BUILD_DIR"
     tarball="$BUILD_DIR/fork-llvm.tar.gz"
@@ -65,10 +65,15 @@ if [ ! -f "$FORK_LLVM/lib/libLLVM.so" ] || [ ! -f "$RT_BUILTINS" ] || [ "$NEED_S
         curl -fSL --retry 6 --retry-delay 15 --retry-all-errors -o "$tarball.part" "$url"
         mv -f "$tarball.part" "$tarball"
     fi
-    # Always: the shared libLLVM.so (link + runtime), the lld linker, llvm-config
-    # and the compiler-rt builtins (linked into every fly-produced executable).
+    # Always: the shared libLLVM.so (link + runtime), the lld linker, llvm-config,
+    # the compiler-rt builtins (linked into every fly-produced executable) and the
+    # debugger the release bundles — lldb + liblldb + lldb-server (lldb launches
+    # local processes through it) + lldb-dap (IDE/DAP) + lldb-argdumper, all under
+    # their ORIGINAL LLVM names. Keep this list in sync with the guard above AND
+    # the fly-llvm cache key in .github/workflows/build-linux.yml.
     # Bundle also: the lld static archives + LLVM/lld headers.
     paths="llvm/lib/libLLVM.so* llvm/bin/ld.lld llvm/bin/lld llvm/bin/llvm-config llvm/lib/clang"
+    paths="$paths llvm/bin/lldb llvm/bin/lldb-server llvm/bin/lldb-dap llvm/bin/lldb-argdumper llvm/lib/liblldb.so*"
     [ "${FLY_BUNDLE_LLVM:-0}" = "1" ] && paths="$paths llvm/lib/liblld*.a llvm/include"
     # shellcheck disable=SC2086
     tar -xzf "$tarball" -C "$BUILD_DIR" --wildcards $paths   # → $BUILD_DIR/llvm/

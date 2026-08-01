@@ -34,7 +34,7 @@ if (-not (Test-Path "$LIB/fly_std_lib.lib") -or -not (Test-Path "$LIB/fly_runtim
     Write-Host "error: std/runtime missing in $LIB - run build_runtime.ps1 + build_std.ps1 first."; exit 1
 }
 
-Install-LdLld                     # provision build\llvm\bin\ld.lld.exe (fork lld, GNU flavour)
+Assert-LdLld                      # build\llvm\bin\ld.lld.exe (extracted by stage0 from the LLVM artifact)
 if (-not (Test-MingwSysroot)) {
     Write-Host "error: mingw/UCRT sysroot missing under build\mingw - run ci\windows\stage0.ps1."; exit 1
 }

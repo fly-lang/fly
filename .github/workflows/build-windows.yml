@@ -44,17 +44,22 @@ jobs:
       # against the bundled mingw sysroot — see ci/windows/gnu_common.ps1. That is
       # the whole point of this pipeline, so there is no ilammy/msvc-dev-cmd step.
 
-      # fly needs three files from the ~900 MB fork LLVM artifact: LLVM-C.lib (link
-      # import lib), LLVM-C.dll (loaded at runtime; the self-host calls the LLVM C
-      # API) and lld-link.exe (the fork linker, also used as ld.lld). Cache them.
+      # fly extracts from the fork LLVM artifact: LLVM-C.lib (link import lib),
+      # LLVM-C.dll (loaded at runtime; the self-host calls the LLVM C API), the
+      # linker under both original names (ld.lld.exe + lld-link.exe) and the
+      # debugger the release bundles (lldb.exe + liblldb.dll + lldb-dap.exe +
+      # lldb-argdumper.exe). Cache them.
       - name: Cache LLVM (fly-lang build)
         id: llvm-cache
         uses: actions/cache@v4
         with:
           path: build/llvm
           # Version pin lives in ci/windows/stage0.ps1 ($LLVM_VERSION); keep this
-          # key in sync when bumping it so a new LLVM invalidates the cache.
-          key: fly-llvm-20.1.8-win-x64
+          # key in sync when bumping it so a new LLVM invalidates the cache, and
+          # bump the -vN suffix whenever stage0's extracted file list changes: a
+          # stale cache passes the script's completeness check and actions/cache
+          # never re-saves an existing key. (-v2: adds ld.lld.exe + the lldb set.)
+          key: fly-llvm-20.1.8-win-x64-v2
 
       # The mingw/UCRT sysroot (import libs + CRT startup + compiler-rt builtins)
       # that fly links against — no Visual Studio. stage0.ps1 fetches it from

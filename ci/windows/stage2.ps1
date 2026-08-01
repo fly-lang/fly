@@ -66,7 +66,10 @@ if (-not $ok) {
 # They are part of the stage, not an opt-in extra: build\stage2\bin is what the
 # release packages verbatim, so a tool that is not built here does not ship, and
 # a tool failure here is a real failure of the artifact.
-foreach ($step in 'build_lsp', 'test_lsp', 'build_registry', 'test_registry', 'test_tools') {
+# test_dbg: the debugger is PROVISIONED (bundled by link_fly.ps1 from the fork
+# LLVM), not compiled — but it ships from build\stage2\bin like the tools, so
+# it is verified here with them.
+foreach ($step in 'build_lsp', 'test_lsp', 'build_registry', 'test_registry', 'test_tools', 'test_dbg') {
     & ".\ci\windows\$step.ps1"
     if ($LASTEXITCODE -ne 0) { Write-Host "error: $step.ps1 failed (exit $LASTEXITCODE)"; exit 1 }
 }

@@ -93,6 +93,14 @@ suite ToolChainSuite {
         }
     }
 
+    void pathSepTest() {
+        case "envPathSeparator: ';' on windows, ':' elsewhere": {
+            assert.assertStr(envPathSeparator("windows"), ";", 70)
+            assert.assertStr(envPathSeparator("linux"), ":", 71)
+            assert.assertStr(envPathSeparator("macos"), ":", 72)
+        }
+    }
+
     void llvmProbeTest() {
         case "llvmLibDirCandidates probes exe, parent and grandparent (reference order)": {
             ToolChain tc = tcFor("x86_64-unknown-linux-gnu")

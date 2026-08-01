@@ -46,5 +46,8 @@ echo "stage2: std -> build/stage2/lib (copied from stage1, reference ABI)"
 ./ci/linux/build_registry.sh
 ./ci/linux/test_registry.sh
 ./ci/linux/test_tools.sh
+# The debugger is PROVISIONED (bundled by link_fly.sh from the fork LLVM), not
+# compiled — but it ships from build/stage2/bin like the tools, so verify it here.
+./ci/linux/test_dbg.sh
 
 echo "stage2: done — build/stage2/bin/fly"

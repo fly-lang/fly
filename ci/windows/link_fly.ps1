@@ -55,13 +55,18 @@ if ($PRELINKED) {
 }
 
 # -- Bundle (FLY_BUNDLE_LLVM=1): LLVM-C.dll (loaded at runtime) + ld.lld.exe (the
-#    linker fly forks to link USER programs in mingw mode) next to fly.exe. The
-#    mingw/UCRT sysroot itself is shipped by the release packaging (see task list).
+#    linker fly forks to link USER programs in mingw mode) + the debugger — lldb.exe
+#    with liblldb.dll (import-by-name) plus lldb-dap.exe (IDE/DAP) and
+#    lldb-argdumper.exe — next to fly.exe, all under their ORIGINAL LLVM names.
+#    The mingw/UCRT sysroot is copied below too.
 if ($env:FLY_BUNDLE_LLVM -eq '1') {
     $llvmRoot = (Resolve-Path 'build/llvm').Path
-    Install-LdLld
+    Assert-LdLld
     Copy-Item (Join-Path $llvmRoot 'bin\LLVM-C.dll') "$OUT/LLVM-C.dll" -Force
     Copy-Item $script:GNU_ldLld "$OUT/ld.lld.exe" -Force
+    foreach ($dbg in 'lldb.exe', 'liblldb.dll', 'lldb-dap.exe', 'lldb-argdumper.exe') {
+        Copy-Item (Join-Path $llvmRoot "bin\$dbg") "$OUT/$dbg" -Force
+    }
     # Ship the mingw/UCRT sysroot next to fly.exe so it links USER programs with no
     # external toolchain (ToolChain.getMingwSysrootDir → <exe_dir>/mingw). Copy once.
     if ((Test-Path 'build/mingw') -and -not (Test-Path "$OUT/mingw/lib/crt2.o")) {
