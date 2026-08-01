@@ -36,8 +36,12 @@ ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # 0.13.14 is the first STD-LESS seed: the package is just bin/fly +
 # lib/{llvm.fly.h, runtime.fly.h, fly_runtime_lib.a} — the std lives in-tree
 # and stage 1 builds it from source. It also carries the inherited-interface
-# sema fix and the __out_N StringRef-dangle fix the interleaved suites need.
-FLY_VERSION="${FLY_VERSION:-0.13.14}"
+# sema fix and the __out_N StringRef-dangle fix.
+# 0.13.15 drops the CLI test runner (--test/--suite): a lone `suite` in a
+# linking root is now the structural test entry, and more than one is an error.
+# It is the first seed that never runs anything it builds — stage 1 tests with
+# the fly it just linked instead (see stage1.sh).
+FLY_VERSION="${FLY_VERSION:-0.13.15}"
 
 BUILD_DIR="$ROOT/build"
 STAGE0_DIR="$BUILD_DIR/stage0"

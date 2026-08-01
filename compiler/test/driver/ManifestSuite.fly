@@ -692,7 +692,7 @@ suite ManifestSuite {
             string s = nlc("namespace pkg.lock")
             s = str.concat(s, nlc("import fly.meta.*"))
             s = str.concat(s, nlc("class Lockfile : fly.meta.Lockfile {"))
-            s = str.concat(s, nlc(str.concat("  string flyVersion = ", qq("0.14.4"))))
+            s = str.concat(s, nlc(str.concat("  string flyVersion = ", qq("0.14.5"))))
             s = str.concat(s, nlc(str.concat("  string checksum = ", qq("sha256:aa"))))
             string p1 = str.concat("new LockedPackage(", qq("alpha"))
             p1 = qarg(p1, "1.0.0")
@@ -748,7 +748,7 @@ suite ManifestSuite {
     void lockRoundTripTest() {
         case "serialize → read back preserves packages + deps": {
             Lockfile src = new Lockfile()
-            src.setFlyVersion("0.14.4")
+            src.setFlyVersion("0.14.5")
             src.setTomlChecksum("sha256:manifest")
             LockedPackage p = new LockedPackage()
             p.setName("alpha")
@@ -811,7 +811,7 @@ suite ManifestSuite {
             Lockfile missing = driver.readLock(fp, e1)
             int cMissing = missing.packageCount()
             Lockfile src = new Lockfile()
-            src.setFlyVersion("0.14.4")
+            src.setFlyVersion("0.14.5")
             src.setTomlChecksum("sha256:m")
             LockedPackage p = new LockedPackage()
             p.setName("gamma")

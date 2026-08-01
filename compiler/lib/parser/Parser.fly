@@ -462,6 +462,10 @@ public class Parser {
 
     // ── ParseModule ───────────────────────────────────────────────────────────
     public ASTModule parseModule(const string name) {
+        // `name` is the caller's identity for this buffer (the source path in the
+        // Frontend): adopt it so parse diagnostics carry the real file instead of
+        // the constructor's "<input>" placeholder.
+        this.sm.setFilename(name)
         ASTModule m = ASTBuilder.CreateModule(this.curLoc(), name)
         this.module = m
         bool namespaceSeen = false

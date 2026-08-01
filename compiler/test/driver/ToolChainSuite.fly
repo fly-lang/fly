@@ -109,6 +109,29 @@ suite ToolChainSuite {
         }
     }
 
+    void artifactExtTest() {
+        case "windowsArtifactPath appends .exe/.dll unless already present": {
+            assert.assertStr(windowsArtifactPath("app", false), "app.exe", 80)
+            assert.assertStr(windowsArtifactPath("app.exe", false), "app.exe", 81)
+            assert.assertStr(windowsArtifactPath("App.EXE", false), "App.EXE", 82)
+            assert.assertStr(windowsArtifactPath("mylib", true), "mylib.dll", 83)
+            assert.assertStr(windowsArtifactPath("mylib.dll", true), "mylib.dll", 84)
+        }
+        case "a dotted stem still gets the extension (bare suite binary regression)": {
+            // A --suite artifact is named after the FULLY-QUALIFIED suite, so the
+            // stem CONTAINS dots without carrying an extension. The old rule
+            // (path.ext non-empty → leave alone) read ".MathSuite" as an extension
+            // and linked the file bare, while Driver.runSuiteBinary looked for
+            // `<stem>.exe` → "error: cannot run suite binary".
+            assert.assertStr(windowsArtifactPath("smoke.mathsuite.MathSuite", false),
+                             "smoke.mathsuite.MathSuite.exe", 85)
+            assert.assertStr(windowsArtifactPath("out/fly.driver.test.ToolChainSuite", false),
+                             "out/fly.driver.test.ToolChainSuite.exe", 86)
+            // a dotted stem for --lib-dyn takes .dll by the same rule
+            assert.assertStr(windowsArtifactPath("fly.net.tls", true), "fly.net.tls.dll", 87)
+        }
+    }
+
     void windowsRoutingTest() {
         case "B12: isOSWindows separates msvc from gnu environments": {
             Triple msvc = tripleParse("x86_64-pc-windows-msvc")

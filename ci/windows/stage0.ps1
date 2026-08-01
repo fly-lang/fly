@@ -35,8 +35,12 @@ $LLVM_VERSION = if ($env:LLVM_VERSION) { $env:LLVM_VERSION } else { "20.1.8" }
 # 0.13.14 is the first STD-LESS seed: the package is just bin\fly.exe +
 # lib\{llvm.fly.h, runtime.fly.h, fly_runtime_lib.lib} — the std lives in-tree
 # and stage 1 builds it from source. It also carries the inherited-interface
-# sema fix and the __out_N StringRef-dangle fix the interleaved suites need.
-$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.14" }
+# sema fix and the __out_N StringRef-dangle fix.
+# 0.13.15 drops the CLI test runner (--test/--suite): a lone `suite` in a
+# linking root is now the structural test entry, and more than one is an error.
+# It is the first seed that never runs anything it builds - stage 1 tests with
+# the fly.exe it just linked instead (see stage1.ps1).
+$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.15" }
 
 # Resolve everything against the PROJECT ROOT (this script lives in ci\windows\,
 # two levels down) so the downloads land next to the build regardless of the

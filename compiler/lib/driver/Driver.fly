@@ -486,7 +486,6 @@ public class Driver {
             }
         }
         string finalPath = this.applyOutDir(outDir, basePath)
-        string name = this.moduleName(input)
 
         // Default target = the HOST (compile for where fly runs). Windows targets
         // the gnu/UCRT env (the self-contained mingw toolchain fly ships), NOT the
@@ -577,7 +576,12 @@ public class Driver {
 
         CompilerInstance ci = new CompilerInstance(null, fo, cgo, topts)
         ci.createFileManager()
-        ci.createSourceManager(name, src)
+        // The SourceManager name is what every diagnostic reports as its file, so
+        // it must be the SOURCE PATH, not the module stem: stripping `.fly` here
+        // made errors point at a file that does not exist (`…/broken` instead of
+        // `…/broken.fly`), which no editor could resolve. The multi-input path
+        // already parses each module under its full path (Frontend.executeImpl).
+        ci.createSourceManager(input, src)
         Frontend fe = new Frontend(ci)
 
         // Library mode (--lib): compile every input into ONE merged object (written to
@@ -880,14 +884,15 @@ public class Driver {
 
     // runSuiteBinary — launch the just-linked suite executable and return its exit
     // code. `base` is the -o path without the platform extension (link mode leaves
-    // it bare); Windows names the artifact `<base>.exe`, others `<base>`. Matches
-    // the ToolChain's own extension rule and the reference's ExePath handling.
+    // it bare); Windows names the artifact `<base>.exe`, others `<base>`. The name
+    // comes from ToolChain.windowsArtifactPath — the SAME call the link step used —
+    // so the two can never disagree about the extension. (They did: the linker's old
+    // "already has an extension?" test misread the dots in a namespace-qualified
+    // suite stem like `smoke.mathsuite.MathSuite` and emitted the file bare.)
     public int runSuiteBinary(const string base) {
         string exe = base
         if str.equals(env.osname(), "windows") {
-            if str.endsWith(base, ".exe") == false {
-                exe = str.concat(base, ".exe")
-            }
+            exe = windowsArtifactPath(base, false)
         }
         if fs.exists(exe) == false {
             io.printErrLn(str.concat("error: cannot run suite binary: ", exe))

@@ -105,18 +105,39 @@ public class DiagnosticConsumer {
 // StoringDiagnosticConsumer — records rendered diagnostics for inspection/tests.
 public class StoringDiagnosticConsumer : DiagnosticConsumer {
     List<string> messages
+    // The same diagnostics kept FIELD BY FIELD. getRendered() is the "line:col:
+    // level: message" short form and carries no filename by contract (the LSP
+    // decodes it in fly.lsp.parseRendered), so a caller that needs to report or
+    // log a parse error structurally — with its file — reads these instead of
+    // re-parsing the rendered string. Line/col are stored pre-rendered as
+    // strings: fly.data.List stores `long` and str.convert takes an int.
+    List<string> levels
+    List<string> files
+    List<string> lines
+    List<string> cols
+    List<string> texts
     int errors
     int warnings
 
     public StoringDiagnosticConsumer() {
         super()
         this.messages = new List<string>()
+        this.levels = new List<string>()
+        this.files = new List<string>()
+        this.lines = new List<string>()
+        this.cols = new List<string>()
+        this.texts = new List<string>()
         this.errors = 0
         this.warnings = 0
     }
 
     public void handleDiagnostic(const Diagnostic diag) {
         this.messages.add(diag.getRendered())
+        this.levels.add(levelName(diag.getLevel()))
+        this.files.add(diag.getFilename())
+        this.lines.add(str.convert(diag.getLine()))
+        this.cols.add(str.convert(diag.getColumn()))
+        this.texts.add(diag.getMessage())
         DiagLevel level = diag.getLevel()
         if level == DiagLevel.Error || level == DiagLevel.Fatal { this.errors = this.errors + 1 }
         elsif level == DiagLevel.Warning { this.warnings = this.warnings + 1 }
@@ -124,6 +145,11 @@ public class StoringDiagnosticConsumer : DiagnosticConsumer {
 
     public int count() { out = (int)this.messages.size() }
     public string getMessage(const int i) { out = this.messages.get(i) }
+    public string getLevelName(const int i) { out = this.levels.get(i) }
+    public string getFile(const int i) { out = this.files.get(i) }
+    public string getLine(const int i) { out = this.lines.get(i) }
+    public string getCol(const int i) { out = this.cols.get(i) }
+    public string getText(const int i) { out = this.texts.get(i) }
     public int errorCount() { out = this.errors }
     public int warningCount() { out = this.warnings }
 }

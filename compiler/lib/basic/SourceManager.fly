@@ -85,6 +85,14 @@ public class SourceManager {
         out = this.filename
     }
 
+    // setFilename — rename the buffer. The Parser builds its SourceManager before
+    // it knows which file it is parsing (the path arrives with parseModule), so
+    // the placeholder name is replaced there; without this every parse diagnostic
+    // reports the "<input>" placeholder instead of the real source.
+    public void setFilename(const string fn) {
+        this.filename = fn
+    }
+
     // getLineStartOffset — byte offset where 1-based `line` begins (start of buffer
     // for line 1; just past the (line-1)th '\n' otherwise). Caret-diagnostic helper.
     public int getLineStartOffset(const int line) {

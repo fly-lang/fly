@@ -726,14 +726,31 @@ public class Frontend {
     // active the messages are also collected: parser diagnostics bypass the
     // DiagnosticsEngine (pre-rendered "line:col: …" strings), so file/line/col
     // arrive embedded in the message and the structured fields stay "0".
+    // printDiags — report the diagnostics a Parser collected in its own sink.
+    // Rendered field by field, in the SAME shape as a Sema diagnostic
+    // (`file:line:col: level: message`, TextDiagnostic.header): these used to be
+    // printed as the engine's short form, which carries no filename, so an editor
+    // or problem matcher could not tell WHICH file failed to parse — and the log
+    // recorded every parse error as file "" at 0:0. The short form stays the
+    // fallback for an unnamed buffer (its contract is decoded by the LSP, so it
+    // must keep starting with the line number).
     public void printDiags(const StoringDiagnosticConsumer sink) {
         int n = sink.count()
         int i = 0
         while i < n {
-            string msg = sink.getMessage(i)
-            io.printErrLn(msg)
+            string file = sink.getFile(i)
+            if str.isEmpty(file) {
+                io.printErrLn(sink.getMessage(i))
+            } else {
+                string head = str.concat(str.concat(file, ":"),
+                              str.concat(sink.getLine(i), str.concat(":",
+                              str.concat(sink.getCol(i), ": "))))
+                io.printErrLn(str.concat(head, str.concat(sink.getLevelName(i),
+                              str.concat(": ", sink.getText(i)))))
+            }
             if this.logger != null {
-                this.logger.add("error", "", "0", "0", msg)
+                this.logger.add(sink.getLevelName(i), file, sink.getLine(i),
+                                sink.getCol(i), sink.getText(i))
             }
             i = i + 1
         }
