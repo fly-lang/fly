@@ -10,7 +10,8 @@
 // Covers the directory-based build feature of the driver/frontend:
 //   * input discovery from the source root (--src-dir, default: cwd):
 //       - executable: the single file declaring main() (0 or >1 → error);
-//       - test mode:  the files declaring suites (--suite Name selects one);
+//       - suite entry: a linking root with no main() and exactly one suite
+//         (>1 → error; a main() present anywhere wins);
 //       - --lib/--lib-dyn and non-linking stages: the whole directory;
 //   * output-type auto-detection from the entry AST with auto-naming (entry
 //     file stem, suite name, or source-root name), gated on "no -o + link";
@@ -218,9 +219,9 @@ namespace {
         EXPECT_FALSE(llvm::sys::fs::is_regular_file(exeName("sfb_ovr")));
     }
 
-    // --test discovers the suite (no main() needed): test mode on, executable
-    // auto-named after the SUITE, not after the file.
-    TEST_F(SingleFileBuildTest, TestModeDiscoversSuite) {
+    // Declaring a suite is enough: test mode on, executable auto-named after the
+    // SUITE, not after the file.
+    TEST_F(SingleFileBuildTest, SuiteDeclarationSelectsTestExecutable) {
         const std::string dir = "sfb_suite_src";
         makeDir(dir);
         writeFile(dir + "/sfb_suite.fly",
@@ -235,7 +236,7 @@ namespace {
         makeAssertLib(dir);
         track(exeName("SfbSuite"));
         track("sfb_suite.fly.o");
-        const char *argv[] = {"fly", "--test", "--src-dir", "sfb_suite_src"};
+        const char *argv[] = {"fly", "--src-dir", "sfb_suite_src"};
         Driver drv(argv);
         CompilerInstance &CI = drv.BuildCompilerInstance();
         bool ok = drv.Execute();
@@ -247,27 +248,27 @@ namespace {
         EXPECT_TRUE(exists(exeName("SfbSuite")));
     }
 
-    // main() + --test and no suite anywhere → test executable from main().
-    TEST_F(SingleFileBuildTest, MainPlusTestFlagIsTestMode) {
+    // main() and no suite anywhere → a PLAIN executable, TestMode off.
+    TEST_F(SingleFileBuildTest, MainWithoutSuiteIsAPlainExecutable) {
         const std::string dir = "sfb_maintest_src";
         makeDir(dir);
         writeFile(dir + "/sfb_maintest.fly", "namespace demo\nvoid main() {}\n");
         track(exeName("sfb_maintest"));
         track("sfb_maintest.fly.o");
-        const char *argv[] = {"fly", "--test", "--src-dir", "sfb_maintest_src"};
+        const char *argv[] = {"fly", "--src-dir", "sfb_maintest_src"};
         Driver drv(argv);
         CompilerInstance &CI = drv.BuildCompilerInstance();
         bool ok = drv.Execute();
 
         EXPECT_TRUE(ok);
-        EXPECT_TRUE(CI.getCodeGenOptions().TestMode);
+        EXPECT_FALSE(CI.getCodeGenOptions().TestMode);
         EXPECT_FALSE(CI.getFrontendOptions().CreateLibrary);
         EXPECT_EQ(CI.getFrontendOptions().getOutputFile(), "sfb_maintest");
     }
 
-    // --suite Name: the named suite is discovered from the source root, built and
-    // RUN — fly's success includes the suite binary exiting 0.
-    TEST_F(SingleFileBuildTest, SuiteByNameIsDiscoveredAndRun) {
+    // Several suites under one root → ERROR: each gets its own implicit main(),
+    // so linking them together would emit two `main` symbols.
+    TEST_F(SingleFileBuildTest, MultipleSuitesInOneRootAreAnError) {
         const std::string dir = "sfb_named_src";
         makeDir(dir);
         writeFile(dir + "/first.fly",
@@ -289,32 +290,16 @@ namespace {
                   "    }\n"
                   "}\n");
         makeAssertLib(dir);
-        track(exeName("SfbSecond"));
-        track("second.fly.o");
-        const char *argv[] = {"fly", "--suite", "SfbSecond",
-                              "--src-dir", "sfb_named_src"};
-        Driver drv(argv);
-        CompilerInstance &CI = drv.BuildCompilerInstance();
-        bool ok = drv.Execute();
-
-        EXPECT_TRUE(ok);
-        EXPECT_EQ(drv.getRunExitCode(), 0);
-        // Only the file declaring SfbSecond was compiled, named after the suite.
-        EXPECT_EQ(CI.getFrontendOptions().getOutputFile(), "SfbSecond");
-        EXPECT_TRUE(exists(exeName("SfbSecond")));
-        EXPECT_FALSE(exists(exeName("SfbFirst")));
-    }
-
-    // --suite with a name no file declares → error.
-    TEST_F(SingleFileBuildTest, SuiteNotFoundIsAnError) {
-        const std::string dir = "sfb_nosuite_src";
-        makeDir(dir);
-        writeFile(dir + "/only.fly", "namespace demo\nvoid main() {}\n");
-        const char *argv[] = {"fly", "--suite", "Missing",
-                              "--src-dir", "sfb_nosuite_src"};
+        const char *argv[] = {"fly", "--src-dir", "sfb_named_src"};
         Driver drv(argv);
         drv.BuildCompilerInstance();
+
         EXPECT_FALSE(drv.Execute());
+        // Nothing linked. is_regular_file, not exists: on Linux the exe name has
+        // no extension and collides with the source directory (LibFlagOverridesMain).
+        EXPECT_FALSE(llvm::sys::fs::is_regular_file(exeName("sfb_named_src")));
+        EXPECT_FALSE(llvm::sys::fs::is_regular_file(exeName("SfbFirst")));
+        EXPECT_FALSE(llvm::sys::fs::is_regular_file(exeName("SfbSecond")));
     }
 
     // ── Import dependency graph (--src-dir) ─────────────────────────────────────

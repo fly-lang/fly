@@ -710,7 +710,6 @@ void Frontend::AutoDetectOutputType(ASTModule *M) {
     }
 
     FrontendOptions &FO = CI.getFrontendOptions();
-    bool testMode = CI.getCodeGenOptions().TestMode; // set by --test flag
     bool hasOutput = !FO.getOutputFile().empty();
     // Discovery picks the stem when it knows a better name than the entry file's
     // (the suite name, or the source-root directory for library/multi-suite builds).
@@ -727,10 +726,8 @@ void Frontend::AutoDetectOutputType(ASTModule *M) {
         return;
     }
 
-    // Precedence: (suite | (main & --test)) → test exe; main → exe; else → lib.
-    if (hasSuite || (hasMain && testMode)) {
-        // Test executable: TestMode drives implicit main() generation when only a
-        // suite is present; an explicit main() runs its test {} blocks.
+    // Precedence: suite → test exe; main → exe; else → lib.
+    if (hasSuite) {
         CI.getCodeGenOptions().TestMode = true;
         if (!hasOutput) FO.setOutputFile(stem);
         FLY_DEBUG_MSG("Auto-detected: test executable '" << stem << "'");
@@ -978,7 +975,6 @@ static void ScanTopLevelDecls(SourceManager &SM, const std::string &Path,
 bool Frontend::DiscoverInputs() {
     FLY_DEBUG_SCOPE("Frontend", "DiscoverInputs");
     FrontendOptions &FO = CI.getFrontendOptions();
-    const CodeGenOptions &CGO = CI.getCodeGenOptions();
     const std::string Root = FO.SrcDirs.empty() ? std::string(".") : FO.SrcDirs[0];
 
     // Every .fly source under the root (recursive; .fly.h are headers, not inputs).
@@ -1036,38 +1032,23 @@ bool Frontend::DiscoverInputs() {
                                  << " suites=" << Suites.size());
     }
 
-    // Test mode (--test / --suite) on a linking build: the suites are the entry
-    // points. Non-linking test-mode builds fall through to the main()/whole-dir
-    // rules below (compiling suites to objects needs no suite selection).
-    if (CGO.TestMode && FO.LinkStep) {
-        if (!CGO.SuiteName.empty()) {
-            llvm::StringSet<> Chosen;
-            for (const auto &SD : SuiteDecls)
-                if (SD.first == CGO.SuiteName)
-                    Chosen.insert(SD.second);
-            if (Chosen.empty()) {
-                Diags.Report(diag::err_fe_suite_not_found) << CGO.SuiteName << Root;
-                return false;
+    // A linking root with no main() and exactly one suite: that suite is the entry.
+    // Each suite gets its own implicit main(), so more than one cannot be linked
+    // together. Non-linking stages fall through to the whole-directory rule below.
+    if (FO.LinkStep && MainFiles.empty() && !SuiteDecls.empty()) {
+        if (SuiteDecls.size() > 1) {
+            std::string List;
+            for (const auto &SD : SuiteDecls) {
+                if (!List.empty())
+                    List += ", ";
+                List += SD.first;
             }
-            for (const auto &F : Files)
-                if (Chosen.count(F))
-                    FO.addInputFile(F.c_str());
-            FO.DefaultOutputStem = CGO.SuiteName;
-            return true;
+            Diags.Report(diag::err_fe_multiple_suites) << Root << List;
+            return false;
         }
-        if (!SuiteDecls.empty()) {
-            llvm::StringSet<> SuiteFiles;
-            for (const auto &SD : SuiteDecls)
-                SuiteFiles.insert(SD.second);
-            for (const auto &F : Files)
-                if (SuiteFiles.count(F))
-                    FO.addInputFile(F.c_str());
-            FO.DefaultOutputStem = SuiteDecls.size() == 1 ? SuiteDecls[0].first
-                                                          : RootStem();
-            return true;
-        }
-        // No suite anywhere: fall through to main() — a main compiled with --test
-        // is the historical "test executable running its test {} blocks".
+        FO.addInputFile(SuiteDecls[0].second.c_str());
+        FO.DefaultOutputStem = SuiteDecls[0].first;
+        return true;
     }
 
     // One top-level main() under the root selects the entry (its import closure

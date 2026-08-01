@@ -72,11 +72,6 @@ namespace fly {
         std::string TargetCpu;
         std::string StatsFile;
         bool DebugSymbols = false;
-        bool TestMode     = false;
-        bool SuiteRun     = false;  // --suite: build the suite test exe, then run it
-        std::string SuiteName;      // --suite <Name>: which suite gets the implicit main()
-        std::string TestFilter;     // --test <Method>: run only this test-method
-        int  RunExitCode  = 0;      // exit code of the executed suite binary
         bool Verbose      = false;
         bool NoWarnings   = false;
         bool EmitLL       = false;
@@ -105,12 +100,9 @@ namespace fly {
 
         CompilerInstance &BuildCompilerInstance();
 
-        void printVersion(bool Full = true);
+        void printVersion();
 
         bool Execute();
-
-        // Exit code of the suite binary executed by --suite (0 otherwise).
-        int getRunExitCode() const { return RunExitCode; }
     };
 }
 

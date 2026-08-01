@@ -59,6 +59,5 @@ int main(int Argc, const char **Argv) {
     // Shutdown after execution
     llvm::llvm_shutdown();
 
-    // --suite propagates the executed suite's exit code (0 when unused).
-    return Success ? TheDriver.getRunExitCode() : 1;
+    return Success ? 0 : 1;
 }

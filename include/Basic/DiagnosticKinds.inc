@@ -249,5 +249,5 @@ DIAG(err_invalid_behavior, CLASS_ERROR, (unsigned)diag::Severity::Fatal, "intern
 DIAG(err_fe_no_sources, CLASS_ERROR, (unsigned)diag::Severity::Error, "no .fly source files found in source directory '%0'", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_fe_no_main, CLASS_ERROR, (unsigned)diag::Severity::Error, "no main() function found in source directory '%0'", 0, SFINAE_SubstitutionFailure, false, true, 0)
 DIAG(err_fe_multiple_main, CLASS_ERROR, (unsigned)diag::Severity::Error, "multiple main() functions found in source directory '%0': %1", 0, SFINAE_SubstitutionFailure, false, true, 0)
-DIAG(err_fe_suite_not_found, CLASS_ERROR, (unsigned)diag::Severity::Error, "suite '%0' not found in source directory '%1'", 0, SFINAE_SubstitutionFailure, false, true, 0)
+DIAG(err_fe_multiple_suites, CLASS_ERROR, (unsigned)diag::Severity::Error, "multiple suites found in source directory '%0' (each emits its own main()): %1", 0, SFINAE_SubstitutionFailure, false, true, 0)
 

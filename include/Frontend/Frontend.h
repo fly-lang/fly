@@ -77,9 +77,8 @@ namespace fly {
         /// scanning the top-level declarations of every .fly file under it:
         ///   - library builds (--lib/--lib-dyn) and non-linking stages
         ///     (--no-output, -c, --emit-*): every source file;
-        ///   - test mode (--test/--suite) on a linking build: the files declaring
-        ///     suites — only the one declaring CodeGenOptions::SuiteName when set —
-        ///     falling back to main() when the root declares no suite at all;
+        ///   - a linking build with no main() and exactly one suite: the file
+        ///     declaring it (>1 suite is an error);
         ///   - otherwise: the single file declaring main() (0 or >1 is an error).
         /// Reports a diagnostic and returns false when discovery fails.
         bool DiscoverInputs();

@@ -133,15 +133,10 @@ public:
 
   bool Static = false;
   bool Shared = false;
+  /// Emit the bodies of inline `test {}` blocks, and nothing else: a suite is
+  /// emitted regardless. Set by Frontend::AutoDetectOutputType when the entry
+  /// declares a `suite`, or directly by an API caller.
   bool TestMode = false;
-
-  /// --suite [Name]: when multiple suites are compiled, only the named one
-  /// gets the implicit main(). Empty = the (single) suite found.
-  std::string SuiteName;
-
-  /// --test [Method]: run only this test-method of the suite (matches
-  /// "<Method>" or "<Method>Test"). Empty = all test-methods.
-  std::string TestFilter;
   bool RDynamic = false;
   bool PIE = false; // Position Independent Code
   bool StaticPIE = false; // Static Position Independent Code

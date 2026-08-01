@@ -157,14 +157,9 @@ namespace fly {
     	// the names of the first one (' _out_0' garbage lookups).
     	std::deque<std::string> SyntheticParamNames;
 
-        // True when compiling in test mode (--test flag)
+        // Inline `test {}` blocks are resolved; visit(ASTTestStmt) strips them
+        // when this is off. Suites are not gated by it.
         bool TestMode = false;
-
-        // True while resolving the body of an inline test {} block
-        bool InTestBlock = false;
-
-        // True while resolving a suite test-method body
-        bool InSuiteTestMethod = false;
 
     public:
 
