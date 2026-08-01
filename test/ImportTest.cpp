@@ -110,6 +110,27 @@ void main() {
 }
 )";
 
+    // Case 10: import my.utils.*  →  utils.foo() is an ERROR: a wildcard injects
+    // the namespace's SYMBOLS, it never binds the 'utils' prefix (canonical
+    // semantics: wildcard = bare calls only, plain import = prefix only).
+    static constexpr const char *ImportWildcardPrefixSource = R"(
+import my.utils.*
+
+void main() {
+    utils.foo()
+}
+)";
+
+    // Case 11: import my.utils  →  bare foo() is an ERROR: a plain import binds
+    // only the 'utils' namespace symbol, no member enters the scope.
+    static constexpr const char *ImportPlainBareSource = R"(
+import my.utils
+
+void main() {
+    foo()
+}
+)";
+
     // ── Fixture ───────────────────────────────────────────────────────────────
 
     class ImportTest : public ::testing::Test {
@@ -217,6 +238,24 @@ void main() {
         Driver drv(argv);
         drv.BuildCompilerInstance();
         EXPECT_TRUE(drv.Execute());
+    }
+
+    // A wildcard import does NOT bind the namespace prefix → utils.foo() fails
+    TEST_F(ImportTest, ImportWildcardDoesNotBindPrefix) {
+        SetUpWithSource(ImportWildcardPrefixSource);
+        const char *argv[] = {"fly", "-no-output", "--src-dir", srcDir};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_FALSE(drv.Execute());
+    }
+
+    // A plain namespace import brings no bare symbols → foo() fails
+    TEST_F(ImportTest, ImportPlainDoesNotInjectSymbols) {
+        SetUpWithSource(ImportPlainBareSource);
+        const char *argv[] = {"fly", "-no-output", "--src-dir", srcDir};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_FALSE(drv.Execute());
     }
 
 } // anonymous namespace
