@@ -131,8 +131,11 @@ $frames = 0
 for ($i = 0; $i -lt $outBytes.Length - 3; $i++) {
     if ($outBytes[$i] -eq 13 -and $outBytes[$i+1] -eq 10 -and $outBytes[$i+2] -eq 13 -and $outBytes[$i+3] -eq 10) { $frames++ }
 }
-# initialize + 4 publishDiagnostics + -32601 + 16 nav responses + shutdown = 23
-Check ($frames -eq 23) "23 CRLF-framed messages (got $frames)"
+# initialize + 6 publishDiagnostics + -32601 + 16 nav responses + shutdown = 25
+# 6, not 4: diagnostics are now grouped BY FILE and published to each file's own
+# URI, so one compile that finds errors in several files of the project sends one
+# notification per file instead of hanging them all on the edited document.
+Check ($frames -eq 25) "25 CRLF-framed messages (got $frames)"
 Check ($outText.Contains('"id":1') -and $outText.Contains('"textDocumentSync":1')) 'initialize answered with capabilities'
 Check ($outText.Contains('"serverInfo"')) 'serverInfo present'
 Check ($outText.Contains("undefinedFunction")) 'sema diagnostic published for the broken file'

@@ -29,6 +29,7 @@ public class LspServer {
     bool exited
     List<string> openFiles
     string compiledPath          // which file the analyzer's nav state holds
+    List<string> diagFiles       // files carrying squiggles from the last publish
 
     public LspServer() {
         this.transport = new LspTransport()
@@ -37,6 +38,7 @@ public class LspServer {
         this.exited = false
         this.openFiles = new List<string>()
         this.compiledPath = ""
+        this.diagFiles = new List<string>()
     }
 
     // run — blocks until exit or stdin closes.
@@ -84,7 +86,7 @@ public class LspServer {
             }
         }
 
-        if str.equals(method, "initialize") { this.onInitialize(idJson) }
+        if str.equals(method, "initialize") { this.onInitialize(idJson, msg) }
         elsif str.equals(method, "initialized") { }
         elsif str.equals(method, "shutdown") { this.onShutdown(idJson) }
         elsif str.equals(method, "exit") { this.exited = true }
@@ -123,10 +125,45 @@ public class LspServer {
         out = fly.lsp.uriToPath(json.asString(uri))
     }
 
+    // extractRoot — the PROJECT root announced by `initialize`: rootUri, else the
+    // first workspaceFolder, else the deprecated rootPath ("" when the client
+    // sends none, e.g. a single loose file).
+    //
+    // Without it the analyzer only knows the edited file's own directory, and a
+    // project whose namespaces span sibling directories reports its entire import
+    // graph as "unknown type". Every reference implementation takes the root from
+    // this handshake (rust-analyzer, gopls) rather than guessing per file.
+    string extractRoot(const pointer msg) {
+        pointer params = json.get(msg, "params")
+        if params == 0 { out = ""  return }
+        pointer ru = json.get(params, "rootUri")
+        if ru != 0 {
+            if json.isString(ru) { out = fly.lsp.uriToPath(json.asString(ru))  return }
+        }
+        pointer wf = json.get(params, "workspaceFolders")
+        if wf != 0 {
+            if json.size(wf) > 0 {
+                pointer f0 = json.at(wf, 0)
+                if f0 != 0 {
+                    pointer u0 = json.get(f0, "uri")
+                    if u0 != 0 {
+                        if json.isString(u0) { out = fly.lsp.uriToPath(json.asString(u0))  return }
+                    }
+                }
+            }
+        }
+        pointer rp = json.get(params, "rootPath")
+        if rp != 0 {
+            if json.isString(rp) { out = json.asString(rp)  return }
+        }
+        out = ""
+    }
+
     // ── lifecycle ────────────────────────────────────────────────────────────
 
-    void onInitialize(const string idJson) {
+    void onInitialize(const string idJson, const pointer msg) {
         this.initialized = true
+        this.analyzer.setProjectRoot(this.extractRoot(msg))
         pointer caps = json.newObject()
         // 1 = full document sync. The capability list grows WITH the analyzer:
         // everything declared here has a live handler below.
@@ -227,19 +264,70 @@ public class LspServer {
         this.transport.sendNotification("textDocument/publishDiagnostics", params)
     }
 
+    // listHas — membership test for a path list (no Set in this std yet).
+    bool listHas(const List<string> xs, const string v) {
+        bool found = false
+        int i = 0
+        while i < xs.size() {
+            if str.equals(xs.get(i), v) { found = true  i = (int)xs.size() }
+            else { i = i + 1 }
+        }
+        out = found
+    }
+
+    // publishFor — one publishDiagnostics notification for `path`.
+    void publishFor(const string path, const pointer arr) {
+        pointer params = json.newObject()
+        json.put(params, "uri", json.newString(fly.lsp.pathToUri(path)))
+        json.put(params, "diagnostics", arr)
+        this.transport.sendNotification("textDocument/publishDiagnostics", params)
+    }
+
     void recompileAndPublish(const string triggerFile) {
         List<LspDiag> diags = this.analyzer.compileFile(triggerFile)
         this.compiledPath = triggerFile
-        pointer arr = json.newArray()
+
+        // One compile covers the WHOLE project, so a diagnostic may belong to any
+        // file in it: group by file and send one notification each. Hanging every
+        // message on the edited file's URI (what this did before) would paint
+        // another file's line numbers onto this one. Same mapping rust-analyzer's
+        // flycheck does when it fans one workspace check back out over many files.
+        List<string> files = new List<string>()
         int i = 0
         while i < diags.size() {
-            json.add(arr, fly.lsp.mkDiagnostic(diags.get(i)))
+            LspDiag d0 = diags.get(i)
+            if str.isEmpty(d0.file) == false {
+                if this.listHas(files, d0.file) == false { files.add(d0.file) }
+            }
             i = i + 1
         }
-        pointer params = json.newObject()
-        json.put(params, "uri", json.newString(fly.lsp.pathToUri(triggerFile)))
-        json.put(params, "diagnostics", arr)
-        this.transport.sendNotification("textDocument/publishDiagnostics", params)
+        // The edited file is always published, empty list included, so fixing its
+        // last error clears the squiggles.
+        if this.listHas(files, triggerFile) == false { files.add(triggerFile) }
+
+        int fi = 0
+        while fi < files.size() {
+            string f = files.get(fi)
+            pointer arr = json.newArray()
+            int di = 0
+            while di < diags.size() {
+                LspDiag d = diags.get(di)
+                if str.equals(d.file, f) { json.add(arr, fly.lsp.mkDiagnostic(d)) }
+                di = di + 1
+            }
+            this.publishFor(f, arr)
+            fi = fi + 1
+        }
+
+        // NOT cleared here: a file that had squiggles in the previous run but is
+        // absent from this one. This compile covers the trigger file's IMPORT
+        // CLOSURE, not the whole project, so "absent" usually means "not reached
+        // from this file" — clearing on that basis makes another file's errors
+        // vanish just because the user switched tab. Stale entries are refreshed
+        // when that file is itself compiled. Cross-file clearing becomes correct
+        // only with a true whole-project check (rust-analyzer clears the previous
+        // workspace set exactly because its cargo check IS workspace-wide).
+        this.diagFiles = files
     }
 
     // ── navigation ───────────────────────────────────────────────────────────

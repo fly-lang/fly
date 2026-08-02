@@ -132,6 +132,7 @@ public class LspDiagnosticConsumer : DiagnosticConsumer {
 
 public class LspAnalyzer {
     string stdLibDir
+    string projectRoot             // workspace root from `initialize`; "" = none
 
     // ── the last successful compile, kept alive for navigation ───────────────
     bool navValid
@@ -148,6 +149,7 @@ public class LspAnalyzer {
         // Auto-discover <install>/lib next to the running fly-lsp binary, the
         // same walk Driver.fly does for fly itself: bin/fly-lsp → ../lib.
         this.stdLibDir = ""
+        this.projectRoot = ""
         string exe = env.exePath()
         if str.isEmpty(exe) == false {
             string binDir = path.dirname(exe)
@@ -164,6 +166,9 @@ public class LspAnalyzer {
         this.smFiles = new List<string>()
         this.smCache = new List<SourceManager>()
     }
+
+    // setProjectRoot — the workspace root the client announced at `initialize`.
+    public void setProjectRoot(const string root) { this.projectRoot = root }
 
     // compileFile — parse + sema `file`, returning every diagnostic. An empty
     // list means the file is clean. A file that cannot be read yields one error
@@ -206,8 +211,16 @@ public class LspAnalyzer {
 
         FrontendOptions fo = new FrontendOptions("")
         if str.isEmpty(this.stdLibDir) == false { fo.setStdLibDir(this.stdLibDir) }
+        // Source roots, PROJECT FIRST. A file's own directory is not a project:
+        // Fly resolves imports by scanning the source roots, so with only that
+        // directory every namespace that lives in a sibling one comes back
+        // "unknown type" — the whole import graph of a real project. The root
+        // arrives with `initialize` (LspServer.extractRoot).
+        if str.isEmpty(this.projectRoot) == false { fo.addSrcDir(this.projectRoot) }
         string dir = path.dirname(file)
-        if str.isEmpty(dir) == false { fo.addSrcDir(dir) }
+        if str.isEmpty(dir) == false {
+            if str.equals(dir, this.projectRoot) == false { fo.addSrcDir(dir) }
+        }
 
         CodeGenOptions cgo = new CodeGenOptions()
         TargetOptions topts = new TargetOptions(target.hostTripleStr())
