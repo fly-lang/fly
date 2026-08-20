@@ -69,6 +69,9 @@ SESSION="$D/session.bin"
     frame '{"jsonrpc":"2.0","method":"initialized","params":{}}'
     frame '{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"'"$BROKEN_URI"'"}}}'
     frame '{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"'"$CLEAN_URI"'"}}}'
+    # didSave with UNCHANGED bytes: coalesced — no recompile, no publish, so the
+    # expected frame count below does NOT grow by this line.
+    frame '{"jsonrpc":"2.0","method":"textDocument/didSave","params":{"textDocument":{"uri":"'"$CLEAN_URI"'"}}}'
     frame '{"jsonrpc":"2.0","method":"textDocument/didClose","params":{"textDocument":{"uri":"'"$BROKEN_URI"'"}}}'
     frame '{"jsonrpc":"2.0","id":9,"method":"no/suchMethod","params":{}}'
     # navigation over navfix.fly
@@ -111,7 +114,7 @@ FRAMES=$(grep -c $'Content-Length' "$OUT")
 check "$([ "$FRAMES" -eq 23 ] && echo 1 || echo 0)" "23 framed messages (got $FRAMES)"
 CRLF=$(od -An -tx1 "$OUT" | tr -d ' \n' | grep -o '0d0a0d0a' | wc -l)
 check "$([ "$CRLF" -eq 23 ] && echo 1 || echo 0)" "frame terminators are real CRLFCRLF (got $CRLF)"
-check "$(grep -q '"id":1' "$OUT" && grep -q '"textDocumentSync":1' "$OUT" && echo 1 || echo 0)" "initialize answered with capabilities"
+check "$(grep -q '"id":1' "$OUT" && grep -q '"textDocumentSync":{' "$OUT" && grep -q '"save":true' "$OUT" && echo 1 || echo 0)" "initialize answered with sync-object capabilities (save enabled)"
 check "$(grep -q '"serverInfo"' "$OUT" && echo 1 || echo 0)" "serverInfo present"
 check "$(grep -q 'undefinedFunction' "$OUT" && echo 1 || echo 0)" "sema diagnostic published for the broken file"
 check "$(grep -q "$CLEAN_URI\",\"diagnostics\":\[\]" "$OUT" && echo 1 || echo 0)" "clean file published an empty list"

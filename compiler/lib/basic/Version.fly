@@ -9,4 +9,4 @@ namespace fly.compiler.basic
 // Bump the version here and ONLY here; keep the line's shape stable.
 // ─────────────────────────────────────────────────────────────────────────────
 
-public string flyVersion() { out = "0.14.5" }
+public string flyVersion() { out = "0.14.6" }

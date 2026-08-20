@@ -2,6 +2,8 @@ namespace fly.lsp
 
 import fly.str
 import fly.json
+import fly.hash
+import fly.os.fs
 import fly.data.List
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -14,12 +16,13 @@ import fly.data.List
 //   • an unknown REQUEST gets -32601 — never silence, which would hang the
 //     client's pending promise. Unknown notifications are ignored by design.
 //
-// Document sync (reference parity, deliberate): didOpen/didChange RECOMPILE FROM
-// DISK and push diagnostics; the in-memory contentChanges text is not consulted.
-// The reference does the same — its analyzer compiles paths, not buffers. Wiring
-// an unsaved-buffer overlay through the compiler is the navigation phase's work.
-// didClose clears the file's diagnostics so a closed tab leaves no stale
-// squiggles behind.
+// Document sync: didOpen and didSave RECOMPILE FROM DISK and push diagnostics,
+// grouped per file; didChange is a no-op (a whole-project compile per keystroke
+// pinned the server, and the compile never saw unsaved buffer text anyway — the
+// analyzer compiles paths, not buffers; an unsaved-buffer overlay remains the
+// navigation phase's work). A save whose bytes match the last compile of the
+// same file is skipped (compiledCrc). didClose clears the file's diagnostics
+// and forgets its coalescing state so a reopen recompiles.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class LspServer {
@@ -29,6 +32,7 @@ public class LspServer {
     bool exited
     List<string> openFiles
     string compiledPath          // which file the analyzer's nav state holds
+    uint compiledCrc             // CRC-32 of that file's content at compile time
     List<string> diagFiles       // files carrying squiggles from the last publish
 
     public LspServer() {
@@ -38,6 +42,7 @@ public class LspServer {
         this.exited = false
         this.openFiles = new List<string>()
         this.compiledPath = ""
+        this.compiledCrc = 0
         this.diagFiles = new List<string>()
     }
 
@@ -92,6 +97,7 @@ public class LspServer {
         elsif str.equals(method, "exit") { this.exited = true }
         elsif str.equals(method, "textDocument/didOpen") { this.onDidOpen(msg) }
         elsif str.equals(method, "textDocument/didChange") { this.onDidChange(msg) }
+        elsif str.equals(method, "textDocument/didSave") { this.onDidSave(msg) }
         elsif str.equals(method, "textDocument/didClose") { this.onDidClose(msg) }
         elsif str.equals(method, "textDocument/definition") { this.onDefinition(idJson, msg) }
         elsif str.equals(method, "textDocument/hover") { this.onHover(idJson, msg) }
@@ -165,9 +171,16 @@ public class LspServer {
         this.initialized = true
         this.analyzer.setProjectRoot(this.extractRoot(msg))
         pointer caps = json.newObject()
-        // 1 = full document sync. The capability list grows WITH the analyzer:
-        // everything declared here has a live handler below.
-        json.put(caps, "textDocumentSync", json.newInt(1))
+        // Sync as an OBJECT, not the bare number 1: the numeric form has no
+        // `save` field, so the client never sends textDocument/didSave — and
+        // save is what triggers diagnostics now (whole-project compiles are too
+        // expensive to run per keystroke; same reason gopls offers
+        // diagnosticsTrigger=Save and rust-analyzer checks on save).
+        pointer sync = json.newObject()
+        json.put(sync, "openClose", json.newBool(true))
+        json.put(sync, "change", json.newInt(1))
+        json.put(sync, "save", json.newBool(true))
+        json.put(caps, "textDocumentSync", sync)
         json.put(caps, "definitionProvider", json.newBool(true))
         json.put(caps, "hoverProvider", json.newBool(true))
         json.put(caps, "referencesProvider", json.newBool(true))
@@ -240,7 +253,14 @@ public class LspServer {
         this.recompileAndPublish(path)
     }
 
+    // onDidChange — deliberately does NOT compile. A whole-project compile per
+    // keystroke pinned the server for the length of a full sema run on every
+    // edit; diagnostics now refresh on didOpen and didSave (the compile reads
+    // from disk anyway, so mid-edit buffer content was never visible to it).
     void onDidChange(const pointer msg) {
+    }
+
+    void onDidSave(const pointer msg) {
         string path = this.extractPath(msg)
         if str.isEmpty(path) { return }
         this.recompileAndPublish(path)
@@ -262,6 +282,13 @@ public class LspServer {
         json.put(params, "uri", json.newString(fly.lsp.pathToUri(path)))
         json.put(params, "diagnostics", json.newArray())
         this.transport.sendNotification("textDocument/publishDiagnostics", params)
+        // The clear above forgot this file's squiggles, so the coalescing state
+        // must forget its compile too: a reopen with unchanged bytes would
+        // otherwise skip the recompile and leave a broken file looking clean.
+        if str.equals(path, this.compiledPath) {
+            this.compiledPath = ""
+            this.compiledCrc = 0
+        }
     }
 
     // listHas — membership test for a path list (no Set in this std yet).
@@ -284,26 +311,25 @@ public class LspServer {
     }
 
     void recompileAndPublish(const string triggerFile) {
+        // Coalescing: a save that did not change the bytes since the last
+        // compile of this same file has nothing new to say — skip the (whole
+        // project, seconds-long) recompile. rust-analyzer coalesces rapid
+        // restarts the same way, just by time window instead of content.
+        uint crc = hash.crc32(fs.readStr(triggerFile))
+        if str.equals(triggerFile, this.compiledPath) {
+            if crc == this.compiledCrc { return }
+        }
         List<LspDiag> diags = this.analyzer.compileFile(triggerFile)
         this.compiledPath = triggerFile
+        this.compiledCrc = crc
 
         // One compile covers the WHOLE project, so a diagnostic may belong to any
         // file in it: group by file and send one notification each. Hanging every
         // message on the edited file's URI (what this did before) would paint
         // another file's line numbers onto this one. Same mapping rust-analyzer's
         // flycheck does when it fans one workspace check back out over many files.
-        List<string> files = new List<string>()
-        int i = 0
-        while i < diags.size() {
-            LspDiag d0 = diags.get(i)
-            if str.isEmpty(d0.file) == false {
-                if this.listHas(files, d0.file) == false { files.add(d0.file) }
-            }
-            i = i + 1
-        }
-        // The edited file is always published, empty list included, so fixing its
-        // last error clears the squiggles.
-        if this.listHas(files, triggerFile) == false { files.add(triggerFile) }
+        // The set logic is fly.lsp.diagFileSet (pure, covered by LspProtocolSuite).
+        List<string> files = fly.lsp.diagFileSet(diags, triggerFile)
 
         int fi = 0
         while fi < files.size() {
@@ -341,6 +367,9 @@ public class LspServer {
         if str.equals(path, this.compiledPath) { return }
         List<LspDiag> ignored = this.analyzer.compileFile(path)
         this.compiledPath = path
+        // Keep the coalescing state truthful: this compile saw these bytes, so
+        // a later didSave with unchanged content can skip its own recompile.
+        this.compiledCrc = hash.crc32(fs.readStr(path))
     }
 
     // extractLine/extractCol — params.position, converted to 1-based.

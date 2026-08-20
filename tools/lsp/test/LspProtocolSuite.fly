@@ -15,6 +15,7 @@ import fly.mem
 import fly.json
 import fly.assert
 import fly.lsp
+import fly.data.List
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LspProtocolSuite — coverage of tools/lsp/lib/LspProtocol.fly. Port of the
@@ -290,6 +291,46 @@ suite LspProtocolSuite {
             int c = b
             c = c & 255
             assert.assertEqI(c, 10, 602)
+        }
+    }
+
+    // ── diagFileSet — per-file publish grouping ──────────────────────────────
+    //
+    // One project-wide compile can report errors in any file; the server sends
+    // one publishDiagnostics per DISTINCT file, plus the trigger file (empty
+    // list allowed) so its old squiggles always clear. 7xx codes.
+    void diagFileSetTest() {
+        case "distinct files, first-seen order, trigger appended when absent": {
+            List<LspDiag> ds = new List<LspDiag>()
+            ds.add(new LspDiag(1, 1, 1, "e1", "a.fly"))
+            ds.add(new LspDiag(2, 1, 1, "e2", "b.fly"))
+            ds.add(new LspDiag(3, 1, 1, "e3", "a.fly"))
+            List<string> fs = lsp.diagFileSet(ds, "t.fly")
+            assert.assertEqI((int)fs.size(), 3, 701)
+            assert.assertStr(fs.get(0), "a.fly", 702)
+            assert.assertStr(fs.get(1), "b.fly", 703)
+            assert.assertStr(fs.get(2), "t.fly", 704)
+        }
+        case "trigger already among the diagnostics is not duplicated": {
+            List<LspDiag> ds = new List<LspDiag>()
+            ds.add(new LspDiag(1, 1, 1, "e1", "t.fly"))
+            ds.add(new LspDiag(2, 1, 1, "e2", "u.fly"))
+            List<string> fs = lsp.diagFileSet(ds, "t.fly")
+            assert.assertEqI((int)fs.size(), 2, 705)
+            assert.assertStr(fs.get(0), "t.fly", 706)
+        }
+        case "no diagnostics: the clean trigger file alone (its clear)": {
+            List<LspDiag> ds = new List<LspDiag>()
+            List<string> fs = lsp.diagFileSet(ds, "clean.fly")
+            assert.assertEqI((int)fs.size(), 1, 707)
+            assert.assertStr(fs.get(0), "clean.fly", 708)
+        }
+        case "a diagnostic with an empty file never mints an empty URI": {
+            List<LspDiag> ds = new List<LspDiag>()
+            ds.add(new LspDiag(1, 1, 1, "boom", ""))
+            List<string> fs = lsp.diagFileSet(ds, "t.fly")
+            assert.assertEqI((int)fs.size(), 1, 709)
+            assert.assertStr(fs.get(0), "t.fly", 710)
         }
     }
 }

@@ -170,6 +170,27 @@ public class LspAnalyzer {
     // setProjectRoot — the workspace root the client announced at `initialize`.
     public void setProjectRoot(const string root) { this.projectRoot = root }
 
+    // resolveRoot — the source root for compiling `file`, decided PER FILE (a
+    // monorepo holds several Fly projects; gopls does the same walk for go.mod):
+    //   1. the nearest ancestor directory holding a Manifest.fly/manifest.fly —
+    //      the same two spellings the driver accepts (commands.fly manifestPath);
+    //   2. else the workspace root from `initialize`;
+    //   3. else the file's own directory (the historical behaviour).
+    public string resolveRoot(const string file) {
+        string dir = path.dirname(file)
+        string probe = dir
+        int guard = 0
+        while str.isEmpty(probe) == false && guard < 64 {
+            if fs.exists(path.join(probe, "Manifest.fly")) { out = probe  return }
+            if fs.exists(path.join(probe, "manifest.fly")) { out = probe  return }
+            string up = path.dirname(probe)
+            if str.equals(up, probe) { probe = "" } else { probe = up }
+            guard = guard + 1
+        }
+        if str.isEmpty(this.projectRoot) == false { out = this.projectRoot  return }
+        out = dir
+    }
+
     // compileFile — parse + sema `file`, returning every diagnostic. An empty
     // list means the file is clean. A file that cannot be read yields one error
     // diagnostic at 1:1 rather than an empty (i.e. "all good") answer.
@@ -214,12 +235,14 @@ public class LspAnalyzer {
         // Source roots, PROJECT FIRST. A file's own directory is not a project:
         // Fly resolves imports by scanning the source roots, so with only that
         // directory every namespace that lives in a sibling one comes back
-        // "unknown type" — the whole import graph of a real project. The root
-        // arrives with `initialize` (LspServer.extractRoot).
-        if str.isEmpty(this.projectRoot) == false { fo.addSrcDir(this.projectRoot) }
+        // "unknown type" — the whole import graph of a real project. The root is
+        // resolved per file: nearest Manifest.fly, else the workspace root from
+        // `initialize`, else the file's directory (resolveRoot).
+        string root = this.resolveRoot(file)
+        if str.isEmpty(root) == false { fo.addSrcDir(root) }
         string dir = path.dirname(file)
         if str.isEmpty(dir) == false {
-            if str.equals(dir, this.projectRoot) == false { fo.addSrcDir(dir) }
+            if str.equals(dir, root) == false { fo.addSrcDir(dir) }
         }
 
         CodeGenOptions cgo = new CodeGenOptions()

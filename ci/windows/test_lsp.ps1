@@ -78,6 +78,9 @@ $bytes += Frame('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}')
 $bytes += Frame('{"jsonrpc":"2.0","method":"initialized","params":{}}')
 $bytes += Frame('{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"' + $brokenUri + '"}}}')
 $bytes += Frame('{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"' + $cleanUri + '"}}}')
+# didSave with UNCHANGED bytes: the server must coalesce (skip the recompile and
+# publish nothing), so the expected frame count below does NOT grow by this line.
+$bytes += Frame('{"jsonrpc":"2.0","method":"textDocument/didSave","params":{"textDocument":{"uri":"' + $cleanUri + '"}}}')
 $bytes += Frame('{"jsonrpc":"2.0","method":"textDocument/didClose","params":{"textDocument":{"uri":"' + $brokenUri + '"}}}')
 $bytes += Frame('{"jsonrpc":"2.0","id":9,"method":"no/suchMethod","params":{}}')
 # ── navigation over navfix.fly ────────────────────────────────────────────────
@@ -131,12 +134,13 @@ $frames = 0
 for ($i = 0; $i -lt $outBytes.Length - 3; $i++) {
     if ($outBytes[$i] -eq 13 -and $outBytes[$i+1] -eq 10 -and $outBytes[$i+2] -eq 13 -and $outBytes[$i+3] -eq 10) { $frames++ }
 }
-# initialize + 6 publishDiagnostics + -32601 + 16 nav responses + shutdown = 25
-# 6, not 4: diagnostics are now grouped BY FILE and published to each file's own
-# URI, so one compile that finds errors in several files of the project sends one
-# notification per file instead of hanging them all on the edited document.
-Check ($frames -eq 25) "25 CRLF-framed messages (got $frames)"
-Check ($outText.Contains('"id":1') -and $outText.Contains('"textDocumentSync":1')) 'initialize answered with capabilities'
+# initialize + 4 publishDiagnostics + -32601 + 16 nav responses + shutdown = 23.
+# The 4 publishes: didOpen broken (its own diagnostics), didOpen clean (empty
+# list), didClose broken (the clear), didOpen nav (empty). The didSave with
+# unchanged bytes publishes NOTHING (coalesced) — a growth here means either the
+# coalescing broke or a compile spilled diagnostics onto unrelated files again.
+Check ($frames -eq 23) "23 CRLF-framed messages (got $frames)"
+Check ($outText.Contains('"id":1') -and $outText.Contains('"textDocumentSync":{') -and $outText.Contains('"save":true')) 'initialize answered with sync-object capabilities (save enabled)'
 Check ($outText.Contains('"serverInfo"')) 'serverInfo present'
 Check ($outText.Contains("undefinedFunction")) 'sema diagnostic published for the broken file'
 Check ($outText.Contains($cleanUri + '","diagnostics":[]')) 'clean file published an empty list'

@@ -90,6 +90,30 @@ void writeNavFixture() {
     fs.writeStr(navFixturePath(), str.replace(s, "\n", lsp.lfStr()), 420)
 }
 
+// rootFixtureDir — a two-directory project marked by a Manifest.fly at its root:
+//
+//   lsp_suite_fx_root/
+//     Manifest.fly        (existence is all resolveRoot reads)
+//     lib/util.fly        namespace fxroot.util — public seven()
+//     app/main.fly        namespace fxroot.app  — imports fxroot.util
+//
+// main.fly's import resolves ONLY when the compile root is the manifest
+// directory: app/ alone cannot see lib/.
+string rootFixtureDir() { out = "lsp_suite_fx_root" }
+
+void writeRootFixture() {
+    fs.dirCreateAll("lsp_suite_fx_root/app", 493)
+    fs.dirCreateAll("lsp_suite_fx_root/lib", 493)
+    // A valid, never-imported module: resolveRoot only checks existence, but the
+    // source scan may still parse it, so it must not be garbage.
+    string mf = "namespace fxroot.manifest\n"
+    fs.writeStr("lsp_suite_fx_root/Manifest.fly", str.replace(mf, "\n", lsp.lfStr()), 420)
+    string u = "namespace fxroot.util\n\npublic int seven() {\n    out = 7\n}\n"
+    fs.writeStr("lsp_suite_fx_root/lib/util.fly", str.replace(u, "\n", lsp.lfStr()), 420)
+    string m = "namespace fxroot.app\n\nimport fxroot.util\n\nvoid main() {\n    int x = util.seven()\n}\n"
+    fs.writeStr("lsp_suite_fx_root/app/main.fly", str.replace(m, "\n", lsp.lfStr()), 420)
+}
+
 // compiled — an analyzer with the fixture already compiled, ready to query.
 LspAnalyzer compiled() {
     writeNavFixture()
@@ -455,6 +479,42 @@ suite LspAnalyzerSuite {
             LspAnalyzer a = compiled()
             assert.assertEqI((int)a.inlayHints(1, 5).size(), 0, 1019)
             fs.dirDeleteAll(navFixtureDir())
+        }
+    }
+
+    // ── resolveRoot — per-file project root (11xx) ───────────────────────────
+    //
+    // The compile's source root decides which imports resolve. Priority:
+    // nearest ancestor holding a Manifest.fly, else the workspace root from
+    // `initialize`, else the file's own directory. A wrong root is the bug that
+    // painted whole projects red: with only the file's directory, every
+    // namespace in a sibling directory is "unknown type".
+    void resolveRootTest() {
+        case "nearest ancestor with Manifest.fly wins over the workspace": {
+            writeRootFixture()
+            LspAnalyzer a = new LspAnalyzer()
+            a.setProjectRoot("some_workspace")
+            assert.assertStr(a.resolveRoot("lsp_suite_fx_root/app/main.fly"), "lsp_suite_fx_root", 1101)
+            fs.dirDeleteAll(rootFixtureDir())
+        }
+        case "no manifest anywhere: the workspace root from initialize": {
+            LspAnalyzer a = new LspAnalyzer()
+            a.setProjectRoot("some_workspace")
+            assert.assertStr(a.resolveRoot("lsp_suite_fx_nav/nav.fly"), "some_workspace", 1102)
+        }
+        case "no manifest, no workspace: the file's own directory": {
+            LspAnalyzer a = new LspAnalyzer()
+            assert.assertStr(a.resolveRoot("lsp_suite_fx_nav/nav.fly"), "lsp_suite_fx_nav", 1103)
+        }
+        case "cross-directory import compiles clean from the manifest root": {
+            // app/main.fly imports fxroot.util, which lives in the SIBLING lib/
+            // directory: only the manifest root sees both. This is the exact
+            // shape that produced hundreds of unknown-type errors per file.
+            writeRootFixture()
+            LspAnalyzer a = new LspAnalyzer()
+            List<LspDiag> d = a.compileFile("lsp_suite_fx_root/app/main.fly")
+            assert.assertEqI((int)d.size(), 0, 1104)
+            fs.dirDeleteAll(rootFixtureDir())
         }
     }
 }
