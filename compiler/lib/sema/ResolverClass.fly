@@ -18,8 +18,8 @@ public class ResolverClass {
     // declareClass — visit(ASTClass): create the SemaClassType shell, register the
     // type symbol in the module (and namespace) scope, and queue it for Phase B.
     public static void declareClass(const Resolver r, const ASTClass node) {
-        if node.isVisited() { return }
-        node.setVisited(true)
+        if node.isVisited(r.getRun()) { return }
+        node.setVisited(r.getRun())
         r.resetCurrents()
         r.enterScope()
         SemaModule mod = r.getCurrentModule()

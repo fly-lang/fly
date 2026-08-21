@@ -1,24 +1,23 @@
 namespace fly.compiler.basic
 import fly.compiler.basic.*
+import fly.data.List
 import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SourceManager — decodes a SourceLocation (an opaque byte offset) into line,
 // column and a PresumedLoc, ported from fly/include/Basic/SourceManager.{h,cpp}.
 //
-// The C++ SourceManager is a ~3500-line, multi-buffer, macro-aware service with
-// a cached line table (ComputeLineNumbers / SourceLineCache) and binary search.
-// The self-host compiles ONE buffer with no macros and no #line, so this is the
-// single-buffer essence:
-//
-//   • getColumnNumber — scan back to the previous newline  (C++ getColumnNumber
-//                       fast path, SourceManager.cpp:1151-1154).
-//   • getLineNumber   — count newlines before the offset   (C++ getLineNumber,
-//                       minus the SourceLineCache binary-search optimisation).
+// The C++ SourceManager is a ~3500-line, multi-buffer, macro-aware service. The
+// self-host compiles ONE buffer with no macros and no #line, so this is the
+// single-buffer essence — but it KEEPS the C++ line cache
+// (ComputeLineNumbers / SourceLineCache): one O(n) scan builds a table of line
+// starts and every query is a binary search over it. Dropping that cache, as an
+// earlier revision did, made getLineNumber O(offset) and — since Parser.bump()
+// asks for the line of every token — parsing quadratic in file size.
 //
 // Behaviour matches the eager line/col the Lexer used to track (newline = byte
-// 10), so existing position assertions are preserved; only the *cache* is
-// dropped. Line/col are 1-based; column counts from the last '\n'.
+// 10), so existing position assertions are preserved. Line/col are 1-based;
+// column counts from the last '\n'.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class SourceManager {
@@ -26,10 +25,49 @@ public class SourceManager {
     string buffer
     int len
 
+    // Offset where each line begins, index 0 = line 1. Built ONCE, lazily.
+    //
+    // Without it getLineNumber counted newlines from offset 0 on every call —
+    // and Parser.bump() calls it for EVERY token, which made parsing quadratic
+    // in file size: a 1300-line file spent 1.6s here alone. One O(n) scan plus a
+    // binary search per query replaces that. (The C++ SourceManager this was
+    // ported from had the same cache; the port dropped it.)
+    List<int> lineStarts
+    bool linesBuilt
+
     public SourceManager(const string filename, const string buffer) {
         this.filename = filename
         this.buffer = buffer
         this.len = str.len(buffer)
+        this.lineStarts = new List<int>()
+        this.linesBuilt = false
+    }
+
+    // buildLines — the line table. Safe to keep for the object's lifetime: the
+    // buffer is set at construction and never replaced (setFilename renames the
+    // buffer, it does not re-point it).
+    void buildLines() {
+        if this.linesBuilt { return }
+        this.lineStarts.add(0)
+        int i = 0
+        while i < this.len {
+            if this.byteAt(i) == 10 { this.lineStarts.add(i + 1) }
+            i = i + 1
+        }
+        this.linesBuilt = true
+    }
+
+    // lineIndexOf — 0-based index of the line containing `pos`: the last line
+    // whose start is <= pos.
+    int lineIndexOf(const int pos) {
+        this.buildLines()
+        int lo = 0
+        int hi = (int)this.lineStarts.size() - 1
+        while lo < hi {
+            int mid = (lo + hi + 1) / 2
+            if this.lineStarts.get(mid) <= pos { lo = mid } else { hi = mid - 1 }
+        }
+        out = lo
     }
 
     // byteAt — byte code at index i, or 256 past end (mirrors Lexer.byteAt).
@@ -47,26 +85,13 @@ public class SourceManager {
     // of its line. (C++ SourceManager::getColumnNumber simple path.)
     public int getColumnNumber(const SourceLocation loc) {
         int pos = loc.getOffset()
-        int lineStart = pos
-        while lineStart > 0 && this.byteAt(lineStart - 1) != 10 {
-            lineStart = lineStart - 1
-        }
-        out = (pos - lineStart) + 1
+        out = (pos - this.lineStarts.get(this.lineIndexOf(pos))) + 1
     }
 
     // getLineNumber — 1-based line of the location: 1 + the number of newlines
     // before the offset. (C++ SourceManager::getLineNumber, sans line cache.)
     public int getLineNumber(const SourceLocation loc) {
-        int pos = loc.getOffset()
-        int line = 1
-        int i = 0
-        while i < pos {
-            if this.byteAt(i) == 10 {
-                line = line + 1
-            }
-            i = i + 1
-        }
-        out = line
+        out = this.lineIndexOf(loc.getOffset()) + 1
     }
 
     // getCharacterByte — byte at the location's offset (the single-buffer analog
@@ -96,13 +121,13 @@ public class SourceManager {
     // getLineStartOffset — byte offset where 1-based `line` begins (start of buffer
     // for line 1; just past the (line-1)th '\n' otherwise). Caret-diagnostic helper.
     public int getLineStartOffset(const int line) {
-        int start = 0
-        int curLine = 1
-        while curLine < line && start < this.len {
-            if this.byteAt(start) == 10 { curLine = curLine + 1 }
-            start = start + 1
-        }
-        out = start
+        this.buildLines()
+        int idx = line - 1
+        if idx < 0 { idx = 0 }
+        // Past the last line: the old scan ran off the end and returned len,
+        // and callers (getSourceLine) rely on that yielding an empty line.
+        if idx >= (int)this.lineStarts.size() { out = this.len  return }
+        out = this.lineStarts.get(idx)
     }
 
     // getSourceLine — the text of 1-based `line` (without the trailing newline).

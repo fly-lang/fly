@@ -104,9 +104,11 @@ string rootFixtureDir() { out = "lsp_suite_fx_root" }
 void writeRootFixture() {
     fs.dirCreateAll("lsp_suite_fx_root/app", 493)
     fs.dirCreateAll("lsp_suite_fx_root/lib", 493)
-    // A valid, never-imported module: resolveRoot only checks existence, but the
-    // source scan may still parse it, so it must not be garbage.
-    string mf = "namespace fxroot.manifest\n"
+    // A REAL project manifest: resolveRoot accepts a Manifest.fly only when it
+    // extends fly.meta.Manifest, because ordinary sources carry that name too
+    // (compiler/lib/driver/Manifest.fly). It is also parsed by the source scan,
+    // so it must be valid Fly.
+    string mf = "namespace fxroot.manifest\n\nclass Manifest : fly.meta.Manifest {\n}\n"
     fs.writeStr("lsp_suite_fx_root/Manifest.fly", str.replace(mf, "\n", lsp.lfStr()), 420)
     string u = "namespace fxroot.util\n\npublic int seven() {\n    out = 7\n}\n"
     fs.writeStr("lsp_suite_fx_root/lib/util.fly", str.replace(u, "\n", lsp.lfStr()), 420)
@@ -244,6 +246,11 @@ suite LspAnalyzerSuite {
             assert.assertTrue(loc.ok, 401)
             assert.assertEqI(loc.line, 3, 402)
             assert.assertTrue(str.contains(loc.file, "nav.fly"), 403)
+            // ON THE NAME, not on the return type. Line 3 is
+            // "int square(const int n) {": `square` starts at column 5, `int` at
+            // column 1. A declaration's getLoc() is where the declaration
+            // STARTS — the type — so this asserts the nameLoc plumbing.
+            assert.assertEqI(loc.col, 5, 409)
             fs.dirDeleteAll(navFixtureDir())
         }
         case "a local jumps to its own declaration, not to its uses": {
@@ -262,6 +269,9 @@ suite LspAnalyzerSuite {
             LspLoc loc = a.declLocationOf(t)
             assert.assertTrue(loc.ok, 407)
             assert.assertEqI(loc.line, 3, 408)
+            // "int square(const int n) {" — the parameter NAME `n` is at column
+            // 22; its declaration starts at `const` (column 12).
+            assert.assertEqI(loc.col, 22, 410)
             fs.dirDeleteAll(navFixtureDir())
         }
     }
@@ -424,6 +434,9 @@ suite LspAnalyzerSuite {
             LspLoc loc = a.declLocationOf(t)
             assert.assertTrue(loc.ok, 1003)
             assert.assertEqI(loc.line, 18, 1004)
+            // "    public int getX() { out = this.x }" — the METHOD NAME is at
+            // column 16, its declaration starts at `public` (column 5).
+            assert.assertEqI(loc.col, 16, 1020)
             assert.assertTrue(str.contains(a.hoverOf(t), "getX"), 1005)
             fs.dirDeleteAll(navFixtureDir())
         }
@@ -437,6 +450,8 @@ suite LspAnalyzerSuite {
             LspLoc loc = a.declLocationOf(t)
             assert.assertTrue(loc.ok, 1009)
             assert.assertEqI(loc.line, 16, 1010)
+            // "    int x" — the FIELD NAME is at column 9, the type at column 5.
+            assert.assertEqI(loc.col, 9, 1021)
             assert.assertTrue(str.contains(a.hoverOf(t), "(field)"), 1011)
             fs.dirDeleteAll(navFixtureDir())
         }
@@ -505,6 +520,27 @@ suite LspAnalyzerSuite {
         case "no manifest, no workspace: the file's own directory": {
             LspAnalyzer a = new LspAnalyzer()
             assert.assertStr(a.resolveRoot("lsp_suite_fx_nav/nav.fly"), "lsp_suite_fx_nav", 1103)
+        }
+        case "a dependency edited on disk is re-read, never served from cache": {
+            // The whole point of caching parsed modules is to NOT re-read them,
+            // so the one failure that matters is answering from a stale copy.
+            // Break lib/util.fly after a clean compile and the next compile of
+            // the SAME entry must report the breakage.
+            writeRootFixture()
+            LspAnalyzer a = new LspAnalyzer()
+            List<LspDiag> clean = a.compileFile("lsp_suite_fx_root/app/main.fly")
+            assert.assertEqI((int)clean.size(), 0, 1105)
+
+            // seven() disappears: main.fly's call no longer resolves. The new
+            // text is deliberately a DIFFERENT LENGTH: same-size content would
+            // leave the check leaning on mtime alone, and a filesystem with
+            // coarse timestamp granularity could then make this test flaky.
+            string broken = "namespace fxroot.util\n\npublic int eightyEight() {\n    out = 88\n}\n"
+            fs.writeStr("lsp_suite_fx_root/lib/util.fly",
+                        str.replace(broken, "\n", lsp.lfStr()), 420)
+            List<LspDiag> after = a.compileFile("lsp_suite_fx_root/app/main.fly")
+            assert.assertTrue(after.size() > 0, 1106)
+            fs.dirDeleteAll(rootFixtureDir())
         }
         case "cross-directory import compiles clean from the manifest root": {
             // app/main.fly imports fxroot.util, which lives in the SIBLING lib/

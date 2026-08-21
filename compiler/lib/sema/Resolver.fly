@@ -24,6 +24,14 @@ import fly.str
 // completion). The result-passing model is single-threaded, like the C++ visitor.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ResolverRun — monotonic resolve-run ids. A static attribute lowers to a
+// zero-initialized module global, so the first Resolver gets run 1 and no node
+// (stamped 0 at parse time) can ever look already-visited.
+class ResolverRun {
+    static int last = 0
+    public ResolverRun() { }
+}
+
 public class Resolver : ASTVisitor {
 
     Registry reg
@@ -50,6 +58,7 @@ public class Resolver : ASTVisitor {
 
     // control-flow nesting depth (for break/continue legality) and the active
     // error handler / handle-block nesting (for fail-outside-handle → fallible).
+    int run                  // this resolve run's id; stamped onto visited nodes
     int loopDepth
     int switchDepth
     int handleDepth
@@ -69,6 +78,8 @@ public class Resolver : ASTVisitor {
     public Resolver(const Registry reg, const bool testMode) {
         this.reg = reg
         this.testMode = testMode
+        ResolverRun.last = ResolverRun.last + 1
+        this.run = ResolverRun.last
         this.currentModuleIsHeader = false
         // Seed the scope chain at the Registry's global scope so the first
         // enterScope() (per module) pushes a module scope beneath it.
@@ -112,6 +123,7 @@ public class Resolver : ASTVisitor {
 
     // ── accessors for companions ────────────────────────────────────────────
     public Registry getReg() { out = this.reg }
+    public int getRun() { out = this.run }
     public bool isTestMode() { out = this.testMode }
     public bool isCurrentModuleHeader() { out = this.currentModuleIsHeader }
 
@@ -272,8 +284,8 @@ public class Resolver : ASTVisitor {
 
     // ── top-level visits ────────────────────────────────────────────────────
     public void visit(const ASTModule node) {
-        if node.isVisited() == false {
-            node.setVisited(true)
+        if node.isVisited(this.run) == false {
+            node.setVisited(this.run)
             this.currentModuleIsHeader = node.isHeader()
             this.enterScope()
             this.currentModule = new SemaModule(node, this.currentScope)
@@ -297,8 +309,8 @@ public class Resolver : ASTVisitor {
     }
 
     public void visit(const ASTNameSpace node) {
-        if node.isVisited() == false {
-            node.setVisited(true)
+        if node.isVisited(this.run) == false {
+            node.setVisited(this.run)
             SemaNameSpace ns = this.reg.getOrCreateNameSpace(node.getNames())
             this.currentModule.setNameSpace(ns)
             this.currentNameSpace = ns

@@ -688,6 +688,7 @@ public class Parser {
             }
             if headerFn {
                 string hn = this.curText()
+                SourceLocation hnloc = this.curLoc()   // the NAME token
                 this.bump()
                 List<ASTType> htp = new List<ASTType>()
                 if this.curIsPunct("<") { htp = this.parseTypeParams() }
@@ -695,6 +696,7 @@ public class Parser {
                 ASTBlockStmt hbody = null
                 if this.curIsPunct("{") { hbody = this.parseBlock() }
                 ASTFunction hf = ASTBuilder.CreateFunction(this.module, loc, hn, mods, hparams, hbody)
+                hf.setNameLoc(hnloc)
                 hf.setReturnType(ASTBuilder.CreateVoidType(loc))
                 List<ASTType> hftp = hf.getTypeParams()
                 int hti = 0
@@ -720,6 +722,7 @@ public class Parser {
             retTypes.add(rtn)
         }
         string nm = ""
+        SourceLocation nloc = this.curLoc()      // the NAME token, for setNameLoc
         if this.curIsNamePart() { nm = this.curText()  this.bump() }
         else { this.reportErr(DiagID.err_parser_identifier_expected)  out = null  return }
         // generic type parameters: `T identity<T>(...)`
@@ -729,6 +732,7 @@ public class Parser {
         ASTBlockStmt body = null
         if this.curIsPunct("{") { body = this.parseBlock() }
         ASTFunction f = ASTBuilder.CreateFunction(this.module, loc, nm, mods, params, body)
+        f.setNameLoc(nloc)
         if retTypes.size() == 1 { f.setReturnType(retType) }
         else { f.setReturnTypes(retTypes) }
         List<ASTType> ftp = f.getTypeParams()
@@ -1079,9 +1083,11 @@ public class Parser {
         }
         ASTType ty = this.parseType()
         string nm = ""
+        SourceLocation nloc = this.curLoc()      // the NAME token, for setNameLoc
         if this.curIsNamePart() { nm = this.curText()  this.bump() }
         else { this.reportErr(DiagID.err_parser_identifier_expected)  return }
         ASTLocalVar lv = ASTBuilder.CreateLocalVar(loc, ty, nm, mods)
+        lv.setNameLoc(nloc)
         ASTDeclStmt d = ASTBuilder.CreateDeclStmt(block, loc, lv)
         if this.curIsPunct("=") {
             this.bump()

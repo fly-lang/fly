@@ -123,7 +123,10 @@ check "$([ "$BOPEN" -ge 2 ] && echo 1 || echo 0)" "broken file published twice (
 check "$(grep -q '\-32601' "$OUT" && echo 1 || echo 0)" "unknown request answered -32601"
 check "$(grep -q '"id":2,"result":null' "$OUT" && echo 1 || echo 0)" "shutdown answered null"
 # navigation — each response carries its id, so a per-id grep pins the payload.
-check "$(grep -q '"id":20,"result":{"uri".*"line":2,"character":0' "$OUT" && echo 1 || echo 0)" "definition of square() lands on its declaration"
+# character 4 (0-based) = column 5 = the NAME `square` in "int square(...)".
+# It used to be character 0 — the return type — because a declaration node's
+# location is where the declaration starts; nameLoc points at the identifier.
+check "$(grep -q '"id":20,"result":{"uri".*"line":2,"character":4' "$OUT" && echo 1 || echo 0)" "definition of square() lands on the NAME, not the return type"
 check "$(grep -q 'int square(int n' "$OUT" && echo 1 || echo 0)" "hover shows the resolved signature"
 check "$(grep -q '"id":22,"result":\[.*"line":7,"character":8' "$OUT" && grep -q '"id":22,"result":\[.*"line":8,"character":24' "$OUT" && echo 1 || echo 0)" "references of base find declaration and use"
 check "$(grep -q '"name":"square","kind":12' "$OUT" && echo 1 || echo 0)" "documentSymbol lists square as a function"

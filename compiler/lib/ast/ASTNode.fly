@@ -7,15 +7,33 @@ import fly.compiler.ast.ASTVisitor
 
 public class ASTNode : ASTBase {
 
-    bool visited
+    // Which RESOLVE RUN last visited this node; 0 = never visited. A stamp
+    // rather than a boolean because a module can be parsed once and resolved
+    // many times (the language server reuses parsed modules across compiles):
+    // with a boolean, the second run would find every node already "visited"
+    // and skip the whole module. Comparing against the current run id makes a
+    // new run start unvisited everywhere, with no traversal to reset it.
+    int visitedRun
+
+    // Where the declared NAME sits, as opposed to where the declaration starts.
+    // A Fly declaration reads `Type name`, so getLoc() — captured before the
+    // type — points at the TYPE; an editor asked to go to a definition wants the
+    // identifier instead. Meaningful only for named declarations (vars, params,
+    // attributes, functions, methods, classes, enums); it DEFAULTS TO loc, so
+    // any node whose parser site does not set it behaves exactly as before.
+    SourceLocation nameLoc
 
     public ASTNode(const ASTKind kind, const SourceLocation loc) {
         super(kind, loc)
-        this.visited = false
+        this.visitedRun = 0
+        this.nameLoc = loc
     }
 
-    public bool isVisited() { out = this.visited }
-    public void setVisited(const bool visited) { this.visited = visited }
+    public bool isVisited(const int run) { out = this.visitedRun == run }
+    public void setVisited(const int run) { this.visitedRun = run }
+
+    public SourceLocation getNameLoc() { out = this.nameLoc }
+    public void setNameLoc(const SourceLocation l) { this.nameLoc = l }
 
     // as* — typed downcasts (Fly has no `(T)expr` value cast). The base returns null;
     // each concrete node overrides its own to `this`. Used by the header generator to

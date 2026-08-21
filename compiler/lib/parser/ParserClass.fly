@@ -26,6 +26,7 @@ public class ParserClass {
         elsif p.curIsKw("suite")  { kind = ASTClassKind.SUITE }
         p.bump()  // class kind keyword
         string nm = ""
+        SourceLocation nloc = p.curLoc()      // the NAME token, for setNameLoc
         if p.curIsNamePart() { nm = p.curText()  p.bump() }
         else { p.reportErr(DiagID.err_parser_identifier_expected) }
         // generic type parameters: `class Box<T, U : Bound>`
@@ -44,6 +45,7 @@ public class ParserClass {
             }
         }
         ASTClass c = ASTBuilder.CreateClass(p.getModule(), loc, kind, nm, mods, bases)
+        c.setNameLoc(nloc)
         List<ASTType> ctp = c.getTypeParams()
         int ti = 0
         while ti < typeParams.size() { ctp.add(typeParams.get(ti))  ti = ti + 1 }
@@ -73,6 +75,7 @@ public class ParserClass {
         // Otherwise: Type name  →  method (if '(') or attribute
         ASTType ty = p.parseType()
         string nm = ""
+        SourceLocation nloc = p.curLoc()      // the NAME token, for setNameLoc
         if p.curIsNamePart() { nm = p.curText()  p.bump() }
         else { p.reportErr(DiagID.err_parser_identifier_expected)  return }
         if p.curIsPunct("(") {
@@ -81,6 +84,7 @@ public class ParserClass {
             if p.curIsPunct("{") { mbody = p.parseBlock() }
             ASTMethod meth = ASTBuilder.CreateClassMethod(loc, c, nm, mmods, params, mbody)
             meth.setReturnType(ty)
+            meth.setNameLoc(nloc)
         } else {
             // Attribute, optionally with a field initializer: `Type name = expr`.
             // Mirrors the local-var decl path (Parser.parseDecl); the reference
@@ -91,6 +95,7 @@ public class ParserClass {
                 init = p.parseExpr()
             }
             ASTAttribute attr = ASTBuilder.CreateClassAttribute(loc, c, ty, nm, mmods, init)
+            attr.setNameLoc(nloc)
         }
     }
 }

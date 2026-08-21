@@ -41,6 +41,10 @@ public class Frontend {
     int statHeaderModules // .fly.h header modules loaded
     int statDirsScanned   // directories walked (header + source discovery)
 
+    // Optional cross-compile parse cache (setModuleCache). null = parse every
+    // time, which is what a one-shot CLI compile wants.
+    ASTModuleCache modCache
+
     public Frontend(const CompilerInstance ci) {
         this.ci = ci
         this.outputFile = ""
@@ -49,7 +53,11 @@ public class Frontend {
         this.statDepModules = 0
         this.statHeaderModules = 0
         this.statDirsScanned = 0
+        this.modCache = null
     }
+
+    // setModuleCache — reuse parsed modules across compiles (language server).
+    public void setModuleCache(const ASTModuleCache c) { this.modCache = c }
 
     public int getStatInputFiles()    { out = this.statInputFiles }
     public int getStatDepModules()    { out = this.statDepModules }
@@ -408,20 +416,30 @@ public class Frontend {
 
             if str.endsWith(name, ".fly.h") {
                 string full = path.join(dir, name)
-                string src = fs.readStr(full)
-                if str.isEmpty(src) == false {
-                    Parser hp = new Parser(src)
-                    ASTModule hm = hp.parseModule(name)
-                    if hp.isSuccess() {
-                        // skip a header whose namespace is built from source (--lib entry)
-                        ASTNameSpace hns = hm.getNameSpace()
-                        string hnsStr = ""
-                        if hns != null { hnsStr = this.joinNames(hns.getNames()) }
-                        if this.listHas(skipNs, hnsStr) == false {
-                            hm.setHeader(true)
-                            mods.add(hm)
-                            this.statHeaderModules = this.statHeaderModules + 1
+                // A cache hit was parsed successfully when it was stored, so
+                // only a miss checks isSuccess — and only a miss reads the file.
+                ASTModule hm = null
+                if this.modCache != null { hm = this.modCache.lookup(full) }
+                if hm == null {
+                    string src = fs.readStr(full)
+                    if str.isEmpty(src) == false {
+                        Parser hp = new Parser(src)
+                        ASTModule parsed = hp.parseModule(name)
+                        if hp.isSuccess() {
+                            hm = parsed
+                            if this.modCache != null { this.modCache.store(full, hm) }
                         }
+                    }
+                }
+                if hm != null {
+                    // skip a header whose namespace is built from source (--lib entry)
+                    ASTNameSpace hns = hm.getNameSpace()
+                    string hnsStr = ""
+                    if hns != null { hnsStr = this.joinNames(hns.getNames()) }
+                    if this.listHas(skipNs, hnsStr) == false {
+                        hm.setHeader(true)
+                        mods.add(hm)
+                        this.statHeaderModules = this.statHeaderModules + 1
                     }
                 }
             }
@@ -569,13 +587,21 @@ public class Frontend {
                 if this.listHas(known, base) == false {
                     known.add(base)
                     this.trace(str.concat("resolved import → ", p))
-                    string src = fs.readStr(p)
-                    Parser dp = new Parser(src)
-                    ASTModule dm = dp.parseModule(p)
-                    if dp.isSuccess() == false {
-                        this.printDiags(dp.getSink())
-                        out = false
-                        return
+                    // Cache first: a hit skips BOTH the read and the parse,
+                    // which together are where a language-server compile spends
+                    // nearly all of its time.
+                    ASTModule dm = null
+                    if this.modCache != null { dm = this.modCache.lookup(p) }
+                    if dm == null {
+                        string src = fs.readStr(p)
+                        Parser dp = new Parser(src)
+                        dm = dp.parseModule(p)
+                        if dp.isSuccess() == false {
+                            this.printDiags(dp.getSink())
+                            out = false
+                            return
+                        }
+                        if this.modCache != null { this.modCache.store(p, dm) }
                     }
                     mods.add(dm)
                     this.statDepModules = this.statDepModules + 1

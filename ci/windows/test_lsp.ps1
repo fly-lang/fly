@@ -149,7 +149,10 @@ Check ($outText.Contains('-32601')) 'unknown request answered -32601'
 Check ($outText.Contains('"id":2,"result":null')) 'shutdown answered null'
 # ── navigation ────────────────────────────────────────────────────────────────
 $def = ($outText -split 'Content-Length: \d+' | Where-Object { $_ -match '"id":20' })
-Check ([bool]($def -match '"line":2,"character":0')) 'definition of square() lands on its declaration'
+# character 4 (0-based) = column 5 = the NAME `square` in "int square(...)".
+# It used to be character 0 — the return type — because a declaration node's
+# location is where the declaration starts; nameLoc points at the identifier.
+Check ([bool]($def -match '"line":2,"character":4')) 'definition of square() lands on the NAME, not the return type'
 $hov = ($outText -split 'Content-Length: \d+' | Where-Object { $_ -match '"id":21' })
 Check ([bool]($hov -match 'int square\(int n')) 'hover shows the resolved signature'
 $refs = ($outText -split 'Content-Length: \d+' | Where-Object { $_ -match '"id":22' })

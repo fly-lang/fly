@@ -4,7 +4,11 @@ import fly.str
 import fly.data.List
 import fly.os.fs
 import fly.os.env
+import fly.os.io
 import fly.os.path
+import fly.os.time
+import fly.os.time.Time
+import fly.os.time.Duration
 import fly.compiler.basic.*
 import fly.compiler.target.*
 import fly.compiler.target
@@ -14,6 +18,7 @@ import fly.compiler.sema.*
 import fly.compiler.frontend.Frontend
 import fly.compiler.frontend.FrontendOptions
 import fly.compiler.frontend.CompilerInstance
+import fly.compiler.frontend.ASTModuleCache
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LspAnalyzer — compiler integration: compile() plus the navigation features.
@@ -145,6 +150,11 @@ public class LspAnalyzer {
     List<string> smFiles
     List<SourceManager> smCache
 
+    // Parsed modules kept for the whole session. Parsing is ~90% of a compile
+    // here, and an edit changes one file, so everything else is re-usable; the
+    // cache keys on content, so a changed file is never served stale.
+    ASTModuleCache modCache
+
     public LspAnalyzer() {
         // Auto-discover <install>/lib next to the running fly-lsp binary, the
         // same walk Driver.fly does for fly itself: bin/fly-lsp → ../lib.
@@ -165,15 +175,47 @@ public class LspAnalyzer {
         this.navReg = null
         this.smFiles = new List<string>()
         this.smCache = new List<SourceManager>()
+        this.modCache = new ASTModuleCache()
     }
 
     // setProjectRoot — the workspace root the client announced at `initialize`.
     public void setProjectRoot(const string root) { this.projectRoot = root }
 
+    // isProjectManifest — is this Manifest.fly a PROJECT manifest?
+    //
+    // The name alone proves nothing: the compiler tree ships ordinary sources
+    // called Manifest.fly (compiler/lib/driver/Manifest.fly, std/meta/Manifest.fly),
+    // and mistaking one for a root scopes the project to that directory. Nor is
+    // the mere mention of the base class enough — the driver's own Manifest.fly
+    // names it in comments AND emits it inside a string literal, since its job
+    // is to write manifests. Only a DECLARATION line counts: one starting with
+    // `class`/`public class` that names fly.meta.Manifest as its base, which is
+    // exactly what the driver's reader requires (flymanifest.fly, error 211).
+    bool isProjectManifest(const string p) {
+        if fs.exists(p) == false { out = false  return }
+        string src = fs.readStr(p)
+        string nl = lfStr()
+        int n = str.len(src)
+        int pos = 0
+        bool found = false
+        while pos < n && found == false {
+            string rest = str.substring(src, pos, n)
+            int rel = str.indexOf(rest, nl)
+            int end = n
+            if rel >= 0 { end = pos + rel }
+            string line = str.trimLeft(str.substring(src, pos, end))
+            bool isDecl = str.startsWith(line, "class ") || str.startsWith(line, "public class ")
+            if isDecl {
+                if str.contains(line, "fly.meta.Manifest") { found = true }
+            }
+            pos = end + 1
+        }
+        out = found
+    }
+
     // resolveRoot — the source root for compiling `file`, decided PER FILE (a
     // monorepo holds several Fly projects; gopls does the same walk for go.mod):
-    //   1. the nearest ancestor directory holding a Manifest.fly/manifest.fly —
-    //      the same two spellings the driver accepts (commands.fly manifestPath);
+    //   1. the nearest ancestor directory holding a real project manifest;
     //   2. else the workspace root from `initialize`;
     //   3. else the file's own directory (the historical behaviour).
     public string resolveRoot(const string file) {
@@ -181,14 +223,33 @@ public class LspAnalyzer {
         string probe = dir
         int guard = 0
         while str.isEmpty(probe) == false && guard < 64 {
-            if fs.exists(path.join(probe, "Manifest.fly")) { out = probe  return }
-            if fs.exists(path.join(probe, "manifest.fly")) { out = probe  return }
+            if this.isProjectManifest(path.join(probe, "Manifest.fly")) { out = probe  return }
+            if this.isProjectManifest(path.join(probe, "manifest.fly")) { out = probe  return }
             string up = path.dirname(probe)
             if str.equals(up, probe) { probe = "" } else { probe = up }
             guard = guard + 1
         }
         if str.isEmpty(this.projectRoot) == false { out = this.projectRoot  return }
         out = dir
+    }
+
+    // timingOn — FLY_LSP_TIMING=1 turns on the per-phase report below.
+    bool timingOn() {
+        string v = env.get("FLY_LSP_TIMING")
+        out = str.equals(v, "1")
+    }
+
+    // phase — report one phase's elapsed time. STDERR ON PURPOSE: stdout is the
+    // LSP frame channel (LspTransport writes it), so anything printed there
+    // corrupts the session.
+    void phase(const string name, const Time start) {
+        // diff against another monotonic reading: time.since() measures from the
+        // WALL clock, so pairing it with monotonic() subtracts two different
+        // epochs and prints days.
+        Duration d = time.diff(start, time.monotonic())
+        long ms = d.nsec / 1000000
+        io.printErrLn(str.concat("[lsp-timing] ", str.concat(name,
+                      str.concat(" ", str.concat(str.convert(ms), " ms")))))
     }
 
     // compileFile — parse + sema `file`, returning every diagnostic. An empty
@@ -203,9 +264,13 @@ public class LspAnalyzer {
             return
         }
 
+        bool tm = this.timingOn()
+        Time t0 = time.monotonic()
+
         // 1) parse
         Parser p = new Parser(src)
         ASTModule m = p.parseModule(file)
+        if tm { this.phase("1-parse-entry", t0) }
         if p.isSuccess() == false {
             StoringDiagnosticConsumer sink = p.getSink()
             int i = 0
@@ -242,7 +307,11 @@ public class LspAnalyzer {
         if str.isEmpty(root) == false { fo.addSrcDir(root) }
         string dir = path.dirname(file)
         if str.isEmpty(dir) == false {
-            if str.equals(dir, root) == false { fo.addSrcDir(dir) }
+            // Only when the file lives OUTSIDE the project root: an equality test
+            // is not enough, since any file in a subdirectory would add a second
+            // root and make the scan walk that subtree twice. For a loose file
+            // this stays the only way its siblings resolve.
+            if str.startsWith(dir, root) == false { fo.addSrcDir(dir) }
         }
 
         CodeGenOptions cgo = new CodeGenOptions()
@@ -251,6 +320,7 @@ public class LspAnalyzer {
         ci.createFileManager()
         ci.createSourceManager(file, src)
         Frontend fe = new Frontend(ci)
+        fe.setModuleCache(this.modCache)
 
         // The open file's own namespace must not also be loaded from a header —
         // same shadowing rule executeImpl applies to --lib builds.
@@ -259,16 +329,31 @@ public class LspAnalyzer {
         if ns0 != null { entryNs.add(fe.joinNames(ns0.getNames())) }
 
         List<ASTModule> mods = new List<ASTModule>()
+        Time t1 = time.monotonic()
         fe.loadLibHeaders(fo, mods, entryNs)
+        if tm { this.phase("2-load-headers", t1) }
+
         mods.add(m)
+        Time t2 = time.monotonic()
         bool depsOk = fe.resolveSourceDeps(fo, mods)
+        if tm {
+            this.phase("3-discover+parse-deps", t2)
+            io.printErrLn(str.concat("[lsp-timing]   modules=",
+                          str.concat(str.convert((int)mods.size()),
+                          str.concat(" dirs=", str.convert(fe.getStatDirsScanned())))))
+        }
         // Navigation state is refreshed even when sema reported errors: the
         // parts that DID resolve are exactly what an editor wants to keep
         // navigating while the user is mid-edit.
         this.navValid = false
         if depsOk {
+            Time t3 = time.monotonic()
             SemaContext ctx = new SemaContext(diags)
             List<SemaModule> res = ctx.Resolve(mods, false)
+            if tm {
+                this.phase("4-sema-resolve", t3)
+                this.phase("TOTAL", t0)
+            }
             this.navValid = true
             this.navPath = file
             this.navSm = sm
@@ -615,7 +700,7 @@ public class LspAnalyzer {
             if str.isEmpty(file) { out = loc  return }
             SourceManager sm = this.smFor(file)
             if sm == null { out = loc  return }
-            SourceLocation l = t.fn.getAST().getLoc()
+            SourceLocation l = t.fn.getAST().getNameLoc()
             if l == null { out = loc  return }
             loc.ok = true
             loc.file = file
@@ -630,7 +715,7 @@ public class LspAnalyzer {
             string cfile = dm.getName()
             SourceManager csm = this.smFor(cfile)
             if csm == null { out = loc  return }
-            SourceLocation cl = t.cls.getAST().getLoc()
+            SourceLocation cl = t.cls.getAST().getNameLoc()
             if cl == null { out = loc  return }
             loc.ok = true
             loc.file = cfile
@@ -649,7 +734,7 @@ public class LspAnalyzer {
                 if om == null { out = loc  return }
                 SourceManager osm = this.smFor(om.getName())
                 if osm == null { out = loc  return }
-                SourceLocation al = t.attr.getAST().getLoc()
+                SourceLocation al = t.attr.getAST().getNameLoc()
                 if al == null { out = loc  return }
                 loc.ok = true
                 loc.file = om.getName()
@@ -670,8 +755,8 @@ public class LspAnalyzer {
                 if str.equals(p.getName(), t.name) {
                     loc.ok = true
                     loc.file = this.navPath
-                    loc.line = this.navSm.getLineNumber(p.getLoc())
-                    loc.col = this.navSm.getColumnNumber(p.getLoc())
+                    loc.line = this.navSm.getLineNumber(p.getNameLoc())
+                    loc.col = this.navSm.getColumnNumber(p.getNameLoc())
                     out = loc
                     return
                 }
@@ -801,8 +886,8 @@ public class LspAnalyzer {
             ASTFunction f = n.asFunction()
             if f != null {
                 result.add(new LspSym(f.getName(), 12,
-                    this.navSm.getLineNumber(f.getLoc()),
-                    this.navSm.getColumnNumber(f.getLoc()), this.navPath, ""))
+                    this.navSm.getLineNumber(f.getNameLoc()),
+                    this.navSm.getColumnNumber(f.getNameLoc()), this.navPath, ""))
             } else {
                 ASTClass c = n.asClass()
                 if c != null {
@@ -811,16 +896,16 @@ public class LspAnalyzer {
                     if ck == ASTClassKind.STRUCT { kind = 23 }
                     elsif ck == ASTClassKind.INTERFACE { kind = 11 }
                     result.add(new LspSym(c.getName(), kind,
-                        this.navSm.getLineNumber(c.getLoc()),
-                        this.navSm.getColumnNumber(c.getLoc()), this.navPath, ""))
+                        this.navSm.getLineNumber(c.getNameLoc()),
+                        this.navSm.getColumnNumber(c.getNameLoc()), this.navPath, ""))
                     List<ASTNode> members = c.getNodes()
                     int mi = 0
                     while mi < members.size() {
                         ASTFunction mf = members.get(mi).asFunction()
                         if mf != null {
                             result.add(new LspSym(mf.getName(), 6,
-                                this.navSm.getLineNumber(mf.getLoc()),
-                                this.navSm.getColumnNumber(mf.getLoc()), this.navPath, c.getName()))
+                                this.navSm.getLineNumber(mf.getNameLoc()),
+                                this.navSm.getColumnNumber(mf.getNameLoc()), this.navPath, c.getName()))
                         }
                         mi = mi + 1
                     }
@@ -828,8 +913,8 @@ public class LspAnalyzer {
                     ASTEnum e = n.asEnum()
                     if e != null {
                         result.add(new LspSym(e.getName(), 10,
-                            this.navSm.getLineNumber(e.getLoc()),
-                            this.navSm.getColumnNumber(e.getLoc()), this.navPath, ""))
+                            this.navSm.getLineNumber(e.getNameLoc()),
+                            this.navSm.getColumnNumber(e.getNameLoc()), this.navPath, ""))
                     }
                 }
             }
