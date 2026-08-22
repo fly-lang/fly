@@ -111,6 +111,7 @@ public class LspServer {
         elsif str.equals(method, "textDocument/inlayHint") { this.onInlayHint(idJson, msg) }
         elsif str.equals(method, "textDocument/typeDefinition") { this.onTypeDefinition(idJson, msg) }
         elsif str.equals(method, "textDocument/implementation") { this.onImplementation(idJson, msg) }
+        elsif str.equals(method, "textDocument/documentLink") { this.onDocumentLink(idJson, msg) }
         elsif str.equals(method, "workspace/symbol") { this.onWorkspaceSymbol(idJson, msg) }
         elsif isRequest {
             this.transport.sendError(idJson, 0 - 32601,
@@ -191,6 +192,7 @@ public class LspServer {
         json.put(caps, "inlayHintProvider", json.newBool(true))
         json.put(caps, "typeDefinitionProvider", json.newBool(true))
         json.put(caps, "implementationProvider", json.newBool(true))
+        json.put(caps, "documentLinkProvider", json.newObject())
         pointer comp = json.newObject()
         pointer ctrig = json.newArray()
         json.add(ctrig, json.newString("."))
@@ -214,7 +216,15 @@ public class LspServer {
         json.add(tt, json.newString("enumMember"))
         json.add(tt, json.newString("type"))
         json.put(legend, "tokenTypes", tt)
-        json.put(legend, "tokenModifiers", json.newArray())
+        // Modifier legend — the ORDER is the bit order of the mask each token
+        // carries (bit 0 = declaration, 1 = readonly, …), see semanticModsOf.
+        // Only modifiers Fly actually has: no `deprecated`, no `async`.
+        pointer tm = json.newArray()
+        json.add(tm, json.newString("declaration"))
+        json.add(tm, json.newString("readonly"))
+        json.add(tm, json.newString("static"))
+        json.add(tm, json.newString("abstract"))
+        json.put(legend, "tokenModifiers", tm)
         json.put(sem, "legend", legend)
         json.put(sem, "full", json.newBool(true))
         json.put(caps, "semanticTokensProvider", sem)
@@ -507,6 +517,19 @@ public class LspServer {
         this.transport.sendResult(idJson, arr)
     }
 
+    void onDocumentLink(const string idJson, const pointer msg) {
+        string path = this.extractPath(msg)
+        this.ensureCompiled(path)
+        List<LspLink> links = this.analyzer.documentLinks()
+        pointer arr = json.newArray()
+        int i = 0
+        while i < links.size() {
+            json.add(arr, fly.lsp.mkDocumentLink(links.get(i)))
+            i = i + 1
+        }
+        this.transport.sendResult(idJson, arr)
+    }
+
     void onFoldingRange(const string idJson, const pointer msg) {
         string path = this.extractPath(msg)
         this.ensureCompiled(path)
@@ -609,7 +632,7 @@ public class LspServer {
             json.add(data, json.newInt(dCol))
             json.add(data, json.newInt(str.len(t.name)))
             json.add(data, json.newInt(t.kind))
-            json.add(data, json.newInt(0))
+            json.add(data, json.newInt(t.mods))
             prevLine = line0
             prevCol = col0
             j = j + 1

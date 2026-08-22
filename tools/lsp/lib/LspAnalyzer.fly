@@ -56,6 +56,7 @@ import fly.compiler.frontend.ASTModuleCache
 public class LspSym {
     public string name
     public int kind           // LSP SymbolKind numbers
+    public int mods           // semantic-token modifier bitmask (0 elsewhere)
     public int line           // 1-based
     public int col
     public string file
@@ -69,6 +70,7 @@ public class LspSym {
         this.col = col
         this.file = file
         this.container = container
+        this.mods = 0
     }
 }
 
@@ -420,6 +422,14 @@ public class LspAnalyzer {
                 } else {
                     ASTClass c = n.asClass()
                     if c != null {
+                        // The class header itself: `class Widget : Base` — the
+                        // base type is a clickable type reference.
+                        List<ASTType> bases = c.getBases()
+                        int bi = 0
+                        while bi < bases.size() {
+                            if v.foundKind == 0 { v.walkType(bases.get(bi)) }
+                            bi = bi + 1
+                        }
                         List<ASTNode> members = c.getNodes()
                         int mi = 0
                         while mi < members.size() {
@@ -428,6 +438,15 @@ public class LspAnalyzer {
                                 if mf != null {
                                     v.visit(mf)
                                     if v.foundKind != 0 { hitFn = mf }
+                                } else {
+                                    // Attributes were never walked at all, so
+                                    // neither their TYPE nor their own name
+                                    // could be clicked.
+                                    ASTVar av = members.get(mi).asVar()
+                                    if av != null {
+                                        v.walkType(av.getType())
+                                        v.nameUse(av.getNameLoc(), av.getName(), 1)
+                                    }
                                 }
                             }
                             mi = mi + 1
@@ -450,6 +469,9 @@ public class LspAnalyzer {
         //    itself uses. Only receiver-less hits fall through to the plain
         //    name-in-scope lookup.
         SymbolTable scope = this.scopeOfAstFn(hitFn)
+        // A hit at class level belongs to no function: fall back to the module
+        // scope so the name still resolves (and so nothing downstream sees null).
+        if scope == null { scope = this.moduleScope() }
         if v.foundExpr != null {
             ASTExpr recv = v.foundExpr.getParent()
             if recv != null {
@@ -507,7 +529,16 @@ public class LspAnalyzer {
                 if ct != null {
                     t.kind = 3
                     t.cls = ct
-                } else { t.kind = 4 }
+                } else {
+                    // An ENUM is not a SemaClassType, so asClass() answers null:
+                    // without this branch every enum used as a type fell into
+                    // "other" and became unnavigable.
+                    SemaEnumType et = ty.asEnum()
+                    if et != null {
+                        t.kind = 5
+                        t.enm = et
+                    } else { t.kind = 4 }
+                }
             } else { t.kind = 4 }
         } elsif sym.isVarKind() {
             t.kind = 2
@@ -607,8 +638,29 @@ public class LspAnalyzer {
                 if down != null { if down.size() > 0 { sym = down.get(0) } }
             }
         }
-        if sym == null { if this.navReg != null { sym = this.navReg.LookupName(name, scope) } }
+        // Registry.LookupName dereferences the scope without checking it, and a
+        // hit OUTSIDE any function body (a class attribute's type, a base type)
+        // has no function scope — passing null there crashed the server.
+        if sym == null {
+            if this.navReg != null {
+                if scope != null { sym = this.navReg.LookupName(name, scope) }
+            }
+        }
         out = sym
+    }
+
+    // moduleScope — the open file's module symbol table: the scope a name gets
+    // when it is used at CLASS level (an attribute's type, a base type) rather
+    // than inside a function body.
+    SymbolTable moduleScope() {
+        if this.navSema == null { out = null  return }
+        int i = 0
+        while i < this.navSema.size() {
+            SemaModule m = this.navSema.get(i)
+            if str.equals(m.getName(), this.navPath) { out = m.getSymbols()  return }
+            i = i + 1
+        }
+        out = null
     }
 
     // receiverClassOf — the STATIC class type of a receiver expression: an
@@ -715,12 +767,32 @@ public class LspAnalyzer {
             string cfile = dm.getName()
             SourceManager csm = this.smFor(cfile)
             if csm == null { out = loc  return }
-            SourceLocation cl = t.cls.getAST().getNameLoc()
+            ASTClass ca = t.cls.getAST()
+            if ca == null { out = loc  return }
+            SourceLocation cl = ca.getNameLoc()
             if cl == null { out = loc  return }
             loc.ok = true
             loc.file = cfile
             loc.line = csm.getLineNumber(cl)
             loc.col = csm.getColumnNumber(cl)
+            out = loc
+            return
+        }
+        // An ENUM used as a type: same shape as a class, different Sema node.
+        if t.kind == 5 {
+            SemaModule em = t.enm.getModule()
+            if em == null { out = loc  return }
+            string efile = em.getName()
+            SourceManager esm = this.smFor(efile)
+            if esm == null { out = loc  return }
+            ASTEnum ea = t.enm.getAST()
+            if ea == null { out = loc  return }
+            SourceLocation el = ea.getNameLoc()
+            if el == null { out = loc  return }
+            loc.ok = true
+            loc.file = efile
+            loc.line = esm.getLineNumber(el)
+            loc.col = esm.getColumnNumber(el)
             out = loc
             return
         }
@@ -838,6 +910,10 @@ public class LspAnalyzer {
                   str.concat(" ", str.concat(t.name, close))))
             return
         }
+        if t.kind == 5 {
+            out = str.concat(open, str.concat("enum ", str.concat(t.name, close)))
+            return
+        }
         if t.kind == 2 {
             string ty = t.varTypeName
             if str.isEmpty(ty) { ty = "?" }
@@ -921,6 +997,84 @@ public class LspAnalyzer {
             i = i + 1
         }
         out = result
+    }
+
+    // documentLinks — every `import` path in the open file, pointing at the file
+    // that provides that namespace.
+    //
+    // The mapping needs no new machinery: the compile already resolved every
+    // module it pulled, so navSema holds, for each namespace, the file it came
+    // from. An import whose namespace was served by a lib header or was never
+    // pulled simply produces no link, which is the honest answer.
+    public List<LspLink> documentLinks() {
+        List<LspLink> result = new List<LspLink>()
+        if this.navValid == false { out = result  return }
+        if this.navAst == null { out = result  return }
+        List<ASTImport> imps = this.navAst.getImports()
+        int i = 0
+        while i < imps.size() {
+            ASTImport im = imps.get(i)
+            List<ASTName> ns = im.getNames()
+            if ns.size() > 0 {
+                // Dotted path: from the first segment to the end of the last.
+                ASTName first = ns.get(0)
+                ASTName last = ns.get((int)ns.size() - 1)
+                SourceLocation fl = first.getLoc()
+                SourceLocation ll = last.getLoc()
+                if fl != null && ll != null {
+                    if fl.isValid() && ll.isValid() {
+                        string want = this.joinNsNames(ns)
+                        string file = this.fileOfNamespace(want)
+                        if str.isEmpty(file) == false {
+                            int line = this.navSm.getLineNumber(fl)
+                            int c0 = this.navSm.getColumnNumber(fl)
+                            int c1 = this.navSm.getColumnNumber(ll) + str.len(last.getName())
+                            result.add(new LspLink(line, c0, c1, file))
+                        }
+                    }
+                }
+            }
+            i = i + 1
+        }
+        out = result
+    }
+
+    // joinNsNames — the dotted namespace text of a name path.
+    string joinNsNames(const List<ASTName> ns) {
+        string r = ""
+        int i = 0
+        while i < ns.size() {
+            if i == 0 { r = ns.get(i).getName() }
+            else { r = str.concat(r, str.concat(".", ns.get(i).getName())) }
+            i = i + 1
+        }
+        out = r
+    }
+
+    // fileOfNamespace — the file of the resolved module declaring `nsName`, or "".
+    //
+    // The comparison goes through the module's AST namespace, not
+    // SemaNameSpace.getName(): the Sema node stores only the LEAF segment
+    // ("util"), so matching a dotted path against it would fail — or worse,
+    // match the wrong namespace when two share a leaf.
+    string fileOfNamespace(const string nsName) {
+        if this.navSema == null { out = ""  return }
+        int i = 0
+        while i < this.navSema.size() {
+            SemaModule m = this.navSema.get(i)
+            ASTModule am = m.getAST()
+            if am != null {
+                ASTNameSpace ans = am.getNameSpace()
+                if ans != null {
+                    if str.equals(this.joinNsNames(ans.getNames()), nsName) {
+                        out = m.getName()
+                        return
+                    }
+                }
+            }
+            i = i + 1
+        }
+        out = ""
     }
 
     public List<LspFold> foldingRanges() {
@@ -1317,6 +1471,38 @@ public class LspAnalyzer {
     // tokensOfFn — collect + resolve the uses of one body. LspSym reuse: line/
     // col carry the position, kind carries the TOKEN TYPE, name the text (its
     // length is the token length).
+    // semanticModsOf — the modifier bitmask for a resolved symbol, in the bit
+    // order the legend declares (LspServer.onInitialize): 1 declaration,
+    // 2 readonly, 4 static, 8 abstract. `const` is Fly's readonly; `declaration`
+    // is not set here because these are USE sites, not declarations.
+    //
+    // LIMIT: functions and methods only. Reaching a VARIABLE's modifiers would
+    // need a SemaExpr→SemaVar narrowing that does not exist, and adding a
+    // virtual accessor shifts vtable slots — a known hazard here. So `const`
+    // locals and params carry no readonly bit yet.
+    int semanticModsOf(const Symbol sym) {
+        List<ASTModifier> ms = null
+        SemaNode ref = sym.getRef()
+        if ref != null {
+            SemaFunctionBase fb = ref.asFunctionBase()
+            if fb != null {
+                ASTFunction fa = fb.getAST()
+                if fa != null { ms = fa.getModifiers() }
+            }
+        }
+        if ms == null { out = 0  return }
+        int mask = 0
+        int i = 0
+        while i < ms.size() {
+            ASTModifierKind k = ms.get(i).getModifierKind()
+            if k == ASTModifierKind.MOD_CONSTANT { mask = mask | 2 }
+            elsif k == ASTModifierKind.MOD_STATIC { mask = mask | 4 }
+            elsif k == ASTModifierKind.MOD_ABSTRACT { mask = mask | 8 }
+            i = i + 1
+        }
+        out = mask
+    }
+
     void tokensOfFn(const ASTFunction fn, List<LspSym> result) {
         LspNavVisitor v = new LspNavVisitor(this.navSm)
         v.mode = navModeCollect()
@@ -1332,7 +1518,9 @@ public class LspAnalyzer {
                 if sym != null {
                     int tt = tokenTypeOf(sym.getKind())
                     if tt >= 0 {
-                        result.add(new LspSym(nm, tt, u.line, u.col, "", ""))
+                        LspSym s = new LspSym(nm, tt, u.line, u.col, "", "")
+                        s.mods = this.semanticModsOf(sym)
+                        result.add(s)
                     }
                 }
             }

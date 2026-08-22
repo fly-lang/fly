@@ -45,7 +45,8 @@ public class LspUse {
 }
 
 // LspTarget — what the cursor is on, after resolution.
-//   kind: 0 nothing | 1 function | 2 variable (local/param/field) | 3 type | 4 other
+//   kind: 0 nothing | 1 function | 2 variable (local/param/field) | 3 class type
+//         | 4 other | 5 enum type
 public class LspTarget {
     public int kind
     public string name
@@ -56,6 +57,7 @@ public class LspTarget {
     public SemaClassType cls          // kind 3
     public string varTypeName         // kind 2: the declared type, for hover
     public SemaClassAttribute attr    // kind 2 via a receiver: the field itself
+    public SemaEnumType enm           // kind 5: an ENUM used as a type
 
     public LspTarget() {
         this.kind = 0
@@ -67,6 +69,7 @@ public class LspTarget {
         this.cls = null
         this.varTypeName = ""
         this.attr = null
+        this.enm = null
     }
 }
 
@@ -303,22 +306,15 @@ public class LspNavVisitor : ASTVisitor {
     }
 
     public void visit(const ASTDeclStmt node) {
-        // The declared name itself is a use site (its own declaration) — but
-        // the AST records the DECLARATION's location at the TYPE ("int base"
-        // carries the loc of `int`), so the name column is recovered by
-        // scanning the source line to the right of that loc. Without this, a
-        // decl-site highlight underlines the type and a decl-site click misses.
+        // Both halves of `Point p = …` are clickable: the TYPE reaches the
+        // class, the NAME is the variable's own declaration site. The name
+        // position comes straight from nameLoc — it used to be recovered by
+        // scanning the source line to the right of the declaration's location,
+        // because that location points at the type.
         ASTLocalVar lv = node.getLocalVar()
         if lv != null {
-            SourceLocation loc = lv.getLoc()
-            if loc != null {
-                if loc.isValid() {
-                    int line = this.sm.getLineNumber(loc)
-                    int col = this.sm.getColumnNumber(loc)
-                    int nameCol = this.nameColAfter(line, col, lv.getName())
-                    this.namedUseAt(line, nameCol, lv.getName(), 1)
-                }
-            }
+            this.walkType(lv.getType())
+            this.nameUse(lv.getNameLoc(), lv.getName(), 1)
         }
         ASTExpr e = node.getExpr()
         if e != null { e.accept(this) }
@@ -513,7 +509,48 @@ public class LspNavVisitor : ASTVisitor {
     public void visit(const ASTModule node) { }
     public void visit(const ASTNameSpace node) { }
     public void visit(const ASTImport node) { }
+    // walkType — name sites inside a TYPE reference, so ctrl-clicking the type
+    // in `Point p`, `Point getOrigin()` or `List<Point> xs` reaches the class or
+    // enum. Each dotted segment carries its OWN location, so a qualified type
+    // (fly.data.List) answers for the segment actually under the cursor; the
+    // target resolution then treats the name like any other (a CLASS/ENUM
+    // symbol becomes a class target). Generic arguments and array element types
+    // are walked too — they are ordinary type references.
+    public void walkType(const ASTType t) {
+        if t == null { return }
+        ASTNamedType nt = t.asNamedType()
+        if nt != null {
+            List<ASTName> ns = nt.getNames()
+            int i = 0
+            while i < ns.size() {
+                ASTName n = ns.get(i)
+                this.nameUse(n.getLoc(), n.getName(), 1)
+                i = i + 1
+            }
+            List<ASTType> args = nt.getTypeArgs()
+            int ai = 0
+            while ai < args.size() {
+                this.walkType(args.get(ai))
+                ai = ai + 1
+            }
+            return
+        }
+        ASTArrayType at = t.asArrayType()
+        if at != null { this.walkType(at.getElementType()) }
+    }
+
     public void visit(const ASTFunction node) {
+        // The signature is part of the file too: its return type and parameter
+        // types are type references a user expects to be able to click.
+        this.walkType(node.getReturnType())
+        List<ASTParam> ps = node.getParams()
+        int pi = 0
+        while pi < ps.size() {
+            ASTParam p = ps.get(pi)
+            this.walkType(p.getType())
+            this.nameUse(p.getNameLoc(), p.getName(), 1)
+            pi = pi + 1
+        }
         ASTBlockStmt b = node.getBody()
         if b != null { b.accept(this) }
     }

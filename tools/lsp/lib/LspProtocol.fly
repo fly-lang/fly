@@ -244,3 +244,31 @@ public List<string> diagFileSet(const List<LspDiag> diags, const string always) 
     if hasTrigger == false { files.add(always) }
     out = files
 }
+
+// LspLink — one documentLink: a span on ONE line (1-based, compiler
+// coordinates) pointing at a file. Fly's links are import paths, which never
+// wrap, so a single-line span is the whole story.
+public class LspLink {
+    public int line
+    public int colStart
+    public int colEnd
+    public string target        // filesystem path; the server turns it into a URI
+
+    public LspLink(const int line, const int colStart, const int colEnd, const string target) {
+        this.line = line
+        this.colStart = colStart
+        this.colEnd = colEnd
+        this.target = target
+    }
+}
+
+// mkDocumentLink — `{"range":…,"target":"file:///…"}`.
+public pointer mkDocumentLink(const LspLink l) {
+    pointer range = json.newObject()
+    json.put(range, "start", mkPosition(l.line, l.colStart))
+    json.put(range, "end", mkPosition(l.line, l.colEnd))
+    pointer o = json.newObject()
+    json.put(o, "range", range)
+    json.put(o, "target", json.newString(pathToUri(l.target)))
+    out = o
+}
