@@ -95,9 +95,13 @@ bool ToolChain::BuildOutput(const llvm::SmallVector<std::string, 4> &InFiles, Fr
     // the linker. Only the archive path used to filter it, so every linking build that
     // also emitted a header (--lib-dyn, or --header alongside a normal link) handed
     // lld the .fly.h and died with "unknown file type".
+    // A generic module ships its SOURCE as `<name>.fly` instead of a header, and
+    // that path travels in the same list: it is just as much "not an object" as
+    // a .fly.h, so it is dropped here too. Anything the frontend GENERATED that
+    // is still Fly source belongs to the shipped lib, never to the archiver.
     llvm::SmallVector<std::string, 4> ObjFiles;
     for (const auto &F : InFiles)
-        if (!llvm::StringRef(F).ends_with(".fly.h"))
+        if (!llvm::StringRef(F).ends_with(".fly.h") && !llvm::StringRef(F).ends_with(".fly"))
             ObjFiles.push_back(F);
 
     // Select right options format by platform (Win or others)

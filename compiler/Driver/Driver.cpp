@@ -615,7 +615,14 @@ bool Driver::Execute() {
             if (CI->getFrontendOptions().CreateLibrary ||
                 CI->getFrontendOptions().CreateSharedLib) {
                 for (auto &Output : Front.getOutputFiles()) {
-                    if (llvm::StringRef(Output).ends_with(".fly.h"))
+                    // Generated Fly artifacts BELONG to the shipped lib and are
+                    // not intermediates to clean up: a `.fly.h` declaration
+                    // header, and — for a module with generic classes — the
+                    // `<name>.fly` SOURCE the specializer needs. Only the first
+                    // was exempt, so the template was written and then deleted
+                    // here, leaving no trace and no error.
+                    llvm::StringRef O(Output);
+                    if (O.ends_with(".fly.h") || O.ends_with(".fly"))
                         continue;
                     FLY_DEBUG_MSG("Delete Output File " << Output);
                     const std::error_code &EC = llvm::sys::fs::remove(Output, false);

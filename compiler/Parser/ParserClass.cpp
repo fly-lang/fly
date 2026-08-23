@@ -265,16 +265,40 @@ ASTMethod *ParserClass::ParseMethod(SmallVector<ASTModifier *, 8> &Modifiers,
 
 	SmallVector<ASTParam *, 8> Params = ParserFunction::ParseParams(P);
 	ASTMethod *Method = ASTBuilder::CreateClassMethod(Loc, Class, Name, Modifiers, Params);
+
+	// In a header a method is DECLARED, not defined: its body lives in the
+	// archive the header describes. Sema reads Body==nullptr as "abstract", so
+	// header mode gives the method an empty non-null body — with or without a
+	// brace block. Generated headers used to be forced to spell `{}` for that
+	// reason alone; now `public int len(...)` on its own line means the same
+	// thing, and a .fly.h carries no bodies at all.
+	//
+	// NOT for a method marked `abstract`: it must stay abstract, and Sema
+	// rejects an abstract method that has a body
+	// (err_sema_abstract_method_has_body). Interfaces need no special case here
+	// — their methods are abstract by construct and never reach this branch
+	// with a body to skip.
+	bool IsExplicitlyAbstract = false;
+	for (auto *Mod : Modifiers) {
+		if (Mod->getModifierKind() == ASTModifierKind::MOD_ABSTRACT) {
+			IsExplicitlyAbstract = true;
+			break;
+		}
+	}
+
 	if (P->isBlockStart()) {
 		if (SkipBodies) {
-			// Create an empty non-null body so Sema doesn't treat this method as
-			// abstract (Body==nullptr signals an abstract/unimplemented method).
 			ASTBlockStmt *EmptyBlock = ASTBuilder::CreateBlockStmt(P->Tok.getLocation());
-			ASTBuilder::CreateBody(Method, EmptyBlock);
+			if (!IsExplicitlyAbstract)
+				ASTBuilder::CreateBody(Method, EmptyBlock);
 			P->SkipBraceBlock();
 		} else {
 			ParserFunction::ParseBody(P, Method);
 		}
+	} else if (SkipBodies && !IsExplicitlyAbstract &&
+	           Class->getClassKind() != ASTClassKind::INTERFACE) {
+		ASTBlockStmt *EmptyBlock = ASTBuilder::CreateBlockStmt(Loc);
+		ASTBuilder::CreateBody(Method, EmptyBlock);
 	}
 	return Method;
 }
