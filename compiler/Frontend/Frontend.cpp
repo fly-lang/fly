@@ -211,10 +211,13 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags,
                                    llvm::StringRef OutDir = "") {
     // When OutDir is set (--lib / --lib-dyn), write the header flat into OutDir
     // so it lands alongside the archive rather than next to the source file.
-    auto makeHeaderPath = [&](llvm::StringRef stem) -> std::string {
+    auto makeLibPath = [&](llvm::StringRef stem, llvm::StringRef ext) -> std::string {
         if (OutDir.empty())
-            return stem.str() + ".fly.h";
-        return (OutDir + "/" + llvm::sys::path::filename(stem) + ".fly.h").str();
+            return (stem + ext).str();
+        return (OutDir + "/" + llvm::sys::path::filename(stem) + ext).str();
+    };
+    auto makeHeaderPath = [&](llvm::StringRef stem) -> std::string {
+        return makeLibPath(stem, ".fly.h");
     };
 
     // For modules with generic classes the header IS the full source:
@@ -229,7 +232,11 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags,
     }
     if (hasGenericClasses) {
         std::string SourcePath = M->getName() + ".fly";
-        std::string HeaderPath = makeHeaderPath(M->getName());
+        // Shipped as `.fly`, NOT `.fly.h`: this file holds implementations, so
+        // it is a SOURCE. Calling it a header made the shipped lib inconsistent
+        // — most .fly.h were declarations while the generic ones were whole
+        // sources. LoadLibHeaders already picks up bare .fly in the std lib dir.
+        std::string HeaderPath = makeLibPath(M->getName(), ".fly");
         auto MBOrErr = llvm::MemoryBuffer::getFile(SourcePath);
         if (!MBOrErr) return "";
         std::error_code EC;
@@ -378,6 +385,17 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags,
                 if (!methPublic) continue;
                 bool isCtor = (Meth->getName() == C->getName());
                 OS << "    public ";
+                // `abstract` must survive into the header: it is the only thing
+                // that keeps the method abstract now that a bodiless
+                // declaration means "defined in the archive". Dropping it, as
+                // this did, silently turned an abstract method concrete.
+                // Not `const auto *`: getModifierKind() is non-const.
+                for (auto *Mod : Meth->getModifiers()) {
+                    if (Mod->getModifierKind() == ASTModifierKind::MOD_ABSTRACT) {
+                        OS << "abstract ";
+                        break;
+                    }
+                }
                 if (!isCtor) {
                     // Emit return type (void methods need explicit 'void').
                     const std::string ret = typeStr(Meth->getReturnType());
@@ -391,7 +409,9 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags,
                     OS << paramStr(P);
                     first = false;
                 }
-                OS << ") {}\n";
+                // No `{}`: a .fly.h carries declarations only. The empty stub
+                // was needed only while a bodiless method meant abstract.
+                OS << ")\n";
             }
         }
         OS << "}\n\n";
