@@ -108,6 +108,12 @@ static std::string typeStr(const ASTType *T) {
                 name += typeStr(A);
                 first = false;
             }
+            // A nested closer must not fuse: the lexer reads `>>` as a right
+            // shift, so `List<List<int>>` could not be read back out of a header.
+            // Spaced HERE rather than rewritten afterwards by the build script —
+            // that pass rewrites every `>>` in the file, and templates now ship
+            // inside the header, where a `>>` may be a real shift.
+            if (!name.empty() && name.back() == '>') name += " ";
             name += ">";
         }
         return name;
@@ -201,12 +207,101 @@ static std::string funcSignatureStr(const ASTFunction *F) {
     return sig;
 }
 
-// Writes a .fly.h declaration file for the public API of M.
-// Returns the path of the generated file, or empty string on failure.
-// Modules that contain generic classes are skipped: they cannot be represented
-// as declaration-only stubs because monomorphization requires the full method
-// bodies.  Callers must ensure the .fly source is available in the lib dir so
-// LoadLibHeaders falls through to load it directly.
+// isTemplateDecl — a top-level declaration carrying type params: a generic class
+// or a generic free function. Both need their bodies to reach the consumer, since
+// a specialization is produced by re-walking the template's syntax. Only classes
+// used to be checked, so a module whose only template was a FUNCTION shipped as a
+// bodiless declaration and every specialization of it came out empty.
+static bool isTemplateDecl(const ASTBase *Node) {
+    if (Node->getKind() == ASTKind::AST_CLASS)
+        return !static_cast<const ASTClass *>(Node)->getTypeParams().empty();
+    if (Node->getKind() == ASTKind::AST_FUNCTION)
+        return !static_cast<const ASTFunction *>(Node)->getTypeParams().empty();
+    return false;
+}
+
+// sliceDecl — one declaration's own text, taken VERBATIM out of the source buffer
+// between its start and its closing brace. Slicing rather than printing the AST
+// back out is deliberate: this compiler has no printer for statements and
+// expressions, and every fidelity bug in one would land silently in a shipped
+// artifact.
+//
+// The slice is widened to the start of the line, so the modifiers that precede
+// the declaration come with it, and then back over any comment block directly
+// above: documentation is part of what a template ships.
+static std::string sliceDecl(SourceManager &SrcMgr, const ASTBase *Node) {
+    const SourceLocation &B = Node->getLocation();
+    const SourceLocation &E = Node->getEndLoc();
+    if (B.isInvalid() || E.isInvalid())
+        return "";
+    std::pair<FileID, unsigned> DB = SrcMgr.getDecomposedLoc(B);
+    std::pair<FileID, unsigned> DE = SrcMgr.getDecomposedLoc(E);
+    if (DB.first != DE.first || DE.second <= DB.second)
+        return "";
+    bool Invalid = false;
+    llvm::StringRef Buf = SrcMgr.getBufferData(DB.first, &Invalid);
+    if (Invalid || DE.second >= Buf.size())
+        return "";
+
+    // start of the declaration's line, but only when what precedes it there is
+    // modifiers and blanks — anything else and the line is not ours to take.
+    unsigned Start = DB.second;
+    unsigned LineStart = Start;
+    while (LineStart > 0 && Buf[LineStart - 1] != '\n')
+        --LineStart;
+    bool OnlyModifiers = true;
+    for (unsigned i = LineStart; i < Start; ++i) {
+        const char C = Buf[i];
+        if (C == ' ' || C == '\t' || C == '_' || isalpha((unsigned char) C))
+            continue;
+        OnlyModifiers = false;
+        break;
+    }
+    if (OnlyModifiers)
+        Start = LineStart;
+
+    // the comment block sitting directly above, line by line
+    while (Start > 0) {
+        unsigned PrevEnd = Start - 1;                 // the '\n' closing the line above
+        if (Buf[PrevEnd] != '\n')
+            break;
+        unsigned PrevStart = PrevEnd;
+        while (PrevStart > 0 && Buf[PrevStart - 1] != '\n')
+            --PrevStart;
+        unsigned T = PrevStart;
+        while (T < PrevEnd && (Buf[T] == ' ' || Buf[T] == '\t'))
+            ++T;
+        if (T + 1 < PrevEnd && Buf[T] == '/' && Buf[T + 1] == '/')
+            Start = PrevStart;
+        else
+            break;
+    }
+
+    return Buf.substr(Start, DE.second + 1 - Start).str() + "\n\n";
+}
+
+// containsWord — does `Name` occur in `Text` as a whole identifier? A plain
+// substring search would match `list` inside `blacklist` and drag in a helper
+// nobody asked for.
+static bool containsWord(llvm::StringRef Text, llvm::StringRef Name) {
+    if (Name.empty())
+        return false;
+    size_t Pos = Text.find(Name);
+    while (Pos != llvm::StringRef::npos) {
+        const bool LeftOk = Pos == 0 ||
+                            (!isalnum((unsigned char) Text[Pos - 1]) && Text[Pos - 1] != '_');
+        const size_t After = Pos + Name.size();
+        const bool RightOk = After >= Text.size() ||
+                             (!isalnum((unsigned char) Text[After]) && Text[After] != '_');
+        if (LeftOk && RightOk)
+            return true;
+        Pos = Text.find(Name, Pos + 1);
+    }
+    return false;
+}
+
+// Writes the .fly.h for the public API of M: declarations for everything, plus
+// the full source of every template. Returns the path, or empty on failure.
 static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags,
                                    llvm::StringRef OutDir = "") {
     // When OutDir is set (--lib / --lib-dyn), write the header flat into OutDir
@@ -220,30 +315,18 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags,
         return makeLibPath(stem, ".fly.h");
     };
 
-    // For modules with generic classes the header IS the full source:
-    // ParseHeader skips import statements and detects <T> to force
-    // SkipBodies=false, so monomorphization gets the complete method bodies.
-    bool hasGenericClasses = false;
+    // `.fly.h` is the ONLY textual file a library directory holds. Most of it is
+    // declarations, because the code lives in the archive — but a GENERIC class
+    // or function is copied in whole, body included. Monomorphization re-walks a
+    // template's syntax with the type param bound to a concrete type, so no
+    // compiled form of one can be shipped in its place.
+    //
+    // Only the templates travel that way. Shipping the whole file, as this used
+    // to, put the readable implementation of every unrelated class in the module
+    // into the artifact as well.
+    bool hasTemplate = false;
     for (const auto *Node : M->getNodes()) {
-        if (Node->getKind() == ASTKind::AST_CLASS) {
-            const auto *C = static_cast<const ASTClass *>(Node);
-            if (!C->getTypeParams().empty()) { hasGenericClasses = true; break; }
-        }
-    }
-    if (hasGenericClasses) {
-        std::string SourcePath = M->getName() + ".fly";
-        // Shipped as `.fly`, NOT `.fly.h`: this file holds implementations, so
-        // it is a SOURCE. Calling it a header made the shipped lib inconsistent
-        // — most .fly.h were declarations while the generic ones were whole
-        // sources. LoadLibHeaders already picks up bare .fly in the std lib dir.
-        std::string HeaderPath = makeLibPath(M->getName(), ".fly");
-        auto MBOrErr = llvm::MemoryBuffer::getFile(SourcePath);
-        if (!MBOrErr) return "";
-        std::error_code EC;
-        llvm::raw_fd_ostream OS(HeaderPath, EC, llvm::sys::fs::OF_Text);
-        if (EC) return "";
-        OS << MBOrErr.get()->getBuffer();
-        return HeaderPath;
+        if (isTemplateDecl(Node)) { hasTemplate = true; break; }
     }
 
     // Derive header path: <source>.fly → <source>.fly.h (or OutDir/<stem>.fly.h)
@@ -300,6 +383,9 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags,
     // Public struct declarations (must precede interface/class/function declarations)
     for (const auto *Node : M->getNodes()) {
         if (Node->getKind() != ASTKind::AST_CLASS) continue;
+        // A template is sliced whole further down; declaring it here too would
+        // put the same name in the file twice.
+        if (isTemplateDecl(Node)) continue;
         const auto *C = static_cast<const ASTClass *>(Node);
         if (C->getClassKind() != ASTClassKind::STRUCT) continue;
         bool isPublic = false;
@@ -319,6 +405,9 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags,
     // Public interface declarations (must precede class declarations that implement them)
     for (const auto *Node : M->getNodes()) {
         if (Node->getKind() != ASTKind::AST_CLASS) continue;
+        // A template is sliced whole further down; declaring it here too would
+        // put the same name in the file twice.
+        if (isTemplateDecl(Node)) continue;
         const auto *C = static_cast<const ASTClass *>(Node);
         if (C->getClassKind() != ASTClassKind::INTERFACE) continue;
         bool isPublic = false;
@@ -350,6 +439,9 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags,
     // Public class declarations (concrete classes; must follow interfaces they implement)
     for (const auto *Node : M->getNodes()) {
         if (Node->getKind() != ASTKind::AST_CLASS) continue;
+        // A template is sliced whole further down; declaring it here too would
+        // put the same name in the file twice.
+        if (isTemplateDecl(Node)) continue;
         const auto *C = static_cast<const ASTClass *>(Node);
         if (C->getClassKind() != ASTClassKind::CLASS) continue;
         bool isPublic = false;
@@ -441,6 +533,9 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags,
     // Public function signatures
     for (const auto *Node : M->getNodes()) {
         if (Node->getKind() != ASTKind::AST_FUNCTION) continue;
+        // A generic function is sliced whole below: a signature here would both
+        // duplicate it and be unusable, since specializing needs the body.
+        if (isTemplateDecl(Node)) continue;
         const auto *F = static_cast<const ASTFunction *>(Node);
         bool isPublic = false;
         for (auto *Mod : F->getModifiers())
@@ -448,6 +543,74 @@ static std::string GenerateHeader(ASTModule *M, DiagnosticsEngine &Diags,
                 isPublic = true;
         if (!isPublic) continue;
         OS << funcSignatureStr(F) << "\n";
+    }
+
+    // The templates go LAST: the declarations are the API a reader opens a header
+    // for, and the source that follows is there for the specializer.
+    if (hasTemplate && Diags.hasSourceManager()) {
+        SourceManager &SrcMgr = Diags.getSourceManager();
+        std::string Templates;
+        for (const auto *Node : M->getNodes()) {
+            if (isTemplateDecl(Node))
+                Templates += sliceDecl(SrcMgr, Node);
+        }
+        // A template body may call a NON-public declaration of its own module,
+        // and the declaration half never carries those. Left out, the consumer
+        // cannot specialize — so they are sliced in too, and the author is told
+        // which private code just became readable. Membership is decided by the
+        // name appearing as a word in what has been emitted so far, repeated to a
+        // fixpoint because a helper that joins can itself name another. That
+        // over-approximates, in the safe direction: a needless helper costs a few
+        // lines, a missing one breaks every consumer's build.
+        bool Grew = true;
+        llvm::SmallVector<llvm::StringRef, 4> Taken;
+        while (Grew) {
+            Grew = false;
+            for (const auto *Node : M->getNodes()) {
+                if (isTemplateDecl(Node)) continue;
+                llvm::StringRef Name;
+                bool IsPublic = false;
+                if (Node->getKind() == ASTKind::AST_CLASS) {
+                    const auto *C = static_cast<const ASTClass *>(Node);
+                    Name = C->getName();
+                    for (auto *Mod : C->getModifiers())
+                        if (Mod->getModifierKind() == ASTModifierKind::MOD_PUBLIC) IsPublic = true;
+                } else if (Node->getKind() == ASTKind::AST_FUNCTION) {
+                    const auto *F = static_cast<const ASTFunction *>(Node);
+                    Name = F->getName();
+                    for (auto *Mod : F->getModifiers())
+                        if (Mod->getModifierKind() == ASTModifierKind::MOD_PUBLIC) IsPublic = true;
+                } else {
+                    continue;
+                }
+                if (IsPublic || Name.empty())
+                    continue;
+                bool Already = false;
+                for (llvm::StringRef T : Taken)
+                    if (T == Name) { Already = true; break; }
+                if (Already || !containsWord(Templates, Name))
+                    continue;
+                const std::string Slice = sliceDecl(SrcMgr, Node);
+                if (Slice.empty())
+                    continue;
+                Templates += Slice;
+                Taken.push_back(Name);
+                Grew = true;
+                // Reported WITHOUT a location, like every other diagnostic in this
+                // file: rendering a caret from here dereferences a null buffer and
+                // takes the compiler down. The message names the symbol and the
+                // header, which is what the author needs to act on it.
+                Diags.Report(diag::warn_fe_header_private_shipped)
+                        << Name << llvm::sys::path::filename(HeaderPath);
+            }
+        }
+        // Each slice ends in a blank line, so the last leaves the file ending in
+        // one. Collapse to a single newline.
+        while (Templates.size() > 1 &&
+               Templates[Templates.size() - 1] == '\n' &&
+               Templates[Templates.size() - 2] == '\n')
+            Templates.pop_back();
+        OS << Templates;
     }
 
     return HeaderPath;
