@@ -638,6 +638,21 @@ suite LspAnalyzerSuite {
             assert.assertEqI(loc.col, 7, 1205)
             fs.dirDeleteAll(navFixtureDir())
         }
+        case "the type after `new` is clickable too": {
+            // Regression: the call's loc is the `new` keyword, so the hit range
+            // covered "new P" and a click on `Point` in `new Point()` returned no
+            // definition at all. Where it lands — the class or its constructor —
+            // is the analyzer's call; what matters is that it is Point's.
+            LspAnalyzer a = compiled()
+            // line 10, "    Point p = new Point()" — the name after `new` is at col 19
+            LspTarget t = a.findTargetAt(10, 19)
+            assert.assertStr(t.name, "Point", 1211)
+            LspLoc loc = a.declLocationOf(t)
+            assert.assertTrue(loc.ok, 1212)
+            // class Point (15) through its constructor (17)
+            assert.assertTrue(loc.line >= 15 && loc.line <= 17, 1213)
+            fs.dirDeleteAll(navFixtureDir())
+        }
         case "a symbol served by a shipped header opens THAT header": {
             // Regression: headers were registered under their bare entry name
             // ("greet.fly.h"), so the file could never be reopened and

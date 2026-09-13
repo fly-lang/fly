@@ -175,7 +175,10 @@ public class LspNavVisitor : ASTVisitor {
 
     public void visit(const ASTCall node) {
         int beforeCall = this.foundKind
-        this.nameUse(node.getLoc(), node.getName(), 2)
+        // NameLoc, not loc: for `new Point()` the loc is the `new` keyword, so the
+        // hit range covered "new P" and a click on the type name found nothing.
+        // For every other call nameLoc defaults to loc — nothing else moves.
+        this.nameUse(node.getNameLoc(), node.getName(), 2)
         if beforeCall == 0 { if this.foundKind != 0 { this.foundExpr = node } }
         if this.mode == 3 {
             SourceLocation loc = node.getLoc()

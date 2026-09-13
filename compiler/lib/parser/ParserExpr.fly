@@ -335,6 +335,11 @@ public class ParserExpr {
     public static ASTExpr parseNew(const Parser p) {
         SourceLocation loc = p.curLoc()
         p.expectKw("new")
+        // The NAME token, for setNameLoc. `loc` is the `new` keyword and stays the
+        // call's start (diagnostics, signature help); anything that has to find
+        // the TYPE by position — a ctrl-click on `Point` in `new Point()` — needs
+        // where the name actually is, four columns further.
+        SourceLocation nloc = p.curLoc()
         string nm = ""
         if p.curIsNamePart() { nm = p.curText()  p.bump() }
         else { p.reportErr(DiagID.err_parser_new_instance) }
@@ -351,6 +356,7 @@ public class ParserExpr {
             p.closeTypeArgs()
         }
         ASTCall call = ParserExpr.parseCallTail(p, loc, nm, ASTCallKind.CALL_NEW, null)
+        call.setNameLoc(nloc)
         int i = 0
         while i < targs.size() {
             call.addTypeArg(targs.get(i))
