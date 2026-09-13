@@ -93,6 +93,10 @@ ParserClass::ParserClass(Parser *P, SmallVector<ASTModifier *, 8> &Modifiers, bo
 
             // End of the Class
             if (P->isBlockEnd() ) {
+                // Record the closing brace before consuming it: GenerateHeader
+                // copies a generic class's own text out of the source, and this
+                // is the only place that knows where it stops.
+                Class->setEndLoc(P->Tok.getLocation());
                 P->ConsumeBrace(BraceCount);
                 break;
             }

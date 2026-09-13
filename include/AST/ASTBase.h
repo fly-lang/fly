@@ -41,6 +41,12 @@ namespace fly {
     {
         SourceLocation Loc;
 
+        // Where the declaration ENDS — its closing brace. Set by the parser;
+        // defaults to Loc, so a node nobody bothered to close reads as empty
+        // rather than as a slice running to the end of the file. GenerateHeader
+        // needs it to copy a generic declaration's own text out of the source.
+        SourceLocation EndLoc;
+
         ASTKind Kind;
 
     protected:
@@ -50,6 +56,10 @@ namespace fly {
         virtual ~ASTBase() = default;
 
         virtual const SourceLocation& getLocation() const;
+
+        virtual const SourceLocation& getEndLoc() const;
+
+        virtual void setEndLoc(const SourceLocation& Loc);
 
         virtual ASTKind getKind() const;
 

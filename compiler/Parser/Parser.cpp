@@ -670,6 +670,10 @@ void Parser::ParseBlock(ASTBlockStmt *Block) {
 
     		Lex.ClearBlockComment();
 
+    		// The closing brace, kept before it is consumed: a function's own end
+    		// is its body's, and GenerateHeader slices a generic function by it.
+    		Block->setEndLoc(Tok.getLocation());
+
     		// Consume '}'
     		ConsumeBrace(BracketCount);
     		return;

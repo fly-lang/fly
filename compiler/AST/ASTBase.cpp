@@ -13,11 +13,19 @@
 
 using namespace fly;
 
-ASTBase::ASTBase(const SourceLocation &Loc, ASTKind Kind) : Loc(Loc), Kind(Kind) {
+ASTBase::ASTBase(const SourceLocation &Loc, ASTKind Kind) : Loc(Loc), EndLoc(Loc), Kind(Kind) {
 
 }
 const SourceLocation &ASTBase::getLocation() const {
 	return Loc;
+}
+
+const SourceLocation &ASTBase::getEndLoc() const {
+	return EndLoc;
+}
+
+void ASTBase::setEndLoc(const SourceLocation &L) {
+	EndLoc = L;
 }
 
 ASTKind ASTBase::getKind() const {

@@ -10,6 +10,8 @@
 #include "Parser/Parser.h"
 #include "Parser/ParserFunction.h"
 #include "AST/ASTVar.h"
+#include "AST/ASTFunction.h"
+#include "AST/ASTBlockStmt.h"
 #include "Basic/Debug.h"
 #include "AST/ASTBuilder.h"
 
@@ -27,6 +29,8 @@ ASTBlockStmt *ParserFunction::ParseBody(Parser *P, ASTFunction *F) {
     ASTBlockStmt *Block = ASTBuilder::CreateBlockStmt(P->Tok.getLocation());
     ASTBlockStmt *Body = ASTBuilder::CreateBody(F, Block);
     P->ParseBlock(Body);
+    // A function ends where its body does — ParseBlock recorded the closing brace.
+    F->setEndLoc(Body->getEndLoc());
     return Body;
 }
 

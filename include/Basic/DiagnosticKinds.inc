@@ -57,6 +57,7 @@ DIAG(err_fe_unable_remove_header, CLASS_ERROR, (unsigned)diag::Severity::Error, 
 DIAG(warn_fe_cc_log_diagnostics_failure, CLASS_WARNING, (unsigned)diag::Severity::Warning, "unable to open CC_LOG_DIAGNOSTICS file: %0 (using stderr)", 0, SFINAE_Suppress, false, false, 0)
 DIAG(warn_fe_unable_to_open_stats_file, CLASS_WARNING, (unsigned)diag::Severity::Warning, "unable to open statistics output file '%0': '%1'", 764, SFINAE_Suppress, false, false, 0)
 DIAG(warn_fe_lib_dir_non_fly_file, CLASS_WARNING, (unsigned)diag::Severity::Warning, "file '%0' in library search directory is not a .fly source file and will be ignored", 0, SFINAE_Suppress, false, false, 0)
+DIAG(warn_fe_header_private_shipped, CLASS_WARNING, (unsigned)diag::Severity::Warning, "non-public '%0' is reached by a generic template and ships as readable source in '%1'", 0, SFINAE_Suppress, false, false, 0)
 DIAG(note_fe_no_input_process, CLASS_NOTE, (unsigned)diag::Severity::Remark, "No input files for processing", 0, SFINAE_Suppress, false, true, 0)
 
 // Lexer
