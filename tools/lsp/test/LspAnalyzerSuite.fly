@@ -135,6 +135,31 @@ void writeEnumFixture() {
     fs.writeStr(enumFixturePath(), str.replace(s, "\n", lsp.lfStr()), 420)
 }
 
+// hdrFixtureDir — a miniature TOOLCHAIN: a lib/ holding a .fly.h declaration,
+// plus an app/ that imports it. This is the shape of a real installation, where
+// std symbols resolve from shipped headers and never from sources.
+//
+//   lib/greet.fly.h        app/main.fly
+//   1  namespace fxhdr.greet     1  namespace fxhdr.app
+//   2                            2
+//   3  public string hello()     3  import fxhdr.greet
+//                                4
+//                                5  void main() {
+//                                6      string s = greet.hello()
+//                                7  }
+//
+// `hello` is at column 15 of header line 3, and at column 22 of main line 6.
+string hdrFixtureDir() { out = "lsp_suite_fx_hdr" }
+
+void writeHdrFixture() {
+    fs.dirCreateAll("lsp_suite_fx_hdr/lib", 493)
+    fs.dirCreateAll("lsp_suite_fx_hdr/app", 493)
+    string h = "namespace fxhdr.greet\n\npublic string hello()\n"
+    fs.writeStr("lsp_suite_fx_hdr/lib/greet.fly.h", str.replace(h, "\n", lsp.lfStr()), 420)
+    string m = "namespace fxhdr.app\n\nimport fxhdr.greet\n\nvoid main() {\n    string s = greet.hello()\n}\n"
+    fs.writeStr("lsp_suite_fx_hdr/app/main.fly", str.replace(m, "\n", lsp.lfStr()), 420)
+}
+
 void writeRootFixture() {
     fs.dirCreateAll("lsp_suite_fx_root/app", 493)
     fs.dirCreateAll("lsp_suite_fx_root/lib", 493)
@@ -612,6 +637,28 @@ suite LspAnalyzerSuite {
             assert.assertEqI(loc.line, 15, 1204)
             assert.assertEqI(loc.col, 7, 1205)
             fs.dirDeleteAll(navFixtureDir())
+        }
+        case "a symbol served by a shipped header opens THAT header": {
+            // Regression: headers were registered under their bare entry name
+            // ("greet.fly.h"), so the file could never be reopened and
+            // go-to-definition on any std symbol did nothing at all. Asserting
+            // only `ok` would not catch it — the file must EXIST on disk, which
+            // is exactly what a basename fails.
+            writeHdrFixture()
+            LspAnalyzer a = new LspAnalyzer()
+            a.setStdLibDir("lsp_suite_fx_hdr/lib")
+            List<LspDiag> d = a.compileFile("lsp_suite_fx_hdr/app/main.fly")
+            LspTarget t = a.findTargetAt(6, 22)
+            assert.assertStr(t.name, "hello", 1401)
+            assert.assertEqI(t.kind, 1, 1402)
+            LspLoc loc = a.declLocationOf(t)
+            assert.assertTrue(loc.ok, 1403)
+            assert.assertTrue(str.endsWith(loc.file, "greet.fly.h"), 1404)
+            assert.assertTrue(fs.exists(loc.file), 1405)
+            // On the NAME in the header, not on the return type.
+            assert.assertEqI(loc.line, 3, 1406)
+            assert.assertEqI(loc.col, 15, 1407)
+            fs.dirDeleteAll(hdrFixtureDir())
         }
         case "an ENUM used as a type reaches its declaration": {
             // An enum is not a SemaClassType, so the resolution's asClass()

@@ -733,6 +733,9 @@ public class Parser {
         if this.curIsPunct("{") { body = this.parseBlock() }
         ASTFunction f = ASTBuilder.CreateFunction(this.module, loc, nm, mods, params, body)
         f.setNameLoc(nloc)
+        // A function ends where its body ends; a bodiless declaration keeps the
+        // default (its own start), which yields an empty range rather than a wrong one.
+        if body != null { f.setEndLoc(body.getEndLoc()) }
         if retTypes.size() == 1 { f.setReturnType(retType) }
         else { f.setReturnTypes(retTypes) }
         List<ASTType> ftp = f.getTypeParams()
@@ -762,6 +765,10 @@ public class Parser {
             this.parseStmt(block)
             if this.curIsPunct("}") || this.curIsEof() || this.hadErr() { go = false }
         }
+        // The closing brace, before it is consumed: a declaration's end is its
+        // body's end, and HeaderGen slices [getLoc(), getEndLoc()] to ship a
+        // generic template as source.
+        block.setEndLoc(this.curLoc())
         this.expectPunct("}")
         out = block
     }

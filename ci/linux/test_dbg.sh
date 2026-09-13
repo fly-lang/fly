@@ -14,13 +14,24 @@
 #      (local processes are spawned through it) and lldb-argdumper.
 #   3. lldb-dap (IDE/DAP adapter) exists and answers --help.
 #
-# Skips (exit 0) when the debugger is not bundled and FLY_BUNDLE_LLVM != 1;
-# with FLY_BUNDLE_LLVM=1 a missing lldb is a FAILURE (incomplete artifact).
+# Which debugger is under test:
+#   * bundle build (lldb next to fly) - the SHIPPED layout. With
+#     FLY_BUNDLE_LLVM=1 a missing lldb is a FAILURE: the artifact would be
+#     incomplete. This is what CI runs.
+#   * plain dev build - the debugger stage0 provisions into build/llvm/bin
+#     (RUNPATH $ORIGIN/../lib finds liblldb in build/llvm/lib), the very files
+#     link_fly.sh would bundle. This used to SKIP, which meant a dev build never
+#     exercised the DWARF round-trip at all - and the probe is built by the seed,
+#     so a seed that broke --debug-symbols went unnoticed until CI. Only the
+#     shipped LAYOUT is left untested here, and only CI can test it.
+# Skips (exit 0) only when neither exists (stage0 was never run).
 # -----------------------------------------------------------------------------
 set -u
 cd "$(dirname "$0")/../.."
 
 STAGE="${STAGE:-2}"
+# BIN is the directory holding the debugger under test - lldb AND lldb-dap
+# (check 3) - so the two always come from the same layout.
 BIN="build/stage$STAGE/bin"
 DBG="$BIN/lldb"
 SEED="build/stage0/bin/fly"
@@ -29,7 +40,13 @@ if [ ! -x "$DBG" ]; then
     if [ "${FLY_BUNDLE_LLVM:-0}" = "1" ]; then
         echo "error: $DBG missing but FLY_BUNDLE_LLVM=1 - the bundle is incomplete."; exit 1
     fi
-    echo "test_dbg: skipped (non-bundle build - no lldb next to fly)"; exit 0
+    LLVM_BIN="build/llvm/bin"
+    if [ ! -x "$LLVM_BIN/lldb" ]; then
+        echo "test_dbg: skipped (no lldb next to fly nor in $LLVM_BIN - run ci/linux/stage0.sh)"; exit 0
+    fi
+    BIN="$LLVM_BIN"
+    DBG="$BIN/lldb"
+    echo "test_dbg: non-bundle build - testing the provisioned debugger in $BIN (the shipped layout is checked with FLY_BUNDLE_LLVM=1)"
 fi
 [ -x "$SEED" ] || { echo "error: seed compiler '$SEED' not found - run ci/linux/stage0.sh first."; exit 1; }
 

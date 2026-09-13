@@ -102,6 +102,18 @@ public class ResolverType {
         List<SemaTypeParam> tparams = template.getTypeParams()
         if typeArgs.size() != tparams.size() { out = null  return }
 
+        // A template whose methods have no bodies cannot be monomorphized: the
+        // specialization re-walks the template's AST, so with nothing to walk it
+        // ends up with abstract methods and codegen emits EMPTY linkonce_odr
+        // definitions — which, being weak, can even outrank the archive's real
+        // symbols at link time. Silent wrong code; say so instead. Reachable when a
+        // lib ships a generic as a bare declaration, which is exactly what
+        // HeaderGen's `.fly` companion exists to prevent.
+        if ResolverClass.templateHasNoBodies(template) {
+            r.diagStr(template.getAST().getNameLoc(), DiagID.err_sema_generic_template_no_body, template.getName())
+            out = null
+            return
+        }
         SemaClassType spec = SemaBuilder.CreateSpecialization(template, typeArgs, r.getCurrentScope())
         ResolverClass.resolveClassTypeIsolated(r, spec)
         out = spec

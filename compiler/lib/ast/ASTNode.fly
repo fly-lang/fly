@@ -23,10 +23,21 @@ public class ASTNode : ASTBase {
     // any node whose parser site does not set it behaves exactly as before.
     SourceLocation nameLoc
 
+    // Where the declaration ENDS — the closing brace of its body. getLoc() marks
+    // the start, so the pair delimits the declaration's own text in the buffer,
+    // which is what lets the header generator ship a generic template by SLICING
+    // the original source instead of pretty-printing an AST back to code (there
+    // is no printer for statements and expressions, and writing one would be the
+    // bulk of the work, with every fidelity bug landing in shipped artifacts).
+    // Like nameLoc it DEFAULTS TO loc, so a node whose parser site does not set
+    // it yields an empty range rather than a wrong one.
+    SourceLocation endLoc
+
     public ASTNode(const ASTKind kind, const SourceLocation loc) {
         super(kind, loc)
         this.visitedRun = 0
         this.nameLoc = loc
+        this.endLoc = loc
     }
 
     public bool isVisited(const int run) { out = this.visitedRun == run }
@@ -34,6 +45,9 @@ public class ASTNode : ASTBase {
 
     public SourceLocation getNameLoc() { out = this.nameLoc }
     public void setNameLoc(const SourceLocation l) { this.nameLoc = l }
+
+    public SourceLocation getEndLoc() { out = this.endLoc }
+    public void setEndLoc(const SourceLocation l) { this.endLoc = l }
 
     // as* — typed downcasts (Fly has no `(T)expr` value cast). The base returns null;
     // each concrete node overrides its own to `this`. Used by the header generator to

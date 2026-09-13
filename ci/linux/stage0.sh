@@ -41,7 +41,15 @@ ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # linking root is now the structural test entry, and more than one is an error.
 # It is the first seed that never runs anything it builds — stage 1 tests with
 # the fly it just linked instead (see stage1.sh).
-FLY_VERSION="${FLY_VERSION:-0.13.15}"
+# 0.13.16 makes a generated `.fly.h` a DECLARATION file: no `{}` stubs, the
+# `abstract` modifier preserved, and a module holding generic templates shipped
+# as a `.fly` SOURCE instead (the specializer needs the bodies). It is the seed
+# that builds the shipped std, so only a seed change can alter that shape.
+# 0.13.17 folds that companion back in: `.fly.h` is the ONLY textual file a lib
+# directory holds, carrying declarations plus the source of the templates alone —
+# not the whole module. It also spaces nested generic closers itself, so the
+# build script no longer rewrites `>>` over shipped code.
+FLY_VERSION="${FLY_VERSION:-0.13.17}"
 
 BUILD_DIR="$ROOT/build"
 STAGE0_DIR="$BUILD_DIR/stage0"

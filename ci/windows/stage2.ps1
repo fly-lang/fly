@@ -29,6 +29,9 @@ if (-not (Test-Path 'build/stage1/bin/fly.exe' -PathType Leaf)) {
 # std: ship the stage1 (reference-ABI) build - archive + generated headers.
 New-Item -ItemType Directory -Force build/stage2/lib | Out-Null
 Copy-Item build/stage1/lib/fly_std_lib.lib build/stage2/lib/ -Force
+# One shape covers everything: a `.fly.h` carries declarations, and for a module
+# that declares generics it carries their source too (the specializer needs those
+# bodies). build_std has already put the template modules here under that name.
 Get-ChildItem build/stage1/lib/*.fly.h | ForEach-Object { Copy-Item $_.FullName build/stage2/lib/ -Force }
 Write-Host "stage2: std -> build\stage2\lib (copied from stage1, reference ABI)"
 

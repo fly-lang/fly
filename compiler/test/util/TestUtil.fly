@@ -70,6 +70,24 @@ public bool resolveSrc(const string src, const int tag) {
     out = diags.hasErrorOccurred()
 }
 
+// resolveHeaderSrc — resolveSrc, but with the module marked as a preloaded
+// HEADER (what Frontend.loadLibHeaders does to every `.fly.h` in a lib dir).
+// The distinction is invisible to the parser and decided entirely in sema, so
+// this is the only way a suite can exercise the declaration-only shape without
+// a toolchain lib dir on disk.
+public bool resolveHeaderSrc(const string src, const int tag) {
+    Parser p = new Parser(src)
+    ASTModule m = p.parseModule("t")
+    assert.assertTrue(p.isSuccess(), tag)
+    m.setHeader(true)
+    DiagnosticsEngine diags = p.getDiags()
+    List<ASTModule> modules = new List<ASTModule>()
+    modules.add(m)
+    SemaContext ctx = new SemaContext(diags)
+    List<SemaModule> resolved = ctx.Resolve(modules, false)
+    out = diags.hasErrorOccurred()
+}
+
 // dquote — a one-character string containing a double quote (byte 34); string
 // literals keep escapes raw, so the quote byte is built at runtime.
 public string dquote() {

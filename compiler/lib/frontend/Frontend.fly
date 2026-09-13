@@ -291,7 +291,7 @@ public class Frontend {
         if fo.getCreateHeader() {
             int hgi = 0
             while hgi < entryMods.size() {
-                HeaderGen.generate(entryMods.get(hgi), fo.getOutDir())
+                HeaderGen.generate(entryMods.get(hgi), fo.getOutDir(), diags)
                 hgi = hgi + 1
             }
         }
@@ -414,7 +414,14 @@ public class Frontend {
             string name = ""
             str.fromBytes(namePtr, nameLen, name)
 
-            if str.endsWith(name, ".fly.h") {
+            // `.fly.h` is the ONE textual shape a lib directory holds. It carries
+            // declarations, and — for a module that declares generics — the source
+            // of those templates too, since monomorphization needs their bodies.
+            // A `.fly` here would be a project source that wandered in, never an
+            // artifact: parsing it would declare its namespace a second time, and
+            // SymbolTable.insert is silent and first-wins.
+            bool isLibModule = str.endsWith(name, ".fly.h")
+            if isLibModule {
                 string full = path.join(dir, name)
                 // A cache hit was parsed successfully when it was stored, so
                 // only a miss checks isSuccess — and only a miss reads the file.
@@ -424,7 +431,13 @@ public class Frontend {
                     string src = fs.readStr(full)
                     if str.isEmpty(src) == false {
                         Parser hp = new Parser(src)
-                        ASTModule parsed = hp.parseModule(name)
+                        // The FULL path, not the bare entry name: a module's
+                        // name is the identity anything downstream uses to
+                        // reopen it. Registered as "str.fly.h" it could not be
+                        // found again — go-to-definition on a std symbol
+                        // silently did nothing, and header diagnostics reported
+                        // a name instead of a file.
+                        ASTModule parsed = hp.parseModule(full)
                         if hp.isSuccess() {
                             hm = parsed
                             if this.modCache != null { this.modCache.store(full, hm) }
@@ -467,7 +480,12 @@ public class Frontend {
         int mi = 0
         while mi < mods.size() {
             ASTModule mm = mods.get(mi)
-            known.add(path.basename(mm.getName()))
+            // Only PROJECT modules claim a basename. A toolchain module does not:
+            // its namespace already bars a source pull (headerNs, just below), while
+            // its basename belongs to the lib dir, not to this project. Counting it
+            // meant a lib shipping `list.fly` silently swallowed a project file of
+            // the same name — no diagnostic, just a namespace that would not resolve.
+            if mm.isHeader() == false { known.add(path.basename(mm.getName())) }
             if mm.isHeader() {
                 ASTNameSpace hns = mm.getNameSpace()
                 if hns != null { headerNs.add(this.joinNames(hns.getNames())) }

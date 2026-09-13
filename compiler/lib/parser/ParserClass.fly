@@ -55,6 +55,9 @@ public class ParserClass {
             ParserClass.parseMember(p, c, nm)
             if p.curIsPunct("}") || p.curIsEof() || p.hadErr() { go = false }
         }
+        // The closing brace, BEFORE consuming it: with getLoc() it delimits the
+        // class's own text, which HeaderGen slices to ship a generic template.
+        c.setEndLoc(p.curLoc())
         p.expectPunct("}")
         out = c
     }

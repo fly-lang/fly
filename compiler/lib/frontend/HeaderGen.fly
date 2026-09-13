@@ -1,6 +1,7 @@
 namespace fly.compiler.frontend
 
 import fly.compiler.ast.*
+import fly.compiler.basic.*
 import fly.data.List
 import fly.os.fs
 import fly.os.path
@@ -14,9 +15,22 @@ import fly.os.io
 // / funcSignatureStr). Emitted per ENTRY module by Frontend.execute in --lib/--header
 // mode. Newlines are built via lineFeed() (Fly string literals keep escapes RAW).
 //
-// A module that declares GENERIC classes emits its FULL SOURCE as the header
-// (ParseHeader detects `<T>` and keeps the bodies for monomorphization) — a
-// declaration-only stub cannot carry the method bodies the specializer needs.
+// THE RULE, in three lines:
+//   1. a `.fly.h` carries NO bodies — free functions and methods alike are bare
+//      signatures (a method used to need `{}` only because a bodiless method
+//      meant abstract; ResolverClass.method now reads it as "defined elsewhere"
+//      inside a header);
+//   2. abstractness travels as the `abstract` MODIFIER and nothing else, so an
+//      abstract method survives the round trip (it silently did not before);
+//   3. the TEMPLATES of a module — its generic classes and generic functions —
+//      ship as SOURCE in a `<name>.fly` companion, because monomorphization
+//      re-walks their AST and no compiled form of a template exists. Everything
+//      else in that module stays a declaration in the `.fly.h`, and no name
+//      appears in both files (generate() explains why that is mandatory).
+//
+// Both shapes land in the same lib dir and are loaded by
+// Frontend.loadLibHeaders, which marks them isHeader: the flag means "external,
+// defined in the archive", not "has a .h extension".
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class HeaderGen {
@@ -84,6 +98,13 @@ public class HeaderGen {
                     name = str.concat(name, HeaderGen.typeStr(targs.get(j)))
                     j = j + 1
                 }
+                // A nested closer must not fuse: the lexer reads `>>` as a right
+                // shift, so `List<List<int>>` could not be read back out of a
+                // header. Spaced HERE rather than rewritten afterwards by the
+                // build script — that pass rewrites every `>>` in the file, and
+                // templates now ship inside the header, where a `>>` may be a
+                // real shift.
+                if str.endsWith(name, ">") { name = str.concat(name, " ") }
                 name = str.concat(name, ">")
             }
             out = name
@@ -151,77 +172,42 @@ public class HeaderGen {
 
     // headerPath — where the `.fly.h` lands: flat in outDir (--lib), else next to source.
     public static string headerPath(const string stem, const string outDir) {
+        out = HeaderGen.libPath(stem, outDir, ".fly.h")
+    }
+
+    // libPath — where a shipped artifact for `stem` goes. The extension is a
+    // parameter only because headerPath is the single caller's spelling of it:
+    // `.fly.h` is the ONLY textual artifact a lib directory ever holds.
+    public static string libPath(const string stem, const string outDir, const string ext) {
         if str.isEmpty(outDir) {
-            out = str.concat(stem, ".fly.h")
+            out = str.concat(stem, ext)
             return
         }
         string base = path.basename(stem)
-        out = path.join(outDir, str.concat(base, ".fly.h"))
+        out = path.join(outDir, str.concat(base, ext))
     }
 
-    // generate — write the header for `m` into `outDir`. Returns the path, or "" on
-    // failure. Mirrors GenerateHeader's node walk (namespace, imports, structs,
-    // interfaces, classes, enums, functions) + the generic-class full-source fallback.
-    public static string generate(const ASTModule m, const string outDir) {
+    // generate — write THE artifact for `m` into `outDir`: one `<stem>.fly.h`
+    // holding the declarations of everything non-generic followed by the full
+    // source of every template.
+    //
+    // `.fly.h` is the only textual file a lib directory holds. The template bodies
+    // have to be inside it because monomorphization re-walks the template's AST
+    // with the type param rebound — a template does not exist at IR level, so no
+    // compiled form of it can be shipped. Nothing else has that need, which is why
+    // everything else is a bare declaration: a module used to travel WHOLE as soon
+    // as it declared one generic, putting readable implementations of unrelated
+    // classes into the artifact.
+    //
+    // The two halves are still disjoint — a name is either declared or sliced,
+    // never both — but here that is only tidiness. It stopped being a correctness
+    // rule when the two files became one: within a single module a redeclaration
+    // would be silently first-wins, since nothing in the compiler reports one.
+    public static string generate(const ASTModule m, const string outDir, const DiagnosticsEngine diags) {
         string stem = HeaderGen.stripFlySuffix(m.getName())
-        string hpath = HeaderGen.headerPath(stem, outDir)
-
-        // Generic classes → header IS the full source (bodies needed for monomorphization).
-        if HeaderGen.hasGenericClass(m) {
-            string srcPath = str.concat(stem, ".fly")
-            string src = fs.readStr(srcPath)
-            if str.isEmpty(src) { out = ""  return }
-            fs.writeStr(hpath, src, 420)
-            out = hpath
-            return
-        }
-
         string lf = lineFeed()
-        string h = ""
-
-        // namespace
-        ASTNameSpace ns = m.getNameSpace()
-        if ns != null {
-            h = str.concat(h, "namespace ")
-            List<ASTName> nn = ns.getNames()
-            int i = 0
-            while i < nn.size() {
-                if i > 0 { h = str.concat(h, ".") }
-                h = str.concat(h, nn.get(i).getName())
-                i = i + 1
-            }
-            h = str.concat(h, lf)
-            h = str.concat(h, lf)
-        }
-
-        // imports (a header's public API may reference foreign-namespace types)
-        List<ASTImport> imps = m.getImports()
-        int ii = 0
-        while ii < imps.size() {
-            ASTImport imp = imps.get(ii)
-            h = str.concat(h, "import ")
-            List<ASTName> inames = imp.getNames()
-            int k = 0
-            while k < inames.size() {
-                if k > 0 { h = str.concat(h, ".") }
-                h = str.concat(h, inames.get(k).getName())
-                k = k + 1
-            }
-            if imp.isWildcard() { h = str.concat(h, ".*") }
-            List<ASTName> al = imp.getAlias()
-            if al.size() > 0 {
-                h = str.concat(h, " as ")
-                int a = 0
-                while a < al.size() {
-                    if a > 0 { h = str.concat(h, ".") }
-                    h = str.concat(h, al.get(a).getName())
-                    a = a + 1
-                }
-            }
-            h = str.concat(h, lf)
-            ii = ii + 1
-        }
-        h = str.concat(h, lf)
+        string hpath = HeaderGen.headerPath(stem, outDir)
+        string h = HeaderGen.emitPrelude(m, lf, true)
 
         List<ASTNode> nodes = m.getNodes()
 
@@ -271,7 +257,10 @@ public class HeaderGen {
             ASTNode nd = nodes.get(fi)
             ASTFunction f = nd.asFunction()
             if f != null {
-                if f.getFunctionKind() == ASTFunctionKind.F_FUNCTION {
+                // A generic function is sliced whole below; a signature here would
+                // both duplicate it and be unusable, since specializing needs the
+                // body.
+                if f.getFunctionKind() == ASTFunctionKind.F_FUNCTION && f.getTypeParams().size() == 0 {
                     if HeaderGen.hasModifier(f.getModifiers(), ASTModifierKind.MOD_PUBLIC) {
                         h = str.concat(h, HeaderGen.funcSig(f))
                         h = str.concat(h, lf)
@@ -281,20 +270,373 @@ public class HeaderGen {
             fi = fi + 1
         }
 
+        // The templates go LAST: the declarations are the API a reader opens a
+        // header for, and the source that follows is there for the specializer.
+        if HeaderGen.hasGenericDecl(m) {
+            string tpl = HeaderGen.templatesText(m, str.concat(stem, ".fly"), hpath, lf, diags)
+            if str.isEmpty(tpl) == false {
+                // A declaration block ends in a blank line, which separates it from
+                // the first template; without one (a module of nothing but
+                // templates) the prelude already left one.
+                h = str.concat(h, tpl)
+                // Each slice ends with a blank line, so the last leaves the file
+                // ending in one. Collapse to a single newline. Only ever done when
+                // templates were appended: the declaration-only shape is unchanged.
+                string two = str.concat(lf, lf)
+                bool go = true
+                while go {
+                    if str.endsWith(h, two) { h = str.substring(h, 0, str.len(h) - 1) }
+                    else { go = false }
+                }
+            }
+        }
+
         fs.writeStr(hpath, h, 420)
         out = hpath
     }
 
+    // emitPrelude — `namespace …` + the module's imports. The header opens with it:
+    // the imports serve the types named in the signatures AND the bodies of the
+    // templates that follow, which are compiled like any other source.
+    // `alwaysPad` keeps the declaration header's historical shape (a blank line
+    // after the prelude even with no imports, so a module without imports gets two).
+    public static string emitPrelude(const ASTModule m, const string lf, const bool alwaysPad) {
+        string h = ""
+        ASTNameSpace ns = m.getNameSpace()
+        if ns != null {
+            h = str.concat(h, "namespace ")
+            List<ASTName> nn = ns.getNames()
+            int i = 0
+            while i < nn.size() {
+                if i > 0 { h = str.concat(h, ".") }
+                h = str.concat(h, nn.get(i).getName())
+                i = i + 1
+            }
+            h = str.concat(h, lf)
+            h = str.concat(h, lf)
+        }
+
+        List<ASTImport> imps = m.getImports()
+        int ii = 0
+        while ii < imps.size() {
+            ASTImport imp = imps.get(ii)
+            h = str.concat(h, "import ")
+            List<ASTName> inames = imp.getNames()
+            int k = 0
+            while k < inames.size() {
+                if k > 0 { h = str.concat(h, ".") }
+                h = str.concat(h, inames.get(k).getName())
+                k = k + 1
+            }
+            if imp.isWildcard() { h = str.concat(h, ".*") }
+            List<ASTName> al = imp.getAlias()
+            if al.size() > 0 {
+                h = str.concat(h, " as ")
+                int a = 0
+                while a < al.size() {
+                    if a > 0 { h = str.concat(h, ".") }
+                    h = str.concat(h, al.get(a).getName())
+                    a = a + 1
+                }
+            }
+            h = str.concat(h, lf)
+            ii = ii + 1
+        }
+        if alwaysPad { h = str.concat(h, lf) }
+        elsif imps.size() > 0 { h = str.concat(h, lf) }
+        out = h
+    }
+
+    // templatesText — the template half of the header: every generic declaration
+    // copied VERBATIM out of the module's own source text between its start and end
+    // locations, plus the private helpers those bodies reach. Slicing rather than
+    // pretty-printing is deliberate: there is no printer for statements and
+    // expressions in this compiler, and every fidelity bug in one would land
+    // silently in a shipped artifact.
+    //
+    // Returns "" when the module has no template (or its source cannot be read),
+    // which leaves the header a pure declaration file.
+    public static string templatesText(const ASTModule m, const string srcPath, const string outPath, const string lf, const DiagnosticsEngine diags) {
+        string src = fs.readStr(srcPath)
+        if str.isEmpty(src) { out = ""  return }
+        string body = ""
+        List<ASTNode> nodes = m.getNodes()
+        int i = 0
+        while i < nodes.size() {
+            ASTNode nd = nodes.get(i)
+            if HeaderGen.isGenericDecl(nd) {
+                body = str.concat(body, HeaderGen.sliceDecl(src, nd, lf))
+            }
+            i = i + 1
+        }
+        if str.isEmpty(body) { out = ""  return }
+        out = HeaderGen.appendPrivateDeps(m, src, body, outPath, lf, diags)
+    }
+
+    // appendPrivateDeps — a template body may call a NON-public declaration of its
+    // own module, and the declaration half never carries those (emitMembers keeps
+    // public methods only). Left out, the consumer cannot specialize; so they are
+    // sliced in too, and the author is told which private code just became readable.
+    //
+    // Membership is decided by NAME appearing as a word in the emitted text. That
+    // over-approximates — an unrelated identifier of the same name pulls a helper in
+    // — and it errs in the safe direction: a needless helper costs a few lines, a
+    // missing one breaks every consumer's build. Repeated to a fixpoint because a
+    // helper that joins can itself name another.
+    public static string appendPrivateDeps(const ASTModule m, const string src, const string body, const string outPath, const string lf, const DiagnosticsEngine diags) {
+        string acc = body
+        List<ASTNode> nodes = m.getNodes()
+        List<string> taken = new List<string>()
+        bool grew = true
+        while grew {
+            grew = false
+            int i = 0
+            while i < nodes.size() {
+                ASTNode nd = nodes.get(i)
+                string nm = HeaderGen.declName(nd)
+                if str.isEmpty(nm) == false {
+                    if HeaderGen.isGenericDecl(nd) == false {
+                        if HeaderGen.isPublicDecl(nd) == false {
+                            if HeaderGen.listHasStr(taken, nm) == false {
+                                if HeaderGen.containsWord(acc, nm) {
+                                    string sl = HeaderGen.sliceDecl(src, nd, lf)
+                                    if str.isEmpty(sl) == false {
+                                        acc = str.concat(acc, sl)
+                                        taken.add(nm)
+                                        grew = true
+                                        if diags != null {
+                                            DiagnosticBuilder b = diags.report(nd.getNameLoc(), DiagID.warn_header_private_shipped)
+                                            b.addStr(nm)
+                                            b.addStr(path.basename(outPath))
+                                            b.emit()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                i = i + 1
+            }
+        }
+        out = acc
+    }
+
+    // declName / isPublicDecl — the two facts appendPrivateDeps needs from a node,
+    // without caring which kind it is.
+    public static string declName(const ASTNode nd) {
+        ASTClass c = nd.asClass()
+        if c != null { out = c.getName()  return }
+        ASTEnum e = nd.asEnum()
+        if e != null { out = e.getName()  return }
+        ASTFunction f = nd.asFunction()
+        if f != null {
+            if f.getFunctionKind() == ASTFunctionKind.F_FUNCTION { out = f.getName()  return }
+        }
+        out = ""
+    }
+
+    public static bool isPublicDecl(const ASTNode nd) {
+        ASTClass c = nd.asClass()
+        if c != null { out = HeaderGen.hasModifier(c.getModifiers(), ASTModifierKind.MOD_PUBLIC)  return }
+        ASTEnum e = nd.asEnum()
+        if e != null { out = HeaderGen.hasModifier(e.getModifiers(), ASTModifierKind.MOD_PUBLIC)  return }
+        ASTFunction f = nd.asFunction()
+        if f != null { out = HeaderGen.hasModifier(f.getModifiers(), ASTModifierKind.MOD_PUBLIC)  return }
+        out = false
+    }
+
+    public static bool listHasStr(const List<string> l, const string s) {
+        int i = 0
+        while i < l.size() {
+            if str.equals(l.get(i), s) { out = true  return }
+            i = i + 1
+        }
+        out = false
+    }
+
+    // containsWord — `needle` present in `hay` bounded by non-identifier characters,
+    // so `len` does not match inside `length` and a substring hit is not mistaken
+    // for a reference.
+    public static bool containsWord(const string hay, const string needle) {
+        int nl = str.len(needle)
+        if nl == 0 { out = false  return }
+        int hl = str.len(hay)
+        int from = 0
+        bool go = true
+        while go {
+            string rest = str.substring(hay, from, hl)
+            int at = str.indexOf(rest, needle)
+            if at < 0 { go = false }
+            else {
+                int p = from + at
+                bool okL = true
+                if p > 0 { okL = isIdentifierBody(HeaderGen.charAt(hay, p - 1)) == false }
+                bool okR = true
+                int after = p + nl
+                if after < hl { okR = isIdentifierBody(HeaderGen.charAt(hay, after)) == false }
+                if okL && okR { out = true  return }
+                from = p + 1
+                if from >= hl { go = false }
+            }
+        }
+        out = false
+    }
+
+    // charAt — one byte of `s` as an int (byte→int widening sign-extends, so the
+    // high bit has to be masked off before it is compared as a character).
+    public static int charAt(const string s, const int i) {
+        byte b = 0
+        str.byteAt(s, i, b)
+        int c = b
+        out = c & 255
+    }
+
+    // sliceDecl — one declaration's own text, with its modifiers put back in front.
+    // getLoc() is captured AFTER the modifiers (it points at the `class` keyword, or
+    // at the return type of a function — a Fly declaration reads `Type name`), so the
+    // slice alone would silently drop `public` and turn an exported template private.
+    public static string sliceDecl(const string src, const ASTNode nd, const string lf) {
+        int b = nd.getLoc().getOffset()
+        int e = nd.getEndLoc().getOffset()
+        // An end that never advanced past the start means the parser site did not
+        // record one (a bodiless declaration); emitting a truncated slice would be
+        // worse than emitting nothing.
+        if e <= b { out = ""  return }
+        if e >= str.len(src) { out = ""  return }
+
+        // Prefer widening the slice to the declaration's own line and the comment
+        // block above it: that keeps the modifiers AND the documentation, which is
+        // part of what a shipped template is (the std containers state their
+        // invariants there — "methods are deliberately self-contained" and why).
+        // declStart returns -1 when the line prefix is not modifiers alone, and the
+        // narrow slice plus re-rendered modifiers is used instead.
+        int start = HeaderGen.declStart(src, b)
+        string text = ""
+        if start < 0 { text = str.concat(HeaderGen.modifierPrefix(nd), str.substring(src, b, e + 1)) }
+        else { text = str.substring(src, start, e + 1) }   // +1: take the closing brace
+        out = str.concat(text, str.concat(lf, lf))
+    }
+
+    // lineStartOf — the index just past the newline that precedes `i`, i.e. the
+    // start of the line `i` sits on (0 when it is the first line).
+    public static int lineStartOf(const string src, const int i) {
+        if i <= 0 { out = 0  return }
+        int nl = str.lastIndexOf(str.substring(src, 0, i), lineFeed())
+        out = nl + 1
+    }
+
+    // declStart — see sliceDecl. Walks back over the modifiers on the declaration's
+    // line, then over a comment block directly above it (a blank line ends the
+    // block, which is the usual reading: a detached comment belongs to nothing).
+    public static int declStart(const string src, const int b) {
+        int ls = HeaderGen.lineStartOf(src, b)
+        if HeaderGen.isModifierWords(str.trim(str.substring(src, ls, b))) == false { out = -1  return }
+        int start = ls
+        bool go = true
+        while go {
+            if start == 0 { go = false }
+            else {
+                int pls = HeaderGen.lineStartOf(src, start - 1)
+                string line = str.trim(str.substring(src, pls, start - 1))
+                if str.startsWith(line, "//") { start = pls }
+                else { go = false }
+            }
+        }
+        out = start
+    }
+
+    // isModifierWords — is `s` empty or nothing but declaration modifiers? Used to
+    // prove that widening a slice to the start of the line cannot drag in code.
+    public static bool isModifierWords(const string s) {
+        if str.isEmpty(s) { out = true  return }
+        string rest = s
+        bool ok = true
+        bool go = true
+        while go {
+            rest = str.trim(rest)
+            if str.isEmpty(rest) { go = false }
+            else {
+                int sp = str.indexOf(rest, " ")
+                string w = rest
+                if sp >= 0 { w = str.substring(rest, 0, sp)  rest = str.substring(rest, sp, str.len(rest)) }
+                else { rest = "" }
+                if HeaderGen.isModifierWord(w) == false { ok = false  go = false }
+            }
+        }
+        out = ok
+    }
+
+    public static bool isModifierWord(const string w) {
+        if str.equals(w, "public")    { out = true  return }
+        if str.equals(w, "private")   { out = true  return }
+        if str.equals(w, "protected") { out = true  return }
+        if str.equals(w, "const")     { out = true  return }
+        if str.equals(w, "static")    { out = true  return }
+        if str.equals(w, "final")     { out = true  return }
+        if str.equals(w, "abstract")  { out = true  return }
+        out = false
+    }
+
+    // modifierPrefix — the modifiers of a class or free function, re-rendered in a
+    // fixed order so the sliced text can be re-parsed as the declaration it was.
+    public static string modifierPrefix(const ASTNode nd) {
+        List<ASTModifier> mods = null
+        ASTClass c = nd.asClass()
+        if c != null { mods = c.getModifiers() }
+        else {
+            ASTFunction f = nd.asFunction()
+            if f != null { mods = f.getModifiers() }
+        }
+        if mods == null { out = ""  return }
+        string s = ""
+        if HeaderGen.hasModifier(mods, ASTModifierKind.MOD_PUBLIC)   { s = str.concat(s, "public ") }
+        if HeaderGen.hasModifier(mods, ASTModifierKind.MOD_PRIVATE)  { s = str.concat(s, "private ") }
+        if HeaderGen.hasModifier(mods, ASTModifierKind.MOD_CONSTANT) { s = str.concat(s, "const ") }
+        if HeaderGen.hasModifier(mods, ASTModifierKind.MOD_STATIC)   { s = str.concat(s, "static ") }
+        if HeaderGen.hasModifier(mods, ASTModifierKind.MOD_FINAL)    { s = str.concat(s, "final ") }
+        if HeaderGen.hasModifier(mods, ASTModifierKind.MOD_ABSTRACT) { s = str.concat(s, "abstract ") }
+        out = s
+    }
+
+    // isGenericDecl — a top-level declaration carrying type params: a generic class
+    // OR a generic free function. Both are templates and both need their bodies.
+    public static bool isGenericDecl(const ASTNode nd) {
+        ASTClass c = nd.asClass()
+        if c != null { out = c.getTypeParams().size() > 0  return }
+        ASTFunction f = nd.asFunction()
+        if f != null {
+            if f.getFunctionKind() == ASTFunctionKind.F_FUNCTION {
+                out = f.getTypeParams().size() > 0
+                return
+            }
+        }
+        out = false
+    }
+
+    // hasGenericDecl — does the module hold any template at all?
+    public static bool hasGenericDecl(const ASTModule m) {
+        List<ASTNode> nodes = m.getNodes()
+        int i = 0
+        while i < nodes.size() {
+            if HeaderGen.isGenericDecl(nodes.get(i)) { out = true  return }
+            i = i + 1
+        }
+        out = false
+    }
+
     // emitClasses — all public classes of one kind (STRUCT / INTERFACE / CLASS),
     // rendered in declaration order. Structs list fields; interfaces list method
-    // signatures (no body); classes list all fields + public method stubs `{}`.
+    // signatures (no body); classes list all fields + public method stubs.
+    // Generic classes are SKIPPED — they are sliced whole into the same header
+    // further down, and declaring one twice would collide (see generate()).
     public static string emitClasses(const List<ASTNode> nodes, const ASTClassKind kind, const string lf) {
         string h = ""
         int i = 0
         while i < nodes.size() {
             ASTClass c = nodes.get(i).asClass()
             if c != null {
-                if c.getClassKind() == kind {
+                if c.getClassKind() == kind && c.getTypeParams().size() == 0 {
                     if HeaderGen.hasModifier(c.getModifiers(), ASTModifierKind.MOD_PUBLIC) {
                         if kind == ASTClassKind.STRUCT {
                             h = str.concat(h, "public struct ")
@@ -365,6 +707,13 @@ public class HeaderGen {
                     if HeaderGen.hasModifier(meth.getModifiers(), ASTModifierKind.MOD_PUBLIC) {
                         bool isCtor = str.equals(meth.getName(), c.getName())
                         h = str.concat(h, "    public ")
+                        // `abstract` must survive into the header: it is the ONLY
+                        // way to say abstract now that a bodiless method reads as
+                        // "defined elsewhere". Dropping it silently turned an
+                        // abstract method concrete.
+                        if HeaderGen.hasModifier(meth.getModifiers(), ASTModifierKind.MOD_ABSTRACT) {
+                            h = str.concat(h, "abstract ")
+                        }
                         if isCtor == false {
                             string ret = HeaderGen.typeStr(meth.getReturnType())
                             if str.isEmpty(ret) { h = str.concat(h, "void ") }
@@ -373,7 +722,10 @@ public class HeaderGen {
                         h = str.concat(h, meth.getName())
                         h = str.concat(h, "(")
                         h = str.concat(h, HeaderGen.paramListStr(meth.getParams()))
-                        h = str.concat(h, ") {}")
+                        // No `{}`: a header carries no bodies at all. The empty
+                        // stub used to be mandatory only because a bodiless
+                        // method meant abstract (ResolverClass.method).
+                        h = str.concat(h, ")")
                         h = str.concat(h, lf)
                     }
                 }
@@ -404,17 +756,4 @@ public class HeaderGen {
         out = s
     }
 
-    // hasGenericClass — true if any class in the module carries type params (<T>).
-    public static bool hasGenericClass(const ASTModule m) {
-        List<ASTNode> nodes = m.getNodes()
-        int i = 0
-        while i < nodes.size() {
-            ASTClass c = nodes.get(i).asClass()
-            if c != null {
-                if c.getTypeParams().size() > 0 { out = true  return }
-            }
-            i = i + 1
-        }
-        out = false
-    }
 }

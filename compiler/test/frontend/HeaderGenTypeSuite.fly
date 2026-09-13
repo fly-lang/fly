@@ -4,6 +4,8 @@ import fly.compiler.parser.*
 import fly.compiler.frontend.*
 import fly.data.*
 import fly.str
+import fly.os.fs
+import fly.os.env
 import fly.assert
 
 // HeaderGen.typeStr — how a type is PRINTED into a generated .fly.h.
@@ -12,6 +14,72 @@ import fly.assert
 // parameter, field or return rendered as the EMPTY STRING and the header came
 // back unparseable. Types are produced by Parser.parseType so the test exercises
 // the same nodes the header generator meets in a real build.
+
+// tmpBase — the OS temp dir (TMPDIR/TEMP, `/tmp` fallback) for scratch files.
+string tmpBase() {
+    string tmp = env.get("TMPDIR")
+    if str.isEmpty(tmp) { tmp = env.get("TEMP") }
+    if str.isEmpty(tmp) { tmp = "/tmp" }
+    out = tmp
+}
+
+// genPath — write `src` as <dir>/m.fly, generate its lib artifact into <dir>,
+// and return the path HeaderGen produced. The module NAME must be the real file
+// path: the generic branch reads the source back from it.
+//
+// The fixture lives OUTSIDE the repo (OS temp dir): written under the working
+// directory it lands in the source tree, and a stray `m.fly` there becomes an
+// input of the next directory-CLI build. Same rule as BuilderSuite/ManifestSuite.
+string genPath(const string name, const string src) {
+    string dir = str.concat(str.concat(tmpBase(), "/"), name)
+    fs.dirCreateAll(dir, 493)
+    string mpath = str.concat(dir, "/m.fly")
+    // Literal "\n" is two raw characters in this dialect; make them newlines.
+    fs.writeStr(mpath, str.replace(src, "\n", nl()), 420)
+    Parser p = new Parser(fs.readStr(mpath))
+    ASTModule m = p.parseModule(mpath)
+    out = HeaderGen.generate(m, dir, null)
+}
+
+// genInto — write `src` as <base>/src/m.fly and generate into <base>/out, a
+// DIFFERENT directory, the way a real `--lib --out-dir` build does. Returns the
+// output directory, so a case can assert on what is and is NOT in it.
+string genInto(const string name, const string src) {
+    string base = str.concat(str.concat(tmpBase(), "/"), name)
+    string sdir = str.concat(base, "/src")
+    string odir = str.concat(base, "/out")
+    fs.dirCreateAll(sdir, 493)
+    fs.dirCreateAll(odir, 493)
+    string mpath = str.concat(sdir, "/m.fly")
+    fs.writeStr(mpath, str.replace(src, "\n", nl()), 420)
+    // Pre-clean the OUTPUT dir: these fixtures outlive a run, so an artifact left
+    // by an older compiler would answer the "was this written?" cases instead of
+    // this build. That is exactly how the `.fly` companion, gone from the
+    // generator, kept passing its own removal.
+    string stale = str.concat(odir, "/m.fly")
+    if fs.exists(stale) { fs.delete(stale) }
+    string staleH = str.concat(odir, "/m.fly.h")
+    if fs.exists(staleH) { fs.delete(staleH) }
+    Parser p = new Parser(fs.readStr(mpath))
+    ASTModule m = p.parseModule(mpath)
+    string written = HeaderGen.generate(m, odir, null)
+    out = odir
+}
+
+// genHeader — genPath plus the file's text, for the declaration-shape cases.
+string genHeader(const string dir, const string src) {
+    string pth = genPath(dir, src)
+    out = fs.readStr(pth)
+}
+
+// nl — one real newline byte (string literals keep escapes raw).
+string nl() {
+    pointer buf = fly.mem.alloc(1)
+    fly.mem.writeByte(buf, 0, 10)
+    string s = ""
+    str.fromBytes(buf, 1, s)
+    out = s
+}
 
 // ts — parse `src` as a type and render it.
 string ts(const string src) {
@@ -59,6 +127,89 @@ suite HeaderGenTypeSuite {
         // than guessed — `[]` still parses, a wrong number would not.
         case "a computed size degrades to []": {
             assert.assertStr(ts("int[n]"), "int[]", 16)
+        }
+    }
+
+    // ── the shipped shape (2xx) ──────────────────────────────────────────────
+    //
+    // Pins the rule a reader would otherwise have to infer from the output:
+    // declarations carry no bodies, abstractness travels as the modifier, and a
+    // generic module ships a SOURCE. These are the assertions that would have
+    // caught `abstract` being dropped.
+    void shippedShapeTest() {
+        case "a plain module emits declarations with NO bodies": {
+            string src = "namespace hg.plain\n\npublic class Box {\n    int v\n    public int get() { out = this.v }\n}\n"
+            string h = genHeader("hg_fx_plain", src)
+            assert.assertTrue(str.contains(h, "public int get()"), 201)
+            // The empty stub is gone: no `{}` anywhere in a declaration file.
+            assert.assertFalse(str.contains(h, "{}"), 202)
+        }
+        case "an abstract method keeps its modifier": {
+            string src = "namespace hg.abs\n\npublic class Shape {\n    public abstract int area()\n}\n"
+            string h = genHeader("hg_fx_abs", src)
+            assert.assertTrue(str.contains(h, "abstract"), 203)
+            assert.assertTrue(str.contains(h, "area()"), 204)
+        }
+        case "a module with generics still ships ONE .fly.h, bodies inside": {
+            // The template bodies must travel for monomorphization, but they
+            // travel INSIDE the header: `.fly.h` is the only textual file a lib
+            // directory holds.
+            string src = "namespace hg.gen\n\npublic class Box<T> {\n    T v\n    public Box() { }\n}\n"
+            string outp = genPath("hg_fx_gen", src)
+            assert.assertTrue(str.endsWith(outp, ".fly.h"), 205)
+            assert.assertTrue(str.contains(fs.readStr(outp), "public Box() { }"), 207)
+        }
+    }
+
+    // ── one header, two halves (3xx) ─────────────────────────────────────────
+    //
+    // A module ships as ONE `.fly.h`: templates sliced whole, everything else
+    // declared. What these pin is that the halves stay separate IN CONTENT — a
+    // template keeps its body, and a non-generic implementation never travels —
+    // and that no name is emitted twice, which nothing in the compiler reports.
+    void splitTest() {
+        string mixed = "namespace hg.mix\n\npublic class Box<T> {\n    T v\n    public void set(T x) { this.v = x }\n}\n\npublic class Secret {\n    int key\n    public int reveal() { out = this.key * 7 }\n}\n"
+
+        case "the template keeps its body": {
+            string odir = genInto("hg_fx_split", mixed)
+            string hdr = fs.readStr(str.concat(odir, "/m.fly.h"))
+            assert.assertTrue(str.contains(hdr, "class Box<T>"), 301)
+            assert.assertTrue(str.contains(hdr, "this.v = x"), 302)
+        }
+        case "the non-generic class is declared WITHOUT its body": {
+            string odir = genInto("hg_fx_split2", mixed)
+            string hdr = fs.readStr(str.concat(odir, "/m.fly.h"))
+            assert.assertTrue(str.contains(hdr, "class Secret"), 303)
+            assert.assertTrue(str.contains(hdr, "public int reveal()"), 304)
+            // the implementation must not travel: this is the whole point
+            assert.assertFalse(str.contains(hdr, "this.key * 7"), 305)
+        }
+        case "no .fly is ever written next to the header": {
+            string odir = genInto("hg_fx_split3", mixed)
+            assert.assertTrue(fs.exists(str.concat(odir, "/m.fly.h")), 306)
+            assert.assertFalse(fs.exists(str.concat(odir, "/m.fly")), 307)
+        }
+        case "a module that is only templates still gets its header": {
+            string src = "namespace hg.only\n\npublic class Box<T> {\n    T v\n    public Box() { }\n}\n"
+            string odir = genInto("hg_fx_only", src)
+            assert.assertTrue(fs.exists(str.concat(odir, "/m.fly.h")), 308)
+            assert.assertFalse(fs.exists(str.concat(odir, "/m.fly")), 309)
+        }
+        case "a generic FUNCTION is a template too": {
+            // It used to be missed: only classes were checked, so a module like
+            // this shipped as a bodiless declaration and every specialization of
+            // it came out as an empty function.
+            string src = "namespace hg.fn\n\npublic T pick<T>(const T a) { out = a }\n"
+            string odir = genInto("hg_fx_fn", src)
+            assert.assertTrue(str.contains(fs.readStr(str.concat(odir, "/m.fly.h")), "out = a"), 310)
+        }
+        case "a private helper the template calls travels with it": {
+            string src = "namespace hg.priv\n\nint scramble(const int x) { out = x * 3 }\n\nint unused(const int x) { out = x }\n\npublic class Cache<T> {\n    int tag\n    public Cache() { this.tag = scramble(7) }\n}\n"
+            string odir = genInto("hg_fx_priv", src)
+            string hdr = fs.readStr(str.concat(odir, "/m.fly.h"))
+            assert.assertTrue(str.contains(hdr, "scramble"), 312)
+            // reached by nobody generic: it stays out
+            assert.assertFalse(str.contains(hdr, "unused"), 313)
         }
     }
 }

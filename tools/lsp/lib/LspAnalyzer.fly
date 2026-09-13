@@ -183,6 +183,11 @@ public class LspAnalyzer {
     // setProjectRoot — the workspace root the client announced at `initialize`.
     public void setProjectRoot(const string root) { this.projectRoot = root }
 
+    // setStdLibDir — override the auto-discovered <install>/lib. The constructor
+    // derives it from the running binary, which is right in production and
+    // useless in a test: a suite binary lives somewhere else entirely.
+    public void setStdLibDir(const string dir) { this.stdLibDir = dir }
+
     // isProjectManifest — is this Manifest.fly a PROJECT manifest?
     //
     // The name alone proves nothing: the compiler tree ships ordinary sources
@@ -510,6 +515,16 @@ public class LspAnalyzer {
             }
         }
         Symbol sym = this.resolveName(scope, t.name)
+        // A NAMESPACE-QUALIFIED use (str.concat, greet.hello): the name lives in
+        // the namespace the receiver chain names, not in the enclosing scope —
+        // a plain import binds the prefix and brings no bare symbols. This is
+        // what makes std symbols reachable at all.
+        if sym == null {
+            if v.foundExpr != null {
+                List<string> chain = this.nsChainOf(v.foundExpr.getParent())
+                if chain != null { sym = this.lookupInNamespace(chain, t.name) }
+            }
+        }
         if sym == null { out = t  return }
 
         SymbolKind sk = sym.getKind()
@@ -647,6 +662,70 @@ public class LspAnalyzer {
             }
         }
         out = sym
+    }
+
+    // nsChainOf — the dotted name chain of a receiver expression (`greet`,
+    // `fly.str`), or null when the receiver is not a plain name path.
+    List<string> nsChainOf(const ASTExpr e) {
+        if e == null { out = null  return }
+        ASTIdentifier id = e.asIdentifier()
+        if id != null {
+            List<string> r = new List<string>()
+            r.add(id.getName())
+            out = r
+            return
+        }
+        ASTMember mem = e.asMember()
+        if mem != null {
+            List<string> p = this.nsChainOf(mem.getParent())
+            if p == null { out = null  return }
+            p.add(mem.getName())
+            out = p
+            return
+        }
+        out = null
+    }
+
+    // expandNsChain — a SHORT prefix is the last segment of an import, not a
+    // namespace path: `import fly.str` binds `str.`, so the chain ["str"] means
+    // ["fly","str"]. Mirrors the Resolver's expandNsPath; without it nothing
+    // qualified by a prefix ever resolves.
+    List<string> expandNsChain(const List<string> chain) {
+        if chain == null { out = null  return }
+        if chain.size() != 1 { out = chain  return }
+        if this.navAst == null { out = chain  return }
+        string want = chain.get(0)
+        List<ASTImport> imps = this.navAst.getImports()
+        int i = 0
+        while i < imps.size() {
+            List<ASTName> ns = imps.get(i).getNames()
+            if ns.size() > 0 {
+                if str.equals(ns.get((int)ns.size() - 1).getName(), want) {
+                    List<string> full = new List<string>()
+                    int j = 0
+                    while j < ns.size() { full.add(ns.get(j).getName())  j = j + 1 }
+                    out = full
+                    return
+                }
+            }
+            i = i + 1
+        }
+        out = chain
+    }
+
+    // lookupInNamespace — `name` inside the namespace named by `chain`.
+    Symbol lookupInNamespace(const List<string> chain, const string name) {
+        if this.navReg == null { out = null  return }
+        List<string> full = this.expandNsChain(chain)
+        if full == null { out = null  return }
+        SemaNameSpace ns = this.navReg.lookupNameSpaceByStrings(full)
+        if ns == null { out = null  return }
+        SymbolTable tbl = ns.getSymbols()
+        if tbl == null { out = null  return }
+        List<Symbol> found = tbl.lookupInParents(name)
+        if found == null { out = null  return }
+        if found.size() == 0 { out = null  return }
+        out = found.get(0)
     }
 
     // moduleScope — the open file's module symbol table: the scope a name gets
