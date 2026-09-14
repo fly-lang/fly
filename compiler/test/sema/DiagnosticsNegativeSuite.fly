@@ -66,4 +66,38 @@ suite DiagnosticsNegativeSuite {
             assert.assertFalse(err, 35)
         }
     }
+
+    // A generated `.fly.h` declares its methods and defines none of them: the
+    // bodies live in the archive the header describes. Read as ordinary source
+    // that means ABSTRACT, and every std class implementing an interface —
+    // FileReader, BufWriter — came back "must implement inherited abstract
+    // method". The first shipped declaration-only std broke on exactly this,
+    // because nothing here consumed a header module before.
+    void headerDeclTest() {
+        string ifaceSrc = "public interface R { long r() }  public class F : R { public long r() }"
+        case "a bodiless method in a HEADER module is external, not abstract": {
+            bool err = resolveHeaderSrc(ifaceSrc, 40)
+            assert.assertFalse(err, 41)
+        }
+        case "the same source as ORDINARY code still reads abstract": {
+            // the guarantee the header rule must not erode
+            bool err = resolveSrc(ifaceSrc, 42)
+            assert.assertTrue(err, 43)
+        }
+        case "a generic declared without a body cannot be specialized": {
+            // The dangerous shape: specializing re-walks the template's AST, so
+            // with no body the spec used to be emitted as an EMPTY weak definition
+            // that can outrank the archive's real one at link time. Silent wrong
+            // code — it must be an error instead.
+            bool err = resolveHeaderSrc("public class Box<T> { T v  public void set(T x) }  void f() { Box<int> b = new Box<int>() }", 46)
+            assert.assertTrue(err, 47)
+        }
+        case "an explicit `abstract` modifier survives the header reading": {
+            // Nothing defines it in the archive either, so a concrete subclass
+            // still owes an implementation.
+            string src = "public class B { public abstract long z() }  public class I : B { }"
+            bool err = resolveHeaderSrc(src, 44)
+            assert.assertTrue(err, 45)
+        }
+    }
 }

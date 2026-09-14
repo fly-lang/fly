@@ -86,7 +86,7 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
             string sep = ""
             if i > 0 { sep = "," }
             string p1 = this.jstr("level", this.levels.get(i))
-            string p2 = this.jstr("file", this.files.get(i))
+            string p2 = this.jstr("file", this.jsonEscape(this.files.get(i)))
             string p3 = this.jnum("line", this.lines.get(i))
             string p4 = this.jnum("column", this.cols.get(i))
             string p5 = this.jstr("message", this.jsonEscape(this.messages.get(i)))

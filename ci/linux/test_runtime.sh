@@ -27,11 +27,11 @@ mkdir -p "$OUT"
 # -- Stage plumbing: WHICH compiler runs the tests. ----------------------------
 # STAGE=N runs the suites with build/stageN's own compiler — each stage tests the
 # compiler it just produced, so every step of the bootstrap is covered:
-#   STAGE=0  the pinned REFERENCE seed that stage0 downloaded. The suites
-#            compile the in-tree std sources (-L), so a failure here is a
-#            SOURCE-level problem (from 0.13.14 the seed ships no std of its own).
+#   STAGE=0  GONE. The seed had a CLI test runner (--test/--suite) that the
+#            reference dropped in 0.13.15, so no stage runs the suites with it;
+#            stage1 tests with the self-host it just linked instead.
 #   STAGE=1  the self-host stage1 just built WITH the reference. A failure here
-#            that passed at 0 is the self-host's own codegen.
+#            is the self-host's own codegen.
 #   STAGE=2  the self-host stage2 just built WITH the self-host — the shipped
 #            fixpoint artifact. A failure here that passed at 1 is stage2's codegen.
 # So a suite that passes at N and fails at N+1 indicts the compiler stage N+1 built.

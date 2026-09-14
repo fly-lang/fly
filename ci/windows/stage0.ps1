@@ -35,8 +35,20 @@ $LLVM_VERSION = if ($env:LLVM_VERSION) { $env:LLVM_VERSION } else { "20.1.8" }
 # 0.13.14 is the first STD-LESS seed: the package is just bin\fly.exe +
 # lib\{llvm.fly.h, runtime.fly.h, fly_runtime_lib.lib} — the std lives in-tree
 # and stage 1 builds it from source. It also carries the inherited-interface
-# sema fix and the __out_N StringRef-dangle fix the interleaved suites need.
-$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.14" }
+# sema fix and the __out_N StringRef-dangle fix.
+# 0.13.15 drops the CLI test runner (--test/--suite): a lone `suite` in a
+# linking root is now the structural test entry, and more than one is an error.
+# It is the first seed that never runs anything it builds - stage 1 tests with
+# the fly.exe it just linked instead (see stage1.ps1).
+# 0.13.16 makes a generated `.fly.h` a DECLARATION file: no `{}` stubs, the
+# `abstract` modifier preserved, and a module holding generic templates shipped
+# as a `.fly` SOURCE instead (the specializer needs the bodies). It is the seed
+# that builds the shipped std, so only a seed change can alter that shape.
+# 0.13.17 folds that companion back in: `.fly.h` is the ONLY textual file a lib
+# directory holds, carrying declarations plus the source of the templates alone —
+# not the whole module. It also spaces nested generic closers itself, so the
+# build script no longer rewrites `>>` over shipped code.
+$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.17" }
 
 # Resolve everything against the PROJECT ROOT (this script lives in ci\windows\,
 # two levels down) so the downloads land next to the build regardless of the

@@ -17,9 +17,16 @@
 #   3. lldb-dap.exe (the IDE/DAP adapter, same liblldb) exists and answers
 #      --help. A full DAP session needs a client and is not worth the CI flake.
 #
-# Skips (exit 0) when the debugger is not bundled and FLY_BUNDLE_LLVM != 1
-# (plain dev build); with FLY_BUNDLE_LLVM=1 a missing lldb.exe is a FAILURE —
-# the shipped artifact would be incomplete.
+# Which debugger is under test:
+#   * bundle build (lldb.exe next to fly.exe) - the SHIPPED layout. With
+#     FLY_BUNDLE_LLVM=1 a missing lldb.exe is a FAILURE: the artifact would be
+#     incomplete. This is what CI runs.
+#   * plain dev build - the debugger stage0 provisions into build\llvm\bin, the
+#     very files link_fly.ps1 would bundle. This used to SKIP, which meant a dev
+#     build never exercised the DWARF round-trip at all - and the probe is built
+#     by the seed, so a seed that broke --debug-symbols went unnoticed until CI.
+#     Only the shipped LAYOUT is left untested here, and only CI can test it.
+# Skips (exit 0) only when neither exists (stage0 was never run).
 # -----------------------------------------------------------------------------
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
@@ -28,6 +35,8 @@ Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
 
 $STAGE = if ($env:STAGE) { $env:STAGE } else { '2' }
 $env:STAGE = $STAGE                          # link_bin.ps1 derives its lib dir from it
+# $BIN is the directory holding the debugger under test - lldb.exe AND
+# lldb-dap.exe (check 3) - so the two always come from the same layout.
 $BIN = "build/stage$STAGE/bin"
 $DBG = "$BIN/lldb.exe"
 $SEED = 'build/stage0/bin/fly.exe'
@@ -36,7 +45,13 @@ if (-not (Test-Path $DBG -PathType Leaf)) {
     if ($env:FLY_BUNDLE_LLVM -eq '1') {
         Write-Host "error: $DBG missing but FLY_BUNDLE_LLVM=1 - the bundle is incomplete."; exit 1
     }
-    Write-Host 'test_dbg: skipped (non-bundle build - no lldb next to fly.exe)'; exit 0
+    $llvmBin = 'build/llvm/bin'
+    if (-not (Test-Path "$llvmBin/lldb.exe" -PathType Leaf)) {
+        Write-Host "test_dbg: skipped (no lldb next to fly.exe nor in $llvmBin - run ci\windows\stage0.ps1)"; exit 0
+    }
+    $BIN = $llvmBin
+    $DBG = "$BIN/lldb.exe"
+    Write-Host "test_dbg: non-bundle build - testing the provisioned debugger in $BIN (the shipped layout is checked with FLY_BUNDLE_LLVM=1)"
 }
 if (-not (Test-Path $SEED -PathType Leaf)) {
     Write-Host "error: seed compiler '$SEED' not found - run ci\windows\stage0.ps1 first."; exit 1

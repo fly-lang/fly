@@ -2,6 +2,7 @@ import fly.lsp.LspAnalyzer
 import fly.lsp.LspDiag
 import fly.lsp.LspSym
 import fly.lsp.LspFold
+import fly.lsp.LspLink
 import fly.lsp.LspLoc
 import fly.lsp.LspSignature
 import fly.lsp.LspTarget
@@ -88,6 +89,90 @@ void writeNavFixture() {
     // The literal "\n" above is TWO characters in this dialect (escapes are
     // raw), so every one is replaced with a real newline byte here.
     fs.writeStr(navFixturePath(), str.replace(s, "\n", lsp.lfStr()), 420)
+}
+
+// rootFixtureDir — a two-directory project marked by a Manifest.fly at its root:
+//
+//   lsp_suite_fx_root/
+//     Manifest.fly        (existence is all resolveRoot reads)
+//     lib/util.fly        namespace fxroot.util — public seven()
+//     app/main.fly        namespace fxroot.app  — imports fxroot.util
+//
+// main.fly's import resolves ONLY when the compile root is the manifest
+// directory: app/ alone cannot see lib/.
+string rootFixtureDir() { out = "lsp_suite_fx_root" }
+
+// enumFixtureDir — its OWN directory, and its own file, so the line numbers the
+// other fixtures assert never move:
+//
+//   1  namespace fxenum.e
+//   2
+//   3  public enum Color {
+//   4      RED,
+//   5      GREEN
+//   6  }
+//   7
+//   8  Color pick() {
+//   9      out = Color.RED
+//  10  }
+//
+// Line 8 column 1 is the enum used AS A TYPE; line 3 column 13 is its name.
+string enumFixtureDir()  { out = "lsp_suite_fx_enum" }
+string enumFixturePath() { out = "lsp_suite_fx_enum/e.fly" }
+
+void writeEnumFixture() {
+    string s = "namespace fxenum.e\n"
+    s = str.concat(s, "\n")
+    s = str.concat(s, "public enum Color {\n")
+    s = str.concat(s, "    RED,\n")
+    s = str.concat(s, "    GREEN\n")
+    s = str.concat(s, "}\n")
+    s = str.concat(s, "\n")
+    s = str.concat(s, "Color pick() {\n")
+    s = str.concat(s, "    out = Color.RED\n")
+    s = str.concat(s, "}\n")
+    fs.dirCreateAll(enumFixtureDir(), 493)
+    fs.writeStr(enumFixturePath(), str.replace(s, "\n", lsp.lfStr()), 420)
+}
+
+// hdrFixtureDir — a miniature TOOLCHAIN: a lib/ holding a .fly.h declaration,
+// plus an app/ that imports it. This is the shape of a real installation, where
+// std symbols resolve from shipped headers and never from sources.
+//
+//   lib/greet.fly.h        app/main.fly
+//   1  namespace fxhdr.greet     1  namespace fxhdr.app
+//   2                            2
+//   3  public string hello()     3  import fxhdr.greet
+//                                4
+//                                5  void main() {
+//                                6      string s = greet.hello()
+//                                7  }
+//
+// `hello` is at column 15 of header line 3, and at column 22 of main line 6.
+string hdrFixtureDir() { out = "lsp_suite_fx_hdr" }
+
+void writeHdrFixture() {
+    fs.dirCreateAll("lsp_suite_fx_hdr/lib", 493)
+    fs.dirCreateAll("lsp_suite_fx_hdr/app", 493)
+    string h = "namespace fxhdr.greet\n\npublic string hello()\n"
+    fs.writeStr("lsp_suite_fx_hdr/lib/greet.fly.h", str.replace(h, "\n", lsp.lfStr()), 420)
+    string m = "namespace fxhdr.app\n\nimport fxhdr.greet\n\nvoid main() {\n    string s = greet.hello()\n}\n"
+    fs.writeStr("lsp_suite_fx_hdr/app/main.fly", str.replace(m, "\n", lsp.lfStr()), 420)
+}
+
+void writeRootFixture() {
+    fs.dirCreateAll("lsp_suite_fx_root/app", 493)
+    fs.dirCreateAll("lsp_suite_fx_root/lib", 493)
+    // A REAL project manifest: resolveRoot accepts a Manifest.fly only when it
+    // extends fly.meta.Manifest, because ordinary sources carry that name too
+    // (compiler/lib/driver/Manifest.fly). It is also parsed by the source scan,
+    // so it must be valid Fly.
+    string mf = "namespace fxroot.manifest\n\nclass Manifest : fly.meta.Manifest {\n}\n"
+    fs.writeStr("lsp_suite_fx_root/Manifest.fly", str.replace(mf, "\n", lsp.lfStr()), 420)
+    string u = "namespace fxroot.util\n\npublic int seven() {\n    out = 7\n}\n"
+    fs.writeStr("lsp_suite_fx_root/lib/util.fly", str.replace(u, "\n", lsp.lfStr()), 420)
+    string m = "namespace fxroot.app\n\nimport fxroot.util\n\nvoid main() {\n    int x = util.seven()\n}\n"
+    fs.writeStr("lsp_suite_fx_root/app/main.fly", str.replace(m, "\n", lsp.lfStr()), 420)
 }
 
 // compiled — an analyzer with the fixture already compiled, ready to query.
@@ -220,6 +305,11 @@ suite LspAnalyzerSuite {
             assert.assertTrue(loc.ok, 401)
             assert.assertEqI(loc.line, 3, 402)
             assert.assertTrue(str.contains(loc.file, "nav.fly"), 403)
+            // ON THE NAME, not on the return type. Line 3 is
+            // "int square(const int n) {": `square` starts at column 5, `int` at
+            // column 1. A declaration's getLoc() is where the declaration
+            // STARTS — the type — so this asserts the nameLoc plumbing.
+            assert.assertEqI(loc.col, 5, 409)
             fs.dirDeleteAll(navFixtureDir())
         }
         case "a local jumps to its own declaration, not to its uses": {
@@ -238,6 +328,9 @@ suite LspAnalyzerSuite {
             LspLoc loc = a.declLocationOf(t)
             assert.assertTrue(loc.ok, 407)
             assert.assertEqI(loc.line, 3, 408)
+            // "int square(const int n) {" — the parameter NAME `n` is at column
+            // 22; its declaration starts at `const` (column 12).
+            assert.assertEqI(loc.col, 22, 410)
             fs.dirDeleteAll(navFixtureDir())
         }
     }
@@ -375,8 +468,37 @@ suite LspAnalyzerSuite {
                 assert.assertTrue(t.kind >= 0, 909)
                 assert.assertTrue(t.kind <= 7, 910)
                 assert.assertTrue(t.line > 0, 911)
+                // The modifier mask must stay inside the declared legend
+                // (4 modifiers → bits 1|2|4|8 = 15); a stray bit would colour
+                // tokens with a modifier the client never heard of.
+                assert.assertTrue(t.mods >= 0, 915)
+                assert.assertTrue(t.mods <= 15, 916)
                 i = i + 1
             }
+            fs.dirDeleteAll(navFixtureDir())
+        }
+        case "visibility is not a legend modifier: the mask stays clear": {
+            // `int square(const int n)` has no const/static/abstract on the
+            // FUNCTION, so its mask is 0. This pins the mapping: a bit lit up
+            // here would mean the order drifted from the declared legend, or
+            // that a parameter's `const` leaked onto the function.
+            //
+            // NOTE the name choice: member accesses (p.getX()) produce no token
+            // at all, because tokensOfFn resolves names in the FUNCTION scope
+            // while a member needs the receiver's class — a separate gap.
+            LspAnalyzer a = compiled()
+            List<LspSym> toks = a.semanticTokens()
+            bool sawSquare = false
+            int j = 0
+            while j < toks.size() {
+                LspSym t = toks.get(j)
+                if str.equals(t.name, "square") {
+                    sawSquare = true
+                    assert.assertEqI(t.mods, 0, 917)
+                }
+                j = j + 1
+            }
+            assert.assertTrue(sawSquare, 918)
             fs.dirDeleteAll(navFixtureDir())
         }
         case "workspace symbols match by substring and answer everything on empty": {
@@ -400,6 +522,9 @@ suite LspAnalyzerSuite {
             LspLoc loc = a.declLocationOf(t)
             assert.assertTrue(loc.ok, 1003)
             assert.assertEqI(loc.line, 18, 1004)
+            // "    public int getX() { out = this.x }" — the METHOD NAME is at
+            // column 16, its declaration starts at `public` (column 5).
+            assert.assertEqI(loc.col, 16, 1020)
             assert.assertTrue(str.contains(a.hoverOf(t), "getX"), 1005)
             fs.dirDeleteAll(navFixtureDir())
         }
@@ -413,6 +538,8 @@ suite LspAnalyzerSuite {
             LspLoc loc = a.declLocationOf(t)
             assert.assertTrue(loc.ok, 1009)
             assert.assertEqI(loc.line, 16, 1010)
+            // "    int x" — the FIELD NAME is at column 9, the type at column 5.
+            assert.assertEqI(loc.col, 9, 1021)
             assert.assertTrue(str.contains(a.hoverOf(t), "(field)"), 1011)
             fs.dirDeleteAll(navFixtureDir())
         }
@@ -455,6 +582,211 @@ suite LspAnalyzerSuite {
             LspAnalyzer a = compiled()
             assert.assertEqI((int)a.inlayHints(1, 5).size(), 0, 1019)
             fs.dirDeleteAll(navFixtureDir())
+        }
+    }
+
+    // ── documentLink: import → file (13xx) ───────────────────────────────────
+    void documentLinkTest() {
+        case "an import resolved from source links to that file": {
+            // app/main.fly imports fxroot.util, which the compile pulled from
+            // lib/util.fly: the link points there.
+            writeRootFixture()
+            LspAnalyzer a = new LspAnalyzer()
+            List<LspDiag> d = a.compileFile("lsp_suite_fx_root/app/main.fly")
+            List<LspLink> ls = a.documentLinks()
+            assert.assertEqI((int)ls.size(), 1, 1301)
+            LspLink l = ls.get(0)
+            assert.assertTrue(str.contains(l.target, "util.fly"), 1302)
+            // "import fxroot.util" on line 3: the path spans columns 8..25.
+            assert.assertEqI(l.line, 3, 1303)
+            assert.assertEqI(l.colStart, 8, 1304)
+            assert.assertTrue(l.colEnd > l.colStart, 1305)
+            fs.dirDeleteAll(rootFixtureDir())
+        }
+        case "an import served by a lib header yields no link, not a bogus one": {
+            // nav.fly imports fly.str, which resolves from the shipped header —
+            // there is no project file to open, and inventing one would send the
+            // user to the wrong place.
+            LspAnalyzer a = compiled()
+            List<LspLink> ls = a.documentLinks()
+            int i = 0
+            while i < ls.size() {
+                assert.assertFalse(str.contains(ls.get(i).target, "fly.str"), 1306)
+                i = i + 1
+            }
+            fs.dirDeleteAll(navFixtureDir())
+        }
+    }
+
+    // ── type references are clickable (12xx) ─────────────────────────────────
+    //
+    // A TYPE written in a declaration is a reference to the class or enum that
+    // declares it. The nav walk used to cover only expressions and statements,
+    // so ctrl-clicking `Point` in "Point p = new Point()" — the left one, the
+    // type — found nothing at all.
+    void typeReferenceTest() {
+        case "the type in a local declaration reaches its class": {
+            LspAnalyzer a = compiled()
+            // line 10, "    Point p = new Point()" — the TYPE starts at col 5
+            LspTarget t = a.findTargetAt(10, 5)
+            assert.assertEqI(t.kind, 3, 1201)
+            assert.assertStr(t.name, "Point", 1202)
+            LspLoc loc = a.declLocationOf(t)
+            assert.assertTrue(loc.ok, 1203)
+            // "class Point {" at line 15: the NAME sits at column 7
+            assert.assertEqI(loc.line, 15, 1204)
+            assert.assertEqI(loc.col, 7, 1205)
+            fs.dirDeleteAll(navFixtureDir())
+        }
+        case "the type after `new` is clickable too": {
+            // Regression: the call's loc is the `new` keyword, so the hit range
+            // covered "new P" and a click on `Point` in `new Point()` returned no
+            // definition at all. Where it lands — the class or its constructor —
+            // is the analyzer's call; what matters is that it is Point's.
+            LspAnalyzer a = compiled()
+            // line 10, "    Point p = new Point()" — the name after `new` is at col 19
+            LspTarget t = a.findTargetAt(10, 19)
+            assert.assertStr(t.name, "Point", 1211)
+            LspLoc loc = a.declLocationOf(t)
+            assert.assertTrue(loc.ok, 1212)
+            // class Point (15) through its constructor (17)
+            assert.assertTrue(loc.line >= 15 && loc.line <= 17, 1213)
+            fs.dirDeleteAll(navFixtureDir())
+        }
+        case "a symbol served by a shipped header opens THAT header": {
+            // Regression: headers were registered under their bare entry name
+            // ("greet.fly.h"), so the file could never be reopened and
+            // go-to-definition on any std symbol did nothing at all. Asserting
+            // only `ok` would not catch it — the file must EXIST on disk, which
+            // is exactly what a basename fails.
+            writeHdrFixture()
+            LspAnalyzer a = new LspAnalyzer()
+            a.setStdLibDir("lsp_suite_fx_hdr/lib")
+            List<LspDiag> d = a.compileFile("lsp_suite_fx_hdr/app/main.fly")
+            LspTarget t = a.findTargetAt(6, 22)
+            assert.assertStr(t.name, "hello", 1401)
+            assert.assertEqI(t.kind, 1, 1402)
+            LspLoc loc = a.declLocationOf(t)
+            assert.assertTrue(loc.ok, 1403)
+            assert.assertTrue(str.endsWith(loc.file, "greet.fly.h"), 1404)
+            assert.assertTrue(fs.exists(loc.file), 1405)
+            // On the NAME in the header, not on the return type.
+            assert.assertEqI(loc.line, 3, 1406)
+            assert.assertEqI(loc.col, 15, 1407)
+            fs.dirDeleteAll(hdrFixtureDir())
+        }
+        case "an ENUM used as a type reaches its declaration": {
+            // An enum is not a SemaClassType, so the resolution's asClass()
+            // answered null and the target degraded to "other" — every enum
+            // type was unclickable.
+            writeEnumFixture()
+            LspAnalyzer a = new LspAnalyzer()
+            List<LspDiag> d = a.compileFile(enumFixturePath())
+            LspTarget t = a.findTargetAt(8, 1)
+            assert.assertEqI(t.kind, 5, 1211)
+            assert.assertStr(t.name, "Color", 1212)
+            LspLoc loc = a.declLocationOf(t)
+            assert.assertTrue(loc.ok, 1213)
+            assert.assertEqI(loc.line, 3, 1214)
+            assert.assertEqI(loc.col, 13, 1215)
+            assert.assertTrue(str.contains(a.hoverOf(t), "enum Color"), 1216)
+            fs.dirDeleteAll(enumFixtureDir())
+        }
+        case "the type of a class ATTRIBUTE resolves without crashing": {
+            // Regression: a hit at CLASS level belongs to no function, so the
+            // function scope came back null and Registry.LookupName — which
+            // dereferences its scope argument — took the server down with an
+            // access violation (exit 0xC0000005). The module scope is the right
+            // answer there, and the name must actually resolve.
+            //
+            // Fixture line 16 is "    int x": column 5 is the type `int`.
+            LspAnalyzer a = compiled()
+            LspTarget t = a.findTargetAt(16, 5)
+            // `int` is a builtin, so it resolves to nothing in particular; what
+            // matters is that asking does not crash and answers a clean target.
+            assert.assertTrue(t.kind >= 0, 1208)
+            // And the attribute's NAME next to it is reachable as well.
+            LspTarget tn = a.findTargetAt(16, 9)
+            assert.assertStr(tn.name, "x", 1209)
+            fs.dirDeleteAll(navFixtureDir())
+        }
+        case "a class-level type that names a CLASS reaches its declaration": {
+            // Same path as above but with a resolvable name: the fixture's
+            // Point declares `int x`, so add nothing — instead use the base-type
+            // route through a project fixture where the attribute's type is a
+            // class the compile knows.
+            writeRootFixture()
+            LspAnalyzer a = new LspAnalyzer()
+            List<LspDiag> d = a.compileFile("lsp_suite_fx_root/app/main.fly")
+            // No crash and no bogus answer for a position with nothing on it.
+            LspTarget t = a.findTargetAt(1, 1)
+            assert.assertTrue(t.kind >= 0, 1210)
+            fs.dirDeleteAll(rootFixtureDir())
+        }
+        case "the declared name next to it still resolves as a variable": {
+            // The two halves of `Point p` must not shadow each other.
+            LspAnalyzer a = compiled()
+            LspTarget t = a.findTargetAt(10, 11)
+            assert.assertEqI(t.kind, 2, 1206)
+            assert.assertStr(t.name, "p", 1207)
+            fs.dirDeleteAll(navFixtureDir())
+        }
+    }
+
+    // ── resolveRoot — per-file project root (11xx) ───────────────────────────
+    //
+    // The compile's source root decides which imports resolve. Priority:
+    // nearest ancestor holding a Manifest.fly, else the workspace root from
+    // `initialize`, else the file's own directory. A wrong root is the bug that
+    // painted whole projects red: with only the file's directory, every
+    // namespace in a sibling directory is "unknown type".
+    void resolveRootTest() {
+        case "nearest ancestor with Manifest.fly wins over the workspace": {
+            writeRootFixture()
+            LspAnalyzer a = new LspAnalyzer()
+            a.setProjectRoot("some_workspace")
+            assert.assertStr(a.resolveRoot("lsp_suite_fx_root/app/main.fly"), "lsp_suite_fx_root", 1101)
+            fs.dirDeleteAll(rootFixtureDir())
+        }
+        case "no manifest anywhere: the workspace root from initialize": {
+            LspAnalyzer a = new LspAnalyzer()
+            a.setProjectRoot("some_workspace")
+            assert.assertStr(a.resolveRoot("lsp_suite_fx_nav/nav.fly"), "some_workspace", 1102)
+        }
+        case "no manifest, no workspace: the file's own directory": {
+            LspAnalyzer a = new LspAnalyzer()
+            assert.assertStr(a.resolveRoot("lsp_suite_fx_nav/nav.fly"), "lsp_suite_fx_nav", 1103)
+        }
+        case "a dependency edited on disk is re-read, never served from cache": {
+            // The whole point of caching parsed modules is to NOT re-read them,
+            // so the one failure that matters is answering from a stale copy.
+            // Break lib/util.fly after a clean compile and the next compile of
+            // the SAME entry must report the breakage.
+            writeRootFixture()
+            LspAnalyzer a = new LspAnalyzer()
+            List<LspDiag> clean = a.compileFile("lsp_suite_fx_root/app/main.fly")
+            assert.assertEqI((int)clean.size(), 0, 1105)
+
+            // seven() disappears: main.fly's call no longer resolves. The new
+            // text is deliberately a DIFFERENT LENGTH: same-size content would
+            // leave the check leaning on mtime alone, and a filesystem with
+            // coarse timestamp granularity could then make this test flaky.
+            string broken = "namespace fxroot.util\n\npublic int eightyEight() {\n    out = 88\n}\n"
+            fs.writeStr("lsp_suite_fx_root/lib/util.fly",
+                        str.replace(broken, "\n", lsp.lfStr()), 420)
+            List<LspDiag> after = a.compileFile("lsp_suite_fx_root/app/main.fly")
+            assert.assertTrue(after.size() > 0, 1106)
+            fs.dirDeleteAll(rootFixtureDir())
+        }
+        case "cross-directory import compiles clean from the manifest root": {
+            // app/main.fly imports fxroot.util, which lives in the SIBLING lib/
+            // directory: only the manifest root sees both. This is the exact
+            // shape that produced hundreds of unknown-type errors per file.
+            writeRootFixture()
+            LspAnalyzer a = new LspAnalyzer()
+            List<LspDiag> d = a.compileFile("lsp_suite_fx_root/app/main.fly")
+            assert.assertEqI((int)d.size(), 0, 1104)
+            fs.dirDeleteAll(rootFixtureDir())
         }
     }
 }

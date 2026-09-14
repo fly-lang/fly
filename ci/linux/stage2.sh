@@ -21,6 +21,9 @@ export STAGE=2
 # Copied BEFORE the runtime build so the stage-2 runtime.fly.h/llvm.fly.h win.
 mkdir -p build/stage2/lib
 cp -f build/stage1/lib/fly_std_lib.a build/stage2/lib/
+# One shape covers everything: a `.fly.h` carries declarations, and for a module
+# that declares generics it carries their source too (the specializer needs those
+# bodies). build_std has already put the template modules here under that name.
 cp -f build/stage1/lib/*.fly.h build/stage2/lib/
 echo "stage2: std -> build/stage2/lib (copied from stage1, reference ABI)"
 

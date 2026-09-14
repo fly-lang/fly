@@ -19,10 +19,12 @@ public class ParserEnum {
         SourceLocation loc = p.curLoc()
         p.expectKw("enum")
         string nm = ""
+        SourceLocation nloc = p.curLoc()      // the NAME token, for setNameLoc
         if p.curIsNamePart() { nm = p.curText()  p.bump() }
         else { p.reportErr(DiagID.err_parser_identifier_expected) }
         List<ASTType> bases = new List<ASTType>()
         ASTEnum e = ASTBuilder.CreateEnum(p.getModule(), loc, nm, mods, bases)
+        e.setNameLoc(nloc)
         List<ASTModifier> noMods = new List<ASTModifier>()
         p.expectPunct("{")
         bool go = p.curIsPunct("}") == false

@@ -41,6 +41,10 @@ public class Frontend {
     int statHeaderModules // .fly.h header modules loaded
     int statDirsScanned   // directories walked (header + source discovery)
 
+    // Optional cross-compile parse cache (setModuleCache). null = parse every
+    // time, which is what a one-shot CLI compile wants.
+    ASTModuleCache modCache
+
     public Frontend(const CompilerInstance ci) {
         this.ci = ci
         this.outputFile = ""
@@ -49,7 +53,11 @@ public class Frontend {
         this.statDepModules = 0
         this.statHeaderModules = 0
         this.statDirsScanned = 0
+        this.modCache = null
     }
+
+    // setModuleCache — reuse parsed modules across compiles (language server).
+    public void setModuleCache(const ASTModuleCache c) { this.modCache = c }
 
     public int getStatInputFiles()    { out = this.statInputFiles }
     public int getStatDepModules()    { out = this.statDepModules }
@@ -283,7 +291,7 @@ public class Frontend {
         if fo.getCreateHeader() {
             int hgi = 0
             while hgi < entryMods.size() {
-                HeaderGen.generate(entryMods.get(hgi), fo.getOutDir())
+                HeaderGen.generate(entryMods.get(hgi), fo.getOutDir(), diags)
                 hgi = hgi + 1
             }
         }
@@ -406,22 +414,45 @@ public class Frontend {
             string name = ""
             str.fromBytes(namePtr, nameLen, name)
 
-            if str.endsWith(name, ".fly.h") {
+            // `.fly.h` is the ONE textual shape a lib directory holds. It carries
+            // declarations, and — for a module that declares generics — the source
+            // of those templates too, since monomorphization needs their bodies.
+            // A `.fly` here would be a project source that wandered in, never an
+            // artifact: parsing it would declare its namespace a second time, and
+            // SymbolTable.insert is silent and first-wins.
+            bool isLibModule = str.endsWith(name, ".fly.h")
+            if isLibModule {
                 string full = path.join(dir, name)
-                string src = fs.readStr(full)
-                if str.isEmpty(src) == false {
-                    Parser hp = new Parser(src)
-                    ASTModule hm = hp.parseModule(name)
-                    if hp.isSuccess() {
-                        // skip a header whose namespace is built from source (--lib entry)
-                        ASTNameSpace hns = hm.getNameSpace()
-                        string hnsStr = ""
-                        if hns != null { hnsStr = this.joinNames(hns.getNames()) }
-                        if this.listHas(skipNs, hnsStr) == false {
-                            hm.setHeader(true)
-                            mods.add(hm)
-                            this.statHeaderModules = this.statHeaderModules + 1
+                // A cache hit was parsed successfully when it was stored, so
+                // only a miss checks isSuccess — and only a miss reads the file.
+                ASTModule hm = null
+                if this.modCache != null { hm = this.modCache.lookup(full) }
+                if hm == null {
+                    string src = fs.readStr(full)
+                    if str.isEmpty(src) == false {
+                        Parser hp = new Parser(src)
+                        // The FULL path, not the bare entry name: a module's
+                        // name is the identity anything downstream uses to
+                        // reopen it. Registered as "str.fly.h" it could not be
+                        // found again — go-to-definition on a std symbol
+                        // silently did nothing, and header diagnostics reported
+                        // a name instead of a file.
+                        ASTModule parsed = hp.parseModule(full)
+                        if hp.isSuccess() {
+                            hm = parsed
+                            if this.modCache != null { this.modCache.store(full, hm) }
                         }
+                    }
+                }
+                if hm != null {
+                    // skip a header whose namespace is built from source (--lib entry)
+                    ASTNameSpace hns = hm.getNameSpace()
+                    string hnsStr = ""
+                    if hns != null { hnsStr = this.joinNames(hns.getNames()) }
+                    if this.listHas(skipNs, hnsStr) == false {
+                        hm.setHeader(true)
+                        mods.add(hm)
+                        this.statHeaderModules = this.statHeaderModules + 1
                     }
                 }
             }
@@ -449,7 +480,12 @@ public class Frontend {
         int mi = 0
         while mi < mods.size() {
             ASTModule mm = mods.get(mi)
-            known.add(path.basename(mm.getName()))
+            // Only PROJECT modules claim a basename. A toolchain module does not:
+            // its namespace already bars a source pull (headerNs, just below), while
+            // its basename belongs to the lib dir, not to this project. Counting it
+            // meant a lib shipping `list.fly` silently swallowed a project file of
+            // the same name — no diagnostic, just a namespace that would not resolve.
+            if mm.isHeader() == false { known.add(path.basename(mm.getName())) }
             if mm.isHeader() {
                 ASTNameSpace hns = mm.getNameSpace()
                 if hns != null { headerNs.add(this.joinNames(hns.getNames())) }
@@ -569,13 +605,21 @@ public class Frontend {
                 if this.listHas(known, base) == false {
                     known.add(base)
                     this.trace(str.concat("resolved import → ", p))
-                    string src = fs.readStr(p)
-                    Parser dp = new Parser(src)
-                    ASTModule dm = dp.parseModule(p)
-                    if dp.isSuccess() == false {
-                        this.printDiags(dp.getSink())
-                        out = false
-                        return
+                    // Cache first: a hit skips BOTH the read and the parse,
+                    // which together are where a language-server compile spends
+                    // nearly all of its time.
+                    ASTModule dm = null
+                    if this.modCache != null { dm = this.modCache.lookup(p) }
+                    if dm == null {
+                        string src = fs.readStr(p)
+                        Parser dp = new Parser(src)
+                        dm = dp.parseModule(p)
+                        if dp.isSuccess() == false {
+                            this.printDiags(dp.getSink())
+                            out = false
+                            return
+                        }
+                        if this.modCache != null { this.modCache.store(p, dm) }
                     }
                     mods.add(dm)
                     this.statDepModules = this.statDepModules + 1
@@ -726,14 +770,31 @@ public class Frontend {
     // active the messages are also collected: parser diagnostics bypass the
     // DiagnosticsEngine (pre-rendered "line:col: …" strings), so file/line/col
     // arrive embedded in the message and the structured fields stay "0".
+    // printDiags — report the diagnostics a Parser collected in its own sink.
+    // Rendered field by field, in the SAME shape as a Sema diagnostic
+    // (`file:line:col: level: message`, TextDiagnostic.header): these used to be
+    // printed as the engine's short form, which carries no filename, so an editor
+    // or problem matcher could not tell WHICH file failed to parse — and the log
+    // recorded every parse error as file "" at 0:0. The short form stays the
+    // fallback for an unnamed buffer (its contract is decoded by the LSP, so it
+    // must keep starting with the line number).
     public void printDiags(const StoringDiagnosticConsumer sink) {
         int n = sink.count()
         int i = 0
         while i < n {
-            string msg = sink.getMessage(i)
-            io.printErrLn(msg)
+            string file = sink.getFile(i)
+            if str.isEmpty(file) {
+                io.printErrLn(sink.getMessage(i))
+            } else {
+                string head = str.concat(str.concat(file, ":"),
+                              str.concat(sink.getLine(i), str.concat(":",
+                              str.concat(sink.getCol(i), ": "))))
+                io.printErrLn(str.concat(head, str.concat(sink.getLevelName(i),
+                              str.concat(": ", sink.getText(i)))))
+            }
             if this.logger != null {
-                this.logger.add("error", "", "0", "0", msg)
+                this.logger.add(sink.getLevelName(i), file, sink.getLine(i),
+                                sink.getCol(i), sink.getText(i))
             }
             i = i + 1
         }

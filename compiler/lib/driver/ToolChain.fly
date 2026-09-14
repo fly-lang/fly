@@ -51,6 +51,28 @@ public string envPathSeparator(const string osName) {
     if str.equals(osName, "windows") { out = ";" } else { out = ":" }
 }
 
+// windowsArtifactPath — the on-disk name the Windows link step gives `-o outFile`:
+// `.dll` for a dynamic library (--lib-dyn), `.exe` otherwise. The extension is
+// appended unless -o ALREADY carries THAT extension, so `-o app` gives app.exe
+// while `-o app.exe` is not turned into app.exe.exe.
+//
+// The old test was "does -o carry ANY extension" (path.ext non-empty), which is
+// wrong for a name that merely CONTAINS dots: a --suite artifact is named after
+// the FULLY-QUALIFIED suite (`smoke.mathsuite.MathSuite`), so path.ext reported
+// ".MathSuite", the linker wrote the file bare, and Driver.runSuiteBinary — which
+// appends .exe unconditionally — then failed with "cannot run suite binary".
+// Shared by LinkWindows (lld-link) and LinkMinGW (ld.lld) so the two spellings
+// cannot drift, and used by the driver to name the binary it launches.
+public string windowsArtifactPath(const string outFile, const bool buildDll) {
+    string ext = ".exe"
+    if buildDll { ext = ".dll" }
+    // case-insensitive, like the reference's ends_with_insensitive: Windows
+    // paths are case-insensitive and `-o App.EXE` must not gain a second suffix.
+    string lower = str.toLower(outFile)
+    if str.endsWith(lower, ext) { out = outFile  return }
+    out = str.concat(outFile, ext)
+}
+
 // archToCompilerRTSuffix — compiler-rt arch suffix; "" if unsupported.
 public string archToCompilerRTSuffix(const Arch a) {
     if a == Arch.X86_64  { out = "x86_64"  return }
@@ -441,14 +463,9 @@ public class ToolChain {
         // yields its import .lib; anything else is an .exe. Without /dll lld-link
         // stops at "subsystem must be defined", which is why a dynamic library never
         // linked on Windows: LinkLinux honours CodeGenOpts.Shared (-shared) but this
-        // path never did. The extension is appended only when -o did not carry one,
-        // so `-o app` gives app.exe while `-o app.exe` is left alone. (reference parity.)
+        // path never did. windowsArtifactPath applies the extension rule.
         bool buildDll = this.codeGenOpts.getShared()
-        string outPath = outFile
-        if str.isEmpty(path.ext(outFile)) {
-            if buildDll { outPath = str.concat(outFile, ".dll") }
-            else { outPath = str.concat(outFile, ".exe") }
-        }
+        string outPath = windowsArtifactPath(outFile, buildDll)
         proc.argsAdd(h, str.concat("/out:", outPath))
         if buildDll { proc.argsAdd(h, "/dll") }
 
@@ -619,13 +636,8 @@ public class ToolChain {
 
         proc.argsAdd(h, "-o")
         // Same rule as LinkWindows: --lib-dyn builds a .dll (with --shared, the GNU
-        // spelling of /dll), everything else an .exe; the extension is appended only
-        // when -o did not already carry one.
-        string gnuOut = outFile
-        if str.isEmpty(path.ext(outFile)) {
-            if buildDll { gnuOut = str.concat(outFile, ".dll") }
-            else { gnuOut = str.concat(outFile, ".exe") }
-        }
+        // spelling of /dll), everything else an .exe — windowsArtifactPath.
+        string gnuOut = windowsArtifactPath(outFile, buildDll)
         proc.argsAdd(h, gnuOut)
 
         // Already dispatched here via isOSWindows() → PE/COFF; ld.lld picks the GNU

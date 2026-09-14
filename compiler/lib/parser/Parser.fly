@@ -462,6 +462,10 @@ public class Parser {
 
     // ── ParseModule ───────────────────────────────────────────────────────────
     public ASTModule parseModule(const string name) {
+        // `name` is the caller's identity for this buffer (the source path in the
+        // Frontend): adopt it so parse diagnostics carry the real file instead of
+        // the constructor's "<input>" placeholder.
+        this.sm.setFilename(name)
         ASTModule m = ASTBuilder.CreateModule(this.curLoc(), name)
         this.module = m
         bool namespaceSeen = false
@@ -684,6 +688,7 @@ public class Parser {
             }
             if headerFn {
                 string hn = this.curText()
+                SourceLocation hnloc = this.curLoc()   // the NAME token
                 this.bump()
                 List<ASTType> htp = new List<ASTType>()
                 if this.curIsPunct("<") { htp = this.parseTypeParams() }
@@ -691,6 +696,7 @@ public class Parser {
                 ASTBlockStmt hbody = null
                 if this.curIsPunct("{") { hbody = this.parseBlock() }
                 ASTFunction hf = ASTBuilder.CreateFunction(this.module, loc, hn, mods, hparams, hbody)
+                hf.setNameLoc(hnloc)
                 hf.setReturnType(ASTBuilder.CreateVoidType(loc))
                 List<ASTType> hftp = hf.getTypeParams()
                 int hti = 0
@@ -716,6 +722,7 @@ public class Parser {
             retTypes.add(rtn)
         }
         string nm = ""
+        SourceLocation nloc = this.curLoc()      // the NAME token, for setNameLoc
         if this.curIsNamePart() { nm = this.curText()  this.bump() }
         else { this.reportErr(DiagID.err_parser_identifier_expected)  out = null  return }
         // generic type parameters: `T identity<T>(...)`
@@ -725,6 +732,10 @@ public class Parser {
         ASTBlockStmt body = null
         if this.curIsPunct("{") { body = this.parseBlock() }
         ASTFunction f = ASTBuilder.CreateFunction(this.module, loc, nm, mods, params, body)
+        f.setNameLoc(nloc)
+        // A function ends where its body ends; a bodiless declaration keeps the
+        // default (its own start), which yields an empty range rather than a wrong one.
+        if body != null { f.setEndLoc(body.getEndLoc()) }
         if retTypes.size() == 1 { f.setReturnType(retType) }
         else { f.setReturnTypes(retTypes) }
         List<ASTType> ftp = f.getTypeParams()
@@ -754,6 +765,10 @@ public class Parser {
             this.parseStmt(block)
             if this.curIsPunct("}") || this.curIsEof() || this.hadErr() { go = false }
         }
+        // The closing brace, before it is consumed: a declaration's end is its
+        // body's end, and HeaderGen slices [getLoc(), getEndLoc()] to ship a
+        // generic template as source.
+        block.setEndLoc(this.curLoc())
         this.expectPunct("}")
         out = block
     }
@@ -1075,9 +1090,11 @@ public class Parser {
         }
         ASTType ty = this.parseType()
         string nm = ""
+        SourceLocation nloc = this.curLoc()      // the NAME token, for setNameLoc
         if this.curIsNamePart() { nm = this.curText()  this.bump() }
         else { this.reportErr(DiagID.err_parser_identifier_expected)  return }
         ASTLocalVar lv = ASTBuilder.CreateLocalVar(loc, ty, nm, mods)
+        lv.setNameLoc(nloc)
         ASTDeclStmt d = ASTBuilder.CreateDeclStmt(block, loc, lv)
         if this.curIsPunct("=") {
             this.bump()

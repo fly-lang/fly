@@ -131,6 +131,20 @@ suite DiagnosticRenderSuite {
             assert.assertTrue(str.contains(rep, diagKey), 58)
             assert.assertTrue(str.contains(rep, "boom"), 59)
         }
+        case "toJson escapes the file field (Windows path)": {
+            // The file field used to be emitted RAW while every other string went
+            // through jsonEscape, so a Windows path turned the whole log into
+            // invalid JSON ("C:\Users\..." — \U is not a JSON escape).
+            LogDiagnosticPrinter log = new LogDiagnosticPrinter()
+            string bs = backslashChar()
+            string p = str.concat("C:", str.concat(bs, "Users"))
+            log.add("error", p, "1", "1", "boom")
+            string json = log.toJson()
+            string want = str.concat("C:", str.concat(bs, str.concat(bs, "Users")))
+            assert.assertTrue(str.contains(json, want), 61)
+            // the unescaped form must not survive anywhere in the entry
+            assert.assertFalse(str.contains(json, p), 62)
+        }
         case "jsonEscape escapes backslashes and quotes": {
             // a quote becomes backslash+quote, a backslash becomes two backslashes
             LogDiagnosticPrinter log = new LogDiagnosticPrinter()

@@ -1,0 +1,89 @@
+namespace fly.compiler.frontend
+
+import fly.compiler.ast.ASTModule
+import fly.data.Map
+import fly.os.fs
+import fly.os.fs.Stat
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ASTModuleCache — parsed modules reused across compiles of the same process.
+//
+// Why this exists: measured on this repo, a language-server compile of a file
+// with a ~240-module import closure spends ~90% of its time PARSING those
+// modules and ~2% in sema. Between two compiles the user changed ONE file, so
+// re-parsing the other 239 is the cost worth removing.
+//
+// Identity is the file's (size, mtime), not a content hash. Hashing meant
+// READING every source and running a byte loop over it on every compile —
+// paying most of the I/O the cache was meant to avoid, and measurably slowing
+// the cold compile down. With stat-based identity a hit costs one stat() and
+// never opens the file.
+//
+// Reuse is sound because sema keeps its results OFF the AST: the Resolver
+// returns them via currentExpr/currentType/currentVar instead of stashing
+// symbols on nodes, and the one piece of per-run state it does write
+// (ASTNode.visitedRun) is a run stamp, so a new Resolve starts unvisited
+// everywhere without a reset walk.
+//
+// Only successfully parsed modules are stored, so a hit never has to re-report
+// diagnostics. The cache is OPT-IN (Frontend.setModuleCache): a one-shot CLI
+// compile parses each module once anyway and would only pay the bookkeeping.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// CachedModule — a parsed module plus the file identity it was parsed from.
+public class CachedModule {
+    public ASTModule mod
+    public ulong size
+    public ulong mtimeSec
+    public ulong mtimeNsec
+
+    public CachedModule(const ASTModule mod, const ulong size,
+                        const ulong mtimeSec, const ulong mtimeNsec) {
+        this.mod = mod
+        this.size = size
+        this.mtimeSec = mtimeSec
+        this.mtimeNsec = mtimeNsec
+    }
+}
+
+public class ASTModuleCache {
+
+    Map<string, CachedModule> byPath
+    int hits
+    int misses
+
+    public ASTModuleCache() {
+        this.byPath = new Map<string, CachedModule>()
+        this.hits = 0
+        this.misses = 0
+    }
+
+    // lookup — the module parsed from this path, still matching the file on
+    // disk; null when absent or out of date. A miss leaves the stale entry in
+    // place: store() overwrites it right after.
+    public ASTModule lookup(const string path) {
+        if this.byPath.has(path) == false {
+            this.misses = this.misses + 1
+            out = null
+            return
+        }
+        CachedModule c = this.byPath.get(path)
+        Stat st = fs.stat(path)
+        if st.size == c.size && st.mtime_sec == c.mtimeSec && st.mtime_nsec == c.mtimeNsec {
+            this.hits = this.hits + 1
+            out = c.mod
+            return
+        }
+        this.misses = this.misses + 1
+        out = null
+    }
+
+    public void store(const string path, const ASTModule m) {
+        Stat st = fs.stat(path)
+        this.byPath.put(path, new CachedModule(m, st.size, st.mtime_sec, st.mtime_nsec))
+    }
+
+    public int getHits()   { out = this.hits }
+    public int getMisses() { out = this.misses }
+}

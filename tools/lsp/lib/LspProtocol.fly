@@ -212,3 +212,63 @@ public LspDiag parseRendered(const string s, const string file) {
     string msg = str.substring(tail, lv + 2, str.len(tail))
     out = new LspDiag(line, col, severityOfWord(word), msg, file)
 }
+
+// diagFileSet — the distinct files carrying at least one diagnostic, with
+// `always` guaranteed present. One project-wide compile can surface errors in
+// ANY file of the project, so the server publishes per file; the trigger file is
+// in the set even when clean, because publishing its empty list is what clears
+// its previous squiggles. First-seen order; diagnostics with an empty file name
+// (none today) are skipped rather than invented.
+public List<string> diagFileSet(const List<LspDiag> diags, const string always) {
+    List<string> files = new List<string>()
+    int i = 0
+    while i < diags.size() {
+        LspDiag d = diags.get(i)
+        if str.isEmpty(d.file) == false {
+            bool seen = false
+            int j = 0
+            while j < files.size() {
+                if str.equals(files.get(j), d.file) { seen = true  j = (int)files.size() }
+                else { j = j + 1 }
+            }
+            if seen == false { files.add(d.file) }
+        }
+        i = i + 1
+    }
+    bool hasTrigger = false
+    int k = 0
+    while k < files.size() {
+        if str.equals(files.get(k), always) { hasTrigger = true  k = (int)files.size() }
+        else { k = k + 1 }
+    }
+    if hasTrigger == false { files.add(always) }
+    out = files
+}
+
+// LspLink — one documentLink: a span on ONE line (1-based, compiler
+// coordinates) pointing at a file. Fly's links are import paths, which never
+// wrap, so a single-line span is the whole story.
+public class LspLink {
+    public int line
+    public int colStart
+    public int colEnd
+    public string target        // filesystem path; the server turns it into a URI
+
+    public LspLink(const int line, const int colStart, const int colEnd, const string target) {
+        this.line = line
+        this.colStart = colStart
+        this.colEnd = colEnd
+        this.target = target
+    }
+}
+
+// mkDocumentLink — `{"range":…,"target":"file:///…"}`.
+public pointer mkDocumentLink(const LspLink l) {
+    pointer range = json.newObject()
+    json.put(range, "start", mkPosition(l.line, l.colStart))
+    json.put(range, "end", mkPosition(l.line, l.colEnd))
+    pointer o = json.newObject()
+    json.put(o, "range", range)
+    json.put(o, "target", json.newString(pathToUri(l.target)))
+    out = o
+}

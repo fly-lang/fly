@@ -78,6 +78,9 @@ $bytes += Frame('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}')
 $bytes += Frame('{"jsonrpc":"2.0","method":"initialized","params":{}}')
 $bytes += Frame('{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"' + $brokenUri + '"}}}')
 $bytes += Frame('{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"' + $cleanUri + '"}}}')
+# didSave with UNCHANGED bytes: the server must coalesce (skip the recompile and
+# publish nothing), so the expected frame count below does NOT grow by this line.
+$bytes += Frame('{"jsonrpc":"2.0","method":"textDocument/didSave","params":{"textDocument":{"uri":"' + $cleanUri + '"}}}')
 $bytes += Frame('{"jsonrpc":"2.0","method":"textDocument/didClose","params":{"textDocument":{"uri":"' + $brokenUri + '"}}}')
 $bytes += Frame('{"jsonrpc":"2.0","id":9,"method":"no/suchMethod","params":{}}')
 # ── navigation over navfix.fly ────────────────────────────────────────────────
@@ -131,9 +134,13 @@ $frames = 0
 for ($i = 0; $i -lt $outBytes.Length - 3; $i++) {
     if ($outBytes[$i] -eq 13 -and $outBytes[$i+1] -eq 10 -and $outBytes[$i+2] -eq 13 -and $outBytes[$i+3] -eq 10) { $frames++ }
 }
-# initialize + 4 publishDiagnostics + -32601 + 16 nav responses + shutdown = 23
+# initialize + 4 publishDiagnostics + -32601 + 16 nav responses + shutdown = 23.
+# The 4 publishes: didOpen broken (its own diagnostics), didOpen clean (empty
+# list), didClose broken (the clear), didOpen nav (empty). The didSave with
+# unchanged bytes publishes NOTHING (coalesced) — a growth here means either the
+# coalescing broke or a compile spilled diagnostics onto unrelated files again.
 Check ($frames -eq 23) "23 CRLF-framed messages (got $frames)"
-Check ($outText.Contains('"id":1') -and $outText.Contains('"textDocumentSync":1')) 'initialize answered with capabilities'
+Check ($outText.Contains('"id":1') -and $outText.Contains('"textDocumentSync":{') -and $outText.Contains('"save":true')) 'initialize answered with sync-object capabilities (save enabled)'
 Check ($outText.Contains('"serverInfo"')) 'serverInfo present'
 Check ($outText.Contains("undefinedFunction")) 'sema diagnostic published for the broken file'
 Check ($outText.Contains($cleanUri + '","diagnostics":[]')) 'clean file published an empty list'
@@ -142,7 +149,10 @@ Check ($outText.Contains('-32601')) 'unknown request answered -32601'
 Check ($outText.Contains('"id":2,"result":null')) 'shutdown answered null'
 # ── navigation ────────────────────────────────────────────────────────────────
 $def = ($outText -split 'Content-Length: \d+' | Where-Object { $_ -match '"id":20' })
-Check ([bool]($def -match '"line":2,"character":0')) 'definition of square() lands on its declaration'
+# character 4 (0-based) = column 5 = the NAME `square` in "int square(...)".
+# It used to be character 0 — the return type — because a declaration node's
+# location is where the declaration starts; nameLoc points at the identifier.
+Check ([bool]($def -match '"line":2,"character":4')) 'definition of square() lands on the NAME, not the return type'
 $hov = ($outText -split 'Content-Length: \d+' | Where-Object { $_ -match '"id":21' })
 Check ([bool]($hov -match 'int square\(int n')) 'hover shows the resolved signature'
 $refs = ($outText -split 'Content-Length: \d+' | Where-Object { $_ -match '"id":22' })

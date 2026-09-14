@@ -4,7 +4,11 @@ import fly.str
 import fly.data.List
 import fly.os.fs
 import fly.os.env
+import fly.os.io
 import fly.os.path
+import fly.os.time
+import fly.os.time.Time
+import fly.os.time.Duration
 import fly.compiler.basic.*
 import fly.compiler.target.*
 import fly.compiler.target
@@ -14,6 +18,7 @@ import fly.compiler.sema.*
 import fly.compiler.frontend.Frontend
 import fly.compiler.frontend.FrontendOptions
 import fly.compiler.frontend.CompilerInstance
+import fly.compiler.frontend.ASTModuleCache
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LspAnalyzer — compiler integration: compile() plus the navigation features.
@@ -51,6 +56,7 @@ import fly.compiler.frontend.CompilerInstance
 public class LspSym {
     public string name
     public int kind           // LSP SymbolKind numbers
+    public int mods           // semantic-token modifier bitmask (0 elsewhere)
     public int line           // 1-based
     public int col
     public string file
@@ -64,6 +70,7 @@ public class LspSym {
         this.col = col
         this.file = file
         this.container = container
+        this.mods = 0
     }
 }
 
@@ -132,6 +139,7 @@ public class LspDiagnosticConsumer : DiagnosticConsumer {
 
 public class LspAnalyzer {
     string stdLibDir
+    string projectRoot             // workspace root from `initialize`; "" = none
 
     // ── the last successful compile, kept alive for navigation ───────────────
     bool navValid
@@ -144,10 +152,16 @@ public class LspAnalyzer {
     List<string> smFiles
     List<SourceManager> smCache
 
+    // Parsed modules kept for the whole session. Parsing is ~90% of a compile
+    // here, and an edit changes one file, so everything else is re-usable; the
+    // cache keys on content, so a changed file is never served stale.
+    ASTModuleCache modCache
+
     public LspAnalyzer() {
         // Auto-discover <install>/lib next to the running fly-lsp binary, the
         // same walk Driver.fly does for fly itself: bin/fly-lsp → ../lib.
         this.stdLibDir = ""
+        this.projectRoot = ""
         string exe = env.exePath()
         if str.isEmpty(exe) == false {
             string binDir = path.dirname(exe)
@@ -163,6 +177,86 @@ public class LspAnalyzer {
         this.navReg = null
         this.smFiles = new List<string>()
         this.smCache = new List<SourceManager>()
+        this.modCache = new ASTModuleCache()
+    }
+
+    // setProjectRoot — the workspace root the client announced at `initialize`.
+    public void setProjectRoot(const string root) { this.projectRoot = root }
+
+    // setStdLibDir — override the auto-discovered <install>/lib. The constructor
+    // derives it from the running binary, which is right in production and
+    // useless in a test: a suite binary lives somewhere else entirely.
+    public void setStdLibDir(const string dir) { this.stdLibDir = dir }
+
+    // isProjectManifest — is this Manifest.fly a PROJECT manifest?
+    //
+    // The name alone proves nothing: the compiler tree ships ordinary sources
+    // called Manifest.fly (compiler/lib/driver/Manifest.fly, std/meta/Manifest.fly),
+    // and mistaking one for a root scopes the project to that directory. Nor is
+    // the mere mention of the base class enough — the driver's own Manifest.fly
+    // names it in comments AND emits it inside a string literal, since its job
+    // is to write manifests. Only a DECLARATION line counts: one starting with
+    // `class`/`public class` that names fly.meta.Manifest as its base, which is
+    // exactly what the driver's reader requires (flymanifest.fly, error 211).
+    bool isProjectManifest(const string p) {
+        if fs.exists(p) == false { out = false  return }
+        string src = fs.readStr(p)
+        string nl = lfStr()
+        int n = str.len(src)
+        int pos = 0
+        bool found = false
+        while pos < n && found == false {
+            string rest = str.substring(src, pos, n)
+            int rel = str.indexOf(rest, nl)
+            int end = n
+            if rel >= 0 { end = pos + rel }
+            string line = str.trimLeft(str.substring(src, pos, end))
+            bool isDecl = str.startsWith(line, "class ") || str.startsWith(line, "public class ")
+            if isDecl {
+                if str.contains(line, "fly.meta.Manifest") { found = true }
+            }
+            pos = end + 1
+        }
+        out = found
+    }
+
+    // resolveRoot — the source root for compiling `file`, decided PER FILE (a
+    // monorepo holds several Fly projects; gopls does the same walk for go.mod):
+    //   1. the nearest ancestor directory holding a real project manifest;
+    //   2. else the workspace root from `initialize`;
+    //   3. else the file's own directory (the historical behaviour).
+    public string resolveRoot(const string file) {
+        string dir = path.dirname(file)
+        string probe = dir
+        int guard = 0
+        while str.isEmpty(probe) == false && guard < 64 {
+            if this.isProjectManifest(path.join(probe, "Manifest.fly")) { out = probe  return }
+            if this.isProjectManifest(path.join(probe, "manifest.fly")) { out = probe  return }
+            string up = path.dirname(probe)
+            if str.equals(up, probe) { probe = "" } else { probe = up }
+            guard = guard + 1
+        }
+        if str.isEmpty(this.projectRoot) == false { out = this.projectRoot  return }
+        out = dir
+    }
+
+    // timingOn — FLY_LSP_TIMING=1 turns on the per-phase report below.
+    bool timingOn() {
+        string v = env.get("FLY_LSP_TIMING")
+        out = str.equals(v, "1")
+    }
+
+    // phase — report one phase's elapsed time. STDERR ON PURPOSE: stdout is the
+    // LSP frame channel (LspTransport writes it), so anything printed there
+    // corrupts the session.
+    void phase(const string name, const Time start) {
+        // diff against another monotonic reading: time.since() measures from the
+        // WALL clock, so pairing it with monotonic() subtracts two different
+        // epochs and prints days.
+        Duration d = time.diff(start, time.monotonic())
+        long ms = d.nsec / 1000000
+        io.printErrLn(str.concat("[lsp-timing] ", str.concat(name,
+                      str.concat(" ", str.concat(str.convert(ms), " ms")))))
     }
 
     // compileFile — parse + sema `file`, returning every diagnostic. An empty
@@ -177,9 +271,13 @@ public class LspAnalyzer {
             return
         }
 
+        bool tm = this.timingOn()
+        Time t0 = time.monotonic()
+
         // 1) parse
         Parser p = new Parser(src)
         ASTModule m = p.parseModule(file)
+        if tm { this.phase("1-parse-entry", t0) }
         if p.isSuccess() == false {
             StoringDiagnosticConsumer sink = p.getSink()
             int i = 0
@@ -206,8 +304,22 @@ public class LspAnalyzer {
 
         FrontendOptions fo = new FrontendOptions("")
         if str.isEmpty(this.stdLibDir) == false { fo.setStdLibDir(this.stdLibDir) }
+        // Source roots, PROJECT FIRST. A file's own directory is not a project:
+        // Fly resolves imports by scanning the source roots, so with only that
+        // directory every namespace that lives in a sibling one comes back
+        // "unknown type" — the whole import graph of a real project. The root is
+        // resolved per file: nearest Manifest.fly, else the workspace root from
+        // `initialize`, else the file's directory (resolveRoot).
+        string root = this.resolveRoot(file)
+        if str.isEmpty(root) == false { fo.addSrcDir(root) }
         string dir = path.dirname(file)
-        if str.isEmpty(dir) == false { fo.addSrcDir(dir) }
+        if str.isEmpty(dir) == false {
+            // Only when the file lives OUTSIDE the project root: an equality test
+            // is not enough, since any file in a subdirectory would add a second
+            // root and make the scan walk that subtree twice. For a loose file
+            // this stays the only way its siblings resolve.
+            if str.startsWith(dir, root) == false { fo.addSrcDir(dir) }
+        }
 
         CodeGenOptions cgo = new CodeGenOptions()
         TargetOptions topts = new TargetOptions(target.hostTripleStr())
@@ -215,6 +327,7 @@ public class LspAnalyzer {
         ci.createFileManager()
         ci.createSourceManager(file, src)
         Frontend fe = new Frontend(ci)
+        fe.setModuleCache(this.modCache)
 
         // The open file's own namespace must not also be loaded from a header —
         // same shadowing rule executeImpl applies to --lib builds.
@@ -223,16 +336,31 @@ public class LspAnalyzer {
         if ns0 != null { entryNs.add(fe.joinNames(ns0.getNames())) }
 
         List<ASTModule> mods = new List<ASTModule>()
+        Time t1 = time.monotonic()
         fe.loadLibHeaders(fo, mods, entryNs)
+        if tm { this.phase("2-load-headers", t1) }
+
         mods.add(m)
+        Time t2 = time.monotonic()
         bool depsOk = fe.resolveSourceDeps(fo, mods)
+        if tm {
+            this.phase("3-discover+parse-deps", t2)
+            io.printErrLn(str.concat("[lsp-timing]   modules=",
+                          str.concat(str.convert((int)mods.size()),
+                          str.concat(" dirs=", str.convert(fe.getStatDirsScanned())))))
+        }
         // Navigation state is refreshed even when sema reported errors: the
         // parts that DID resolve are exactly what an editor wants to keep
         // navigating while the user is mid-edit.
         this.navValid = false
         if depsOk {
+            Time t3 = time.monotonic()
             SemaContext ctx = new SemaContext(diags)
             List<SemaModule> res = ctx.Resolve(mods, false)
+            if tm {
+                this.phase("4-sema-resolve", t3)
+                this.phase("TOTAL", t0)
+            }
             this.navValid = true
             this.navPath = file
             this.navSm = sm
@@ -299,6 +427,14 @@ public class LspAnalyzer {
                 } else {
                     ASTClass c = n.asClass()
                     if c != null {
+                        // The class header itself: `class Widget : Base` — the
+                        // base type is a clickable type reference.
+                        List<ASTType> bases = c.getBases()
+                        int bi = 0
+                        while bi < bases.size() {
+                            if v.foundKind == 0 { v.walkType(bases.get(bi)) }
+                            bi = bi + 1
+                        }
                         List<ASTNode> members = c.getNodes()
                         int mi = 0
                         while mi < members.size() {
@@ -307,6 +443,15 @@ public class LspAnalyzer {
                                 if mf != null {
                                     v.visit(mf)
                                     if v.foundKind != 0 { hitFn = mf }
+                                } else {
+                                    // Attributes were never walked at all, so
+                                    // neither their TYPE nor their own name
+                                    // could be clicked.
+                                    ASTVar av = members.get(mi).asVar()
+                                    if av != null {
+                                        v.walkType(av.getType())
+                                        v.nameUse(av.getNameLoc(), av.getName(), 1)
+                                    }
                                 }
                             }
                             mi = mi + 1
@@ -329,6 +474,9 @@ public class LspAnalyzer {
         //    itself uses. Only receiver-less hits fall through to the plain
         //    name-in-scope lookup.
         SymbolTable scope = this.scopeOfAstFn(hitFn)
+        // A hit at class level belongs to no function: fall back to the module
+        // scope so the name still resolves (and so nothing downstream sees null).
+        if scope == null { scope = this.moduleScope() }
         if v.foundExpr != null {
             ASTExpr recv = v.foundExpr.getParent()
             if recv != null {
@@ -367,6 +515,16 @@ public class LspAnalyzer {
             }
         }
         Symbol sym = this.resolveName(scope, t.name)
+        // A NAMESPACE-QUALIFIED use (str.concat, greet.hello): the name lives in
+        // the namespace the receiver chain names, not in the enclosing scope —
+        // a plain import binds the prefix and brings no bare symbols. This is
+        // what makes std symbols reachable at all.
+        if sym == null {
+            if v.foundExpr != null {
+                List<string> chain = this.nsChainOf(v.foundExpr.getParent())
+                if chain != null { sym = this.lookupInNamespace(chain, t.name) }
+            }
+        }
         if sym == null { out = t  return }
 
         SymbolKind sk = sym.getKind()
@@ -386,7 +544,16 @@ public class LspAnalyzer {
                 if ct != null {
                     t.kind = 3
                     t.cls = ct
-                } else { t.kind = 4 }
+                } else {
+                    // An ENUM is not a SemaClassType, so asClass() answers null:
+                    // without this branch every enum used as a type fell into
+                    // "other" and became unnavigable.
+                    SemaEnumType et = ty.asEnum()
+                    if et != null {
+                        t.kind = 5
+                        t.enm = et
+                    } else { t.kind = 4 }
+                }
             } else { t.kind = 4 }
         } elsif sym.isVarKind() {
             t.kind = 2
@@ -486,8 +653,93 @@ public class LspAnalyzer {
                 if down != null { if down.size() > 0 { sym = down.get(0) } }
             }
         }
-        if sym == null { if this.navReg != null { sym = this.navReg.LookupName(name, scope) } }
+        // Registry.LookupName dereferences the scope without checking it, and a
+        // hit OUTSIDE any function body (a class attribute's type, a base type)
+        // has no function scope — passing null there crashed the server.
+        if sym == null {
+            if this.navReg != null {
+                if scope != null { sym = this.navReg.LookupName(name, scope) }
+            }
+        }
         out = sym
+    }
+
+    // nsChainOf — the dotted name chain of a receiver expression (`greet`,
+    // `fly.str`), or null when the receiver is not a plain name path.
+    List<string> nsChainOf(const ASTExpr e) {
+        if e == null { out = null  return }
+        ASTIdentifier id = e.asIdentifier()
+        if id != null {
+            List<string> r = new List<string>()
+            r.add(id.getName())
+            out = r
+            return
+        }
+        ASTMember mem = e.asMember()
+        if mem != null {
+            List<string> p = this.nsChainOf(mem.getParent())
+            if p == null { out = null  return }
+            p.add(mem.getName())
+            out = p
+            return
+        }
+        out = null
+    }
+
+    // expandNsChain — a SHORT prefix is the last segment of an import, not a
+    // namespace path: `import fly.str` binds `str.`, so the chain ["str"] means
+    // ["fly","str"]. Mirrors the Resolver's expandNsPath; without it nothing
+    // qualified by a prefix ever resolves.
+    List<string> expandNsChain(const List<string> chain) {
+        if chain == null { out = null  return }
+        if chain.size() != 1 { out = chain  return }
+        if this.navAst == null { out = chain  return }
+        string want = chain.get(0)
+        List<ASTImport> imps = this.navAst.getImports()
+        int i = 0
+        while i < imps.size() {
+            List<ASTName> ns = imps.get(i).getNames()
+            if ns.size() > 0 {
+                if str.equals(ns.get((int)ns.size() - 1).getName(), want) {
+                    List<string> full = new List<string>()
+                    int j = 0
+                    while j < ns.size() { full.add(ns.get(j).getName())  j = j + 1 }
+                    out = full
+                    return
+                }
+            }
+            i = i + 1
+        }
+        out = chain
+    }
+
+    // lookupInNamespace — `name` inside the namespace named by `chain`.
+    Symbol lookupInNamespace(const List<string> chain, const string name) {
+        if this.navReg == null { out = null  return }
+        List<string> full = this.expandNsChain(chain)
+        if full == null { out = null  return }
+        SemaNameSpace ns = this.navReg.lookupNameSpaceByStrings(full)
+        if ns == null { out = null  return }
+        SymbolTable tbl = ns.getSymbols()
+        if tbl == null { out = null  return }
+        List<Symbol> found = tbl.lookupInParents(name)
+        if found == null { out = null  return }
+        if found.size() == 0 { out = null  return }
+        out = found.get(0)
+    }
+
+    // moduleScope — the open file's module symbol table: the scope a name gets
+    // when it is used at CLASS level (an attribute's type, a base type) rather
+    // than inside a function body.
+    SymbolTable moduleScope() {
+        if this.navSema == null { out = null  return }
+        int i = 0
+        while i < this.navSema.size() {
+            SemaModule m = this.navSema.get(i)
+            if str.equals(m.getName(), this.navPath) { out = m.getSymbols()  return }
+            i = i + 1
+        }
+        out = null
     }
 
     // receiverClassOf — the STATIC class type of a receiver expression: an
@@ -579,7 +831,7 @@ public class LspAnalyzer {
             if str.isEmpty(file) { out = loc  return }
             SourceManager sm = this.smFor(file)
             if sm == null { out = loc  return }
-            SourceLocation l = t.fn.getAST().getLoc()
+            SourceLocation l = t.fn.getAST().getNameLoc()
             if l == null { out = loc  return }
             loc.ok = true
             loc.file = file
@@ -594,12 +846,32 @@ public class LspAnalyzer {
             string cfile = dm.getName()
             SourceManager csm = this.smFor(cfile)
             if csm == null { out = loc  return }
-            SourceLocation cl = t.cls.getAST().getLoc()
+            ASTClass ca = t.cls.getAST()
+            if ca == null { out = loc  return }
+            SourceLocation cl = ca.getNameLoc()
             if cl == null { out = loc  return }
             loc.ok = true
             loc.file = cfile
             loc.line = csm.getLineNumber(cl)
             loc.col = csm.getColumnNumber(cl)
+            out = loc
+            return
+        }
+        // An ENUM used as a type: same shape as a class, different Sema node.
+        if t.kind == 5 {
+            SemaModule em = t.enm.getModule()
+            if em == null { out = loc  return }
+            string efile = em.getName()
+            SourceManager esm = this.smFor(efile)
+            if esm == null { out = loc  return }
+            ASTEnum ea = t.enm.getAST()
+            if ea == null { out = loc  return }
+            SourceLocation el = ea.getNameLoc()
+            if el == null { out = loc  return }
+            loc.ok = true
+            loc.file = efile
+            loc.line = esm.getLineNumber(el)
+            loc.col = esm.getColumnNumber(el)
             out = loc
             return
         }
@@ -613,7 +885,7 @@ public class LspAnalyzer {
                 if om == null { out = loc  return }
                 SourceManager osm = this.smFor(om.getName())
                 if osm == null { out = loc  return }
-                SourceLocation al = t.attr.getAST().getLoc()
+                SourceLocation al = t.attr.getAST().getNameLoc()
                 if al == null { out = loc  return }
                 loc.ok = true
                 loc.file = om.getName()
@@ -634,8 +906,8 @@ public class LspAnalyzer {
                 if str.equals(p.getName(), t.name) {
                     loc.ok = true
                     loc.file = this.navPath
-                    loc.line = this.navSm.getLineNumber(p.getLoc())
-                    loc.col = this.navSm.getColumnNumber(p.getLoc())
+                    loc.line = this.navSm.getLineNumber(p.getNameLoc())
+                    loc.col = this.navSm.getColumnNumber(p.getNameLoc())
                     out = loc
                     return
                 }
@@ -717,6 +989,10 @@ public class LspAnalyzer {
                   str.concat(" ", str.concat(t.name, close))))
             return
         }
+        if t.kind == 5 {
+            out = str.concat(open, str.concat("enum ", str.concat(t.name, close)))
+            return
+        }
         if t.kind == 2 {
             string ty = t.varTypeName
             if str.isEmpty(ty) { ty = "?" }
@@ -765,8 +1041,8 @@ public class LspAnalyzer {
             ASTFunction f = n.asFunction()
             if f != null {
                 result.add(new LspSym(f.getName(), 12,
-                    this.navSm.getLineNumber(f.getLoc()),
-                    this.navSm.getColumnNumber(f.getLoc()), this.navPath, ""))
+                    this.navSm.getLineNumber(f.getNameLoc()),
+                    this.navSm.getColumnNumber(f.getNameLoc()), this.navPath, ""))
             } else {
                 ASTClass c = n.asClass()
                 if c != null {
@@ -775,16 +1051,16 @@ public class LspAnalyzer {
                     if ck == ASTClassKind.STRUCT { kind = 23 }
                     elsif ck == ASTClassKind.INTERFACE { kind = 11 }
                     result.add(new LspSym(c.getName(), kind,
-                        this.navSm.getLineNumber(c.getLoc()),
-                        this.navSm.getColumnNumber(c.getLoc()), this.navPath, ""))
+                        this.navSm.getLineNumber(c.getNameLoc()),
+                        this.navSm.getColumnNumber(c.getNameLoc()), this.navPath, ""))
                     List<ASTNode> members = c.getNodes()
                     int mi = 0
                     while mi < members.size() {
                         ASTFunction mf = members.get(mi).asFunction()
                         if mf != null {
                             result.add(new LspSym(mf.getName(), 6,
-                                this.navSm.getLineNumber(mf.getLoc()),
-                                this.navSm.getColumnNumber(mf.getLoc()), this.navPath, c.getName()))
+                                this.navSm.getLineNumber(mf.getNameLoc()),
+                                this.navSm.getColumnNumber(mf.getNameLoc()), this.navPath, c.getName()))
                         }
                         mi = mi + 1
                     }
@@ -792,14 +1068,92 @@ public class LspAnalyzer {
                     ASTEnum e = n.asEnum()
                     if e != null {
                         result.add(new LspSym(e.getName(), 10,
-                            this.navSm.getLineNumber(e.getLoc()),
-                            this.navSm.getColumnNumber(e.getLoc()), this.navPath, ""))
+                            this.navSm.getLineNumber(e.getNameLoc()),
+                            this.navSm.getColumnNumber(e.getNameLoc()), this.navPath, ""))
                     }
                 }
             }
             i = i + 1
         }
         out = result
+    }
+
+    // documentLinks — every `import` path in the open file, pointing at the file
+    // that provides that namespace.
+    //
+    // The mapping needs no new machinery: the compile already resolved every
+    // module it pulled, so navSema holds, for each namespace, the file it came
+    // from. An import whose namespace was served by a lib header or was never
+    // pulled simply produces no link, which is the honest answer.
+    public List<LspLink> documentLinks() {
+        List<LspLink> result = new List<LspLink>()
+        if this.navValid == false { out = result  return }
+        if this.navAst == null { out = result  return }
+        List<ASTImport> imps = this.navAst.getImports()
+        int i = 0
+        while i < imps.size() {
+            ASTImport im = imps.get(i)
+            List<ASTName> ns = im.getNames()
+            if ns.size() > 0 {
+                // Dotted path: from the first segment to the end of the last.
+                ASTName first = ns.get(0)
+                ASTName last = ns.get((int)ns.size() - 1)
+                SourceLocation fl = first.getLoc()
+                SourceLocation ll = last.getLoc()
+                if fl != null && ll != null {
+                    if fl.isValid() && ll.isValid() {
+                        string want = this.joinNsNames(ns)
+                        string file = this.fileOfNamespace(want)
+                        if str.isEmpty(file) == false {
+                            int line = this.navSm.getLineNumber(fl)
+                            int c0 = this.navSm.getColumnNumber(fl)
+                            int c1 = this.navSm.getColumnNumber(ll) + str.len(last.getName())
+                            result.add(new LspLink(line, c0, c1, file))
+                        }
+                    }
+                }
+            }
+            i = i + 1
+        }
+        out = result
+    }
+
+    // joinNsNames — the dotted namespace text of a name path.
+    string joinNsNames(const List<ASTName> ns) {
+        string r = ""
+        int i = 0
+        while i < ns.size() {
+            if i == 0 { r = ns.get(i).getName() }
+            else { r = str.concat(r, str.concat(".", ns.get(i).getName())) }
+            i = i + 1
+        }
+        out = r
+    }
+
+    // fileOfNamespace — the file of the resolved module declaring `nsName`, or "".
+    //
+    // The comparison goes through the module's AST namespace, not
+    // SemaNameSpace.getName(): the Sema node stores only the LEAF segment
+    // ("util"), so matching a dotted path against it would fail — or worse,
+    // match the wrong namespace when two share a leaf.
+    string fileOfNamespace(const string nsName) {
+        if this.navSema == null { out = ""  return }
+        int i = 0
+        while i < this.navSema.size() {
+            SemaModule m = this.navSema.get(i)
+            ASTModule am = m.getAST()
+            if am != null {
+                ASTNameSpace ans = am.getNameSpace()
+                if ans != null {
+                    if str.equals(this.joinNsNames(ans.getNames()), nsName) {
+                        out = m.getName()
+                        return
+                    }
+                }
+            }
+            i = i + 1
+        }
+        out = ""
     }
 
     public List<LspFold> foldingRanges() {
@@ -1196,6 +1550,38 @@ public class LspAnalyzer {
     // tokensOfFn — collect + resolve the uses of one body. LspSym reuse: line/
     // col carry the position, kind carries the TOKEN TYPE, name the text (its
     // length is the token length).
+    // semanticModsOf — the modifier bitmask for a resolved symbol, in the bit
+    // order the legend declares (LspServer.onInitialize): 1 declaration,
+    // 2 readonly, 4 static, 8 abstract. `const` is Fly's readonly; `declaration`
+    // is not set here because these are USE sites, not declarations.
+    //
+    // LIMIT: functions and methods only. Reaching a VARIABLE's modifiers would
+    // need a SemaExpr→SemaVar narrowing that does not exist, and adding a
+    // virtual accessor shifts vtable slots — a known hazard here. So `const`
+    // locals and params carry no readonly bit yet.
+    int semanticModsOf(const Symbol sym) {
+        List<ASTModifier> ms = null
+        SemaNode ref = sym.getRef()
+        if ref != null {
+            SemaFunctionBase fb = ref.asFunctionBase()
+            if fb != null {
+                ASTFunction fa = fb.getAST()
+                if fa != null { ms = fa.getModifiers() }
+            }
+        }
+        if ms == null { out = 0  return }
+        int mask = 0
+        int i = 0
+        while i < ms.size() {
+            ASTModifierKind k = ms.get(i).getModifierKind()
+            if k == ASTModifierKind.MOD_CONSTANT { mask = mask | 2 }
+            elsif k == ASTModifierKind.MOD_STATIC { mask = mask | 4 }
+            elsif k == ASTModifierKind.MOD_ABSTRACT { mask = mask | 8 }
+            i = i + 1
+        }
+        out = mask
+    }
+
     void tokensOfFn(const ASTFunction fn, List<LspSym> result) {
         LspNavVisitor v = new LspNavVisitor(this.navSm)
         v.mode = navModeCollect()
@@ -1211,7 +1597,9 @@ public class LspAnalyzer {
                 if sym != null {
                     int tt = tokenTypeOf(sym.getKind())
                     if tt >= 0 {
-                        result.add(new LspSym(nm, tt, u.line, u.col, "", ""))
+                        LspSym s = new LspSym(nm, tt, u.line, u.col, "", "")
+                        s.mods = this.semanticModsOf(sym)
+                        result.add(s)
                     }
                 }
             }

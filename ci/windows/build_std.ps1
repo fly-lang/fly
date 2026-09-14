@@ -37,14 +37,6 @@ catch { Copy-Item $fly0 $FLY -Force }
 function Assert-LastExit($what) {
     if ($LASTEXITCODE -ne 0) { throw "$what failed (exit $LASTEXITCODE)" }
 }
-# Space nested generic closers (`>>` -> `> >`) so a header re-read lexes them
-# (the parser fuses `>>`); idempotent, handles `>>>` via the loop.
-function Split-GenericClosers($file) {
-    $c = Get-Content $file -Raw
-    while ($c -match '>>') { $c = $c -replace '>>', '> >' }
-    Set-Content $file $c -NoNewline
-}
-
 if (-not (Test-Path "$LIB/fly_runtime_lib.lib") -or -not (Test-Path "$LIB/runtime.fly.h")) {
     Write-Host "error: runtime missing in $LIB - run build_runtime.ps1 first."
     exit 1
@@ -65,10 +57,14 @@ $emitted = if (Test-Path "$T/fly_std_lib.lib") { "$T/fly_std_lib.lib" } else { "
 if (-not (Test-Path $emitted)) { Write-Host "error: std archive not emitted."; exit 1 }
 Move-Item $emitted "$LIB/fly_std_lib.lib" -Force
 
-# headers (nested `>>` spaced so re-reads lex them)
+# A lib directory holds `.fly.h` and nothing else: a header carries declarations,
+# and for a module that declares generics it carries their source too. Copied
+# VERBATIM. Nested `>>` used to be spaced by a pass over the text here; the
+# compiler now emits them spaced itself, which is the only safe place for it —
+# rewriting the file would also hit the `>>` of a real right-shift inside a
+# template body.
 $hdrs = 0
 Get-ChildItem "$T/*.fly.h" -ErrorAction SilentlyContinue | ForEach-Object {
-    Split-GenericClosers $_.FullName
     Copy-Item $_.FullName $LIB/ -Force
     $hdrs++
 }

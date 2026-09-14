@@ -18,8 +18,8 @@ public class ResolverClass {
     // declareClass — visit(ASTClass): create the SemaClassType shell, register the
     // type symbol in the module (and namespace) scope, and queue it for Phase B.
     public static void declareClass(const Resolver r, const ASTClass node) {
-        if node.isVisited() { return }
-        node.setVisited(true)
+        if node.isVisited(r.getRun()) { return }
+        node.setVisited(r.getRun())
         r.resetCurrents()
         r.enterScope()
         SemaModule mod = r.getCurrentModule()
@@ -90,6 +90,29 @@ public class ResolverClass {
         ResolverClass.checkAbstractMethods(r, cls)
         ResolverClass.checkDiamond(r, cls)
         r.setCurrentClass(null)
+    }
+
+    // templateHasNoBodies — does this generic class declare methods and define none
+    // of them? That is the shape a DECLARATION-ONLY header gives a template, and it
+    // cannot be specialized (see ResolverType.instantiate). A class with no methods
+    // at all is not the same thing: it is simply a data holder, and specializing it
+    // is fine. Interfaces are excluded — bodiless is their normal state.
+    public static bool templateHasNoBodies(const SemaClassType cls) {
+        if cls.getClassKind() == SemaClassKind.INTERFACE { out = false  return }
+        ASTClass ac = cls.getAST()
+        if ac == null { out = false  return }
+        List<ASTNode> nodes = ac.getNodes()
+        bool sawMethod = false
+        int i = 0
+        while i < nodes.size() {
+            ASTFunction meth = nodes.get(i).asFunction()
+            if meth != null {
+                sawMethod = true
+                if meth.getBody() != null { out = false  return }
+            }
+            i = i + 1
+        }
+        out = sawMethod
     }
 
     // checkAbstractMethods — a concrete class must provide a concrete implementation
@@ -389,7 +412,35 @@ public class ResolverClass {
         SymbolTable mscope = r.getCurrentScope()
         SemaClassMethod meth = SemaBuilder.CreateClassMethod(cls, node, mscope)
         ASTBlockStmt body = node.getBody()
-        if body == null { meth.setAbstract(true) }
+        // No body means ABSTRACT in ordinary source — but inside a preloaded
+        // header it means DECLARED ELSEWHERE: the definition lives in the
+        // archive the header describes. Without this distinction a header could
+        // only spell a concrete method as `{}`, an empty body that says the
+        // opposite of the truth, and every class it declared would otherwise
+        // turn abstract and stop being instantiable.
+        //
+        // Interfaces keep the old reading: their methods are abstract by virtue
+        // of the construct, not because a body is missing. So does a method
+        // carrying an explicit `abstract` modifier: nothing defines it anywhere,
+        // least of all the archive. CreateClassMethod does NOT read that
+        // modifier (only visibility/static/final), so the flag has to be taken
+        // from the AST right here — the reference makes the same exclusion, in
+        // ParserClass::ParseMethod, when it decides whether to synthesize the
+        // empty body that keeps a header method concrete.
+        // The CLASS is what remembers where it came from. Methods resolve in
+        // PHASE B (resolveClassType, driven from Resolver.Resolve over the
+        // registry), long after the module walk ended and reset the resolver's
+        // currentModuleIsHeader to false — so asking the resolver here always
+        // answered "not a header" and every declared method turned abstract.
+        // declareClass captured the flag in phase A, while it was still true.
+        if body == null {
+            bool external = cls.isFromHeader()
+            if cls.getClassKind() == SemaClassKind.INTERFACE { external = false }
+            SemaBuilderModifiers mmods = SemaBuilderModifiers.Build(node.getModifiers())
+            if mmods.isAbstract() { external = false }
+            if external { meth.setFromHeader(true) }
+            else { meth.setAbstract(true) }
+        }
         cls.addMethod(meth)
 
         string mn = node.getName()

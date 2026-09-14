@@ -367,6 +367,24 @@ public class ResolverCall {
             pi = pi + 1
         }
 
+        // Same rule as a generic class (ResolverType.instantiate): with no body to
+        // re-walk, the specialization would be emitted as an empty weak definition.
+        //
+        // EXCEPT for the two namespaces codegen lowers itself: `fly.llvm.slotReadT`
+        // and friends are generic INTRINSICS, declared bodiless on purpose and
+        // turned into inline IR by CodeGenIntrinsics (CodeGenCall dispatches on the
+        // same namespace names). For them a missing body is the normal shape.
+        bool lowered = false
+        if str.equals(tpl.getNamespaceName(), "fly_llvm") { lowered = true }
+        if str.equals(tpl.getNamespaceName(), "fly_runtime") { lowered = true }
+        ASTFunction tast = tpl.getAST()
+        if tast != null && lowered == false {
+            if tast.getBody() == null {
+                r.diagStr(tast.getNameLoc(), DiagID.err_sema_generic_template_no_body, tpl.getName())
+                out = null
+                return
+            }
+        }
         SemaFunction spec = SemaBuilder.CreateFunctionSpecialization(tpl, inferred, r.getCurrentScope())
         if spec == null { out = null  return }
 

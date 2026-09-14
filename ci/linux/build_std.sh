@@ -52,11 +52,15 @@ else
     "${AR:-ar}" rcs "$LIB/fly_std_lib.a" "$T/fly_std_lib"
 fi
 
-# headers (nested `>>` spaced so re-reads lex them; idempotent)
+# A lib directory holds `.fly.h` and nothing else: a header carries declarations,
+# and for a module that declares generics it carries their source too. Copied
+# VERBATIM. Nested `>>` used to be spaced by a sed pass here; the compiler now
+# emits them spaced itself, which is the only safe place for it — rewriting the
+# file would also hit the `>>` of a real right-shift inside a template body.
 hdrs=0
 for h in "$T"/*.fly.h; do
     [ -e "$h" ] || continue
-    sed -E ':a;s/>>/> >/;ta' "$h" > "$LIB/$(basename "$h")"
+    cp "$h" "$LIB/$(basename "$h")"
     hdrs=$((hdrs + 1))
 done
 
