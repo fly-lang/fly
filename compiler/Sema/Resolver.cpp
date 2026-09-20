@@ -507,27 +507,31 @@ void Resolver::visit(ASTMethod &AST) {
 		}
 	}
 
-	// If the method declares a return type, resolve it and add a synthetic 'out' parameter.
+	// If the method declares a return type, resolve it and add the synthetic
+	// '__ret' parameter (non-const = by pointer) that carries the return value.
+	// `return expr` lowers to an assignment to it; the name is reserved, so user
+	// code cannot reach the slot by name.
 	if (AST.getReturnType() != nullptr) {
 		AST.getReturnType()->accept(*this);
 		Sema->setReturnType(CurrentType);
 
 		llvm::SmallVector<ASTModifier *, 8> NoMods;
 		ASTParam *OutParam = ASTBuilder::CreateParam(
-			AST.getLocation(), AST.getReturnType(), "out", NoMods);
+			AST.getLocation(), AST.getReturnType(), "__ret", NoMods);
 		OutParam->accept(*this);
 		SemaParam *OutSemaParam = OutParam->getSymbol()->getRefAs<SemaParam>();
 		OutSemaParam->Synthetic = true;
 		Sema->addParam(OutSemaParam);
 		addSymbol(OutParam->getSymbol());
 	} else if (!AST.getReturnTypes().empty()) {
-		// Multi-return: create __out_0, __out_1, … params for each declared return type.
-		// Names are stored in SyntheticParamNames so StringRefs remain valid.
+		// Multi-return: create __ret_0, __ret_1, … params for each declared return type.
+		// `return a, b` assigns them in order. Names are stored in SyntheticParamNames
+		// so StringRefs remain valid.
 		llvm::SmallVector<ASTModifier *, 8> NoMods;
 		for (size_t i = 0; i < AST.getReturnTypes().size(); ++i) {
 			ASTType *RT = AST.getReturnTypes()[i];
 			RT->accept(*this);
-			SyntheticParamNames.push_back("__out_" + std::to_string(i));
+			SyntheticParamNames.push_back("__ret_" + std::to_string(i));
 			llvm::StringRef PName = SyntheticParamNames.back();
 			ASTParam *OutParam = ASTBuilder::CreateParam(AST.getLocation(), RT, PName, NoMods);
 			OutParam->accept(*this);
@@ -917,6 +921,14 @@ void Resolver::visit(ASTExprStmt &AST) {
 	SemaExpr *ResolvedExpr = CurrentExpr;
 
 	// Create SemaExprStmt and add to current block.
+	AddResolvedExprStmt(AST, ResolvedExpr);
+}
+
+// AddResolvedExprStmt — append a resolved expression to the current block.
+// Shared by plain expression statements and by the `return expr` lowering, so a
+// returned value gets the same owned-slot release marking and smart-alloc
+// registration a hand-written assignment always had.
+void Resolver::AddResolvedExprStmt(ASTStmt &AST, SemaExpr *ResolvedExpr) {
 	if (CurrentSemaBlock && ResolvedExpr) {
 		// Detect string reassignment: an assign to a heap-owned string variable must
 		// free the destination's previous buffer. Mark the binary so codegen emits
@@ -960,6 +972,11 @@ void Resolver::visit(ASTDeclStmt &AST) {
 	LV->accept(*this);
 	SemaLocalVar *LocalVar = LV->getSymbol() ?
 		LV->getSymbol()->getRefAs<SemaLocalVar>() : nullptr;
+
+	// NRVO: this local is the one every return hands back, so it lives in the
+	// caller's return slot instead of a local alloca.
+	if (LocalVar != nullptr && !NRVOName.empty() && LocalVar->getName() == NRVOName)
+		LocalVar->setReturnSlot(true);
 
 	// Resolve Initialization Expression
 	SemaExpr *DeclExpr = nullptr;
@@ -1200,6 +1217,46 @@ void Resolver::visit(ASTHandleStmt &AST) {
 void Resolver::visit(ASTReturnStmt &AST) {
 	FLY_DEBUG_SCOPE("Resolver", "visit(ASTReturnStmt)");
 	CurrentStmt = &AST;
+
+	// `return expr` is surface syntax over the hidden return slots: lower it to
+	// `__ret = expr` (or `__ret_0 = a`, `__ret_1 = b` for a multi-return) emitted
+	// right before the return itself. Everything downstream — string cloning,
+	// array retain, struct copy, scope cleanup order — is then literally the code
+	// path the old explicit `out = expr` took.
+	llvm::SmallVector<SemaParam *, 4> RetParams;
+	if (CurrentFunction != nullptr)
+		for (SemaParam *P : CurrentFunction->getParams())
+			if (P->isSynthetic())
+				RetParams.push_back(P);
+
+	const llvm::SmallVector<ASTExpr *, 4> &Values = AST.getExprs();
+
+	if (Values.empty()) {
+		// A bare `return` is an early exit; it is only valid where nothing is expected.
+		if (!RetParams.empty())
+			Diag(AST.getLocation(), diag::err_sema_return_missing_value) << (unsigned) RetParams.size();
+	} else if (RetParams.empty()) {
+		Diag(Values[0]->getLocation(), diag::err_sema_return_value_in_void);
+	} else if (Values.size() != RetParams.size()) {
+		Diag(Values[0]->getLocation(), diag::err_sema_return_arity)
+			<< (unsigned) Values.size() << (unsigned) RetParams.size();
+	} else {
+		for (size_t i = 0; i < Values.size(); ++i) {
+			// NRVO: the returned local already occupies the slot — assigning it to
+			// itself would be a pure copy. Resolve the name anyway so it counts as a
+			// read, then emit nothing for it.
+			if (!NRVOName.empty() && Values[i]->getExprKind() == ASTExprKind::EXPR_IDENTIFIER &&
+			    static_cast<ASTIdentifier *>(Values[i])->getName() == NRVOName) {
+				Values[i]->accept(*this);
+				continue;
+			}
+			ASTIdentifier *Slot = ASTBuilder::CreateIdentifier(AST.getLocation(), RetParams[i]->getName());
+			ASTBinary *Assign = ASTBuilder::CreateBinary(AST.getLocation(), ASTBinaryKind::OP_BINARY_ASSIGN,
+			                                             Slot, Values[i]);
+			Assign->accept(*this);
+			AddResolvedExprStmt(AST, CurrentExpr);
+		}
+	}
 
 	if (CurrentSemaBlock) {
 		SemaReturnStmt *SemaStmt = SemaBuilder::CreateReturnStmt(&AST);
@@ -2929,6 +2986,238 @@ void Resolver::addSymbol(Symbol *Sym) {
 	CurrentScope->insert(Sym);
 }
 
+//===----------------------------------------------------------------------===//
+// NRVO — named return value optimization
+//
+// `Stat s  s.size = …  return s` should cost exactly what `out.size = …` used
+// to cost: nothing. When every return in a body hands back the same struct
+// local, that local is bound to the caller's return slot and the return itself
+// emits no copy. Eligibility is syntactic and requires the name to be declared
+// exactly once, so no shadowed declaration can be mistaken for it.
+//===----------------------------------------------------------------------===//
+
+static void CollectBodyInfo(ASTStmt *Stmt,
+                            llvm::SmallVector<ASTReturnStmt *, 8> &Returns,
+                            llvm::StringMap<unsigned> &DeclCounts) {
+	if (Stmt == nullptr)
+		return;
+	switch (Stmt->getStmtKind()) {
+		case ASTStmtKind::STMT_RETURN:
+			Returns.push_back(static_cast<ASTReturnStmt *>(Stmt));
+			return;
+		case ASTStmtKind::STMT_DECL: {
+			ASTLocalVar *LV = static_cast<ASTDeclStmt *>(Stmt)->getLocalVar();
+			if (LV != nullptr)
+				DeclCounts[LV->getName()]++;
+			return;
+		}
+		case ASTStmtKind::STMT_BLOCK:
+			for (ASTStmt *S : static_cast<ASTBlockStmt *>(Stmt)->getContent())
+				CollectBodyInfo(S, Returns, DeclCounts);
+			return;
+		case ASTStmtKind::STMT_IF: {
+			ASTIfStmt *If = static_cast<ASTIfStmt *>(Stmt);
+			CollectBodyInfo(If->getStmt(), Returns, DeclCounts);
+			for (ASTRuleStmt *Elsif : If->getElsif())
+				CollectBodyInfo(Elsif->getStmt(), Returns, DeclCounts);
+			CollectBodyInfo(If->getElse(), Returns, DeclCounts);
+			return;
+		}
+		case ASTStmtKind::STMT_SWITCH: {
+			ASTSwitchStmt *Switch = static_cast<ASTSwitchStmt *>(Stmt);
+			for (ASTCaseStmt *Case : Switch->getCases())
+				CollectBodyInfo(Case->getStmt(), Returns, DeclCounts);
+			CollectBodyInfo(Switch->getDefault(), Returns, DeclCounts);
+			return;
+		}
+		case ASTStmtKind::STMT_LOOP: {
+			ASTLoopStmt *Loop = static_cast<ASTLoopStmt *>(Stmt);
+			for (ASTStmt *S : Loop->getInit())
+				CollectBodyInfo(S, Returns, DeclCounts);
+			CollectBodyInfo(Loop->getLoop(), Returns, DeclCounts);
+			for (ASTStmt *S : Loop->getPost())
+				CollectBodyInfo(S, Returns, DeclCounts);
+			return;
+		}
+		case ASTStmtKind::STMT_LOOP_IN:
+			CollectBodyInfo(static_cast<ASTLoopInStmt *>(Stmt)->getStmt(), Returns, DeclCounts);
+			return;
+		case ASTStmtKind::STMT_HANDLE:
+			CollectBodyInfo(static_cast<ASTHandleStmt *>(Stmt)->getHandle(), Returns, DeclCounts);
+			return;
+		case ASTStmtKind::STMT_TEST:
+			CollectBodyInfo(static_cast<ASTTestStmt *>(Stmt)->getBody(), Returns, DeclCounts);
+			return;
+		default:
+			return;
+	}
+}
+
+// FindNRVOName — the struct local every return hands back, or an empty name.
+static llvm::StringRef FindNRVOName(ASTBlockStmt *Body, SemaFunctionBase *Function) {
+	// Exactly one return value, and it must be a struct: a class return travels as
+	// a handle the caller allocates, and primitives gain nothing from the binding.
+	SemaParam *RetParam = nullptr;
+	for (SemaParam *P : Function->getParams()) {
+		if (!P->isSynthetic())
+			continue;
+		if (RetParam != nullptr)
+			return llvm::StringRef();
+		RetParam = P;
+	}
+	if (RetParam == nullptr || RetParam->getType() == nullptr || !RetParam->getType()->isClass())
+		return llvm::StringRef();
+	if (static_cast<SemaClassType *>(RetParam->getType())->getClassKind() != SemaClassKind::STRUCT)
+		return llvm::StringRef();
+
+	llvm::SmallVector<ASTReturnStmt *, 8> Returns;
+	llvm::StringMap<unsigned> DeclCounts;
+	CollectBodyInfo(Body, Returns, DeclCounts);
+	if (Returns.empty())
+		return llvm::StringRef();
+
+	llvm::StringRef Name;
+	for (ASTReturnStmt *Return : Returns) {
+		if (Return->getExprs().size() != 1)
+			return llvm::StringRef();
+		ASTExpr *Value = Return->getExprs()[0];
+		if (Value->getExprKind() != ASTExprKind::EXPR_IDENTIFIER)
+			return llvm::StringRef();
+		llvm::StringRef ValueName = static_cast<ASTIdentifier *>(Value)->getName();
+		if (Name.empty())
+			Name = ValueName;
+		else if (Name != ValueName)
+			return llvm::StringRef();
+	}
+
+	// Declared exactly once in the body: a second declaration of the same name in
+	// a nested scope would make "which local" ambiguous here.
+	auto It = DeclCounts.find(Name);
+	if (It == DeclCounts.end() || It->second != 1)
+		return llvm::StringRef();
+	return Name;
+}
+
+//===----------------------------------------------------------------------===//
+// Missing-return analysis
+//
+// A function that declares a return type must hand back a value on every path:
+// reaching the closing brace without a `return` is an error, not a silent
+// zero. The analysis is deliberately syntactic and conservative — it answers
+// "does control certainly leave the function here?", and when unsure it says
+// no, which at worst asks the author for one more explicit `return`.
+//===----------------------------------------------------------------------===//
+
+static bool StmtAlwaysExits(ASTStmt *Stmt);
+
+// ContainsBreak — a `break` that belongs to THIS construct. Nested loops and
+// switches capture their own breaks, so the walk does not descend into them.
+static bool ContainsBreak(ASTStmt *Stmt) {
+	if (Stmt == nullptr)
+		return false;
+	switch (Stmt->getStmtKind()) {
+		case ASTStmtKind::STMT_BREAK:
+			return true;
+		case ASTStmtKind::STMT_BLOCK: {
+			for (ASTStmt *S : static_cast<ASTBlockStmt *>(Stmt)->getContent())
+				if (ContainsBreak(S))
+					return true;
+			return false;
+		}
+		case ASTStmtKind::STMT_IF: {
+			ASTIfStmt *If = static_cast<ASTIfStmt *>(Stmt);
+			if (ContainsBreak(If->getStmt()) || ContainsBreak(If->getElse()))
+				return true;
+			for (ASTRuleStmt *Elsif : If->getElsif())
+				if (ContainsBreak(Elsif->getStmt()))
+					return true;
+			return false;
+		}
+		case ASTStmtKind::STMT_HANDLE:
+			return ContainsBreak(static_cast<ASTHandleStmt *>(Stmt)->getHandle());
+		default:
+			// STMT_LOOP / STMT_LOOP_IN / STMT_SWITCH own their breaks.
+			return false;
+	}
+}
+
+// BlockAlwaysExits — true when every path through this statement list leaves the
+// function. Statements after an exiting one are unreachable, so one is enough.
+static bool BlockAlwaysExits(ASTStmt *Stmt) {
+	if (Stmt == nullptr)
+		return false;
+	if (Stmt->getStmtKind() == ASTStmtKind::STMT_BLOCK) {
+		for (ASTStmt *S : static_cast<ASTBlockStmt *>(Stmt)->getContent())
+			if (StmtAlwaysExits(S))
+				return true;
+		return false;
+	}
+	return StmtAlwaysExits(Stmt);
+}
+
+static bool StmtAlwaysExits(ASTStmt *Stmt) {
+	if (Stmt == nullptr)
+		return false;
+
+	switch (Stmt->getStmtKind()) {
+
+		// `return` leaves, and so does `fail`: propagation writes the error struct
+		// and returns from the function (it is not stack unwinding, but from this
+		// function's point of view control is gone).
+		case ASTStmtKind::STMT_RETURN:
+		case ASTStmtKind::STMT_FAIL:
+			return true;
+
+		case ASTStmtKind::STMT_BLOCK:
+			return BlockAlwaysExits(Stmt);
+
+		// An if-chain exits only when it is total: an `else` must exist and every
+		// branch, elsif included, must exit.
+		case ASTStmtKind::STMT_IF: {
+			ASTIfStmt *If = static_cast<ASTIfStmt *>(Stmt);
+			if (If->getElse() == nullptr)
+				return false;
+			if (!BlockAlwaysExits(If->getStmt()) || !BlockAlwaysExits(If->getElse()))
+				return false;
+			for (ASTRuleStmt *Elsif : If->getElsif())
+				if (!BlockAlwaysExits(Elsif->getStmt()))
+					return false;
+			return true;
+		}
+
+		// A switch exits when it has a default and no case can fall out of it —
+		// a case that ends in `break` continues after the switch, so it does not.
+		case ASTStmtKind::STMT_SWITCH: {
+			ASTSwitchStmt *Switch = static_cast<ASTSwitchStmt *>(Stmt);
+			if (Switch->getDefault() == nullptr)
+				return false;
+			for (ASTCaseStmt *Case : Switch->getCases())
+				if (!BlockAlwaysExits(Case->getStmt()))
+					return false;
+			return BlockAlwaysExits(Switch->getDefault());
+		}
+
+		// `while true { … }` with no break never falls through — the classic
+		// "loop until we return" shape.
+		case ASTStmtKind::STMT_LOOP: {
+			ASTLoopStmt *Loop = static_cast<ASTLoopStmt *>(Stmt);
+			ASTExpr *Cond = Loop->getExpr();
+			bool Infinite = Cond == nullptr;
+			if (!Infinite && Cond->getExprKind() == ASTExprKind::EXPR_VALUE) {
+				ASTValue *Value = static_cast<ASTValue *>(Cond);
+				Infinite = Value->getValueKind() == ASTValueKind::VAL_BOOL &&
+					static_cast<ASTBoolValue *>(Value)->getValue();
+			}
+			return Infinite && !ContainsBreak(Loop->getLoop());
+		}
+
+		// Everything else — including `handle`, whose body is entered and left
+		// normally, and `test {}`, which is stripped from release builds.
+		default:
+			return false;
+	}
+}
+
 void Resolver::ResetCurrents() {
 	FLY_DEBUG_SCOPE("Resolver", "ResetCurrent");
 	CurrentClass = nullptr;
@@ -3016,7 +3305,20 @@ void Resolver::Resolve() {
 
 		// Resolve Body - visit(ASTBlockStmt) will create SemaBlockStmt and set as function body
 		ASTBlockStmt *Body = FunctionBase->getAST().getBody();
+		NRVOName = FindNRVOName(Body, FunctionBase);
 		Body->accept(*this);
+		NRVOName = llvm::StringRef();
+
+		// Every declared return value must be produced on every path. An empty body
+		// is an extern stub (the C implementation provides it), so it is exempt.
+		bool HasReturnValue = false;
+		for (SemaParam *P : FunctionBase->getParams())
+			if (P->isSynthetic())
+				HasReturnValue = true;
+		if (HasReturnValue && !Body->getContent().empty() && !BlockAlwaysExits(Body)) {
+			Diag(FunctionBase->getAST().getLocation(), diag::err_sema_missing_return)
+				<< FunctionBase->getAST().getName();
+		}
 
 		// Emit warnings for local variables declared but never read in this function
 		for (SemaLocalVar *V : UnusedLocalVars) {
@@ -3162,30 +3464,32 @@ void Resolver::ResolveFunction(SemaFunction *Sema) {
 		}
 	}
 
-	// If the function declares a return type, resolve it and add a synthetic
-	// 'out' parameter (non-const = by pointer) that carries the return value.
-	// Inside the body, 'out' refers to this hidden parameter.
+	// If the function declares a return type, resolve it and add the synthetic
+	// '__ret' parameter (non-const = by pointer) that carries the return value.
+	// `return expr` lowers to an assignment to it, so the emitted IR is unchanged
+	// from the old explicit `out = expr`; the name is reserved and user code
+	// cannot name the slot.
 	if (AST.getReturnType() != nullptr) {
 		AST.getReturnType()->accept(*this);
 		Sema->setReturnType(CurrentType);
 
 		llvm::SmallVector<ASTModifier *, 8> NoMods;
 		ASTParam *OutParam = ASTBuilder::CreateParam(
-			AST.getLocation(), AST.getReturnType(), "out", NoMods);
+			AST.getLocation(), AST.getReturnType(), "__ret", NoMods);
 		OutParam->accept(*this);
 		SemaParam *OutSemaParam = OutParam->getSymbol()->getRefAs<SemaParam>();
 		OutSemaParam->Synthetic = true;
 		Sema->addParam(OutSemaParam);
-		addSymbol(OutParam->getSymbol()); // 'out' visible in body scope
+		addSymbol(OutParam->getSymbol()); // the return slot, in body scope
 	} else if (!AST.getReturnTypes().empty()) {
-		// Multi-return: create __out_0, __out_1, … params for each declared return type.
-		// The body uses "out[N] = value" which the parser rewrites to "__out_N = value".
-		// Names are stored in SyntheticParamNames so StringRefs remain valid.
+		// Multi-return: create __ret_0, __ret_1, … params for each declared return
+		// type; `return a, b` assigns them in order. Names are stored in
+		// SyntheticParamNames so StringRefs remain valid.
 		llvm::SmallVector<ASTModifier *, 8> NoMods;
 		for (size_t i = 0; i < AST.getReturnTypes().size(); ++i) {
 			ASTType *RT = AST.getReturnTypes()[i];
 			RT->accept(*this);
-			SyntheticParamNames.push_back("__out_" + std::to_string(i));
+			SyntheticParamNames.push_back("__ret_" + std::to_string(i));
 			llvm::StringRef PName = SyntheticParamNames.back();
 			ASTParam *OutParam = ASTBuilder::CreateParam(AST.getLocation(), RT, PName, NoMods);
 			OutParam->accept(*this);

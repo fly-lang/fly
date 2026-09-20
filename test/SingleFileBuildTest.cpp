@@ -152,7 +152,7 @@ namespace {
     TEST_F(SingleFileBuildTest, NoMainIsAnError) {
         const std::string dir = "sfb_nomain_src";
         makeDir(dir);
-        writeFile(dir + "/sfb_lib.fly", "namespace demo\npublic int answer() { out = 42 }\n");
+        writeFile(dir + "/sfb_lib.fly", "namespace demo\npublic int answer() { return 42 }\n");
         const char *argv[] = {"fly", "--src-dir", "sfb_nomain_src"};
         Driver drv(argv);
         drv.BuildCompilerInstance();
@@ -200,7 +200,7 @@ namespace {
     TEST_F(SingleFileBuildTest, LibFlagOverridesMain) {
         const std::string dir = "sfb_ovr";
         makeDir(dir);
-        writeFile(dir + "/sfb_ovr.fly", "namespace demo\nvoid main() {}\npublic int v() { out = 1 }\n");
+        writeFile(dir + "/sfb_ovr.fly", "namespace demo\nvoid main() {}\npublic int v() { return 1 }\n");
         track(libName("sfb_ovr"));
         track("sfb_ovr.fly.h");
         const char *argv[] = {"fly", "--lib", "--src-dir", "sfb_ovr"};
@@ -310,10 +310,10 @@ namespace {
         llvm::sys::fs::create_directory(dir);
         T.CleanupDirs.push_back(dir);
         T.writeFile(dir + "/util.fly",
-                    "namespace dep.util\n\npublic int helper() { out = 41 }\n");
+                    "namespace dep.util\n\npublic int helper() { return 41 }\n");
         T.writeFile(dir + "/main.fly",
                     "namespace dep\n\nimport dep.util.*\n\n"
-                    "public int compute() { out = helper() + 1 }\n");
+                    "public int compute() { return helper() + 1 }\n");
     }
 
     // --lib compiles the whole root (entry + sibling) into one archive at -o.
@@ -358,7 +358,7 @@ namespace {
         const std::string dir = "sfb_od_lib";
         makeDir(src);
         CleanupDirs.push_back(dir);
-        writeFile(src + "/sfb_odlib.fly", "namespace demo\npublic int answer() { out = 42 }\n");
+        writeFile(src + "/sfb_odlib.fly", "namespace demo\npublic int answer() { return 42 }\n");
         const char *argv[] = {"fly", "--lib", "--src-dir", "sfb_odlib_src",
                               "--out-dir", dir.c_str()};
         Driver drv(argv);
@@ -418,7 +418,7 @@ namespace {
         const std::string dir = "sfb_od_o";
         makeDir(src);
         CleanupDirs.push_back(dir);
-        writeFile(src + "/sfb_odo.fly", "namespace demo\npublic int v() { out = 1 }\n");
+        writeFile(src + "/sfb_odo.fly", "namespace demo\npublic int v() { return 1 }\n");
         const char *argv[] = {"fly", "--lib", "-o", "foo.a",
                               "--src-dir", "sfb_odo_src", "--out-dir", dir.c_str()};
         Driver drv(argv);
@@ -466,8 +466,7 @@ namespace {
         makeDir(dir);
         writeFile(dir + "/main.fly",
                   "int, int divmod(const int a, const int b) {\n"
-                  "    out[0] = a / b\n"
-                  "    out[1] = a % b\n"
+                  "    return a / b, a % b\n"
                   "}\n"
                   "\n"
                   "void main() {\n"
@@ -518,15 +517,154 @@ namespace {
     // unhandled `fail`, never from `out`). A declared return type made the
     // Resolver append the synthetic `out` param, but CodeGenFunction builds main
     // as the C entry point `i32 main(argc, argv)` and never allocates it — so
-    // `out = r` emitted `store i32 %8, <null operand!>` and aborted the backend
+    // `return r` emitted `store i32 %8, <null operand!>` and aborted the backend
     // with "Broken function" instead of being diagnosed. Exactly one error: the
     // program is otherwise valid, so a second one would mean we broke something.
+    // `return expr` is the ONLY way to produce a value (the implicit `out`
+    // variable is gone). These pin the surface syntax and every way to get it
+    // wrong; the lowering itself — a store into the hidden slot, then ret void —
+    // is what the IR tests cover.
+    TEST_F(SingleFileBuildTest, ReturnValueCompilesAndRuns) {
+        const std::string dir = "sfb_retval_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "int sq(const int n) {\n"
+                  "    return n * n\n"
+                  "}\n"
+                  "\n"
+                  "int pick(const int n) {\n"
+                  "    if n > 0 {\n"
+                  "        return 1\n"
+                  "    } else {\n"
+                  "        return 0\n"
+                  "    }\n"
+                  "}\n"
+                  "\n"
+                  "void early(const int n) {\n"
+                  "    if n < 0 { return }\n"
+                  "}\n"
+                  "\n"
+                  "void main() {\n"
+                  "    int a = sq(7)\n"
+                  "    int b = pick(a)\n"
+                  "    early(b)\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_retval_src"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
+
+    // A value handed back where none was declared.
+    TEST_F(SingleFileBuildTest, ReturnValueInVoidIsRejected) {
+        const std::string dir = "sfb_retvoid_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "void f(const int n) {\n"
+                  "    return n\n"
+                  "}\n"
+                  "void main() { f(1) }\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_retvoid_src"};
+        Driver drv(argv);
+        CompilerInstance &CI = drv.BuildCompilerInstance();
+        EXPECT_FALSE(drv.Execute());
+        EXPECT_EQ(CI.getDiagnostics().getNumErrors(), 1u);
+    }
+
+    // A bare `return` where a value was declared.
+    TEST_F(SingleFileBuildTest, BareReturnInValueFunctionIsRejected) {
+        const std::string dir = "sfb_retbare_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "int f(const int n) {\n"
+                  "    return\n"
+                  "}\n"
+                  "void main() { int x = f(1) }\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_retbare_src"};
+        Driver drv(argv);
+        CompilerInstance &CI = drv.BuildCompilerInstance();
+        EXPECT_FALSE(drv.Execute());
+    }
+
+    // Too many or too few values for the declared return types.
+    TEST_F(SingleFileBuildTest, ReturnArityMismatchIsRejected) {
+        const std::string dir = "sfb_retarity_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "int f(const int n) {\n"
+                  "    return n, n\n"
+                  "}\n"
+                  "void main() { int x = f(1) }\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_retarity_src"};
+        Driver drv(argv);
+        CompilerInstance &CI = drv.BuildCompilerInstance();
+        EXPECT_FALSE(drv.Execute());
+    }
+
+    // Falling off the end of a value-returning function: an if with no else can
+    // reach the closing brace, and that is now an error rather than a zero.
+    TEST_F(SingleFileBuildTest, MissingReturnOnSomePathIsRejected) {
+        const std::string dir = "sfb_retpath_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "int f(const int n) {\n"
+                  "    if n > 0 {\n"
+                  "        return 1\n"
+                  "    }\n"
+                  "}\n"
+                  "void main() { int x = f(1) }\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_retpath_src"};
+        Driver drv(argv);
+        CompilerInstance &CI = drv.BuildCompilerInstance();
+        EXPECT_FALSE(drv.Execute());
+    }
+
+    // The shapes that DO cover every path: a total if/else, a switch with a
+    // default, an endless loop with no break, and `fail` as the exit.
+    TEST_F(SingleFileBuildTest, EveryPathReturnsIsAccepted) {
+        const std::string dir = "sfb_retpathok_src";
+        makeDir(dir);
+        writeFile(dir + "/main.fly",
+                  "int viaSwitch(const int n) {\n"
+                  "    switch n {\n"
+                  "        case 1: return 10\n"
+                  "        default: return 0\n"
+                  "    }\n"
+                  "}\n"
+                  "\n"
+                  "int viaLoop(const int n) {\n"
+                  "    while true {\n"
+                  "        if n > 0 { return n }\n"
+                  "    }\n"
+                  "}\n"
+                  "\n"
+                  "int viaFail(const int n) {\n"
+                  "    fail 7\n"
+                  "}\n"
+                  "\n"
+                  "void main() {\n"
+                  "    int a = viaSwitch(1)\n"
+                  "    int b = viaLoop(1)\n"
+                  "    int c = viaFail(1)\n"
+                  "}\n");
+
+        const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_retpathok_src"};
+        Driver drv(argv);
+        drv.BuildCompilerInstance();
+        EXPECT_TRUE(drv.Execute());
+    }
+
     TEST_F(SingleFileBuildTest, MainWithReturnTypeIsRejected) {
         const std::string dir = "sfb_mainret_src";
         makeDir(dir);
         writeFile(dir + "/main.fly",
                   "int main() {\n"
-                  "    out = 7\n"
+                  "    return 7\n"
                   "}\n");
 
         const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_mainret_src"};
@@ -546,8 +684,7 @@ namespace {
         makeDir(dir);
         writeFile(dir + "/main.fly",
                   "int, int main() {\n"
-                  "    out[0] = 1\n"
-                  "    out[1] = 2\n"
+                  "    return 1, 2\n"
                   "}\n");
 
         const char *argv[] = {"fly", "--no-output", "--src-dir", "sfb_mainmulti_src"};
@@ -591,10 +728,10 @@ namespace {
                   "public class C {\n"
                   "    public C() { }\n"
                   "    public string pick(const string a) {\n"
-                  "        out = this.pick(a, \".ll\")\n"
+                  "        return this.pick(a, \".ll\")\n"
                   "    }\n"
                   "    public string pick(const string a, const string b) {\n"
-                  "        out = b\n"
+                  "        return b\n"
                   "    }\n"
                   "}\n"
                   "\n"
@@ -611,14 +748,14 @@ namespace {
 
     // An out slot is written through, so a trailing argument standing in for one
     // must be addressable. `pick(1, 2)` against a value-returning `pick(a)` reads
-    // as "out = 2" and used to store into the literal — the call had no value and
+    // as "return 2" and used to store into the literal — the call had no value and
     // assigning it crashed the compiler. It must be an ordinary diagnostic.
     TEST_F(SingleFileBuildTest, LoweredCallRejectsNonAddressableOutArg) {
         const std::string dir = "sfb_lowlit_src";
         makeDir(dir);
         writeFile(dir + "/main.fly",
                   "public int pick(const int a) {\n"
-                  "    out = a\n"
+                  "    return a\n"
                   "}\n"
                   "\n"
                   "void main() {\n"
@@ -645,7 +782,7 @@ namespace {
         writeFile(dir + "/main.fly",
                   "int[] build() {\n"
                   "    int[] a = {4, 5, 6}\n"
-                  "    out = a\n"
+                  "    return a\n"
                   "}\n"
                   "\n"
                   "void main() {\n"
@@ -730,7 +867,7 @@ namespace {
                   "public class Cell {\n"
                   "    int v\n"
                   "    public Cell() { this.v = 0 }\n"
-                  "    public int get() { out = this.v }\n"
+                  "    public int get() { return this.v }\n"
                   "}\n"
                   "\n"
                   "void main() {\n"
@@ -759,7 +896,7 @@ namespace {
                   "public class Needs {\n"
                   "    int v\n"
                   "    public Needs(const int n) { this.v = n }\n"
-                  "    public int get() { out = this.v }\n"
+                  "    public int get() { return this.v }\n"
                   "}\n"
                   "\n"
                   "void main() {\n"

@@ -234,7 +234,7 @@ namespace {
     TEST_F(CodeGenTest, CGStringSelfReassignCall) {
         /**
          * Fly code (the literal quirk: x = strFn(x, …)):
-         * string concat2(string a, string b) { out = a + b }
+         * string concat2(string a, string b) { return a + b }
          * void func() {
          *   string s = "ab"
          *   s = concat2(s, "cd")   → concat2 reads s, store result, THEN free old s
@@ -248,7 +248,7 @@ namespace {
          */
         ASTModule *Module = CreateModule();
 
-        // string concat2(string a, string b) { out = a + b }
+        // string concat2(string a, string b) { return a + b }
         llvm::SmallVector<ASTParam *, 8> CParams;
         ASTParam *Param_a = ASTBuilder::CreateParam(SourceLoc, StringTypeRef, "a", EmptyModifiers);
         ASTParam *Param_b = ASTBuilder::CreateParam(SourceLoc, StringTypeRef, "b", EmptyModifiers);
@@ -260,9 +260,8 @@ namespace {
         ASTBinary *AbConcat = ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ARITH_ADD,
                                                        ASTBuilder::CreateIdentifier(Param_a),
                                                        ASTBuilder::CreateIdentifier(Param_b));
-        ASTExprStmt *COutStmt = ASTBuilder::CreateExprStmt(CBody, SourceLoc);
-        COutStmt->setExpr(ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
-                                                   ASTBuilder::CreateIdentifier(SourceLoc, "out"), AbConcat));
+        ASTReturnStmt *CReturn = ASTBuilder::CreateReturnStmt(CBody, SourceLoc);
+        CReturn->addExpr(AbConcat);
 
         // void func() { string s = "ab"  s = concat2(s, "cd") }
         llvm::SmallVector<ASTParam *, 8> Params;

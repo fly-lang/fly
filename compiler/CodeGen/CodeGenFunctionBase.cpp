@@ -141,10 +141,19 @@ void CodeGenFunctionBase::AllocaLocalVars() {
     	// No allocation needed - the pointer is the parameter itself
     }
 
+    // NRVO: a local bound to the return slot gets no storage of its own — it IS
+    // the caller's slot, which is always the last argument (the hidden return
+    // pointer). Building the struct in place then costs nothing, and the
+    // `return local` at the end is a no-op instead of a copy.
+    llvm::Value *ReturnSlotArg = Fn->arg_size() > 0 ? Fn->getArg(Fn->arg_size() - 1) : nullptr;
+
     // Allocation of all declared SemaLocalVar
     for (auto &LocalVar: Sema->getLocalVars()) {
     	LocalVar->accept(*CGM);
-    	LocalVar->getCodeGen()->Alloca();
+    	if (LocalVar->isReturnSlot() && ReturnSlotArg != nullptr)
+    		LocalVar->getCodeGen()->AllocaBoundToReturnSlot(ReturnSlotArg);
+    	else
+    		LocalVar->getCodeGen()->Alloca();
 
         if (CGM->DBuilder && CGM->DebugFile) {
             llvm::BasicBlock *BB = CGM->Builder->GetInsertBlock();

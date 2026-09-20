@@ -761,19 +761,28 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 		return;
 	}
 
-	// Parse return statement — Fly functions are void; 'return' never carries a value
+	// Parse return statement — `return`, `return expr`, or `return a, b` for a
+	// function with several declared return types. A value must sit on the SAME
+	// line as the keyword: that keeps `if x { return }` and a bare `return`
+	// followed by the next statement unambiguous, since Fly has no statement
+	// terminator. Resolver lowers the values into assignments to the hidden
+	// return params, so the emitted IR is the old `out = expr` + `ret void`.
 	if (Tok.is(tok::kw_return)) {
 		SourceLocation Loc = Tok.getLocation();
 		ConsumeToken();
-		// If the next token is on the same line and is not '}' or EOF, the user
-		// wrote 'return <expr>' which is illegal in Fly.
+		ASTReturnStmt *Return = ASTBuilder::CreateReturnStmt(Parent, Loc);
 		if (!Tok.isAtStartOfLine() && Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof)) {
-			Diag(Tok, diag::err_parser_return_with_value);
-			// Skip the rest of the line as error recovery
-			while (!Tok.isAtStartOfLine() && Tok.isNot(tok::r_brace) && Tok.isNot(tok::eof))
+			ASTExpr *Value = ParseExpr();
+			if (Value)
+				Return->addExpr(Value);
+			while (Tok.is(tok::comma)) {
 				ConsumeToken();
+				ASTExpr *Next = ParseExpr();
+				if (Next == nullptr)
+					break;
+				Return->addExpr(Next);
+			}
 		}
-		ASTBuilder::CreateReturnStmt(Parent, Loc);
 		return;
 	}
 
@@ -853,40 +862,6 @@ void Parser::ParseStmt(ASTBlockStmt *Parent) {
 		// Declaration without initializer
 		ASTBuilder::CreateDeclStmt(Parent, Identifier->getLocation(), LocalVar);
 		return;
-	}
-
-	// Multi-return assignment: "out[N] = expr" — rewrite to "__out_N = expr" at parse time.
-	// This is the body syntax for functions with multiple declared return types.
-	if (Tok.isAnyIdentifier() && Tok.getIdentifierInfo()->getName() == "out") {
-		std::optional<Token> NextTok = Lexer::findNextToken(Tok.getLocation(), SourceMgr);
-		if (NextTok && NextTok->is(tok::l_square)) {
-			std::optional<Token> IdxTok = Lexer::findNextToken(NextTok->getLocation(), SourceMgr);
-			if (IdxTok && IdxTok->is(tok::numeric_constant)) {
-				std::optional<Token> CloseTok = Lexer::findNextToken(IdxTok->getLocation(), SourceMgr);
-				if (CloseTok && CloseTok->is(tok::r_square)) {
-					std::optional<Token> AssignTok = Lexer::findNextToken(CloseTok->getLocation(), SourceMgr);
-					if (AssignTok && isAssignOperator(*AssignTok)) {
-						// Translate "out[N] = expr" to "__out_N = expr".
-						// Use Lex.getIdentifierInfo() to intern the name for stable StringRef lifetime.
-						const SourceLocation &OutLoc = Tok.getLocation();
-						ConsumeToken(); // consume 'out'
-						ConsumeBracket(); // consume '['
-						StringRef NumStr(Tok.getLiteralData(), Tok.getLength());
-						unsigned long N = std::stoul(NumStr.str());
-						ConsumeToken(); // consume N
-						ConsumeBracket(); // consume ']'
-						SyntheticNames.push_back("__out_" + std::to_string(N));
-						llvm::StringRef OutName = SyntheticNames.back();
-						Identifier = ASTBuilder::CreateIdentifier(OutLoc, OutName);
-						if (isAssignOperator(Tok)) {
-							ASTExprStmt *Stmt = ASTBuilder::CreateExprStmt(Parent, OutLoc);
-							Stmt->setExpr(ParseExpr(Identifier));
-							return;
-						}
-					}
-				}
-			}
-		}
 	}
 
 	// Try to parse an identifier assignment: "name = expr" or "name += expr"
