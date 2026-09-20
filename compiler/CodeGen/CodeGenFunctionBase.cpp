@@ -16,6 +16,7 @@
 #include "CodeGen/CodeGenModule.h"
 #include "Sema/SemaClassAttribute.h"
 #include "Sema/SemaClassMethod.h"
+#include "Sema/SemaClassType.h"
 
 #include "AST/ASTVar.h"
 #include "Basic/SourceLocation.h"
@@ -150,10 +151,20 @@ void CodeGenFunctionBase::AllocaLocalVars() {
     // Allocation of all declared SemaLocalVar
     for (auto &LocalVar: Sema->getLocalVars()) {
     	LocalVar->accept(*CGM);
-    	if (LocalVar->isReturnSlot() && ReturnSlotArg != nullptr)
-    		LocalVar->getCodeGen()->AllocaBoundToReturnSlot(ReturnSlotArg);
-    	else
+    	if (LocalVar->isReturnSlot() && ReturnSlotArg != nullptr) {
+    		// Two shapes of return slot. A STRUCT variable is a pointer cell that has
+    		// to be made to point at the caller's object; a STRING variable IS its
+    		// {ptr,size} aggregate, so the caller's storage can back it directly.
+    		SemaType *VarTy = LocalVar->getType();
+    		bool IsStruct = VarTy && VarTy->isClass() &&
+    		                static_cast<SemaClassType *>(VarTy)->getClassKind() == SemaClassKind::STRUCT;
+    		if (IsStruct)
+    			LocalVar->getCodeGen()->AllocaBoundToReturnSlot(ReturnSlotArg);
+    		else
+    			LocalVar->getCodeGen()->setPointer(ReturnSlotArg);
+    	} else {
     		LocalVar->getCodeGen()->Alloca();
+    	}
 
         if (CGM->DBuilder && CGM->DebugFile) {
             llvm::BasicBlock *BB = CGM->Builder->GetInsertBlock();
