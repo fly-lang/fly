@@ -1844,7 +1844,13 @@ llvm::Value * CodeGenExpr::GenBinaryAssign(SemaExpr *E1, SemaExpr *E2, bool Free
 	// `fs.tempFile(dir, pat, name, file)` silently clobbered the first `File`,
 	// leaking its descriptor and making its file undeletable. Writing through the
 	// pointer is also what makes a non-const parameter an output parameter.
-	if (E1->getKind() == SemaKind::PARAM_VAR && E1->getType()->isClass()) {
+	// An NRVO local takes the same path: its pointer slot holds the CALLER's
+	// struct, so assigning to it must copy the bytes THROUGH the pointer. Storing
+	// the source pointer would re-point the slot at callee memory and the caller
+	// would never see the value — the same bug the param case describes.
+	bool ReturnSlotLocal = E1->getKind() == SemaKind::LOCAL_VAR &&
+		static_cast<SemaVar *>(E1)->isReturnSlot();
+	if ((E1->getKind() == SemaKind::PARAM_VAR || ReturnSlotLocal) && E1->getType()->isClass()) {
 		SemaClassType *LC = static_cast<SemaClassType *>(E1->getType());
 		if (LC->getClassKind() == SemaClassKind::STRUCT) {
 			llvm::StructType *StructTy = LC->getCodeGen() ? LC->getCodeGen()->getType() : nullptr;

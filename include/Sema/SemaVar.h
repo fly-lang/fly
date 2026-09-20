@@ -35,6 +35,12 @@ namespace fly {
 
     	bool Constant = false;
 
+    	// NRVO: this local IS the caller's return slot, it has no storage of its own.
+    	// Set when every `return` in the body hands back this same struct local, so
+    	// building it field by field writes straight into the slot — the speed the
+    	// old `out.field = …` had, without the out variable.
+    	bool ReturnSlot = false;
+
     	// Non-owning: owned by the enclosing SemaBlockStmt (via addAlloc). Do NOT delete here.
     	// Holds either a SemaSmartAlloc (smart pointer) or SemaStringAlloc (heap string).
     	SemaAlloc *Alloc = nullptr;
@@ -51,6 +57,9 @@ namespace fly {
     	virtual llvm::StringRef getName() const;
 
     	bool isConstant() const;
+
+    	bool isReturnSlot() const { return ReturnSlot; }
+    	void setReturnSlot(bool V) { ReturnSlot = V; }
 
     	SemaAlloc *getAlloc() const;
     	void setAlloc(SemaAlloc *A);

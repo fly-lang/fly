@@ -71,6 +71,17 @@ llvm::AllocaInst *CodeGenVar::Alloca() {
 	return llvm::cast<llvm::AllocaInst>(this->Pointer);
 }
 
+llvm::AllocaInst *CodeGenVar::AllocaBoundToReturnSlot(llvm::Value *ReturnSlotArg) {
+	// Mirrors the STRUCT branch of Alloca(), minus the fresh data alloca: the
+	// pointer slot is loaded from the caller's return slot, so every field write
+	// lands directly in the caller's struct.
+	llvm::PointerType *PtrTy = T->getPointerTo(CGM->Module->getDataLayout().getAllocaAddrSpace());
+	this->Pointer = CGM->Builder->CreateAlloca(PtrTy);
+	llvm::Value *CallerData = CGM->Builder->CreateLoad(PtrTy, ReturnSlotArg);
+	CGM->Builder->CreateStore(CallerData, this->Pointer);
+	return llvm::cast<llvm::AllocaInst>(this->Pointer);
+}
+
 llvm::StoreInst *CodeGenVar::Store(llvm::Value *Val) {
     this->LoadBlock = nullptr;
     this->LoadI = nullptr;

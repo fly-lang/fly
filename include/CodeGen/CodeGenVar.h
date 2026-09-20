@@ -57,6 +57,12 @@ namespace fly {
 
     	llvm::AllocaInst *Alloca();
 
+    	// NRVO variant: the variable keeps its own pointer slot, but that slot points
+    	// at the CALLER's struct (read from the hidden return argument) instead of
+    	// fresh local storage. Building the struct then writes straight into the
+    	// returned object, and `return var` needs no copy at all.
+    	llvm::AllocaInst *AllocaBoundToReturnSlot(llvm::Value *ReturnSlotArg);
+
         llvm::StoreInst *Store(llvm::Value *Val);
 
     	llvm::Value *StoreArrayValue(CodeGenArrayValue *ArrayValue);

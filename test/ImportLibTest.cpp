@@ -113,8 +113,7 @@ void main() {
         { std::ofstream f(libSrc);
           f << "namespace mr\n\n"
                "public int,int divmod(const int a, const int b) {\n"
-               "    out[0] = a / b\n"
-               "    out[1] = a % b\n"
+               "    return a / b, a % b\n"
                "}\n"; }
 
         // Step 1: generate the header. --no-output keeps this at the frontend —

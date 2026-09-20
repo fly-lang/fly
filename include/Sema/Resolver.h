@@ -157,6 +157,12 @@ namespace fly {
     	// the names of the first one (' _out_0' garbage lookups).
     	std::deque<std::string> SyntheticParamNames;
 
+    	// NRVO: name of the struct local that every `return` in the body being
+    	// resolved hands back. Empty when the optimization does not apply. The local
+    	// is then bound to the caller's return slot and `return name` emits nothing,
+    	// so field-by-field construction stays copy-free.
+    	llvm::StringRef NRVOName;
+
         // Inline `test {}` blocks are resolved; visit(ASTTestStmt) strips them
         // when this is off. Suites are not gated by it.
         bool TestMode = false;
@@ -274,6 +280,12 @@ namespace fly {
     	SmallVector<SemaType *, 8> ResolveParams(ASTFunction &AST);
 
     	SemaSmartAlloc *RegisterSmartAlloc(SemaExpr *Expr);
+
+    	// Append an already-resolved expression to the current block as a statement,
+    	// applying the owned-slot release marking and smart-alloc registration that
+    	// every assignment needs. Shared by visit(ASTExprStmt) and the `return expr`
+    	// lowering, so a returned value behaves exactly like a written assignment.
+    	void AddResolvedExprStmt(ASTStmt &AnchorAST, SemaExpr *ResolvedExpr);
 
     	SemaType * PromoteNumberTypes(SemaType * Type1, SemaType * Type2);
 

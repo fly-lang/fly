@@ -305,41 +305,39 @@ namespace {
          * Method chaining on a call-result (was unresolvable — "no function 'get' matches"):
          * class Box {
          *   int v
-         *   int get() { out = this.v }
+         *   int get() { return this.v }
          * }
-         * Box makeBox() { out = new Box() }
+         * Box makeBox() { return new Box() }
          * void func() {
          *   int r = makeBox().get()
          * }
          */
         ASTModule *Module = CreateModule();
 
-        // class Box { int v; int get() { out = this.v } }
+        // class Box { int v; int get() { return this.v } }
         llvm::SmallVector<ASTType *, 4> SuperClasses;
         ASTClass *Box = ASTBuilder::CreateClass(Module, SourceLoc, ASTClassKind::CLASS, "Box", TopModifiers, SuperClasses);
         ASTVar *vAttribute = ASTBuilder::CreateClassAttribute(SourceLoc, Box, IntTypeRef, "v", TopModifiers);
 
-        // int get() { out = this.v }
+        // int get() { return this.v }
         llvm::SmallVector<ASTParam *, 8> getParams;
         ASTBlockStmt *getBody = ASTBuilder::CreateBlockStmt(SourceLoc);
         ASTMethod *getMethod = ASTBuilder::CreateClassMethod(SourceLoc, Box, "get", TopModifiers, getParams, getBody);
         getMethod->setReturnType(IntTypeRef);
         ASTMember *thisV = ASTBuilder::CreateMember(SourceLoc, vAttribute->getName(),
                                                     ASTBuilder::CreateIdentifier(SourceLoc, "this"));
-        ASTExprStmt *getOutStmt = ASTBuilder::CreateExprStmt(getBody, SourceLoc);
-        getOutStmt->setExpr(ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
-                                                     ASTBuilder::CreateIdentifier(SourceLoc, "out"), thisV));
+        ASTReturnStmt *getReturn = ASTBuilder::CreateReturnStmt(getBody, SourceLoc);
+        getReturn->addExpr(thisV);
 
-        // Box makeBox() { out = new Box() }
+        // Box makeBox() { return new Box() }
         llvm::SmallVector<ASTParam *, 8> mbParams;
         ASTBlockStmt *mbBody = ASTBuilder::CreateBlockStmt(SourceLoc);
         ASTFunction *MakeBox = ASTBuilder::CreateFunction(Module, SourceLoc, "makeBox", TopModifiers, mbParams, mbBody);
         MakeBox->setReturnType(CreateType(Box));
         llvm::SmallVector<ASTExpr *, 8> newArgs;
         ASTCall *NewBox = ASTBuilder::CreateCall(SourceLoc, Box->getName(), newArgs, ASTCallKind::CALL_NEW);
-        ASTExprStmt *mbOutStmt = ASTBuilder::CreateExprStmt(mbBody, SourceLoc);
-        mbOutStmt->setExpr(ASTBuilder::CreateBinary(SourceLoc, ASTBinaryKind::OP_BINARY_ASSIGN,
-                                                    ASTBuilder::CreateIdentifier(SourceLoc, "out"), NewBox));
+        ASTReturnStmt *mbReturn = ASTBuilder::CreateReturnStmt(mbBody, SourceLoc);
+        mbReturn->addExpr(NewBox);
 
         // void func() { int r = makeBox().get() }
         ASTBlockStmt *Body = ASTBuilder::CreateBlockStmt(SourceLoc);

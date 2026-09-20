@@ -23,9 +23,18 @@ void ASTReturnStmt::accept(ASTVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
+void ASTReturnStmt::addExpr(ASTExpr *Expr) {
+	Exprs.push_back(Expr);
+}
+
+const llvm::SmallVector<ASTExpr *, 4> &ASTReturnStmt::getExprs() const {
+	return Exprs;
+}
+
 std::string ASTReturnStmt::str() const {
     return Logger("ASTReturn").
 	Attr("Location", getLocation()).
 	Attr("Kind", static_cast<size_t>(getKind())).
+	Attr("Values", static_cast<size_t>(Exprs.size())).
             End();
 }

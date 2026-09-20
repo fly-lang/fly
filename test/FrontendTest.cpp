@@ -583,7 +583,7 @@ namespace {
 
     TEST_F(HeaderGenTest, SingleReturn) {
         const std::string h = genHeader(
-            "namespace hg\n\npublic int single(const int a) {\n    out = a\n}\n");
+            "namespace hg\n\npublic int single(const int a) {\n    return a\n}\n");
         EXPECT_NE(h.find("public int single(const int a)"), std::string::npos) << h;
     }
 
@@ -592,7 +592,7 @@ namespace {
     TEST_F(HeaderGenTest, MultiReturnTwoTypes) {
         const std::string h = genHeader(
             "namespace hg\n\npublic int,int divmod(const int a, const int b) {\n"
-            "    out[0] = a / b\n    out[1] = a % b\n}\n");
+            "    return a / b, a % b\n}\n");
         EXPECT_NE(h.find("public int, int divmod(const int a, const int b)"),
                   std::string::npos) << h;
         // Never degraded to a single return or to void.
@@ -603,7 +603,7 @@ namespace {
     TEST_F(HeaderGenTest, MultiReturnThreeMixedTypes) {
         const std::string h = genHeader(
             "namespace hg\n\npublic int,string,bool triple(const int n) {\n"
-            "    out[0] = n\n    out[1] = \"\"\n    out[2] = true\n}\n");
+            "    return n, \"\", true\n}\n");
         EXPECT_NE(h.find("public int, string, bool triple(const int n)"),
                   std::string::npos) << h;
     }
@@ -616,7 +616,7 @@ namespace {
         const std::string h = genHeader(
             "namespace hg\n\npublic struct Box {\n    int v\n}\n\n"
             "public int,Box mixed(const int n) {\n"
-            "    out[0] = n\n    out[1] = new Box()\n}\n");
+            "    return n, new Box()\n}\n");
         EXPECT_NE(h.find("public int, Box mixed(const int n)"),
                   std::string::npos) << h;
     }
@@ -626,7 +626,7 @@ namespace {
     TEST_F(HeaderGenTest, ParamConstnessPreserved) {
         const std::string h = genHeader(
             "namespace hg\n\npublic int mixed(const int a, int b, const string s) {\n"
-            "    out = a\n}\n");
+            "    return a\n}\n");
         EXPECT_NE(h.find("public int mixed(const int a, int b, const string s)"),
                   std::string::npos) << h;
     }
@@ -652,7 +652,7 @@ namespace {
         { std::ofstream f(srcName);
           f << "namespace hg\n\nimport fly.data.List\n\n"
                "public List<string> generic(const int n) {\n"
-               "    out = new List<string>()\n}\n"; }
+               "    return new List<string>()\n}\n"; }
 
         const char *argv[] = {"fly", "--header", "--no-output",
                               "--src-dir", srcDir, "-L", libDir};

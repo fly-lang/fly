@@ -1145,7 +1145,10 @@ void CodeGenModule::visit(SemaDeclStmt &Sema) {
 			if (!isFreshAlloc)
 				EmitSharedRetain(CGV->Load());
 		}
-	} else {
+	} else if (!Sema.getVar()->isReturnSlot()) {
+		// An NRVO local already points at the caller's storage: the default store
+		// would overwrite that pointer with null, and the first field write would
+		// then hit address zero.
 		CGV->StoreDefaultValue();
 	}
 }
