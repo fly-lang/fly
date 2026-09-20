@@ -1082,7 +1082,11 @@ void Resolver::visit(ASTDeclStmt &AST) {
 	// Non-const string variables with an initializer always own a heap buffer:
 	// register scope-exit free. Const strings and uninitialized strings (zero value)
 	// use a global/null pointer and never need freeing.
-	if (LocalVar && DeclExpr && LocalVar->getType() && LocalVar->getType()->isString() && !LocalVar->isConstant()) {
+	// An NRVO local owns nothing: its storage IS the caller's return slot, so the
+	// buffer it ends up holding belongs to the caller. Registering it here would
+	// free, at scope exit, the very value the function just returned.
+	if (LocalVar && DeclExpr && LocalVar->getType() && LocalVar->getType()->isString() &&
+	    !LocalVar->isConstant() && !LocalVar->isReturnSlot()) {
 		if (CurrentSemaBlock) {
 			SemaStringAlloc *SA = new SemaStringAlloc(LocalVar);
 			CurrentSemaBlock->addAlloc(SA);
@@ -3055,8 +3059,9 @@ static void CollectBodyInfo(ASTStmt *Stmt,
 
 // FindNRVOName — the struct local every return hands back, or an empty name.
 static llvm::StringRef FindNRVOName(ASTBlockStmt *Body, SemaFunctionBase *Function) {
-	// Exactly one return value, and it must be a struct: a class return travels as
-	// a handle the caller allocates, and primitives gain nothing from the binding.
+	// Exactly one return value, and it must be a STRUCT or a STRING — the two
+	// shapes a callee fills in place. A class return travels as a handle the caller
+	// allocates, an array carries a reference count, and primitives gain nothing.
 	SemaParam *RetParam = nullptr;
 	for (SemaParam *P : Function->getParams()) {
 		if (!P->isSynthetic())
@@ -3065,9 +3070,13 @@ static llvm::StringRef FindNRVOName(ASTBlockStmt *Body, SemaFunctionBase *Functi
 			return llvm::StringRef();
 		RetParam = P;
 	}
-	if (RetParam == nullptr || RetParam->getType() == nullptr || !RetParam->getType()->isClass())
+	if (RetParam == nullptr || RetParam->getType() == nullptr)
 		return llvm::StringRef();
-	if (static_cast<SemaClassType *>(RetParam->getType())->getClassKind() != SemaClassKind::STRUCT)
+	SemaType *RetType = RetParam->getType();
+	bool Eligible = RetType->isString();
+	if (!Eligible && RetType->isClass())
+		Eligible = static_cast<SemaClassType *>(RetType)->getClassKind() == SemaClassKind::STRUCT;
+	if (!Eligible)
 		return llvm::StringRef();
 
 	llvm::SmallVector<ASTReturnStmt *, 8> Returns;
