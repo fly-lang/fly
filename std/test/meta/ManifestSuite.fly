@@ -47,7 +47,7 @@ string joinAll(const string[] parts) {
         acc = str.concat(acc, p)
         acc = str.concat(acc, "|")
     }
-    out = acc
+    return acc
 }
 
 suite ManifestSuite {

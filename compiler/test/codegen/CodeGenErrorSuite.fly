@@ -32,9 +32,8 @@ suite CodeGenErrorSuite {
         case "%error struct; fail writes code; handle captures into lasterr": {
             string ir = cgIR("
                 int classify(const int n) {
-                    out = 0
                     if n < 0 { fail 7 }
-                    out = n
+                    return n
                 }
                 void main() {
                     int neg = 0 - 1

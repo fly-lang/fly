@@ -22,9 +22,9 @@ public class SemaBlockStmt : SemaStmt {
     }
 
     public void addContent(const SemaStmt stmt) { this.content.add(stmt) }
-    public List<SemaStmt> getContent() { out = this.content }
-    public bool isEmpty() { out = this.content.size() == 0 }
+    public List<SemaStmt> getContent() { return this.content }
+    public bool isEmpty() { return this.content.size() == 0 }
     public void addAlloc(const SemaLocalVar v) { this.allocs.add(v) }
-    public List<SemaLocalVar> getAllocs() { out = this.allocs }
+    public List<SemaLocalVar> getAllocs() { return this.allocs }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }

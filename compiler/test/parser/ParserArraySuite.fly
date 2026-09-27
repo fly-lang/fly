@@ -20,7 +20,7 @@ string dq() {
     fly.llvm.strPoke(buf, 0, q)
     string s = ""
     fly.llvm.strMake(buf, 1, s)
-    out = s
+    return s
 }
 
 suite ParserArraySuite {

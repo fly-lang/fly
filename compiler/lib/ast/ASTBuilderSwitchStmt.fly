@@ -17,7 +17,7 @@ public class ASTBuilderSwitchStmt {
         b.switchStmt.setParent(parent)
         parent.addContent(b.switchStmt)
         b.switchStmt.setExpr(expr)
-        out = b
+        return b
     }
     public ASTBuilderSwitchStmt addCase(const SourceLocation loc, const ASTExpr expr, const ASTBlockStmt stmt) {
         ASTCaseStmt c = new ASTCaseStmt(loc)
@@ -25,13 +25,13 @@ public class ASTBuilderSwitchStmt {
         c.setStmt(stmt)
         c.setParent(stmt)
         this.switchStmt.addCase(c)
-        out = this
+        return this
     }
     public ASTBuilderSwitchStmt setDefault(const SourceLocation loc, const ASTBlockStmt stmt) {
         this.switchStmt.setDefault(stmt)
-        out = this
+        return this
     }
     public bool hasDefault() {
-        out = this.switchStmt.getDefault() != null
+        return this.switchStmt.getDefault() != null
     }
 }

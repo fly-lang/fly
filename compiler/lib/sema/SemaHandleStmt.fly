@@ -17,9 +17,9 @@ public class SemaHandleStmt : SemaStmt {
         super(SemaKind.STMT_HANDLE, ast)
     }
 
-    public SemaError getErrorHandler() { out = this.errorHandler }
+    public SemaError getErrorHandler() { return this.errorHandler }
     public void setErrorHandler(const SemaError errorHandler) { this.errorHandler = errorHandler }
-    public SemaBlockStmt getHandle() { out = this.handleBlock }
+    public SemaBlockStmt getHandle() { return this.handleBlock }
     public void setHandle(const SemaBlockStmt handleBlock) { this.handleBlock = handleBlock }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }

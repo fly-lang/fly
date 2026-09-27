@@ -238,9 +238,9 @@ public class ResolverCall {
     // dispatches DIRECT (no vtable), so the base implementation always runs.
     public static SemaCall resolveSuper(const Resolver r, const ASTCall node, const bool ctorForm, const List<SemaType> argTypes) {
         SemaClassType cls = r.getCurrentClass()
-        if cls == null { out = null  return }
+        if cls == null { return null }
         List<SemaClassType> bases = cls.getBaseClasses()
-        if bases.size() == 0 { out = null  return }
+        if bases.size() == 0 { return null }
         SemaClassType base = bases.get(0)
         Registry reg = r.getReg()
         Symbol sym = null
@@ -251,14 +251,14 @@ public class ResolverCall {
             sym = ResolverCall.lookupMethodInHierarchy(reg, base, node.getName(), argTypes)
         }
         SemaCall sc = ResolverCall.makeCall(node, sym)
-        if sc == null { out = null  return }
+        if sc == null { return null }
         sc.setSuper(true)
         Symbol tsym = reg.LookupName("this", r.getCurrentScope())
         if tsym != null {
             SemaExpr thisE = tsym.getExprRef()
             if thisE != null { sc.setParent(thisE) }
         }
-        out = sc
+        return sc
     }
 
     // resolveFunctionCall — free function, looked up in the caller scope; when the
@@ -266,11 +266,11 @@ public class ResolverCall {
     public static SemaCall resolveFunctionCall(const Resolver r, const ASTCall node, const SymbolTable scope, const List<SemaType> argTypes) {
         Registry reg = r.getReg()
         Symbol sym = reg.LookupFunction(node.getName(), argTypes, scope)
+        if ResolverCall.isGenericTemplate(sym) { sym = null }
         if sym == null {
-            out = ResolverCall.resolveGenericCall(r, node, argTypes)
-            return
+            return ResolverCall.resolveGenericCall(r, node, argTypes)
         }
-        out = ResolverCall.makeCall(node, sym)
+        return ResolverCall.makeCall(node, sym)
     }
 
     // resolveNamespaceCall — free function looked up in the namespace `nsPath`
@@ -300,11 +300,27 @@ public class ResolverCall {
                 }
             }
         }
+        if ResolverCall.isGenericTemplate(sym) { sym = null }
         if sym == null {
-            out = ResolverCall.resolveGenericCall(r, node, argTypes)
-            return
+            return ResolverCall.resolveGenericCall(r, node, argTypes)
         }
-        out = ResolverCall.makeCall(node, sym)
+        return ResolverCall.makeCall(node, sym)
+    }
+
+    // isGenericTemplate — the symbol is the generic TEMPLATE itself, not one of its
+    // specializations. A template has no concrete types, so a call must never bind
+    // to it: it goes through resolveGenericCall, which either monomorphizes it or
+    // reports why it cannot. An arg-less template (`T make<T>()`) is exactly the
+    // shape the overload lookup would otherwise match.
+    public static bool isGenericTemplate(const Symbol sym) {
+        if sym == null { return false }
+        SemaNode ref = sym.getRef()
+        if ref == null { return false }
+        SemaFunctionBase fb = ref.asFunctionBase()
+        if fb == null { return false }
+        SemaFunction fn = fb.asFunction()
+        if fn == null { return false }
+        return fn.isGeneric()
     }
 
     // substTypeParam — when the caller sits inside an enclosing SPECIALIZATION
@@ -312,21 +328,21 @@ public class ResolverCall {
     // template's TypeParam; map it to the concrete binding via the current scope
     // chain (the spec scope holds T → concrete).
     public static SemaType substTypeParam(const Resolver r, const SemaType t) {
-        if t == null { out = t  return }
-        if t.getKind() != SemaKind.TYPE_PARAM { out = t  return }
+        if t == null { return t }
+        if t.getKind() != SemaKind.TYPE_PARAM { return t }
         SymbolTable sc = r.getCurrentScope()
-        if sc == null { out = t  return }
+        if sc == null { return t }
         List<Symbol> syms = sc.lookupInParents(t.getName())
         if syms != null {
             if syms.size() > 0 {
                 Symbol s0 = syms.get(0)
                 SemaType conc = s0.getTypeRef()
                 if conc != null {
-                    if conc.getKind() != SemaKind.TYPE_PARAM { out = conc  return }
+                    if conc.getKind() != SemaKind.TYPE_PARAM { return conc }
                 }
             }
         }
-        out = t
+        return t
     }
 
     // resolveGenericCall — monomorphize a generic TEMPLATE for this call: infer
@@ -336,7 +352,7 @@ public class ResolverCall {
     public static SemaCall resolveGenericCall(const Resolver r, const ASTCall node, const List<SemaType> argTypes) {
         Registry reg = r.getReg()
         SemaFunction tpl = reg.lookupGenericFn(node.getName())
-        if tpl == null { out = null  return }
+        if tpl == null { return null }
 
         List<SemaParam> tparams = tpl.getParams()
         List<SemaTypeParam> tps = tpl.getTypeParams()
@@ -362,7 +378,14 @@ public class ResolverCall {
                 }
                 aj = aj + 1
             }
-            if bound == null { out = null  return }
+            if bound == null {
+                // The reference reports this and stops. Falling through silently is
+                // what let `T make<T>()` — a type parameter that appears only in the
+                // return type, so nothing can bind it — reach codegen as an
+                // unsubstituted TypeParam and crash inside LLVM-C.
+                r.diagStr(node.getLoc(), DiagID.err_sema_generic_not_instantiable, node.getName())
+                return null
+            }
             inferred.add(bound)
             pi = pi + 1
         }
@@ -381,12 +404,11 @@ public class ResolverCall {
         if tast != null && lowered == false {
             if tast.getBody() == null {
                 r.diagStr(tast.getNameLoc(), DiagID.err_sema_generic_template_no_body, tpl.getName())
-                out = null
-                return
+                return null
             }
         }
         SemaFunction spec = SemaBuilder.CreateFunctionSpecialization(tpl, inferred, r.getCurrentScope())
-        if spec == null { out = null  return }
+        if spec == null { return null }
 
         // first use: resolve the spec's signature (params/return with T bound)
         // and queue its body. resolveSignature resets the resolution context —
@@ -411,7 +433,7 @@ public class ResolverCall {
             r.setCurrentErrorHandler(savedEH)
         }
 
-        out = SemaBuilder.CreateCall(node, ResolverCall.callResultType(spec), spec)
+        return SemaBuilder.CreateCall(node, ResolverCall.callResultType(spec), spec)
     }
 
     // expandNsPath — resolve a SHORT namespace prefix through the current module's
@@ -426,10 +448,10 @@ public class ResolverCall {
     // matches, or when the first segment resolves as a VALUE in the current
     // scope (locals shadow namespace prefixes).
     public static List<string> expandNsPath(const Resolver r, const List<string> cand) {
-        if cand == null { out = null  return }
-        if cand.size() == 0 { out = null  return }
+        if cand == null { return null }
+        if cand.size() == 0 { return null }
         SemaModule mod = r.getCurrentModule()
-        if mod == null { out = null  return }
+        if mod == null { return null }
         string head = cand.get(0)
         Registry reg = r.getReg()
         // only VALUE symbols shadow a namespace prefix (a stray NAMESPACE/TYPE
@@ -437,10 +459,10 @@ public class ResolverCall {
         Symbol shadow = reg.LookupName(head, r.getCurrentScope())
         if shadow != null {
             SymbolKind sk = shadow.getKind()
-            if sk == SymbolKind.VAR { out = null  return }
-            if sk == SymbolKind.LOCAL_VAR { out = null  return }
-            if sk == SymbolKind.PARAM { out = null  return }
-            if sk == SymbolKind.ATTRIBUTE { out = null  return }
+            if sk == SymbolKind.VAR { return null }
+            if sk == SymbolKind.LOCAL_VAR { return null }
+            if sk == SymbolKind.PARAM { return null }
+            if sk == SymbolKind.ATTRIBUTE { return null }
         }
 
         List<SemaImport> imps = mod.getImports()
@@ -477,20 +499,20 @@ public class ResolverCall {
                         }
                         int t2 = 1
                         while t2 < cand.size() { full.add(cand.get(t2))  t2 = t2 + 1 }
-                        if reg.lookupNameSpaceByStrings(full) != null { out = full  return }
+                        if reg.lookupNameSpaceByStrings(full) != null { return full }
                     }
                 }
             }
             i = i + 1
         }
-        out = null
+        return null
     }
 
     // flattenNsPath — if `e` is a pure identifier/member chain (a.b.c with no calls
     // or other expressions), return the dotted names as a string list; else null. Used
     // to detect a namespace-path call receiver before resolving it as a value.
     public static List<string> flattenNsPath(const ASTExpr e) {
-        if e == null { out = null  return }
+        if e == null { return null }
         ASTExprKind k = e.getExprKind()
         if k == ASTExprKind.EXPR_IDENTIFIER {
             ASTIdentifier id = e.asIdentifier()
@@ -498,34 +520,31 @@ public class ResolverCall {
             if par == null {
                 List<string> r0 = new List<string>()
                 r0.add(id.getName())
-                out = r0
-                return
+                return r0
             }
             List<string> pre = ResolverCall.flattenNsPath(par)
-            if pre == null { out = null  return }
+            if pre == null { return null }
             pre.add(id.getName())
-            out = pre
-            return
+            return pre
         }
         if k == ASTExprKind.EXPR_MEMBER {
             ASTMember m = e.asMember()
             List<string> pre = ResolverCall.flattenNsPath(e.getParent())
-            if pre == null { out = null  return }
+            if pre == null { return null }
             pre.add(m.getName())
-            out = pre
-            return
+            return pre
         }
-        out = null
+        return null
     }
 
     // resolveMethodCall — instance method, looked up in the receiver's class scope
     // and then up the inheritance chain (so inherited methods resolve too).
     public static SemaCall resolveMethodCall(const Resolver r, const ASTCall node, const SemaType parentType, const List<SemaType> argTypes) {
         SemaClassType cls = parentType.asClass()
-        if cls == null { out = null  return }
+        if cls == null { return null }
         Registry reg = r.getReg()
         Symbol sym = ResolverCall.lookupMethodInHierarchy(reg, cls, node.getName(), argTypes)
-        out = ResolverCall.makeCall(node, sym)
+        return ResolverCall.makeCall(node, sym)
     }
 
     // lookupMethodInHierarchy — try the class's own scope, then recurse into base
@@ -533,26 +552,26 @@ public class ResolverCall {
     public static Symbol lookupMethodInHierarchy(const Registry reg, const SemaClassType cls, const string name, const List<SemaType> argTypes) {
         SymbolTable cscope = cls.getSymbols()
         Symbol sym = reg.LookupFunction(name, argTypes, cscope)
-        if sym != null { out = sym  return }
+        if sym != null { return sym }
         List<SemaClassType> bases = cls.getBaseClasses()
         int i = 0
         while i < bases.size() {
             SemaClassType base = bases.get(i)
             Symbol s = ResolverCall.lookupMethodInHierarchy(reg, base, name, argTypes)
-            if s != null { out = s  return }
+            if s != null { return s }
             i = i + 1
         }
-        out = null
+        return null
     }
 
     // makeCall — build a SemaCall from a resolved function/method symbol (the ref is
     // recovered as a SemaFunctionBase without a downcast).
     public static SemaCall makeCall(const ASTCall node, const Symbol sym) {
-        if sym == null { out = null  return }
+        if sym == null { return null }
         SemaNode ref = sym.getRef()
         SemaFunctionBase fn = ref.asFunctionBase()
-        if fn == null { out = null  return }
-        out = SemaBuilder.CreateCall(node, ResolverCall.callResultType(fn), fn)
+        if fn == null { return null }
+        return SemaBuilder.CreateCall(node, ResolverCall.callResultType(fn), fn)
     }
 
     // callResultType — the type a call EXPRESSION carries. A multi-return callee
@@ -562,15 +581,15 @@ public class ResolverCall {
     // overload. The first return type is the first synthetic trailing out param.
     public static SemaType callResultType(const SemaFunctionBase fn) {
         SemaType rt = fn.getReturnType()
-        if rt != null { out = rt  return }
+        if rt != null { return rt }
         int nOut = fn.getOutParamCount()
-        if nOut == 0 { out = null  return }
+        if nOut == 0 { return null }
         List<SemaParam> ps = fn.getParams()
         int firstOut = (int)ps.size() - nOut
-        if firstOut < 0 { out = null  return }
+        if firstOut < 0 { return null }
         SemaParam op = ps.get(firstOut)
-        if op == null { out = null  return }
-        out = op.getType()
+        if op == null { return null }
+        return op.getType()
     }
 
     // resolveNew — `new C(args)`: resolve the class type then its matching ctor (the
@@ -578,11 +597,11 @@ public class ResolverCall {
     public static SemaCall resolveNew(const Resolver r, const ASTCall node, const SymbolTable scope, const List<SemaType> argTypes) {
         Registry reg = r.getReg()
         Symbol tsym = reg.LookupNamedType(node.getName(), scope)
-        if tsym == null { out = null  return }
+        if tsym == null { return null }
         SemaType tt = tsym.getTypeRef()
-        if tt == null { out = null  return }
+        if tt == null { return null }
         SemaClassType cls = tt.asClass()
-        if cls == null { out = null  return }
+        if cls == null { return null }
         // Generic instantiation: new Wrapper<int>() — swap to the specialization.
         List<ASTType> typeArgsAst = node.getTypeArgs()
         if typeArgsAst.size() > 0 {
@@ -591,8 +610,7 @@ public class ResolverCall {
                 // keeping the raw generic template used to reach genNew with a
                 // null LLVM struct type → crash inside libLLVM
                 r.diagStr(node.getLoc(), DiagID.err_sema_bad_type_args, node.getName())
-                out = null
-                return
+                return null
             }
             cls = spec
         }
@@ -601,11 +619,11 @@ public class ResolverCall {
         // the archive + mangled ctor) — both constructible now (audit V4 fase 2).
         SymbolTable cscope = cls.getSymbols()
         Symbol csym = reg.LookupFunction(node.getName(), argTypes, cscope)
-        if csym == null { out = null  return }
+        if csym == null { return null }
         SemaNode ref = csym.getRef()
         SemaFunctionBase ctor = ref.asFunctionBase()
-        if ctor == null { out = null  return }
-        out = SemaBuilder.CreateCall(node, cls, ctor)
+        if ctor == null { return null }
+        return SemaBuilder.CreateCall(node, cls, ctor)
     }
 
     // synthOutVar — a non-void return is delivered through synthetic "__out_N"
@@ -712,12 +730,12 @@ public class ResolverCall {
     // makeOutVar — one synthetic "__out_N" local of the given AST/resolved type,
     // registered on the enclosing function so codegen allocas it.
     public static SemaLocalVar makeOutVar(const Resolver r, const ASTCall node, const SemaFunctionBase cf, const ASTType tyAst, const SemaType ty) {
-        if tyAst == null { out = null  return }
+        if tyAst == null { return null }
         string outName = r.nextOutName()
         List<ASTModifier> noMods = new List<ASTModifier>()
         ASTLocalVar outAst = ASTBuilder.CreateLocalVar(node.getLoc(), tyAst, outName, noMods)
         SemaLocalVar v = SemaBuilder.CreateLocalVar(outAst, ty)
         cf.addLocalVar(v)
-        out = v
+        return v
     }
 }

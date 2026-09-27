@@ -8,7 +8,7 @@ import fly.assert
 suite ParserModifierSuite {
     void modifierTest() {
         case "public static int f()": {
-            Parser p = new Parser("public static int f() { out = 1 }")
+            Parser p = new Parser("public static int f() { return 1 }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
         }

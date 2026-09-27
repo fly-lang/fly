@@ -24,13 +24,13 @@ public pointer cbuf(const string s) {
     byte b = 0
     int i = 0
     while i < n {
-        str.byteAt(s, i, b)
+        b = str.byteAt(s, i)
         mem.writeByte(buf, i, b)
         i = i + 1
     }
     byte z = 0
     mem.writeByte(buf, n, z)
-    out = buf
+    return buf
 }
 
 // ── Argument structs ──────────────────────────────────────────────────────────
@@ -575,6 +575,7 @@ public class LLVM {
     // and disposes it. The reason travels via the return value, not a string
     // out-param (param writes skip the clone-on-store path → double free).
     public string verifyModuleMsg(const pointer mod, bool ok) {
+        string res
         pointer buf = mem.alloc(8)
         mem.writePtr(buf, 0, 0)
         PtrIntPtrArgs vargs = new PtrIntPtrArgs()
@@ -587,7 +588,7 @@ public class LLVM {
         pointer mp = mem.readPtr(buf, 0)
         mem.free(buf, 8)
         if broken == false { ok = true } else { ok = false }
-        out = ""
+        res = ""
         if mp != 0 {
             byte zero = 0
             int len = 0
@@ -614,10 +615,11 @@ public class LLVM {
                 }
                 string s = ""
                 fly.llvm.strMake(copy, len, s)
-                out = s
+                return s
             }
             this.disposeMessage(mp)
         }
+        return res
     }
 
     // ── Types — integer ───────────────────────────────────────────────────────

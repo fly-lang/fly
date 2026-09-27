@@ -63,7 +63,7 @@ echo "  ok    $(echo "$ver" | head -1)"
 cat > "$OUT/dbg_probe.fly" <<'EOF'
 int add(const int a, const int b) {
     int s = a + b
-    out = s
+    return s
 }
 
 void main() {

@@ -51,25 +51,25 @@ public class FileID {
         this.id = id
     }
 
-    public bool isValid()   { out = this.id != 0 }
-    public bool isInvalid() { out = this.id == 0 }
+    public bool isValid()   { return this.id != 0 }
+    public bool isInvalid() { return this.id == 0 }
 
-    public int getHashValue()   { out = this.id }
-    public int getOpaqueValue() { out = this.id }
+    public int getHashValue()   { return this.id }
+    public int getOpaqueValue() { return this.id }
 }
 
 // Factories (C++ static FileID::get / getSentinel and DenseMap empty key).
-public FileID fileIDGet(const int v)  { out = new FileID(v) }
-public FileID fileIDInvalid()         { out = new FileID(0) }
-public FileID fileIDGetSentinel()     { out = new FileID(0 - 1) }
+public FileID fileIDGet(const int v)  { return new FileID(v) }
+public FileID fileIDInvalid()         { return new FileID(0) }
+public FileID fileIDGetSentinel()     { return new FileID(0 - 1) }
 
 // Relational helpers (C++ operator== … operator>= on FileID).
-public bool fileIDEquals(const FileID a, const FileID b) { out = a.getOpaqueValue() == b.getOpaqueValue() }
-public bool fileIDNe(const FileID a, const FileID b)     { out = a.getOpaqueValue() != b.getOpaqueValue() }
-public bool fileIDLt(const FileID a, const FileID b)     { out = a.getOpaqueValue() <  b.getOpaqueValue() }
-public bool fileIDLe(const FileID a, const FileID b)     { out = a.getOpaqueValue() <= b.getOpaqueValue() }
-public bool fileIDGt(const FileID a, const FileID b)     { out = b.getOpaqueValue() <  a.getOpaqueValue() }
-public bool fileIDGe(const FileID a, const FileID b)     { out = b.getOpaqueValue() <= a.getOpaqueValue() }
+public bool fileIDEquals(const FileID a, const FileID b) { return a.getOpaqueValue() == b.getOpaqueValue() }
+public bool fileIDNe(const FileID a, const FileID b)     { return a.getOpaqueValue() != b.getOpaqueValue() }
+public bool fileIDLt(const FileID a, const FileID b)     { return a.getOpaqueValue() <  b.getOpaqueValue() }
+public bool fileIDLe(const FileID a, const FileID b)     { return a.getOpaqueValue() <= b.getOpaqueValue() }
+public bool fileIDGt(const FileID a, const FileID b)     { return b.getOpaqueValue() <  a.getOpaqueValue() }
+public bool fileIDGe(const FileID a, const FileID b)     { return b.getOpaqueValue() <= a.getOpaqueValue() }
 
 
 // ── SourceLocation ───────────────────────────────────────────────────────────
@@ -84,56 +84,56 @@ public class SourceLocation {
         this.id = id
     }
 
-    public bool isFileID()  { out = (this.id & macroIDBit()) == 0 }
+    public bool isFileID()  { return (this.id & macroIDBit()) == 0 }
 
-    public bool isValid()   { out = this.id != 0 }
-    public bool isInvalid() { out = this.id == 0 }
+    public bool isValid()   { return this.id != 0 }
+    public bool isInvalid() { return this.id == 0 }
 
     // Offset into the manager's global input view (low 31 bits).
     // (C++ masks with ~MacroIDBit; the self-host parser has no unary ~, so the
     // complement 0x7FFFFFFF is written out as the offset mask.)
-    public int getOffset() { out = this.id & offsetMask() }
+    public int getOffset() { return this.id & offsetMask() }
 
     // C++ getRawEncoding — the opaque 32-bit encoding.
-    public int getRawEncoding() { out = this.id }
+    public int getRawEncoding() { return this.id }
 
     // Return a location offset by `delta` from this one.
     public SourceLocation getLocWithOffset(const int delta) {
-        out = slGetFromRawEncoding(this.id + delta)
+        return slGetFromRawEncoding(this.id + delta)
     }
 
     // str — the raw encoding (id) as text. With no SourceManager this is the
     // bare position id; SourceManager.getPresumedLoc decodes it to line:col.
     // fully-qualified: inside a method named `str` the short prefix is shadowed
-    public string str() { out = fly.str.convert(this.id) }
+    public string str() { return fly.str.convert(this.id) }
 }
 
 // The macro-id flag bit (0x80000000). Built by int arithmetic to land on the
 // INT_MIN bit pattern (the literal 2147483648 would be typed `long`, and the
 // self-host has no module-level constants).
-public int macroIDBit() { out = (0 - offsetMask()) - 1 }
+public int macroIDBit() { return (0 - offsetMask()) - 1 }
 
 // The offset mask (~MacroIDBit, i.e. 0x7FFFFFFF) — the low 31 bits.
-public int offsetMask() { out = 2147483647 }
+public int offsetMask() { return 2147483647 }
 
 // Factories (C++ static SourceLocation::getFileLoc / getMacroLoc /
 // getFromRawEncoding; the asserts in the originals are dropped).
-public SourceLocation slGetFileLoc(const int offset)        { out = new SourceLocation(offset) }
-public SourceLocation slGetMacroLoc(const int offset)       { out = new SourceLocation(macroIDBit() | offset) }
-public SourceLocation slGetFromRawEncoding(const int enc)   { out = new SourceLocation(enc) }
-public SourceLocation slInvalid()                           { out = new SourceLocation(0) }
+public SourceLocation slGetFileLoc(const int offset)        { return new SourceLocation(offset) }
+public SourceLocation slGetMacroLoc(const int offset)       { return new SourceLocation(macroIDBit() | offset) }
+public SourceLocation slGetFromRawEncoding(const int enc)   { return new SourceLocation(enc) }
+public SourceLocation slInvalid()                           { return new SourceLocation(0) }
 
 // Relational helpers (C++ free operator== … operator>=, comparing raw encoding).
 // Ordering is meaningful only for locations in the same FileID.
-public bool slEquals(const SourceLocation a, const SourceLocation b) { out = a.getRawEncoding() == b.getRawEncoding() }
-public bool slNe(const SourceLocation a, const SourceLocation b)     { out = a.getRawEncoding() != b.getRawEncoding() }
-public bool slLt(const SourceLocation a, const SourceLocation b)     { out = a.getRawEncoding() <  b.getRawEncoding() }
-public bool slGt(const SourceLocation a, const SourceLocation b)     { out = a.getRawEncoding() >  b.getRawEncoding() }
-public bool slLe(const SourceLocation a, const SourceLocation b)     { out = a.getRawEncoding() <= b.getRawEncoding() }
-public bool slGe(const SourceLocation a, const SourceLocation b)     { out = a.getRawEncoding() >= b.getRawEncoding() }
+public bool slEquals(const SourceLocation a, const SourceLocation b) { return a.getRawEncoding() == b.getRawEncoding() }
+public bool slNe(const SourceLocation a, const SourceLocation b)     { return a.getRawEncoding() != b.getRawEncoding() }
+public bool slLt(const SourceLocation a, const SourceLocation b)     { return a.getRawEncoding() <  b.getRawEncoding() }
+public bool slGt(const SourceLocation a, const SourceLocation b)     { return a.getRawEncoding() >  b.getRawEncoding() }
+public bool slLe(const SourceLocation a, const SourceLocation b)     { return a.getRawEncoding() <= b.getRawEncoding() }
+public bool slGe(const SourceLocation a, const SourceLocation b)     { return a.getRawEncoding() >= b.getRawEncoding() }
 
 public bool slIsPairOfFileLocations(const SourceLocation start, const SourceLocation end) {
-    out = start.isValid() && start.isFileID() && end.isValid() && end.isFileID()
+    return start.isValid() && start.isFileID() && end.isValid() && end.isFileID()
 }
 
 
@@ -151,31 +151,31 @@ public class SourceRange {
         this.e = end
     }
 
-    public SourceLocation getBegin() { out = this.b }
-    public SourceLocation getEnd()   { out = this.e }
+    public SourceLocation getBegin() { return this.b }
+    public SourceLocation getEnd()   { return this.e }
 
     public void setBegin(const SourceLocation x) { this.b = x }
     public void setEnd(const SourceLocation x)   { this.e = x }
 
-    public bool isValid()   { out = this.b.isValid() && this.e.isValid() }
-    public bool isInvalid() { out = ! this.isValid() }
+    public bool isValid()   { return this.b.isValid() && this.e.isValid() }
+    public bool isInvalid() { return ! this.isValid() }
 
     // True iff `other` is wholly contained within this range.
     public bool fullyContains(const SourceRange other) {
-        out = slLe(this.b, other.getBegin()) && slGe(this.e, other.getEnd())
+        return slLe(this.b, other.getBegin()) && slGe(this.e, other.getEnd())
     }
 }
 
 // Factories: C++ SourceRange() and SourceRange(loc); plus equality operators.
-public SourceRange srcRangeEmpty()                       { out = new SourceRange(slInvalid(), slInvalid()) }
-public SourceRange srcRangeFromLoc(const SourceLocation loc) { out = new SourceRange(loc, loc) }
-public SourceRange srcRange(const SourceLocation b, const SourceLocation e) { out = new SourceRange(b, e) }
+public SourceRange srcRangeEmpty()                       { return new SourceRange(slInvalid(), slInvalid()) }
+public SourceRange srcRangeFromLoc(const SourceLocation loc) { return new SourceRange(loc, loc) }
+public SourceRange srcRange(const SourceLocation b, const SourceLocation e) { return new SourceRange(b, e) }
 
 public bool srcRangeEquals(const SourceRange x, const SourceRange y) {
-    out = slEquals(x.getBegin(), y.getBegin()) && slEquals(x.getEnd(), y.getEnd())
+    return slEquals(x.getBegin(), y.getBegin()) && slEquals(x.getEnd(), y.getEnd())
 }
 public bool srcRangeNe(const SourceRange x, const SourceRange y) {
-    out = ! srcRangeEquals(x, y)
+    return ! srcRangeEquals(x, y)
 }
 
 
@@ -193,29 +193,29 @@ public class CharSourceRange {
         this.isTokenRangeFlag = itr
     }
 
-    public bool isTokenRange() { out = this.isTokenRangeFlag }
-    public bool isCharRange()  { out = ! this.isTokenRangeFlag }
+    public bool isTokenRange() { return this.isTokenRangeFlag }
+    public bool isCharRange()  { return ! this.isTokenRangeFlag }
 
-    public SourceLocation getBegin() { out = this.range.getBegin() }
-    public SourceLocation getEnd()   { out = this.range.getEnd() }
-    public SourceRange getAsRange()  { out = this.range }
+    public SourceLocation getBegin() { return this.range.getBegin() }
+    public SourceLocation getEnd()   { return this.range.getEnd() }
+    public SourceRange getAsRange()  { return this.range }
 
     public void setBegin(const SourceLocation x)   { this.range.setBegin(x) }
     public void setEnd(const SourceLocation x)     { this.range.setEnd(x) }
     public void setTokenRange(const bool tr)       { this.isTokenRangeFlag = tr }
 
-    public bool isValid()   { out = this.range.isValid() }
-    public bool isInvalid() { out = ! this.range.isValid() }
+    public bool isValid()   { return this.range.isValid() }
+    public bool isInvalid() { return ! this.range.isValid() }
 }
 
 // Factories (C++ static getTokenRange / getCharRange, range and begin/end forms).
-public CharSourceRange csrGetTokenRange(const SourceRange r) { out = new CharSourceRange(r, true) }
-public CharSourceRange csrGetCharRange(const SourceRange r)  { out = new CharSourceRange(r, false) }
+public CharSourceRange csrGetTokenRange(const SourceRange r) { return new CharSourceRange(r, true) }
+public CharSourceRange csrGetCharRange(const SourceRange r)  { return new CharSourceRange(r, false) }
 public CharSourceRange csrGetTokenRangeBE(const SourceLocation b, const SourceLocation e) {
-    out = csrGetTokenRange(srcRange(b, e))
+    return csrGetTokenRange(srcRange(b, e))
 }
 public CharSourceRange csrGetCharRangeBE(const SourceLocation b, const SourceLocation e) {
-    out = csrGetCharRange(srcRange(b, e))
+    return csrGetCharRange(srcRange(b, e))
 }
 
 
@@ -239,17 +239,17 @@ public class PresumedLoc {
         this.includeLoc = il
     }
 
-    public bool isInvalid() { out = str.isEmpty(this.filename) }
-    public bool isValid()   { out = ! str.isEmpty(this.filename) }
+    public bool isInvalid() { return str.isEmpty(this.filename) }
+    public bool isValid()   { return ! str.isEmpty(this.filename) }
 
-    public string getFilename()           { out = this.filename }
-    public FileID getFileID()             { out = this.id }
-    public int getLine()                  { out = this.line }
-    public int getColumn()                { out = this.col }
-    public SourceLocation getIncludeLoc() { out = this.includeLoc }
+    public string getFilename()           { return this.filename }
+    public FileID getFileID()             { return this.id }
+    public int getLine()                  { return this.line }
+    public int getColumn()                { return this.col }
+    public SourceLocation getIncludeLoc() { return this.includeLoc }
 }
 
 // Factory for the default/invalid PresumedLoc (C++ PresumedLoc()).
 public PresumedLoc presumedLocInvalid() {
-    out = new PresumedLoc("", fileIDInvalid(), 0, 0, slInvalid())
+    return new PresumedLoc("", fileIDInvalid(), 0, 0, slInvalid())
 }

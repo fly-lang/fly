@@ -3,6 +3,7 @@ namespace fly.os.fs
 import fly.llvm
 import fly.runtime
 import fly.os.io
+import fly.mem
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -71,11 +72,17 @@ private pointer strToCstr(const string src) {
         i = i + 1
     }
     fly.llvm.strPoke(buf, size, 0)
-    out = buf
+    return buf
+}
+
+// cstrFree — release a buffer from strToCstr once the syscall is done with it.
+private void cstrFree(const pointer p) {
+    fly.runtime.mem_free(p, 0)
 }
 
 // Concatenate base and comp with exactly one '/' separator (inlined from path.join).
 private string pathJoin(const string base, const string comp) {
+    string res = ""
     int bs = 0
     int cs = 0
     fly.llvm.strSize(base, bs)
@@ -112,30 +119,33 @@ private string pathJoin(const string base, const string comp) {
         fly.llvm.strPoke(buf, off + i, b)
         i = i + 1
     }
-    fly.llvm.strMake(buf, total, out)
+    fly.llvm.strMake(buf, total, res)
+    return res
 }
 
 // Populate all Stat fields from raw mode bits, file size and the modification
 // time as total nanoseconds since the Unix epoch (fs_mtime/fs_lmtime encoding;
 // <= 0 means unavailable and leaves both mtime fields 0).
 private Stat fillStatMode(const int fmode, const long fsize, const long mtimeNs) {
-    out.size = fsize
-    out.mode = fmode
-    out.mtime_sec = 0
-    out.mtime_nsec = 0
+    Stat res = new Stat()
+    res.size = fsize
+    res.mode = fmode
+    res.mtime_sec = 0
+    res.mtime_nsec = 0
     if mtimeNs > 0 {
         long msec = mtimeNs / 1000000000
-        out.mtime_sec = msec
-        out.mtime_nsec = mtimeNs - msec * 1000000000
+        res.mtime_sec = msec
+        res.mtime_nsec = mtimeNs - msec * 1000000000
     }
     int ftype = fmode / 4096
     int ftype16 = ftype - (ftype / 16) * 16
-    out.is_file = 0
-    out.is_dir = 0
-    out.is_symlink = 0
-    if ftype16 == 8 { out.is_file = 1 }
-    if ftype16 == 4 { out.is_dir = 1 }
-    if ftype16 == 10 { out.is_symlink = 1 }
+    res.is_file = 0
+    res.is_dir = 0
+    res.is_symlink = 0
+    if ftype16 == 8 { res.is_file = 1 }
+    if ftype16 == 4 { res.is_dir = 1 }
+    if ftype16 == 10 { res.is_symlink = 1 }
+    return res
 }
 
 // ── Functions ─────────────────────────────────────────────────────────────────
@@ -143,35 +153,44 @@ private Stat fillStatMode(const int fmode, const long fsize, const long mtimeNs)
 // open opens path for reading (O_RDONLY) and returns a File.
 // Check out.fd >= 0 for success.
 public File open(const string path) {
+    File res = new File()
     pointer cpath = strToCstr(path)
     int oflags = 0
     int operm = 0
     int fd = 0
     fly.runtime.fs_open(cpath, oflags, operm, fd)
-    out.fd = fd
-    out.flags = 1
+    cstrFree(cpath)
+    res.fd = fd
+    res.flags = 1
+    return res
 }
 
 // create creates or truncates path for writing (O_WRONLY|O_CREAT|O_TRUNC, 0644).
 // Check out.fd >= 0 for success.
 public File create(const string path) {
+    File res = new File()
     pointer cpath = strToCstr(path)
     int oflags = 577
     int operm = 420
     int fd = 0
     fly.runtime.fs_open(cpath, oflags, operm, fd)
-    out.fd = fd
-    out.flags = 2
+    cstrFree(cpath)
+    res.fd = fd
+    res.flags = 2
+    return res
 }
 
 // openOpts opens path with explicit flags and permission bits.
 // flags and perm follow the open(2) convention (e.g. O_RDWR = 2, mode 0644 = 420).
 public File openOpts(const string path, const int flags, const int perm) {
+    File res = new File()
     pointer cpath = strToCstr(path)
     int fd = 0
     fly.runtime.fs_open(cpath, flags, perm, fd)
-    out.fd = fd
-    out.flags = 0
+    cstrFree(cpath)
+    res.fd = fd
+    res.flags = 0
+    return res
 }
 
 // close closes the file descriptor of f.
@@ -182,25 +201,28 @@ public void close(File f) {
 // read reads the entire file at path into a newly allocated Buf.
 // out.size == 0 if the file is empty or does not exist.
 public fly.os.io.Buf read(const string path) {
+    fly.os.io.Buf res
     ulong fsize = size(path)
     ulong cap = fsize
     if cap == 0 { cap = 1 }
     pointer buf = 0
     fly.runtime.mem_alloc(cap, buf)
-    out.ptr = buf
-    out.size = 0
-    out.cap = cap
-    if fsize == 0 { return }
+    res.ptr = buf
+    res.size = 0
+    res.cap = cap
+    if fsize == 0 { return res }
 
     pointer cpath = strToCstr(path)
     int fd = 0
     fly.runtime.fs_open(cpath, 0, 0, fd)
-    if fd < 0 { return }
+    cstrFree(cpath)
+    if fd < 0 { return res }
 
     long nread = 0
     fly.runtime.fs_read(fd, buf, fsize, nread)
     fly.runtime.fs_close(fd)
-    if nread > 0 { out.size = nread }
+    if nread > 0 { res.size = nread }
+    return res
 }
 
 // write writes the bytes of data to path, creating or truncating the file.
@@ -210,6 +232,7 @@ public void write(const string path, fly.os.io.Buf data, const int perm) {
     int flags = 577
     int fd = 0
     fly.runtime.fs_open(cpath, flags, perm, fd)
+    cstrFree(cpath)
     if fd < 0 { return }
     long nwritten = 0
     fly.runtime.fs_write(fd, data.ptr, data.size, nwritten)
@@ -223,6 +246,7 @@ public void append(const string path, fly.os.io.Buf data, const int perm) {
     int flags = 1089
     int fd = 0
     fly.runtime.fs_open(cpath, flags, perm, fd)
+    cstrFree(cpath)
     if fd < 0 { return }
     long nwritten = 0
     fly.runtime.fs_write(fd, data.ptr, data.size, nwritten)
@@ -232,47 +256,59 @@ public void append(const string path, fly.os.io.Buf data, const int perm) {
 // seekTo moves the file offset of f to offset using the whence strategy.
 // whence: 0=SEEK_SET, 1=SEEK_CUR, 2=SEEK_END.  Returns new offset in out.
 public long seekTo(File f, const long offset, const int whence) {
-    fly.runtime.fs_seek(f.fd, offset, whence, out)
+    long res
+    fly.runtime.fs_seek(f.fd, offset, whence, res)
+    return res
 }
 
 // seekPos returns the current file offset of f (SEEK_CUR with offset 0).
 public long seekPos(File f) {
+    long res
     long zero = 0
     int cur = 1
-    fly.runtime.fs_seek(f.fd, zero, cur, out)
+    fly.runtime.fs_seek(f.fd, zero, cur, res)
+    return res
 }
 
 // stat returns file metadata for path, following symbolic links.
 public Stat stat(const string path) {
+    Stat res = new Stat()
     pointer cpath = strToCstr(path)
     int fmode = 0
     fly.runtime.fs_mode(cpath, fmode)
     if fmode < 0 {
-        out.size = 0
-        return
+        cstrFree(cpath)
+        res.size = 0
+        return res
     }
     long fsize = 0
     fly.runtime.fs_size(cpath, fsize)
     long fmtime = 0
     fly.runtime.fs_mtime(cpath, fmtime)
-    out = fillStatMode(fmode, fsize, fmtime)
+    cstrFree(cpath)
+    res = fillStatMode(fmode, fsize, fmtime)
+    return res
 }
 
 // lstat returns file metadata for path, reporting the symlink itself rather
 // than its target (unlike stat).
 public Stat lstat(const string path) {
+    Stat res = new Stat()
     pointer cpath = strToCstr(path)
     int fmode = 0
     fly.runtime.fs_lmode(cpath, fmode)
     if fmode < 0 {
-        out.size = 0
-        return
+        cstrFree(cpath)
+        res.size = 0
+        return res
     }
     long fsize = 0
     fly.runtime.fs_lsize(cpath, fsize)
     long fmtime = 0
     fly.runtime.fs_lmtime(cpath, fmtime)
-    out = fillStatMode(fmode, fsize, fmtime)
+    cstrFree(cpath)
+    res = fillStatMode(fmode, fsize, fmtime)
+    return res
 }
 
 // size returns the byte size of the file at path.
@@ -281,8 +317,9 @@ public ulong size(const string path) {
     pointer cpath = strToCstr(path)
     long fsize = 0
     fly.runtime.fs_size(cpath, fsize)
+    cstrFree(cpath)
     if fsize < 0 { fsize = 0 }
-    out = fsize
+    return fsize
 }
 
 // exists returns true if path exists (any file type).
@@ -290,7 +327,8 @@ public bool exists(const string path) {
     pointer cpath = strToCstr(path)
     int fmode = 0
     fly.runtime.fs_mode(cpath, fmode)
-    out = fmode >= 0
+    cstrFree(cpath)
+    return fmode >= 0
 }
 
 // sync calls fsync on f, flushing OS buffers to persistent storage.
@@ -305,6 +343,7 @@ public void truncate(const string path, const long size) {
     pointer cpath = strToCstr(path)
     int ret = 0
     fly.runtime.fs_truncate(cpath, size, ret)
+    cstrFree(cpath)
 }
 
 // chmod changes the permission bits of the file at path.
@@ -313,6 +352,7 @@ public void chmod(const string path, const int mode) {
     pointer cpath = strToCstr(path)
     int ret = 0
     fly.runtime.fs_chmod(cpath, mode, ret)
+    cstrFree(cpath)
 }
 
 // delete removes the file or empty directory at path (unlink).
@@ -320,6 +360,7 @@ public void delete(const string path) {
     pointer cpath = strToCstr(path)
     int ret = 0
     fly.runtime.fs_unlink(cpath, ret)
+    cstrFree(cpath)
 }
 
 // copy copies the file at src to dst, creating or truncating dst.
@@ -343,14 +384,18 @@ public void copy(const string src, const string dst) {
             fly.runtime.fs_close(fd_src)
         }
     }
+    cstrFree(cpath_src)
     pointer cpath_dst = strToCstr(dst)
     int flags = 577
     int fd_dst = 0
     fly.runtime.fs_open(cpath_dst, flags, 420, fd_dst)
-    if fd_dst < 0 { return }
-    long nwritten = 0
-    fly.runtime.fs_write(fd_dst, buf, write_size, nwritten)
-    fly.runtime.fs_close(fd_dst)
+    cstrFree(cpath_dst)
+    if fd_dst >= 0 {
+        long nwritten = 0
+        fly.runtime.fs_write(fd_dst, buf, write_size, nwritten)
+        fly.runtime.fs_close(fd_dst)
+    }
+    fly.runtime.mem_free(buf, alloc_size)
 }
 
 // move renames src to dst using the rename(2) syscall.
@@ -360,6 +405,8 @@ public void move(const string src, const string dst) {
     pointer cdst = strToCstr(dst)
     int ret = 0
     fly.runtime.fs_rename(csrc, cdst, ret)
+    cstrFree(csrc)
+    cstrFree(cdst)
 }
 
 // rename is an alias for move.
@@ -368,6 +415,8 @@ public void rename(const string src, const string dst) {
     pointer cdst = strToCstr(dst)
     int ret = 0
     fly.runtime.fs_rename(csrc, cdst, ret)
+    cstrFree(csrc)
+    cstrFree(cdst)
 }
 
 // dirCreate creates a single directory at path with the given permission bits.
@@ -376,6 +425,7 @@ public void dirCreate(const string path, const int perm) {
     pointer cpath = strToCstr(path)
     int ret = 0
     fly.runtime.fs_mkdir(cpath, perm, ret)
+    cstrFree(cpath)
 }
 
 // dirCreateAll creates path and all missing parent directories (like mkdir -p).
@@ -411,6 +461,7 @@ public void dirCreateAll(const string path, const int perm) {
         }
         i = i + 1
     }
+    fly.runtime.mem_free(buf, plen + 2)
 }
 
 // dirDelete removes an empty directory at path (rmdir).
@@ -418,6 +469,7 @@ public void dirDelete(const string path) {
     pointer cpath = strToCstr(path)
     int ret = 0
     fly.runtime.fs_rmdir(cpath, ret)
+    cstrFree(cpath)
 }
 
 // dirDeleteAll removes path and all its contents recursively (like rm -rf).
@@ -426,7 +478,10 @@ public void dirDeleteAll(const string path) {
     pointer cpath = strToCstr(path)
     pointer dh = 0
     fly.runtime.dir_open(cpath, dh)
-    if dh == 0 { return }
+    if dh == 0 {
+        cstrFree(cpath)
+        return
+    }
 
     int bufsize = 4096
     pointer dbuf = 0
@@ -445,10 +500,16 @@ public void dirDeleteAll(const string path) {
                 byte rlen_hi = 0
                 fly.llvm.ptrByteAt(dbuf, pos + 16, rlen_lo)
                 fly.llvm.ptrByteAt(dbuf, pos + 17, rlen_hi)
-                int rlo = rlen_lo
-                int rhi = rlen_hi
+                // & 255: a byte widens WITH SIGN on Linux x86-64, and a record
+                // whose length has its low byte >= 128 came out negative.
+                int rlo = rlen_lo & 255
+                int rhi = rlen_hi & 255
                 int reclen = rlo + rhi * 256
-                if reclen <= 0 { done = true }
+                if reclen <= 0 {
+                    // a record that cannot advance: stop, or pos never moves
+                    done = true
+                    break
+                }
 
                 byte dtype = 0
                 fly.llvm.ptrByteAt(dbuf, pos + 18, dtype)
@@ -506,18 +567,40 @@ public void dirDeleteAll(const string path) {
                             pointer centry = strToCstr(entry_path)
                             int ret = 0
                             fly.runtime.fs_unlink(centry, ret)
+                            cstrFree(centry)
                         }
                     }
                 }
 
-                if reclen > 0 { pos = pos + reclen } else { done = true }
+                pos = pos + reclen
             }
         }
     }
 
     fly.runtime.dir_close(dh)
+    fly.runtime.mem_free(dbuf, bufsize)
     int ret2 = 0
     fly.runtime.fs_rmdir(cpath, ret2)
+    cstrFree(cpath)
+}
+
+// dirEntriesFree releases what dirRead returned — every entry's name and the
+// entry array — then empties it, so a second call is harmless.
+public void dirEntriesFree(DirEntries d) {
+    if d.items != 0 {
+        ulong i = 0
+        while i < d.len {
+            ulong off = i * 56
+            pointer slot = d.items + off
+            pointer name = mem.readPtr(slot, 0)
+            if name != 0 { fly.runtime.mem_free(name, 0) }
+            i = i + 1
+        }
+        fly.runtime.mem_free(d.items, 0)
+    }
+    d.items = 0
+    d.len = 0
+    d.cap = 0
 }
 
 // dirRead lists the entries in path (excluding "." and "..") and fills out.
@@ -533,14 +616,16 @@ public void dirDeleteAll(const string path) {
 //  48: Stat.is_dir  (i32)   4 bytes
 //  52: Stat.is_symlink(i32) 4 bytes
 public DirEntries dirRead(const string path) {
-    out.items = 0
-    out.len = 0
-    out.cap = 0
+    DirEntries res = new DirEntries()
+    res.items = 0
+    res.len = 0
+    res.cap = 0
 
     pointer cpath = strToCstr(path)
     pointer dh = 0
     fly.runtime.dir_open(cpath, dh)
-    if dh == 0 { return }
+    cstrFree(cpath)
+    if dh == 0 { return res }
 
     ulong cap = 16
     ulong stride = 56
@@ -565,10 +650,16 @@ public DirEntries dirRead(const string path) {
                 byte rlen_hi = 0
                 fly.llvm.ptrByteAt(dbuf, pos + 16, rlen_lo)
                 fly.llvm.ptrByteAt(dbuf, pos + 17, rlen_hi)
-                int rlo = rlen_lo
-                int rhi = rlen_hi
+                // & 255: a byte widens WITH SIGN on Linux x86-64, and a record
+                // whose length has its low byte >= 128 came out negative.
+                int rlo = rlen_lo & 255
+                int rhi = rlen_hi & 255
                 int reclen = rlo + rhi * 256
-                if reclen <= 0 { done = true }
+                if reclen <= 0 {
+                    // a record that cannot advance: stop, or pos never moves
+                    done = true
+                    break
+                }
 
                 // Read d_type (byte at offset 18 in linux_dirent64)
                 byte dtype = 0
@@ -645,6 +736,7 @@ public DirEntries dirRead(const string path) {
                             fly.runtime.mem_alloc(newcap * stride, newbuf)
                             ulong copied = count * stride
                             fly.llvm.memcpy(newbuf, items, copied)
+                            fly.runtime.mem_free(items, cap * stride)
                             items = newbuf
                             cap = newcap
                         }
@@ -670,15 +762,17 @@ public DirEntries dirRead(const string path) {
                     }
                 }
 
-                if reclen > 0 { pos = pos + reclen } else { done = true }
+                pos = pos + reclen
             }
         }
     }
 
     fly.runtime.dir_close(dh)
-    out.items = items
-    out.len = count
-    out.cap = cap
+    fly.runtime.mem_free(dbuf, bufsize)
+    res.items = items
+    res.len = count
+    res.cap = cap
+    return res
 }
 
 // symlinkCreate creates a symbolic link at link pointing to target.
@@ -687,22 +781,27 @@ public void symlinkCreate(const string target, const string link) {
     pointer clink = strToCstr(link)
     int ret = 0
     fly.runtime.fs_symlink(ctarget, clink, ret)
+    cstrFree(ctarget)
+    cstrFree(clink)
 }
 
 // symlinkRead reads the target of the symbolic link at path.
 // Returns an empty string on failure.
 public string symlinkRead(const string path) {
+    string res = ""
     pointer cpath = strToCstr(path)
     int cap = 4096
     pointer buf = 0
     fly.runtime.mem_alloc(cap, buf)
     int nread = 0
     fly.runtime.fs_readlink(cpath, buf, cap, nread)
+    cstrFree(cpath)
     if nread <= 0 {
-        fly.llvm.strMake(buf, 0, out)
-        return
+        fly.llvm.strMake(buf, 0, res)
+        return res
     }
-    fly.llvm.strMake(buf, nread, out)
+    fly.llvm.strMake(buf, nread, res)
+    return res
 }
 
 // tempFile creates a temporary file in dir whose name begins with pattern.
@@ -763,38 +862,39 @@ public string, File tempFile(const string dir, const string pattern) {
             }
             npos = npos + nd
         }
+        fly.runtime.mem_free(tmp_d, 24)
         string name_str = ""
         fly.llvm.strMake(name_buf, npos, name_str)
         string full_path = pathJoin(dir, name_str)
         pointer cpath = strToCstr(full_path)
         int fd = 0
         fly.runtime.fs_open(cpath, 193, 384, fd)
+        cstrFree(cpath)
         if fd >= 0 {
-            out[0] = full_path
             File tmp_f = new File()
             tmp_f.fd = fd
             tmp_f.flags = 2
-            out[1] = tmp_f
-            return
+            return full_path, tmp_f
         }
         counter = counter + 1
     }
+    // Every attempt collided: no path, and a File that reports the failure.
     File fail_f = new File()
     fail_f.fd = 0 - 1
     fail_f.flags = 0
-    out[1] = fail_f
+    return "", fail_f
 }
 
 // tempDir creates a temporary directory in dir whose name begins with pattern.
 // The full path of the created directory is written to out_path.
 // Tries up to 10 000 unique names.
 public string tempDir(const string dir, const string pattern) {
+    string res = ""
     long base_ns = 0
     fly.runtime.time_mono_ns(base_ns)
 
     int plen = 0
     fly.llvm.strSize(pattern, plen)
-    string name_str = ""
 
     int counter = 0
     while counter < 10000 {
@@ -842,16 +942,21 @@ public string tempDir(const string dir, const string pattern) {
             }
             npos = npos + nd
         }
+        fly.runtime.mem_free(tmp_d, 24)
+        // one name per attempt: strMake over a live string would leak the old one
+        string name_str = ""
         fly.llvm.strMake(name_buf, npos, name_str)
-        out = pathJoin(dir, name_str)
-        pointer cpath = strToCstr(out)
+        res = pathJoin(dir, name_str)
+        pointer cpath = strToCstr(res)
         int ret = 0
         fly.runtime.fs_mkdir(cpath, 448, ret)
+        cstrFree(cpath)
         if ret >= 0 {
-            return
+            return res
         }
         counter = counter + 1
     }
+    return res
 }
 
 // writeStr writes the Fly string content to path, creating or truncating the file.
@@ -865,6 +970,7 @@ public void writeStr(const string path, const string content, const int perm) {
     int flags = 577
     int fd = 0
     fly.runtime.fs_open(cpath, flags, perm, fd)
+    cstrFree(cpath)
     if fd < 0 { return }
     long nwritten = 0
     fly.runtime.fs_write(fd, ptr, sz, nwritten)
@@ -899,6 +1005,7 @@ public void writeBytes(const string path, const string content, const int perm) 
     int flags = 577
     int fd = 0
     fly.runtime.fs_open(cpath, flags, perm, fd)
+    cstrFree(cpath)
     if fd < 0 { return }
     int bm = 0
     fly.runtime.io_set_binary(fd, bm)
@@ -910,21 +1017,23 @@ public void writeBytes(const string path, const string content, const int perm) 
 // readBytes reads the whole file VERBATIM, with no newline translation and no
 // early stop at 0x1A. Empty when the file is empty or missing.
 public string readBytes(const string path) {
+    string res = ""
     ulong fsize = size(path)
     if fsize == 0 {
         pointer empty = 0
         fly.runtime.mem_alloc(1, empty)
-        fly.llvm.strMake(empty, 0, out)
-        return
+        fly.llvm.strMake(empty, 0, res)
+        return res
     }
     pointer buf = 0
     fly.runtime.mem_alloc(fsize, buf)
     pointer cpath = strToCstr(path)
     int fd = 0
     fly.runtime.fs_open(cpath, 0, 0, fd)
+    cstrFree(cpath)
     if fd < 0 {
-        fly.llvm.strMake(buf, 0, out)
-        return
+        fly.llvm.strMake(buf, 0, res)
+        return res
     }
     int bm = 0
     fly.runtime.io_set_binary(fd, bm)
@@ -945,18 +1054,20 @@ public string readBytes(const string path) {
         }
     }
     fly.runtime.fs_close(fd)
-    fly.llvm.strMake(buf, total, out)
+    fly.llvm.strMake(buf, total, res)
+    return res
 }
 
 // readStr reads the entire file at path into a Fly string.
 // Returns an empty string if the file is empty or does not exist.
 public string readStr(const string path) {
+    string res = ""
     ulong fsize = size(path)
     if fsize == 0 {
         pointer empty = 0
         fly.runtime.mem_alloc(1, empty)
-        fly.llvm.strMake(empty, 0, out)
-        return
+        fly.llvm.strMake(empty, 0, res)
+        return res
     }
     ulong cap = fsize
     pointer buf = 0
@@ -964,9 +1075,10 @@ public string readStr(const string path) {
     pointer cpath = strToCstr(path)
     int fd = 0
     fly.runtime.fs_open(cpath, 0, 0, fd)
+    cstrFree(cpath)
     if fd < 0 {
-        fly.llvm.strMake(buf, 0, out)
-        return
+        fly.llvm.strMake(buf, 0, res)
+        return res
     }
     long nread = 0
     fly.runtime.fs_read(fd, buf, fsize, nread)
@@ -974,10 +1086,11 @@ public string readStr(const string path) {
     if nread > 0 {
         int nread_int = 0
         fly.llvm.longToInt(nread, nread_int)
-        fly.llvm.strMake(buf, nread_int, out)
+        fly.llvm.strMake(buf, nread_int, res)
     } else {
-        fly.llvm.strMake(buf, 0, out)
+        fly.llvm.strMake(buf, 0, res)
     }
+    return res
 }
 
 // appendStr appends the Fly string content to path, creating it if needed.
@@ -991,6 +1104,7 @@ public void appendStr(const string path, const string content, const int perm) {
     int flags = 1089
     int fd = 0
     fly.runtime.fs_open(cpath, flags, perm, fd)
+    cstrFree(cpath)
     if fd < 0 { return }
     long nwritten = 0
     fly.runtime.fs_write(fd, ptr, sz, nwritten)
@@ -1003,13 +1117,13 @@ public bool isFile(const string path) {
     pointer cpath = strToCstr(path)
     int fmode = 0
     fly.runtime.fs_mode(cpath, fmode)
+    cstrFree(cpath)
     if fmode < 0 {
-        out = false
-        return
+        return false
     }
     int ftype = fmode / 4096
     int ftype16 = ftype - (ftype / 16) * 16
-    if ftype16 == 8 { out = true } else { out = false }
+    if ftype16 == 8 { return true } else { return false }
 }
 
 // isDir returns true if path exists and is a directory (follows symlinks).
@@ -1018,11 +1132,11 @@ public bool isDir(const string path) {
     pointer cpath = strToCstr(path)
     int fmode = 0
     fly.runtime.fs_mode(cpath, fmode)
+    cstrFree(cpath)
     if fmode < 0 {
-        out = false
-        return
+        return false
     }
     int ftype = fmode / 4096
     int ftype16 = ftype - (ftype / 16) * 16
-    if ftype16 == 4 { out = true } else { out = false }
+    if ftype16 == 4 { return true } else { return false }
 }

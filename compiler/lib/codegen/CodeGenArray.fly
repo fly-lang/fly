@@ -175,8 +175,8 @@ public class CodeGenArray {
     // The alloca is hoisted into the entry block by LLVM.buildAlloca, so a call in
     // a loop reuses one slot; the store stays here, where the value is computed.
     public static pointer slotOf(const CodeGenExpr cge, const SemaExpr e) {
-        if e.isVarExpr() { out = cge.genAddr(e)  return }
-        if e.getKind() == SemaKind.MEMBER { out = cge.genAddr(e)  return }
+        if e.isVarExpr() { return cge.genAddr(e) }
+        if e.getKind() == SemaKind.MEMBER { return cge.genAddr(e) }
         // A ROW of a nested array (`m[1]` in `m[1][2]`) is an inline %array inside
         // the outer buffer, and arrayAccess already hands back its ADDRESS — that
         // address IS the slot. Materialising it like a value stored the pointer
@@ -186,7 +186,7 @@ public class CodeGenArray {
         if e.getKind() == SemaKind.ARRAY_ACCESS {
             SemaType aet = e.getType()
             if aet != null {
-                if aet.isArray() { out = cge.gen(e)  return }
+                if aet.isArray() { return cge.gen(e) }
             }
         }
         LLVM llvm = cge.getLLVM()
@@ -196,7 +196,7 @@ public class CodeGenArray {
         pointer slot
         llvm.buildAlloca(b, ty, "arr.tmp", slot)
         llvm.buildStore(b, v, slot)
-        out = slot
+        return slot
     }
 
     // elementLlvmType — the LLVM type ONE element occupies inside the buffer.
@@ -213,7 +213,7 @@ public class CodeGenArray {
     // same struct inline: the tree disagreed with itself, and struct arrays were
     // unusable.
     public static pointer elementLlvmType(const CodeGenExpr cge, const SemaType elemType) {
-        out = CodeGenClass.fieldLlvmType(cge.getCgm(), elemType)
+        return CodeGenClass.fieldLlvmType(cge.getCgm(), elemType)
     }
 
     // fillWithInstances — store one freshly built `new C()` in every slot of a
@@ -329,7 +329,7 @@ public class CodeGenArray {
         gi.add(neg8)
         pointer hdr
         cg.buildGEP2N(cge.getBuilder(), i8t, dataPtr, gi, name, hdr)
-        out = hdr
+        return hdr
     }
 
     // emitRelease — drop one reference to the buffer held in an %array SLOT, and
@@ -492,7 +492,7 @@ public class CodeGenArray {
     // oobCode — the dedicated failure code for an out-of-range subscript, 0x0BAD.
     // It behaves like any other `fail`: it propagates, sets main's exit status,
     // and can be caught with `handle`.
-    public static int oobCode() { out = 2989 }
+    public static int oobCode() { return 2989 }
 
     // elementPtr — the ADDRESS of `base[index]`, bounds-checked.
     //
@@ -553,7 +553,7 @@ public class CodeGenArray {
         gidx.add(idxV)
         pointer elemPtr
         cg.buildGEP2N(b, elemLL, dataPtr, gidx, "arr.elem", elemPtr)
-        out = elemPtr
+        return elemPtr
     }
 
     // arrayAccess — the subscript as an expression. In addrMode it yields the
@@ -634,12 +634,19 @@ public class CodeGenArray {
 
         pointer condBB = cge.newBlock("forin.cond")
         pointer bodyBB = cge.newBlock("forin.body")
+        pointer incBB = cge.newBlock("forin.inc")
         pointer endBB = cge.newBlock("forin.end")
 
+        // `continue` goes to the increment, not straight to the test: jumping to
+        // condBB re-read the same index and looped forever.
         pointer savedBreak = cge.getBreakTarget()
         pointer savedCont = cge.getContinueTarget()
+        pointer savedBreakDepth = cge.getBreakDepth()
+        pointer savedContDepth = cge.getContinueDepth()
         cge.setBreakTarget(endBB)
-        cge.setContinueTarget(condBB)
+        cge.setContinueTarget(incBB)
+        cge.setBreakDepth(cge.getFrameDepth())
+        cge.setContinueDepth(cge.getFrameDepth())
 
         cge.br(condBB)
         cge.position(condBB)
@@ -662,7 +669,9 @@ public class CodeGenArray {
         llvm.buildLoad2(b, elemLL, elemPtr, "forin.ev", elemVal)
         llvm.buildStore(b, elemVal, itemAddr)
         node.getBody().accept(cge)
-        if cge.isTerminated() == false {
+        cge.br(incBB)
+        cge.position(incBB)
+        if incBB != 0 {
             pointer iNext0
             llvm.buildLoad2(b, i64t, idxA, "in", iNext0)
             pointer one64
@@ -675,6 +684,8 @@ public class CodeGenArray {
 
         cge.setBreakTarget(savedBreak)
         cge.setContinueTarget(savedCont)
+        cge.setBreakDepth(savedBreakDepth)
+        cge.setContinueDepth(savedContDepth)
         cge.position(endBB)
     }
 }

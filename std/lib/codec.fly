@@ -35,18 +35,17 @@ import fly.str
 
 // byteOf — the i-th byte of s as a masked int. The mask is the platform guard.
 private int byteOf(const string s, const int i) {
-    byte b = 0
-    str.byteAt(s, i, b)
+    byte b = str.byteAt(s, i)
     int v = b
-    out = v & 255
+    return v & 255
 }
 
 // hexDigitOf — LOWERCASE hex character for the low nibble of n. Used by
 // hexEncode, where lowercase is the convention for digests and dumps.
 private int hexDigitOf(const int n) {
     int d = n & 15
-    if d < 10 { out = 48 + d  return }
-    out = 87 + d
+    if d < 10 { return 48 + d }
+    return 87 + d
 }
 
 // hexDigitUpperOf — UPPERCASE hex, for percent-escapes. RFC 3986 §2.1 is
@@ -54,16 +53,16 @@ private int hexDigitOf(const int n) {
 // so the two encoders deliberately disagree on case.
 private int hexDigitUpperOf(const int n) {
     int d = n & 15
-    if d < 10 { out = 48 + d  return }
-    out = 55 + d
+    if d < 10 { return 48 + d }
+    return 55 + d
 }
 
 // hexValOf — 0..15 for a hex character, -1 for anything else.
 private int hexValOf(const int c) {
-    if c >= 48 && c <= 57 { out = c - 48  return }
-    if c >= 97 && c <= 102 { out = c - 87  return }
-    if c >= 65 && c <= 70 { out = c - 55  return }
-    out = 0 - 1
+    if c >= 48 && c <= 57 { return c - 48 }
+    if c >= 97 && c <= 102 { return c - 87 }
+    if c >= 65 && c <= 70 { return c - 55 }
+    return 0 - 1
 }
 
 // b64CharOf — the Base64 character for a 6-bit value. `urlSafe` swaps the last
@@ -71,26 +70,25 @@ private int hexValOf(const int c) {
 // section 4 and section 5.
 private int b64CharOf(const int v, const bool urlSafe) {
     int i = v & 63
-    if i < 26 { out = 65 + i  return }              // A-Z
-    if i < 52 { out = 97 + (i - 26)  return }       // a-z
-    if i < 62 { out = 48 + (i - 52)  return }       // 0-9
+    if i < 26 { return 65 + i }              // A-Z
+    if i < 52 { return 97 + (i - 26) }       // a-z
+    if i < 62 { return 48 + (i - 52) }       // 0-9
     if i == 62 {
-        if urlSafe { out = 45 } else { out = 43 }   // - or +
-        return
+        if urlSafe { return 45 } else { return 43 }   // - or +
     }
-    if urlSafe { out = 95 } else { out = 47 }       // _ or /
+    if urlSafe { return 95 } else { return 47 }       // _ or /
 }
 
 // b64ValOf — the 6-bit value for a Base64 character, -1 for anything else. Both
 // alphabets are accepted on DECODE regardless of which was asked for: a decoder
 // that rejects the other variant's two characters only creates work for callers.
 private int b64ValOf(const int c) {
-    if c >= 65 && c <= 90 { out = c - 65  return }          // A-Z
-    if c >= 97 && c <= 122 { out = c - 97 + 26  return }    // a-z
-    if c >= 48 && c <= 57 { out = c - 48 + 52  return }     // 0-9
-    if c == 43 || c == 45 { out = 62  return }              // + or -
-    if c == 47 || c == 95 { out = 63  return }              // / or _
-    out = 0 - 1
+    if c >= 65 && c <= 90 { return c - 65 }          // A-Z
+    if c >= 97 && c <= 122 { return c - 97 + 26 }    // a-z
+    if c >= 48 && c <= 57 { return c - 48 + 52 }     // 0-9
+    if c == 43 || c == 45 { return 62 }              // + or -
+    if c == 47 || c == 95 { return 63 }              // / or _
+    return 0 - 1
 }
 
 // ── Base64 ────────────────────────────────────────────────────────────────────
@@ -98,8 +96,9 @@ private int b64ValOf(const int c) {
 // b64Encode — the shared encoder. `pad` controls the trailing '=' characters:
 // the standard alphabet pads, the URL-safe one conventionally does not.
 private string b64Encode(const string s, const bool urlSafe, const bool pad) {
+    string res = ""
     int n = str.len(s)
-    if n == 0 { out = ""  return }
+    if n == 0 { return res }
     int groups = (n + 2) / 3
     int cap = groups * 4
     pointer buf = 0
@@ -133,7 +132,8 @@ private string b64Encode(const string s, const bool urlSafe, const bool pad) {
         }
         i = i + 3
     }
-    fly.llvm.strMake(buf, o, out)
+    fly.llvm.strMake(buf, o, res)
+    return res
 }
 
 // b64Decode — the shared decoder. Padding is OPTIONAL on input (both the padded
@@ -142,9 +142,10 @@ private string b64Encode(const string s, const bool urlSafe, const bool pad) {
 // than skipped: silently ignoring it hides a corrupted payload, and a caller who
 // wants MIME line folding can strip it deliberately.
 private string b64Decode(const string s, int errOut) {
+    string res = ""
     errOut = 0
     int n = str.len(s)
-    if n == 0 { out = ""  return }
+    if n == 0 { return res }
     // strip trailing padding
     int end = n
     bool trimming = true
@@ -167,8 +168,7 @@ private string b64Decode(const string s, int errOut) {
         if v < 0 {
             fly.runtime.mem_free(buf, cap)
             errOut = 1
-            out = ""
-            return
+            return res
         }
         acc = (acc << 6) | v
         bits = bits + 6
@@ -182,8 +182,7 @@ private string b64Decode(const string s, int errOut) {
     if rem == 1 {
         fly.runtime.mem_free(buf, cap)
         errOut = 2
-        out = ""
-        return
+        return res
     }
     // The leftover bits of an unpadded tail must be zero; anything else means the
     // last character encoded data that does not fit a whole byte.
@@ -191,40 +190,39 @@ private string b64Decode(const string s, int errOut) {
     if bits > 0 && leftover != 0 {
         fly.runtime.mem_free(buf, cap)
         errOut = 3
-        out = ""
-        return
+        return res
     }
     if o == 0 {
         fly.runtime.mem_free(buf, cap)
-        out = ""
-        return
+        return res
     }
-    fly.llvm.strMake(buf, o, out)
+    fly.llvm.strMake(buf, o, res)
+    return res
 }
 
 // base64Encode — RFC 4648 section 4: the +/ alphabet, '=' padded. "" only for an
 // empty input.
 public string base64Encode(const string s) {
-    out = b64Encode(s, false, true)
+    return b64Encode(s, false, true)
 }
 
 // base64Decode — RFC 4648 section 4, accepting either alphabet and optional
 // padding. errOut: 0 ok, 1 bad character (whitespace included), 2 impossible
 // length, 3 non-zero leftover bits.
 public string base64Decode(const string s, int errOut) {
-    out = b64Decode(s, errOut)
+    return b64Decode(s, errOut)
 }
 
 // base64UrlEncode — RFC 4648 section 5: the -_ alphabet, NO padding, so the
 // result is safe in a URL path, a query value or a JWT segment.
 public string base64UrlEncode(const string s) {
-    out = b64Encode(s, true, false)
+    return b64Encode(s, true, false)
 }
 
 // base64UrlDecode — the inverse; identical to base64Decode, which already
 // accepts both alphabets and optional padding.
 public string base64UrlDecode(const string s, int errOut) {
-    out = b64Decode(s, errOut)
+    return b64Decode(s, errOut)
 }
 
 // ── Percent-encoding ──────────────────────────────────────────────────────────
@@ -232,8 +230,9 @@ public string base64UrlDecode(const string s, int errOut) {
 // pctEncode — the shared encoder. `keepPathChars` preserves the characters that
 // structure a path or a URL; without it every reserved character is escaped.
 private string pctEncode(const string s, const bool keepPathChars) {
+    string res = ""
     int n = str.len(s)
-    if n == 0 { out = ""  return }
+    if n == 0 { return res }
     pointer buf = 0
     fly.runtime.mem_alloc(n * 3, buf)
     int o = 0
@@ -266,21 +265,22 @@ private string pctEncode(const string s, const bool keepPathChars) {
         }
         i = i + 1
     }
-    fly.llvm.strMake(buf, o, out)
+    fly.llvm.strMake(buf, o, res)
+    return res
 }
 
 // percentEncode — escape everything outside the RFC 3986 unreserved set EXCEPT
 // the URL structure characters (/ : ? # [ ] @ ! $ & ' ( ) * + , ; =), so a whole
 // path or URL passes through intact. Never fails.
 public string percentEncode(const string s) {
-    out = pctEncode(s, true)
+    return pctEncode(s, true)
 }
 
 // percentEncodeComponent — escape every reserved character too, leaving only
 // A-Za-z0-9 and - . _ ~. This is what a single query VALUE or path SEGMENT needs:
 // a '/' or '&' inside one must not be read as structure. Never fails.
 public string percentEncodeComponent(const string s) {
-    out = pctEncode(s, false)
+    return pctEncode(s, false)
 }
 
 // percentDecode — the inverse of both encoders, accepting hex escapes in EITHER
@@ -291,9 +291,10 @@ public string percentEncodeComponent(const string s) {
 // to the application/x-www-form-urlencoded format, not to percent-encoding, and
 // applying it here would corrupt any path or JSON body containing a plus.
 public string percentDecode(const string s, int errOut) {
+    string res = ""
     errOut = 0
     int n = str.len(s)
-    if n == 0 { out = ""  return }
+    if n == 0 { return res }
     pointer buf = 0
     fly.runtime.mem_alloc(n, buf)
     int o = 0
@@ -308,16 +309,14 @@ public string percentDecode(const string s, int errOut) {
             if i + 2 >= n {
                 fly.runtime.mem_free(buf, n)
                 errOut = 2
-                out = ""
-                return
+                return res
             }
             int hi = hexValOf(byteOf(s, i + 1))
             int lo = hexValOf(byteOf(s, i + 2))
             if hi < 0 || lo < 0 {
                 fly.runtime.mem_free(buf, n)
                 errOut = 4
-                out = ""
-                return
+                return res
             }
             fly.llvm.strPoke(buf, o, (byte)((hi << 4) | lo))
             o = o + 1
@@ -326,18 +325,19 @@ public string percentDecode(const string s, int errOut) {
     }
     if o == 0 {
         fly.runtime.mem_free(buf, n)
-        out = ""
-        return
+        return res
     }
-    fly.llvm.strMake(buf, o, out)
+    fly.llvm.strMake(buf, o, res)
+    return res
 }
 
 // ── Hex ───────────────────────────────────────────────────────────────────────
 
 // hexEncode — two lowercase hex characters per byte. Never fails.
 public string hexEncode(const string s) {
+    string res = ""
     int n = str.len(s)
-    if n == 0 { out = ""  return }
+    if n == 0 { return res }
     pointer buf = 0
     fly.runtime.mem_alloc(n * 2, buf)
     int i = 0
@@ -347,17 +347,19 @@ public string hexEncode(const string s) {
         fly.llvm.strPoke(buf, i * 2 + 1, (byte)hexDigitOf(c))
         i = i + 1
     }
-    fly.llvm.strMake(buf, n * 2, out)
+    fly.llvm.strMake(buf, n * 2, res)
+    return res
 }
 
 // hexDecode — the inverse, accepting either case. errOut: 0 ok, 2 an odd length,
 // 1 a non-hex character.
 public string hexDecode(const string s, int errOut) {
+    string res = ""
     errOut = 0
     int n = str.len(s)
-    if n == 0 { out = ""  return }
+    if n == 0 { return res }
     int odd = n % 2
-    if odd != 0 { errOut = 2  out = ""  return }
+    if odd != 0 { errOut = 2  return res }
     int half = n / 2
     pointer buf = 0
     fly.runtime.mem_alloc(half, buf)
@@ -368,11 +370,11 @@ public string hexDecode(const string s, int errOut) {
         if hi < 0 || lo < 0 {
             fly.runtime.mem_free(buf, half)
             errOut = 1
-            out = ""
-            return
+            return res
         }
         fly.llvm.strPoke(buf, i, (byte)((hi << 4) | lo))
         i = i + 1
     }
-    fly.llvm.strMake(buf, half, out)
+    fly.llvm.strMake(buf, half, res)
+    return res
 }

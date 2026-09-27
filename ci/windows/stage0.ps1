@@ -48,7 +48,13 @@ $LLVM_VERSION = if ($env:LLVM_VERSION) { $env:LLVM_VERSION } else { "20.1.8" }
 # directory holds, carrying declarations plus the source of the templates alone —
 # not the whole module. It also spaces nested generic closers itself, so the
 # build script no longer rewrites `>>` over shipped code.
-$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.17" }
+# 0.13.18 replaces the implicit `out` return variable with `return expr` (and
+# `return a, b` for a multi-return). The lowering is unchanged — the value is
+# still stored into a hidden trailing out parameter, then `ret void` — so the ABI
+# is the same; what changed is the surface syntax, plus two rules the seed now
+# enforces: a value function must return on every path, and a struct local that
+# every return hands back is built directly in the caller's slot (NRVO).
+$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.18" }
 
 # Resolve everything against the PROJECT ROOT (this script lives in ci\windows\,
 # two levels down) so the downloads land next to the build regardless of the

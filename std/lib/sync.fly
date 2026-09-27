@@ -5,20 +5,26 @@ import fly.llvm
 
 // ── internal helpers ──────────────────────────────────────────────────────────
 
-private void atomicLoad(const pointer p, int out) {
-    fly.runtime.atomic_load_i32(p, out)
+private int atomicLoad(const pointer p) {
+    int v = 0
+    fly.runtime.atomic_load_i32(p, v)
+    return v
 }
 
 private void atomicStore(const pointer p, const int v) {
     fly.runtime.atomic_store_i32(p, v)
 }
 
-private void atomicCas(const pointer p, const int expected, const int desired, int out) {
-    fly.runtime.atomic_cas_i32(p, expected, desired, out)
+private int atomicCas(const pointer p, const int expected, const int desired) {
+    int prev = 0
+    fly.runtime.atomic_cas_i32(p, expected, desired, prev)
+    return prev
 }
 
-private void atomicAdd(const pointer p, const int delta, int out) {
-    fly.runtime.atomic_fetch_add_i32(p, delta, out)
+private int atomicAdd(const pointer p, const int delta) {
+    int prev = 0
+    fly.runtime.atomic_fetch_add_i32(p, delta, prev)
+    return prev
 }
 
 // Allocate a zero-initialised 4-byte heap slot; return its address.
@@ -27,7 +33,7 @@ private pointer newI32() {
     pointer p = 0
     fly.runtime.mem_alloc(four, p)
     fly.llvm.memset(p, 0, four)
-    out = p
+    return p
 }
 
 // ── Thread ────────────────────────────────────────────────────────────────────
@@ -38,11 +44,13 @@ public struct Thread {
 
 // spawn starts fn(arg) in a new thread. stack=0 uses the default (1 MB).
 public Thread spawnThread(const pointer fn, const pointer arg, const ulong stack) {
+    Thread res = new Thread()
     ulong sz = stack
     if sz == 0 { sz = 1048576 }
     int t = 0
     fly.runtime.thread_spawn(fn, arg, sz, t)
-    out.id = t
+    res.id = t
+    return res
 }
 
 // ── Mutex ─────────────────────────────────────────────────────────────────────
@@ -53,14 +61,15 @@ public struct Mutex {
 }
 
 public Mutex newMutex() {
-    out.ptr = fly.sync.newI32()
+    Mutex res = new Mutex()
+    res.ptr = fly.sync.newI32()
+    return res
 }
 
 public void mutexLock(Mutex m) {
     bool done = false
     while done == false {
-        int old = 0
-        fly.sync.atomicCas(m.ptr, 0, 1, old)
+        int old = fly.sync.atomicCas(m.ptr, 0, 1)
         if old == 0 {
             done = true
         } else {
@@ -77,9 +86,8 @@ public void mutexUnlock(Mutex m) {
 }
 
 public bool mutexTryLock(Mutex m) {
-    int old = 0
-    fly.sync.atomicCas(m.ptr, 0, 1, old)
-    out = old == 0
+    int old = fly.sync.atomicCas(m.ptr, 0, 1)
+    return old == 0
 }
 
 // ── RWMutex ───────────────────────────────────────────────────────────────────
@@ -92,19 +100,19 @@ public struct RWMutex {
 }
 
 public RWMutex newRWMutex() {
-    out.state_ptr   = fly.sync.newI32()
-    out.waiters_ptr = fly.sync.newI32()
+    RWMutex res = new RWMutex()
+    res.state_ptr   = fly.sync.newI32()
+    res.waiters_ptr = fly.sync.newI32()
+    return res
 }
 
 public void rwmutexRlock(RWMutex rw) {
     bool done = false
     while done == false {
-        int s = 0
-        fly.sync.atomicLoad(rw.state_ptr, s)
+        int s = fly.sync.atomicLoad(rw.state_ptr)
         if s >= 0 {
             int ns = s + 1
-            int old = 0
-            fly.sync.atomicCas(rw.state_ptr, s, ns, old)
+            int old = fly.sync.atomicCas(rw.state_ptr, s, ns)
             if old == s { done = true }
         } else {
             fly.runtime.futex_wait(rw.state_ptr, s)
@@ -113,11 +121,9 @@ public void rwmutexRlock(RWMutex rw) {
 }
 
 public void rwmutexRunlock(RWMutex rw) {
-    int old = 0
-    fly.sync.atomicAdd(rw.state_ptr, 0 - 1, old)
+    int old = fly.sync.atomicAdd(rw.state_ptr, 0 - 1)
     if old == 1 {
-        int w = 0
-        fly.sync.atomicLoad(rw.waiters_ptr, w)
+        int w = fly.sync.atomicLoad(rw.waiters_ptr)
         if w > 0 {
             int all = 2147483647
             int ignored = 0
@@ -127,15 +133,13 @@ public void rwmutexRunlock(RWMutex rw) {
 }
 
 public void rwmutexWlock(RWMutex rw) {
-    int ignored = 0
-    fly.sync.atomicAdd(rw.waiters_ptr, 1, ignored)
+    int ignored = fly.sync.atomicAdd(rw.waiters_ptr, 1)
     bool done = false
     while done == false {
         int neg1 = 0 - 1
-        int old = 0
-        fly.sync.atomicCas(rw.state_ptr, 0, neg1, old)
+        int old = fly.sync.atomicCas(rw.state_ptr, 0, neg1)
         if old == 0 {
-            fly.sync.atomicAdd(rw.waiters_ptr, 0 - 1, ignored)
+            ignored = fly.sync.atomicAdd(rw.waiters_ptr, 0 - 1)
             done = true
         } else {
             fly.runtime.futex_wait(rw.state_ptr, old)
@@ -157,18 +161,18 @@ public struct WaitGroup {
 }
 
 public WaitGroup newWaitGroup() {
-    out.ptr = fly.sync.newI32()
+    WaitGroup res = new WaitGroup()
+    res.ptr = fly.sync.newI32()
+    return res
 }
 
 public void wgAdd(WaitGroup wg, const int n) {
-    int ignored = 0
-    fly.sync.atomicAdd(wg.ptr, n, ignored)
+    int ignored = fly.sync.atomicAdd(wg.ptr, n)
 }
 
 public void wgDone(WaitGroup wg) {
     // fetch_add returns old value; old==1 means counter just reached 0
-    int old = 0
-    fly.sync.atomicAdd(wg.ptr, 0 - 1, old)
+    int old = fly.sync.atomicAdd(wg.ptr, 0 - 1)
     if old == 1 {
         int all = 2147483647
         int ignored = 0
@@ -179,8 +183,7 @@ public void wgDone(WaitGroup wg) {
 public void wgWait(WaitGroup wg) {
     bool done = false
     while done == false {
-        int v = 0
-        fly.sync.atomicLoad(wg.ptr, v)
+        int v = fly.sync.atomicLoad(wg.ptr)
         if v == 0 {
             done = true
         } else {
@@ -199,24 +202,25 @@ public struct Once {
 }
 
 public Once newOnce() {
-    out.ptr = fly.sync.newI32()
+    Once res = new Once()
+    res.ptr = fly.sync.newI32()
+    return res
 }
 
 // onceAcquire returns true to exactly the first caller.
 // All other callers block until onceRelease() is called.
 public bool onceAcquire(Once o) {
+    bool res
     bool done = false
     while done == false {
-        int s = 0
-        fly.sync.atomicLoad(o.ptr, s)
+        int s = fly.sync.atomicLoad(o.ptr)
         if s == 2 {
-            out = false
+            res = false
             done = true
         } elsif s == 0 {
-            int old = 0
-            fly.sync.atomicCas(o.ptr, 0, 1, old)
+            int old = fly.sync.atomicCas(o.ptr, 0, 1)
             if old == 0 {
-                out = true
+                res = true
                 done = true
             } else {
                 fly.runtime.futex_wait(o.ptr, 1)
@@ -225,6 +229,7 @@ public bool onceAcquire(Once o) {
             fly.runtime.futex_wait(o.ptr, 1)
         }
     }
+    return res
 }
 
 // onceRelease marks initialisation done and unblocks all waiters.
@@ -242,19 +247,19 @@ public struct Semaphore {
 }
 
 public Semaphore newSemaphore(const int initial) {
+    Semaphore res = new Semaphore()
     pointer p = fly.sync.newI32()
     fly.sync.atomicStore(p, initial)
-    out.ptr = p
+    res.ptr = p
+    return res
 }
 
 public void semaphoreAcquire(Semaphore s) {
     bool done = false
     while done == false {
-        int v = 0
-        fly.sync.atomicLoad(s.ptr, v)
+        int v = fly.sync.atomicLoad(s.ptr)
         if v > 0 {
-            int old = 0
-            fly.sync.atomicCas(s.ptr, v, v - 1, old)
+            int old = fly.sync.atomicCas(s.ptr, v, v - 1)
             if old == v { done = true }
         } else {
             fly.runtime.futex_wait(s.ptr, 0)
@@ -263,20 +268,50 @@ public void semaphoreAcquire(Semaphore s) {
 }
 
 public void semaphoreRelease(Semaphore s) {
-    int ignored = 0
-    fly.sync.atomicAdd(s.ptr, 1, ignored)
+    int ignored = fly.sync.atomicAdd(s.ptr, 1)
     int one = 1
     fly.runtime.futex_wake(s.ptr, one, ignored)
 }
 
 public bool semaphoreTryAcquire(Semaphore s) {
-    int v = 0
-    fly.sync.atomicLoad(s.ptr, v)
+    int v = fly.sync.atomicLoad(s.ptr)
     if v > 0 {
-        int old = 0
-        fly.sync.atomicCas(s.ptr, v, v - 1, old)
-        out = old == v
+        int old = fly.sync.atomicCas(s.ptr, v, v - 1)
+        return old == v
     } else {
-        out = false
+        return false
     }
+}
+
+// ── Release ───────────────────────────────────────────────────────────────────
+// Every primitive above keeps its state in a small heap slot. These give it
+// back: call one only when no thread can touch the primitive any more (a mutex
+// unlocked, a wait group drained). Each clears the handle, so freeing twice is a
+// no-op rather than a double free.
+
+public void mutexFree(Mutex m) {
+    if m.ptr != 0 { fly.runtime.mem_free(m.ptr, 4) }
+    m.ptr = 0
+}
+
+public void rwMutexFree(RWMutex rw) {
+    if rw.state_ptr != 0 { fly.runtime.mem_free(rw.state_ptr, 4) }
+    if rw.waiters_ptr != 0 { fly.runtime.mem_free(rw.waiters_ptr, 4) }
+    rw.state_ptr = 0
+    rw.waiters_ptr = 0
+}
+
+public void waitGroupFree(WaitGroup wg) {
+    if wg.ptr != 0 { fly.runtime.mem_free(wg.ptr, 4) }
+    wg.ptr = 0
+}
+
+public void onceFree(Once o) {
+    if o.ptr != 0 { fly.runtime.mem_free(o.ptr, 4) }
+    o.ptr = 0
+}
+
+public void semaphoreFree(Semaphore s) {
+    if s.ptr != 0 { fly.runtime.mem_free(s.ptr, 4) }
+    s.ptr = 0
 }

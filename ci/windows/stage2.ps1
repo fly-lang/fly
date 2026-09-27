@@ -72,7 +72,11 @@ if (-not $ok) {
 # test_dbg: the debugger is PROVISIONED (bundled by link_fly.ps1 from the fork
 # LLVM), not compiled — but it ships from build\stage2\bin like the tools, so
 # it is verified here with them.
-foreach ($step in 'build_lsp', 'test_lsp', 'build_registry', 'test_registry', 'test_tools', 'test_dbg') {
+# test_abi: the shipped pair is a SELF-HOST compiler over a SEED-built std, so
+# the two compilers' calling conventions must match. Belongs here for the same
+# reason as the leak guard: it is a property of the artifact, not of a stage's
+# sources, and no suite can see it (a suite compiles both sides with one compiler).
+foreach ($step in 'build_lsp', 'test_lsp', 'build_registry', 'test_registry', 'test_tools', 'test_abi', 'test_leaks', 'test_dbg') {
     & ".\ci\windows\$step.ps1"
     if ($LASTEXITCODE -ne 0) { Write-Host "error: $step.ps1 failed (exit $LASTEXITCODE)"; exit 1 }
 }

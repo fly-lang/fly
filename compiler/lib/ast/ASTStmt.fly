@@ -33,7 +33,7 @@ public class ASTStmt : ASTNode {
         this.stmtKind = stmtKind
     }
 
-    public ASTStmt getParent() { out = this.parent }
+    public ASTStmt getParent() { return this.parent }
     public void setParent(const ASTStmt parent) { this.parent = parent }
-    public ASTStmtKind getStmtKind() { out = this.stmtKind }
+    public ASTStmtKind getStmtKind() { return this.stmtKind }
 }

@@ -71,7 +71,7 @@ Write-Host "  ok    $(($ver.Trim() -split "`n")[0])"
 @'
 int add(const int a, const int b) {
     int s = a + b
-    out = s
+    return s
 }
 
 void main() {

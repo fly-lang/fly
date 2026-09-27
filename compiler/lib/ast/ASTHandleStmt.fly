@@ -14,7 +14,7 @@ public class ASTHandleStmt : ASTStmt {
         super(loc, ASTStmtKind.STMT_HANDLE)
     }
 
-    public ASTBlockStmt getHandle() { out = this.handleBlock }
+    public ASTBlockStmt getHandle() { return this.handleBlock }
     public void setHandle(const ASTBlockStmt b) { this.handleBlock = b }
 
     public void accept(const ASTVisitor v) { v.visit(this) }

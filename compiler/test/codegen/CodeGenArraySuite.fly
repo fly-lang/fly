@@ -21,7 +21,7 @@ string cgaDq() {
     fly.llvm.strPoke(buf, 0, q)
     string s = ""
     fly.llvm.strMake(buf, 1, s)
-    out = s
+    return s
 }
 
 suite CodeGenArraySuite {
@@ -60,7 +60,7 @@ suite CodeGenArraySuite {
         // pointer: `getelementptr %array, %array` — the module failed verification
         // (cgIR asserts verifyModule, so these cases go red at the first regression).
         case "for x in <call result> materialises a slot": {
-            string ir = cgIR("int[] g() { int[] a = {1, 2}  out = a } void f() { for x in g() { } }")
+            string ir = cgIR("int[] g() { int[] a = {1, 2}  return a } void f() { for x in g() { } }")
             assert.assertTrue(str.contains(ir, "arr.tmp"), 41)
             assert.assertTrue(str.contains(ir, "forin.cond"), 42)
         }
@@ -176,16 +176,16 @@ suite CodeGenArraySuite {
             assert.assertFalse(str.contains(ir, "aret.live"), 89)
         }
         // Nor does a CALL result: the callee already retained on the caller's
-        // behalf when it ran `out = xs`.
+        // behalf when it ran `return xs`.
         //
         // The callee here returns a LITERAL rather than a local, on purpose. With
-        // `int[] a = {1}  out = a` the callee's own `out = a` retains an lvalue, so
+        // `int[] a = {1}  return a` the callee's own `return a` retains an lvalue, so
         // `aret.live` appears in the module for THAT reason and the assertion below
         // could never distinguish the two — cgIR returns the whole module, not one
         // function. Returning `{1}` directly leaves the callee retain-free, so any
         // retain in the module would have to come from `int[] r = g()`.
         case "a call result does not retain": {
-            string ir = cgIR("int[] g() { out = {1} } void f() { int[] r = g() }")
+            string ir = cgIR("int[] g() { return {1} } void f() { int[] r = g() }")
             assert.assertFalse(str.contains(ir, "aret.live"), 90)
         }
         // NESTED: one buffer and one count per level. The release walks the

@@ -34,7 +34,7 @@ public class ParserFunction {
             else { go = false }
         }
         p.closeTypeArgs()
-        out = params
+        return params
     }
 
     // parseParams — `( (mods Type name (= default)?)(, …)* )`.
@@ -61,6 +61,6 @@ public class ParserFunction {
             else { go = false }
         }
         p.expectPunct(")")
-        out = params
+        return params
     }
 }

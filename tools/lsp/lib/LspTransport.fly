@@ -41,9 +41,8 @@ public string frameFor(const string body) {
     mem.writeByte(crlf2, 1, 10)
     mem.writeByte(crlf2, 2, 13)
     mem.writeByte(crlf2, 3, 10)
-    string sep = ""
-    str.fromBytes(crlf2, 4, sep)
-    out = str.concat("Content-Length: ",
+    string sep = str.fromBytes(crlf2, 4)
+    return str.concat("Content-Length: ",
           str.concat(str.convert(str.len(body)),
           str.concat(sep, body)))
 }
@@ -55,7 +54,7 @@ public pointer idNodeOf(const string idJson) {
     int pe = 0
     pointer idNode = json.parse(idJson, pe)
     if pe != 0 { idNode = json.newNull() }
-    out = idNode
+    return idNode
 }
 
 // resultJson — the serialized success response for `id`. TAKES OWNERSHIP of
@@ -69,7 +68,7 @@ public string resultJson(const string idJson, const pointer result) {
     json.put(o, "result", res)
     string s = json.write(o)
     json.freeValue(o)
-    out = s
+    return s
 }
 
 // errorJson — the serialized error response for `id`.
@@ -83,7 +82,7 @@ public string errorJson(const string idJson, const int code, const string messag
     json.put(o, "error", err)
     string s = json.write(o)
     json.freeValue(o)
-    out = s
+    return s
 }
 
 // notificationJson — the serialized server-push notification. TAKES OWNERSHIP
@@ -97,7 +96,7 @@ public string notificationJson(const string method, const pointer params) {
     json.put(o, "params", p)
     string s = json.write(o)
     json.freeValue(o)
-    out = s
+    return s
 }
 
 public class LspTransport {
@@ -114,13 +113,12 @@ public class LspTransport {
         Buf b = io.readExact(this.in, 1)
         if b.size < 1 {
             if b.ptr != 0 { mem.free(b.ptr, b.cap) }
-            out = 0 - 1
-            return
+            return 0 - 1
         }
         byte v = mem.readByte(b.ptr, 0)
         mem.free(b.ptr, b.cap)
         int r = v
-        out = r & 255
+        return r & 255
     }
 
     // readMessage — the next framed message BODY, "" at EOF or on a framing
@@ -147,8 +145,7 @@ public class LspTransport {
             }
             if eof {
                 mem.free(acc, 256)
-                out = ""
-                return
+                return ""
             }
             if accLen == 0 {
                 mem.free(acc, 256)
@@ -157,15 +154,14 @@ public class LspTransport {
                 pointer cp = mem.alloc(accLen)
                 mem.copy(cp, acc, accLen)
                 mem.free(acc, 256)
-                str.fromBytes(cp, accLen, line)  // takes ownership of cp
+                line = str.fromBytes(cp, accLen)  // takes ownership of cp
                 if str.startsWith(line, "Content-Length: ") {
                     string num = str.substring(line, 16, str.len(line))
                     int v = 0
                     int di = 0
                     int dn = str.len(num)
                     while di < dn {
-                        byte db = 0
-                        str.byteAt(num, di, db)
+                        byte db = str.byteAt(num, di)
                         int dc = db
                         dc = dc & 255
                         bool digit = dc >= 48 && dc <= 57
@@ -176,17 +172,16 @@ public class LspTransport {
                 }
             }
         }
-        if contentLength <= 0 { out = ""  return }
+        if contentLength <= 0 { return "" }
 
         Buf body = io.readExact(this.in, contentLength)
         if body.size < contentLength {
             if body.ptr != 0 { mem.free(body.ptr, body.cap) }
-            out = ""
-            return
+            return ""
         }
         string s = ""
-        str.fromBytes(body.ptr, contentLength, s)   // takes ownership
-        out = s
+        s = str.fromBytes(body.ptr, contentLength)   // takes ownership
+        return s
     }
 
     // send — frame `body` and write it to stdout.

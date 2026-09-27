@@ -22,9 +22,9 @@ public class UrlParts {
         this.owner = o
         this.repo = r
     }
-    public string getHost()  { out = this.host }
-    public string getOwner() { out = this.owner }
-    public string getRepo()  { out = this.repo }
+    public string getHost()  { return this.host }
+    public string getOwner() { return this.owner }
+    public string getRepo()  { return this.repo }
 }
 
 // parseUrl — split a git URL into host/owner/repo. Handles https://, http://,
@@ -67,7 +67,7 @@ public UrlParts parseUrl(const string gitUrl) {
         owner = str.substring(rest, 0, p2)
         repo = str.substring(rest, p2 + 1, str.len(rest))
     }
-    out = new UrlParts(host, owner, repo)
+    return new UrlParts(host, owner, repo)
 }
 
 // The cache directory manager.
@@ -88,7 +88,7 @@ public class Cache {
         fs.dirCreateAll(this.root, 493)      // 0755
     }
 
-    public string getRoot() { out = this.root }
+    public string getRoot() { return this.root }
 
     // entryPath — <root>/<host>/<owner>/<repo>/<rev40>
     public string entryPath(const string gitUrl, const string rev40) {
@@ -96,11 +96,11 @@ public class Cache {
         string a = path.join(this.root, u.getHost())
         string b = path.join(a, u.getOwner())
         string c = path.join(b, u.getRepo())
-        out = path.join(c, rev40)
+        return path.join(c, rev40)
     }
 
     public bool has(const string gitUrl, const string rev40) {
-        out = fs.isDir(this.entryPath(gitUrl, rev40))
+        return fs.isDir(this.entryPath(gitUrl, rev40))
     }
 
     public void prepare(const string gitUrl, const string rev40) {

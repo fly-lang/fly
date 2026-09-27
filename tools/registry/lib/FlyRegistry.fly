@@ -39,13 +39,12 @@ string argAt(const fly.os.env.StringArray args, const int i) {
     pointer base = args.items
     pointer ptr = mem.readPtr(base, i * 16)
     int len = mem.readInt(base, i * 16 + 8)
-    if len <= 0 { out = ""  return }
+    if len <= 0 { return "" }
     pointer buf = 0
     fly.runtime.mem_alloc(len, buf)
     mem.copy(buf, ptr, len)
-    string s = ""
-    str.fromBytes(buf, len, s)
-    out = s
+    string s = str.fromBytes(buf, len)
+    return s
 }
 
 // argValue — the value of `--name` (either "--name V" or "--name=V"), "" absent.
@@ -59,38 +58,35 @@ string argValue(const string name) {
     while i < n {
         string a = argAt(args, i)
         if str.equals(a, name) {
-            if i + 1 < n { out = argAt(args, i + 1)  return }
+            if i + 1 < n { return argAt(args, i + 1) }
             // A flag with no value: report presence with a sentinel so callers
             // that only test presence (--once) still see it.
-            out = "1"
-            return
+            return "1"
         }
         if str.startsWith(a, eq) {
-            out = str.substring(a, str.len(eq), str.len(a))
-            return
+            return str.substring(a, str.len(eq), str.len(a))
         }
         i = i + 1
     }
-    out = ""
+    return ""
 }
 
 // parseInt — a non-negative decimal, or `dflt` when the text is not one.
 int parseInt(const string s, const int dflt) {
     int n = str.len(s)
-    if n == 0 { out = dflt  return }
+    if n == 0 { return dflt }
     int v = 0
     int i = 0
     while i < n {
-        byte b = 0
-        str.byteAt(s, i, b)
+        byte b = str.byteAt(s, i)
         int c = b
         c = c & 255
         bool digit = c >= 48 && c <= 57
-        if digit == false { out = dflt  return }
+        if digit == false { return dflt }
         v = v * 10 + (c - 48)
         i = i + 1
     }
-    out = v
+    return v
 }
 
 // readRequest — read one complete HTTP request off `s`. Headers first, then
@@ -110,7 +106,7 @@ string readRequest(const long s) {
         guard = guard + 1
         if guard > 4096 { go = false }
     }
-    out = raw
+    return raw
 }
 
 void main() {

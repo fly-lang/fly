@@ -40,16 +40,16 @@ public class SemaExpr : SemaNode {
         this.ownedStrTemp = false
     }
 
-    public SemaType getType() { out = this.type }
+    public SemaType getType() { return this.type }
     public void setType(const SemaType type) { this.type = type }
-    public bool isEscaped() { out = this.escapedFlag }
+    public bool isEscaped() { return this.escapedFlag }
     public void setEscaped(const bool e) { this.escapedFlag = e }
-    public bool isOwnedStrTemp() { out = this.ownedStrTemp }
+    public bool isOwnedStrTemp() { return this.ownedStrTemp }
     public void setOwnedStrTemp(const bool o) { this.ownedStrTemp = o }
 
     // asCall — narrow to SemaCall without a downcast (null on the base; SemaCall
     // overrides to return `this`). Used to spot `new` initializers for alloc tracking.
-    public SemaCall asCall() { out = null }
+    public SemaCall asCall() { return null }
 
     // isVarExpr — variable-kind test WITHOUT a narrowing virtual: adding a new
     // base-class virtual mis-dispatches under the bootstrap (vtable-shift gotcha,
@@ -57,19 +57,19 @@ public class SemaExpr : SemaNode {
     // a live SemaParam). Kind checks are dispatch-free and safe.
     public bool isVarExpr() {
         SemaKind k = this.getKind()
-        if k == SemaKind.LOCAL_VAR { out = true  return }
-        if k == SemaKind.PARAM_VAR { out = true  return }
-        if k == SemaKind.ATTRIBUTE { out = true  return }
-        if k == SemaKind.INSTANCE_VAR { out = true  return }
-        if k == SemaKind.ERROR_VAR { out = true  return }
-        out = false
+        if k == SemaKind.LOCAL_VAR { return true }
+        if k == SemaKind.PARAM_VAR { return true }
+        if k == SemaKind.ATTRIBUTE { return true }
+        if k == SemaKind.INSTANCE_VAR { return true }
+        if k == SemaKind.ERROR_VAR { return true }
+        return false
     }
 
-    public pointer getLlvmValue() { out = this.llvmValue }
+    public pointer getLlvmValue() { return this.llvmValue }
     public void setLlvmValue(const pointer v) { this.llvmValue = v }
 
-    public SemaExpr getParent() { out = this.parent }
-    public SemaExpr getChild() { out = this.child }
+    public SemaExpr getParent() { return this.parent }
+    public SemaExpr getChild() { return this.child }
     public void setChild(const SemaExpr child) { this.child = child }
 
     // setParent — link this expr under `parent` and make this its child (the C++

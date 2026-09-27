@@ -18,10 +18,10 @@ public class SemaImport : SemaNode {
         this.importAst = importAst
     }
 
-    public ASTImport getAST() { out = this.importAst }
-    public List<ASTName> getNames() { out = this.importAst.getNames() }
-    public List<ASTName> getTarget() { out = this.importAst.getAlias() }
-    public bool isWildcard() { out = this.importAst.isWildcard() }
-    public SymbolTable getSymbols() { out = this.symbols }
+    public ASTImport getAST() { return this.importAst }
+    public List<ASTName> getNames() { return this.importAst.getNames() }
+    public List<ASTName> getTarget() { return this.importAst.getAlias() }
+    public bool isWildcard() { return this.importAst.isWildcard() }
+    public SymbolTable getSymbols() { return this.symbols }
     public void setSymbols(const SymbolTable symbols) { this.symbols = symbols }
 }

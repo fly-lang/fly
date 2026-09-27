@@ -19,7 +19,7 @@ public string hostTripleStr() {
     pointer tp = 0
     llvm.getDefaultTargetTriple(tp)
     pointer p = tp
-    if p == 0 { out = ""  return }
+    if p == 0 { return "" }
 
     byte zero = 0
     int len = 0
@@ -28,15 +28,14 @@ public string hostTripleStr() {
         len = len + 1
         b = mem.readByte(p, len)
     }
-    string s = ""
-    str.fromBytes(p, len, s)
-    out = s
+    string s = str.fromBytes(p, len)
+    return s
 }
 
 // hostArch — the host's Arch (UNKNOWN if detection failed/unrecognised).
 public Arch hostArch() {
     string t = hostTripleStr()
-    if str.isEmpty(t) { out = Arch.UNKNOWN  return }
+    if str.isEmpty(t) { return Arch.UNKNOWN }
     Triple tr = tripleParse(t)
-    out = tr.getArch()
+    return tr.getArch()
 }

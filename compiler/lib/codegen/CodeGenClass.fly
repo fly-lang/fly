@@ -122,11 +122,10 @@ public class CodeGenClass {
         if fc != null {
             if fc.getClassKind() == SemaClassKind.STRUCT {
                 declareStruct(cgm, fc)
-                out = fc.getLlvmStructType()
-                return
+                return fc.getLlvmStructType()
             }
         }
-        out = cgm.getTypes().lowerType(t)
+        return cgm.getTypes().lowerType(t)
     }
 
     // nonStructBaseCount — subobject slots a HEADER class's own fields sit after.
@@ -139,7 +138,7 @@ public class CodeGenClass {
             if b.getClassKind() != SemaClassKind.STRUCT { n = n + 1 }
             i = i + 1
         }
-        out = n
+        return n
     }
 
     // refClassId — the reference codegen's class Id (`io.FileWriter`): LAST
@@ -157,11 +156,10 @@ public class CodeGenClass {
             int L = str.len(nsn)
             string seg = str.substring(nsn, dot + 1, L)
             string a = str.concat(seg, ".")
-            out = str.concat(a, className(cls))
-            return
+            return str.concat(a, className(cls))
         }
         string b2 = str.concat(nsn, ".")
-        out = str.concat(b2, className(cls))
+        return str.concat(b2, className(cls))
     }
 
     // declareMethod — LLVM signature `void (errPtr, this, params…)` (params already
@@ -312,7 +310,7 @@ public class CodeGenClass {
     public static List<SemaClassType> implementedInterfaces(const SemaClassType cls) {
         List<SemaClassType> r = new List<SemaClassType>()
         collectInterfaces(cls, r)
-        out = r
+        return r
     }
 
     public static void collectInterfaces(const SemaClassType cls, List<SemaClassType> acc) {
@@ -388,18 +386,16 @@ public class CodeGenClass {
             SemaParam pm = params.get(i)
             pointer arg
             llvm.getParam(f, i + 2, arg)
-            // CONST CLASS/INTERFACE handle params arrive BY VALUE (like `this`); bind
-            // them through a fresh local slot so body loads read the handle, not *handle.
-            // STRUCTs (value aggregates) and everything else keep the incoming pointer as
-            // storage. Mirrors CodeGenModule.genBody + the reference ABI (see CodeGenCall).
+            // CONST CLASS/INTERFACE/STRUCT params arrive BY VALUE (like `this`); bind them
+            // through a fresh local slot so body loads read the object, not *object.
+            // Everything else keeps the incoming pointer as storage. Mirrors
+            // CodeGenModule.genBody + the reference ABI (see CodeGenCall).
             SemaType pty = pm.getType()
             bool byValueHandle = false
             if pm.isConstant() {
                 SemaClassType pcls = null
                 if pty != null { pcls = pty.asClass() }
-                if pcls != null {
-                    if pcls.getClassKind() != SemaClassKind.STRUCT { byValueHandle = true }
-                }
+                if pcls != null { byValueHandle = true }
             }
             if byValueHandle {
                 pointer pslot
@@ -412,6 +408,14 @@ public class CodeGenClass {
             i = i + 1
         }
         cge.bindOutSlot(params)
+        // NRVO needs the return slot here too. Sema decides the optimization per
+        // function and DROPS the assignment at `return name`, so a method whose
+        // slot was never bound would hand back nothing at all.
+        int ri = 0
+        while ri < params.size() {
+            if params.get(ri).isSynthetic() { cge.setReturnSlotArg(params.get(ri).getLlvmAlloca()) }
+            ri = ri + 1
+        }
         CodeGenTrace.emitEnter(cgm, cge, cls, m)
 
         SemaBlockStmt body = m.getBody()
@@ -440,7 +444,7 @@ public class CodeGenClass {
         pointer b = cge.getBuilder()
 
         pointer structTy = cls.getLlvmStructType()
-        if structTy == 0 { out = 0  return }
+        if structTy == 0 { return 0 }
         SemaClassMethod ctor = cls.getDefaultConstructor()
 
         pointer obj
@@ -490,7 +494,7 @@ public class CodeGenClass {
                 cg.buildCallN(b, cty, cf, cargs, "", cv)
             }
         }
-        out = obj
+        return obj
     }
 
     // genNew — `new C(args)`: malloc the struct, store the vtable pointer, run the
@@ -582,6 +586,7 @@ public class CodeGenClass {
             argAddrs.add(obj)
             List<SemaExpr> args = node.getArgs()
             List<SemaParam> cparams = ctor.getParams()
+            List<pointer> argTemps = new List<pointer>()
             int i = 0
             while i < args.size() {
                 SemaExpr a = args.get(i)
@@ -598,19 +603,19 @@ public class CodeGenClass {
                     if cpt != null { pTy = cpt }
                     cpConst = cp.isConstant()
                 }
-                // A CONST CLASS/INTERFACE handle ctor arg is passed BY VALUE (the handle),
-                // matching the reference ABI — the same rule as CodeGenCall. Passing it by
-                // &temp made the archive ctor (e.g. Frontend(CompilerInstance)) store the
-                // temp's ADDRESS as `this.ci` → later virtual dispatch jumped to garbage.
-                // STRUCTs and non-const params keep the by-pointer path.
+                // A CONST CLASS/INTERFACE/STRUCT ctor arg is passed BY VALUE (the object
+                // pointer), matching the reference ABI — the same rule as CodeGenCall.
+                // Passing it by &temp made the archive ctor (e.g. Frontend(CompilerInstance))
+                // store the temp's ADDRESS as `this.ci` → later virtual dispatch jumped to
+                // garbage, and a `const StructType` ctor param reached a seed-built ctor as
+                // a pointer to a pointer. Non-const params keep the by-pointer path.
                 SemaClassType pcls = null
                 if pTy != null { pcls = pTy.asClass() }
                 bool byValHandle = false
                 if cpConst {
-                    if pcls != null {
-                        if pcls.getClassKind() != SemaClassKind.STRUCT { byValHandle = true }
-                    }
+                    if pcls != null { byValHandle = true }
                 }
+                if cpConst { CodeGenExprOps.noteArgTemp(argTemps, a, av) }
                 if byValHandle {
                     argAddrs.add(av)
                 } else {
@@ -626,6 +631,7 @@ public class CodeGenClass {
             pointer cty = ctor.getLlvmFnType()
             pointer cv
             cg.buildCallN(b, cty, cf, argAddrs, "", cv)
+            CodeGenExprOps.freeArgTemps(cge, argTemps)
         }
         // `new CLang("libm.so")` → register the -lm linker flag (bridge)
         if CodeGenBridge.isCLangClass(cls) {
@@ -717,6 +723,7 @@ public class CodeGenClass {
         int realCount = (int)args.size()
         if hasOut { realCount = realCount - 1 }
         List<SemaParam> mParams = fn.getParams()
+        List<pointer> argTemps = new List<pointer>()
         int i = 0
         while i < realCount {
             SemaExpr a = args.get(i)
@@ -746,17 +753,16 @@ public class CodeGenClass {
                     if mpt != null { pTy = mpt }
                     mpConst = mp2.isConstant()
                 }
-                // A CONST CLASS/INTERFACE handle arg goes BY VALUE (the handle), matching
-                // the reference ABI (same rule as CodeGenCall/genNew). STRUCTs and
-                // non-const params keep the by-pointer path.
+                // A CONST CLASS/INTERFACE/STRUCT arg goes BY VALUE (the object pointer),
+                // matching the reference ABI (same rule as CodeGenCall/genNew). Non-const
+                // params keep the by-pointer path.
                 SemaClassType mpcls = null
                 if pTy != null { mpcls = pTy.asClass() }
                 bool mByVal = false
                 if mpConst {
-                    if mpcls != null {
-                        if mpcls.getClassKind() != SemaClassKind.STRUCT { mByVal = true }
-                    }
+                    if mpcls != null { mByVal = true }
                 }
+                if mpConst { CodeGenExprOps.noteArgTemp(argTemps, a, av) }
                 if mByVal {
                     argAddrs.add(av)
                 } else {
@@ -798,11 +804,13 @@ public class CodeGenClass {
         pointer fnTy = fn.getLlvmFnType()
         pointer cv
         cg.buildCallN(b, fnTy, fnPtr, argAddrs, "", cv)
+        CodeGenExprOps.freeArgTemps(cge, argTemps)
         if hasOut {
             pointer oty2 = cge.lowerType(outVar.getType())
             pointer loaded
             llvm.buildLoad2(b, oty2, outPtr, "callres", loaded)
             node.setLlvmValue(loaded)
+            CodeGenExprOps.markOwnedResult(node, outVar.getType())
         }
     }
 
@@ -938,11 +946,10 @@ public class CodeGenClass {
                 int oi = 0
                 while oi < own.size() {
                     SemaClassAttribute oa = own.get(oi)
-                    if str.equals(oa.getName(), name) { out = oi + hb  return }
+                    if str.equals(oa.getName(), name) { return oi + hb }
                     oi = oi + 1
                 }
-                out = hb
-                return
+                return hb
             }
         }
         int base = 1
@@ -951,10 +958,10 @@ public class CodeGenClass {
         int i = 0
         while i < attrs.size() {
             SemaClassAttribute a = attrs.get(i)
-            if str.equals(a.getName(), name) { out = i + base  return }
+            if str.equals(a.getName(), name) { return i + base }
             i = i + 1
         }
-        out = base
+        return base
     }
 
     // methodSlot — vtable slot of a method: 1 + its position in the FLATTENED
@@ -963,8 +970,8 @@ public class CodeGenClass {
     public static int methodSlot(const SemaClassType cls, const SemaFunctionBase fn) {
         List<SemaClassMethod> ms = vmethods(cls)
         int slot = indexOfMethodSig(ms, fn)
-        if slot >= 0 { out = slot + 1  return }
-        out = 1
+        if slot >= 0 { return slot + 1 }
+        return 1
     }
 
     // allAttributes — every field, base classes first then own, in declaration
@@ -981,7 +988,7 @@ public class CodeGenClass {
         List<SemaClassAttribute> own = cls.getAttributeList()
         int j = 0
         while j < own.size() { r.add(own.get(j))  j = j + 1 }
-        out = r
+        return r
     }
 
     // vmethods — the effective virtual method per vtable slot: start from the base's
@@ -1014,14 +1021,14 @@ public class CodeGenClass {
             }
             j = j + 1
         }
-        out = r
+        return r
     }
 
     public static int indexOfMethodName(const List<SemaClassMethod> ms, const string name) {
         int i = 0
         while i < ms.size() {
             SemaClassMethod m = ms.get(i)
-            if str.equals(m.getName(), name) { out = i  return }
+            if str.equals(m.getName(), name) { return i }
             i = i + 1
         }
         // -1 sentinel built through an int var: a literal `0 - 1` fold is typed
@@ -1029,7 +1036,7 @@ public class CodeGenClass {
         // / vmethods `if slot >= 0`) — a mis-widened 255 would index out of bounds.
         int notFound = 0
         notFound = notFound - 1
-        out = notFound
+        return notFound
     }
 
     // sameSignature — overload-aware method identity: same name AND same parameter
@@ -1039,10 +1046,10 @@ public class CodeGenClass {
     // compiler (compiled by the self-host) dispatched every visit to the LAST
     // overload — empty resolution, wrong probes, visitor segfaults.
     public static bool sameSignature(const SemaFunctionBase a, const SemaFunctionBase b) {
-        if str.equals(a.getName(), b.getName()) == false { out = false  return }
+        if str.equals(a.getName(), b.getName()) == false { return false }
         List<SemaParam> pa = a.getParams()
         List<SemaParam> pb = b.getParams()
-        if pa.size() != pb.size() { out = false  return }
+        if pa.size() != pb.size() { return false }
         int i = 0
         while i < pa.size() {
             SemaType ta = pa.get(i).getType()
@@ -1051,10 +1058,10 @@ public class CodeGenClass {
             string nb = ""
             if ta != null { na = ta.getName() }
             if tb != null { nb = tb.getName() }
-            if str.equals(na, nb) == false { out = false  return }
+            if str.equals(na, nb) == false { return false }
             i = i + 1
         }
-        out = true
+        return true
     }
 
     // indexOfMethodSig — position of the method matching `probe`'s full signature
@@ -1063,12 +1070,12 @@ public class CodeGenClass {
         int i = 0
         while i < ms.size() {
             SemaClassMethod m = ms.get(i)
-            if sameSignature(m, probe) { out = i  return }
+            if sameSignature(m, probe) { return i }
             i = i + 1
         }
         int notFound = 0
         notFound = notFound - 1
-        out = notFound
+        return notFound
     }
 
     // className — the disambiguating name: a generic specialization carries a mangled
@@ -1076,8 +1083,8 @@ public class CodeGenClass {
     // specializations (which all share the template's simple getName()).
     public static string className(const SemaClassType cls) {
         string mn = cls.getMangledName()
-        if str.isEmpty(mn) == false { out = mn  return }
-        out = cls.getName()
+        if str.isEmpty(mn) == false { return mn }
+        return cls.getName()
     }
 
     public static string structName(const SemaClassType cls) {
@@ -1088,12 +1095,12 @@ public class CodeGenClass {
             if ns != null { nsn = ns.getName() }
         }
         string a = str.concat(nsn, ".")
-        out = str.concat(a, className(cls))
+        return str.concat(a, className(cls))
     }
 
     public static string vtableName(const SemaClassType cls) {
         string a = str.concat("vtable.", structName(cls))
-        out = a
+        return a
     }
 
     // methodMangle — `<Class>` + the standard function mangling of the method
@@ -1102,6 +1109,6 @@ public class CodeGenClass {
     public static string methodMangle(const CodeGenModule cgm, const SemaClassType cls, const SemaClassMethod m) {
         string pfx = className(cls)
         string body = cgm.mangleMethod(m)
-        out = str.concat(pfx, body)
+        return str.concat(pfx, body)
     }
 }

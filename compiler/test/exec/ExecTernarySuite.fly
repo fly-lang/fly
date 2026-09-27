@@ -13,7 +13,7 @@ import fly.assert
 // FREE function on purpose: a suite helper called through `this` AVs (B018).
 int execTernaryArmed(const int v) {
     fail 77
-    out = v
+    return v
 }
 
 suite ExecTernarySuite {

@@ -65,18 +65,16 @@ public class ASTModuleCache {
     public ASTModule lookup(const string path) {
         if this.byPath.has(path) == false {
             this.misses = this.misses + 1
-            out = null
-            return
+            return null
         }
         CachedModule c = this.byPath.get(path)
         Stat st = fs.stat(path)
         if st.size == c.size && st.mtime_sec == c.mtimeSec && st.mtime_nsec == c.mtimeNsec {
             this.hits = this.hits + 1
-            out = c.mod
-            return
+            return c.mod
         }
         this.misses = this.misses + 1
-        out = null
+        return null
     }
 
     public void store(const string path, const ASTModule m) {
@@ -84,6 +82,6 @@ public class ASTModuleCache {
         this.byPath.put(path, new CachedModule(m, st.size, st.mtime_sec, st.mtime_nsec))
     }
 
-    public int getHits()   { out = this.hits }
-    public int getMisses() { out = this.misses }
+    public int getHits()   { return this.hits }
+    public int getMisses() { return this.misses }
 }

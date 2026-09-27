@@ -26,6 +26,7 @@ import fly.test.util.*
 
 // cgIRTrace — TestUtil.cgIR with traceCalls switched on before generate().
 string cgIRTrace(const string src) {
+    string ret
     Parser p = new Parser(src)
     ASTModule m = p.parseModule("t")
     assert.assertTrue(p.isSuccess(), 91)
@@ -35,7 +36,7 @@ string cgIRTrace(const string src) {
     SemaContext ctx = new SemaContext(diags)
     List<SemaModule> res = ctx.Resolve(mods, false)
     if diags.hasErrorOccurred() {
-        out = ""
+        ret = ""
         fail 92, "cgIRTrace: source did not resolve"
     }
     CodeGenModule cgm = new CodeGenModule("t")
@@ -47,7 +48,7 @@ string cgIRTrace(const string src) {
     string vmsg = cgm.verifyMsg(ok)
     assert.assertStr(vmsg, "", 93)
     cgm.emitIR("/tmp/cg/suite.ll")
-    out = fs.readStr("/tmp/cg/suite.ll")
+    return fs.readStr("/tmp/cg/suite.ll")
 }
 
 suite CodeGenTraceSuite {
@@ -55,7 +56,7 @@ suite CodeGenTraceSuite {
     void freeFunctionTest() {
         case "a free function gets enter and exit hooks with its pretty name": {
             string ir = cgIRTrace("
-                int square(const int n) { out = n * n }
+                int square(const int n) { return n * n }
                 void main() { int x = square(3) }
             ")
             assert.assertTrue(str.contains(ir, "call void @_F7fly_log5enter_Ss"), 101)
@@ -80,7 +81,7 @@ suite CodeGenTraceSuite {
                 public class Box {
                     int v
                     public Box(const int v) { this.v = v }
-                    public int get() { out = this.v }
+                    public int get() { return this.v }
                 }
                 void main() { Box b = new Box(7)  int x = b.get() }
             ")
@@ -110,7 +111,7 @@ suite CodeGenTraceSuite {
     void gatingTest() {
         case "without the flag no hook is emitted at all": {
             string ir = cgIR("
-                int square(const int n) { out = n * n }
+                int square(const int n) { return n * n }
                 void main() { int x = square(3) }
             ")
             assert.assertFalse(str.contains(ir, "fly_log"), 401)
@@ -118,7 +119,7 @@ suite CodeGenTraceSuite {
         case "the fly.* namespaces are excluded even with the flag on": {
             string ir = cgIRTrace("
                 namespace fly.foo
-                int helper(const int n) { out = n + 1 }
+                int helper(const int n) { return n + 1 }
                 void main() { int x = helper(1) }
             ")
             assert.assertFalse(str.contains(ir, "fly_log"), 402)

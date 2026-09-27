@@ -16,11 +16,11 @@ public class ASTFailStmt : ASTStmt {
         super(loc, ASTStmtKind.STMT_FAIL)
     }
 
-    public ASTExpr getFirstExpr() { out = this.firstExpr }
+    public ASTExpr getFirstExpr() { return this.firstExpr }
     public void setFirstExpr(const ASTExpr expr) { this.firstExpr = expr }
-    public ASTExpr getSecondExpr() { out = this.secondExpr }
+    public ASTExpr getSecondExpr() { return this.secondExpr }
     public void setSecondExpr(const ASTExpr expr) { this.secondExpr = expr }
-    public ASTExpr getThirdExpr() { out = this.thirdExpr }
+    public ASTExpr getThirdExpr() { return this.thirdExpr }
     public void setThirdExpr(const ASTExpr expr) { this.thirdExpr = expr }
 
     public void accept(const ASTVisitor v) { v.visit(this) }

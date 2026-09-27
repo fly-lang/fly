@@ -37,39 +37,36 @@ public enum Prec {
 // getBinOpPrecedence — precedence of a binary operator given its spelling.
 // Returns Prec.UNKNOWN for anything that is not a binary operator.
 public Prec getBinOpPrecedence(const string op) {
-    if str.equals(op, ",") { out = Prec.COMMA return }
+    if str.equals(op, ",") { return Prec.COMMA }
 
     if str.equals(op, "=")   || str.equals(op, "*=")  || str.equals(op, "/=")
     || str.equals(op, "%=")  || str.equals(op, "+=")  || str.equals(op, "-=")
     || str.equals(op, "<<=") || str.equals(op, ">>=") || str.equals(op, "&=")
     || str.equals(op, "^=")  || str.equals(op, "|=") {
-        out = Prec.ASSIGNMENT
-        return
+        return Prec.ASSIGNMENT
     }
 
-    if str.equals(op, "?")  { out = Prec.CONDITIONAL return }
-    if str.equals(op, "||") { out = Prec.LOGICALOR   return }
-    if str.equals(op, "&&") { out = Prec.LOGICALAND  return }
-    if str.equals(op, "|")  { out = Prec.INCLUSIVEOR return }
-    if str.equals(op, "^")  { out = Prec.EXCLUSIVEOR return }
-    if str.equals(op, "&")  { out = Prec.AND         return }
+    if str.equals(op, "?")  { return Prec.CONDITIONAL }
+    if str.equals(op, "||") { return Prec.LOGICALOR }
+    if str.equals(op, "&&") { return Prec.LOGICALAND }
+    if str.equals(op, "|")  { return Prec.INCLUSIVEOR }
+    if str.equals(op, "^")  { return Prec.EXCLUSIVEOR }
+    if str.equals(op, "&")  { return Prec.AND }
 
-    if str.equals(op, "==") || str.equals(op, "!=") { out = Prec.EQUALITY return }
+    if str.equals(op, "==") || str.equals(op, "!=") { return Prec.EQUALITY }
 
     if str.equals(op, "<=") || str.equals(op, "<")
     || str.equals(op, ">=") || str.equals(op, ">") {
-        out = Prec.RELATIONAL
-        return
+        return Prec.RELATIONAL
     }
 
-    if str.equals(op, "<<") || str.equals(op, ">>") { out = Prec.SHIFT return }
+    if str.equals(op, "<<") || str.equals(op, ">>") { return Prec.SHIFT }
 
-    if str.equals(op, "+") || str.equals(op, "-") { out = Prec.ADDITIVE return }
+    if str.equals(op, "+") || str.equals(op, "-") { return Prec.ADDITIVE }
 
     if str.equals(op, "*") || str.equals(op, "/") || str.equals(op, "%") {
-        out = Prec.MULTIPLICATIVE
-        return
+        return Prec.MULTIPLICATIVE
     }
 
-    out = Prec.UNKNOWN
+    return Prec.UNKNOWN
 }

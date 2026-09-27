@@ -534,4 +534,19 @@ suite MapSuite {
             m.free()
         }
     }
+
+    // ── free() leaves an empty, reusable map ─────────────────────────────────
+    void freeTest() {
+        case "free twice, then use the map again": {
+            Map<int, long> m = new Map<int, long>()
+            m.put(1, 10)
+            m.put(2, 20)
+            m.free()
+            m.free()
+            assert.assertEqL(m.get(1), 0, 901)
+            m.put(3, 30)
+            assert.assertEqL(m.get(3), 30, 902)
+            m.free()
+        }
+    }
 }

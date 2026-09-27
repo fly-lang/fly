@@ -58,7 +58,7 @@ import fly.os.path
 private int byteOfBuf(const pointer b, const int off) {
     byte v = mem.readByte(b, off)
     int i = v
-    out = i & 255
+    return i & 255
 }
 
 // strToBuf — a heap copy of a Fly string's bytes; the length goes to nOut.
@@ -68,12 +68,11 @@ private pointer strToBuf(const string s, int nOut) {
     pointer b = mem.alloc(n + 1)
     int i = 0
     while i < n {
-        byte v = 0
-        str.byteAt(s, i, v)
+        byte v = str.byteAt(s, i)
         mem.writeByte(b, i, v)
         i = i + 1
     }
-    out = b
+    return b
 }
 
 // flagSet — is `bit` set in `flg`? Written as a helper because a condition may
@@ -82,7 +81,7 @@ private pointer strToBuf(const string s, int nOut) {
 // so `flg & 8 != 0` means `flg & (8 != 0)`. Both traps disappear here.
 private bool flagSet(const int flg, const int bit) {
     int v = flg & bit
-    out = v != 0
+    return v != 0
 }
 
 // le32 — a little-endian unsigned 32-bit field, widened into a long so that the
@@ -94,13 +93,13 @@ private long le32(const pointer b, const int off) {
         v = v * 256 + (long)byteOfBuf(b, off + i)
         i = i - 1
     }
-    out = v
+    return v
 }
 
 // ── inflate state ─────────────────────────────────────────────────────────────
 
 private int stErr(const pointer st) {
-    out = mem.readInt(st, 40)
+    return mem.readInt(st, 40)
 }
 
 // setErr records only the FIRST failure: once the bit stream is desynchronised
@@ -133,14 +132,13 @@ private int getBits(const pointer st, const int n) {
     if bad {
         mem.writeInt(st, 16, 0)
         mem.writeInt(st, 20, 0)
-        out = 0
-        return
+        return 0
     }
     int mask = (1 << n) - 1
     int res = val & mask
     mem.writeInt(st, 16, val >> n)
     mem.writeInt(st, 20, cnt - n)
-    out = res
+    return res
 }
 
 // putByte — append one byte to the output, doubling the buffer when it fills.
@@ -208,7 +206,7 @@ private pointer huftNew(const pointer lengths, const int n) {
     mem.writePtr(h, 0, cnt)
     mem.writePtr(h, 8, sym)
     mem.writeInt(h, 16, n)
-    out = h
+    return h
 }
 
 private void huftFree(const pointer h) {
@@ -250,7 +248,7 @@ private int huftDecode(const pointer st, const pointer h) {
         }
     }
     if res < 0 { setErr(st, 5) }
-    out = res
+    return res
 }
 
 // ── the length and distance code tables, computed rather than written out ─────
@@ -262,27 +260,27 @@ private int huftDecode(const pointer st, const pointer h) {
 // typo in a table like this produces silent corruption, not an error.
 
 private int lenExtraOf(const int i) {
-    if i >= 28 { out = 0  return }
+    if i >= 28 { return 0 }
     int e = 0
     if i >= 8 { e = (i - 4) / 4 }
-    out = e
+    return e
 }
 
 private int lenBaseOf(const int i) {
-    if i >= 28 { out = 258  return }        // symbol 285 is the odd one out
+    if i >= 28 { return 258 }        // symbol 285 is the odd one out
     int b = 3
     int k = 0
     while k < i {
         b = b + (1 << lenExtraOf(k))
         k = k + 1
     }
-    out = b
+    return b
 }
 
 private int distExtraOf(const int i) {
     int e = 0
     if i >= 2 { e = (i - 2) / 2 }
-    out = e
+    return e
 }
 
 private int distBaseOf(const int i) {
@@ -292,7 +290,7 @@ private int distBaseOf(const int i) {
         b = b + (1 << distExtraOf(k))
         k = k + 1
     }
-    out = b
+    return b
 }
 
 // ── the three block types ─────────────────────────────────────────────────────
@@ -488,14 +486,14 @@ private void dynamicBlock(const pointer st) {
 
 // inflateRange — a raw DEFLATE stream living in data[start..end).
 private string inflateRange(const string data, const int start, const int end, int errOut) {
+    string res = ""
     errOut = 0
     int n = 0
     pointer whole = strToBuf(data, n)
     if start < 0 || end > n {
         mem.free(whole, n + 1)
         errOut = 1
-        out = ""
-        return
+        return res
     }
     int span = end - start
     if span < 0 { span = 0 }
@@ -541,30 +539,28 @@ private string inflateRange(const string data, const int start, const int end, i
     errOut = e
     if e != 0 {
         mem.free(ob, outCap)
-        out = ""
-        return
+        return res
     }
     // fromBytes TAKES OWNERSHIP of ob — it must not be freed here.
-    string res = ""
-    str.fromBytes(ob, outLen, res)
-    out = res
+    res = str.fromBytes(ob, outLen)
+    return res
 }
 
 // inflate — decompress a raw DEFLATE stream (no gzip or zlib wrapper).
 public string inflate(const string data, int errOut) {
-    out = inflateRange(data, 0, str.len(data), errOut)
+    return inflateRange(data, 0, str.len(data), errOut)
 }
 
 // isGzip — true when data starts with the gzip magic 0x1F 0x8B and names DEFLATE
 // as its method. Cheap enough to use as a dispatch test.
 public bool isGzip(const string data) {
-    if str.len(data) < 3 { out = false  return }
+    if str.len(data) < 3 { return false }
     byte b0 = 0
     byte b1 = 0
     byte b2 = 0
-    str.byteAt(data, 0, b0)
-    str.byteAt(data, 1, b1)
-    str.byteAt(data, 2, b2)
+    b0 = str.byteAt(data, 0)
+    b1 = str.byteAt(data, 1)
+    b2 = str.byteAt(data, 2)
     int i0 = b0
     int i1 = b1
     int i2 = b2
@@ -572,7 +568,7 @@ public bool isGzip(const string data) {
     i1 = i1 & 255
     i2 = i2 & 255
     bool magic = i0 == 31 && i1 == 139
-    out = magic && i2 == 8
+    return magic && i2 == 8
 }
 
 // gunzip — decompress a complete gzip member and VERIFY it. Both trailer checks
@@ -581,22 +577,22 @@ public bool isGzip(const string data) {
 // block boundary. A caller that gets "" with errOut 0 decompressed an empty
 // file, which is a legitimate answer.
 public string gunzip(const string data, int errOut) {
+    string res = ""
     errOut = 0
     int n = str.len(data)
-    if n < 18 { errOut = 1  out = ""  return }
+    if n < 18 { errOut = 1  return res }
     if isGzip(data) == false {
         // Distinguish "not gzip at all" from "gzip but a method we cannot read".
         byte m0 = 0
         byte m1 = 0
-        str.byteAt(data, 0, m0)
-        str.byteAt(data, 1, m1)
+        m0 = str.byteAt(data, 0)
+        m1 = str.byteAt(data, 1)
         int v0 = m0
         int v1 = m1
         v0 = v0 & 255
         v1 = v1 & 255
         if v0 == 31 && v1 == 139 { errOut = 3 } else { errOut = 2 }
-        out = ""
-        return
+        return res
     }
 
     int nb = 0
@@ -611,8 +607,7 @@ public string gunzip(const string data, int errOut) {
     if reserved {
         mem.free(buf, nb + 1)
         errOut = 3
-        out = ""
-        return
+        return res
     }
     int pos = 10
     bool bad = false
@@ -662,17 +657,17 @@ public string gunzip(const string data, int errOut) {
         wantSize = le32(buf, end + 4)
     }
     mem.free(buf, nb + 1)
-    if bad { errOut = 1  out = ""  return }
+    if bad { errOut = 1  return res }
 
     int ie = 0
-    string res = inflateRange(data, pos, end, ie)
-    if ie != 0 { errOut = ie  out = ""  return }
+    res = inflateRange(data, pos, end, ie)
+    if ie != 0 { errOut = ie  res = ""  return res }
 
     long gotSize = str.len(res)
-    if gotSize != wantSize { errOut = 8  out = ""  return }
+    if gotSize != wantSize { errOut = 8  res = ""  return res }
     uint want = (uint)wantCrcL
-    if hash.crc32(res) != want { errOut = 7  out = ""  return }
-    out = res
+    if hash.crc32(res) != want { errOut = 7  res = ""  return res }
+    return res
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -714,7 +709,7 @@ private long octalAt(const pointer buf, const int off, const int n) {
             }
         }
     }
-    out = v
+    return v
 }
 
 // blockIsZero — the all-zero block that marks end of archive.
@@ -724,7 +719,7 @@ private bool blockIsZero(const pointer buf, const int off) {
     while i < 512 {
         if byteOfBuf(buf, off + i) != 0 { zero = false  i = 512 } else { i = i + 1 }
     }
-    out = zero
+    return zero
 }
 
 // hdrChecksumOk — the header checksum is the sum of its 512 bytes with the
@@ -741,7 +736,7 @@ private bool hdrChecksumOk(const pointer buf, const int off) {
         sum = sum + (long)c
         i = i + 1
     }
-    out = sum == want
+    return sum == want
 }
 
 // cstrLen — the length of a NUL-terminated field, capped at max.
@@ -753,7 +748,7 @@ private int cstrLen(const pointer buf, const int off, const int max) {
             if byteOfBuf(buf, off + i) == 0 { go = false } else { i = i + 1 }
         }
     }
-    out = i
+    return i
 }
 
 // entryName — name, prefixed by the ustar `prefix` field when it is in use.
@@ -786,28 +781,28 @@ private pointer entryName(const pointer buf, const int off, int lenOut) {
         q = q + 1
     }
     lenOut = w + nameLen
-    out = nb
+    return nb
 }
 
 // tarOpen — a reader over the archive bytes; 0 when the input is too short to
 // hold even one header. The reader owns its own copy of the data.
 public pointer tarOpen(const string data) {
     int n = str.len(data)
-    if n < 512 { out = 0  return }
+    if n < 512 { return 0 }
     int nb = 0
     pointer buf = strToBuf(data, nb)
     pointer h = mem.alloc(64)
     mem.zero(h, 64)
     mem.writePtr(h, 0, buf)
     mem.writeInt(h, 8, n)
-    out = h
+    return h
 }
 
 // tarNext — advance to the next real entry; false at end of archive or on error
 // (check tarErr to tell them apart). GNU long-name and pax extension records are
 // consumed here rather than reported, so a caller only ever sees real entries.
 public bool tarNext(const pointer h) {
-    if h == 0 { out = false  return }
+    if h == 0 { return false }
     pointer data = mem.readPtr(h, 0)
     int len = mem.readInt(h, 8)
     bool done = false
@@ -835,8 +830,7 @@ public bool tarNext(const pointer h) {
                     if next <= pos {
                         mem.writeInt(h, 44, 9)
                         mem.writeInt(h, 12, len)
-                        out = false
-                        return
+                        return false
                     }
 
                     if ty == 76 {
@@ -845,16 +839,27 @@ public bool tarNext(const pointer h) {
                         // byte field are carried.
                         pointer old = mem.readPtr(h, 48)
                         if old != 0 { mem.free(old, mem.readInt(h, 56)) }
+                        // Cleared at once: a zero-size record used to leave the
+                        // freed pointer here, for the next entry to adopt as its
+                        // name and free a second time.
+                        mem.writePtr(h, 48, 0)
+                        mem.writeInt(h, 56, 0)
+                        // The name must lie inside the archive — `next` was clamped
+                        // to the end above, the copy was not, and this input comes
+                        // from the network.
+                        if sz > len - dataOff {
+                            mem.writeInt(h, 44, 9)
+                            mem.writeInt(h, 12, len)
+                            return false
+                        }
                         int pl = (int)sz
                         if pl > 0 {
-                            if pl > 0 {
-                                pointer pn = mem.alloc(pl)
-                                mem.copy(pn, data + dataOff, pl)
-                                // The stored name is NUL terminated; drop it.
-                                int realLen = cstrLen(pn, 0, pl)
-                                mem.writePtr(h, 48, pn)
-                                mem.writeInt(h, 56, realLen)
-                            }
+                            pointer pn = mem.alloc(pl)
+                            mem.copy(pn, data + dataOff, pl)
+                            // The stored name is NUL terminated; drop it.
+                            int realLen = cstrLen(pn, 0, pl)
+                            mem.writePtr(h, 48, pn)
+                            mem.writeInt(h, 56, realLen)
                         }
                     } else {
                         bool pax = ty == 120 || ty == 103
@@ -884,70 +889,70 @@ public bool tarNext(const pointer h) {
             }
         }
     }
-    out = found
+    return found
 }
 
 // tarName — the current entry's path, "" before the first tarNext.
 public string tarName(const pointer h) {
-    if h == 0 { out = ""  return }
+    string s = ""
+    if h == 0 { return s }
     int n = mem.readInt(h, 24)
-    if n <= 0 { out = ""  return }
+    if n <= 0 { return s }
     pointer src = mem.readPtr(h, 16)
     pointer cp = mem.alloc(n)
     mem.copy(cp, src, n)
-    string s = ""
-    str.fromBytes(cp, n, s)                     // fromBytes takes ownership
-    out = s
+    s = str.fromBytes(cp, n)                     // fromBytes takes ownership
+    return s
 }
 
 // tarSize — the current entry's size in bytes.
 public long tarSize(const pointer h) {
-    if h == 0 { out = 0  return }
-    out = mem.readLong(h, 32)
+    if h == 0 { return 0 }
+    return mem.readLong(h, 32)
 }
 
 // tarType — the raw typeflag: 48 ('0') or 0 for a regular file, 53 ('5') for a
 // directory, 50 ('2') for a symlink. isFile/isDir below spare the caller the
 // ASCII codes.
 public int tarType(const pointer h) {
-    if h == 0 { out = 0  return }
-    out = mem.readInt(h, 28)
+    if h == 0 { return 0 }
+    return mem.readInt(h, 28)
 }
 
 // tarIsFile — true for a regular file. BOTH '0' and NUL mean regular: the NUL
 // form is what pre-ustar archivers wrote, and it is still in the wild.
 public bool tarIsFile(const pointer h) {
     int t = tarType(h)
-    out = t == 48 || t == 0
+    return t == 48 || t == 0
 }
 
 // tarIsDir — true for a directory entry.
 public bool tarIsDir(const pointer h) {
-    out = tarType(h) == 53
+    return tarType(h) == 53
 }
 
 // tarData — the current entry's contents.
 public string tarData(const pointer h) {
-    if h == 0 { out = ""  return }
+    string s = ""
+    if h == 0 { return s }
     long sz = mem.readLong(h, 32)
     int n = (int)sz
-    if n <= 0 { out = ""  return }
+    if n <= 0 { return s }
     int off = mem.readInt(h, 40)
     int len = mem.readInt(h, 8)
-    if off + n > len { out = ""  return }
+    if off + n > len { return s }
     pointer data = mem.readPtr(h, 0)
     pointer cp = mem.alloc(n)
     mem.copy(cp, data + off, n)
-    string s = ""
-    str.fromBytes(cp, n, s)                     // fromBytes takes ownership
-    out = s
+    s = str.fromBytes(cp, n)                     // fromBytes takes ownership
+    return s
 }
 
 // tarErr — 0 while the archive reads cleanly, 9 once a header failed its
 // checksum. tarNext returning false means "end of archive" only when this is 0.
 public int tarErr(const pointer h) {
-    if h == 0 { out = 0  return }
-    out = mem.readInt(h, 44)
+    if h == 0 { return 0 }
+    return mem.readInt(h, 44)
 }
 
 // tarFree — release the reader and everything it owns.
@@ -971,20 +976,18 @@ public void tarFree(const pointer h) {
 // the network from a package registry, and without this check a hostile — or
 // merely careless — tarball can drop a file anywhere the compiler can write.
 public bool safeName(const string name) {
-    if str.isEmpty(name) { out = false  return }
+    if str.isEmpty(name) { return false }
     int n = str.len(name)
-    byte f = 0
-    str.byteAt(name, 0, f)
+    byte f = str.byteAt(name, 0)
     int fi = f
     fi = fi & 255
-    if fi == 47 { out = false  return }             // '/'
-    if fi == 92 { out = false  return }             // '\'
+    if fi == 47 { return false }             // '/'
+    if fi == 92 { return false }             // '\'
     if n >= 2 {
-        byte c1 = 0
-        str.byteAt(name, 1, c1)
+        byte c1 = str.byteAt(name, 1)
         int ci = c1
         ci = ci & 255
-        if ci == 58 { out = false  return }         // "X:"
+        if ci == 58 { return false }         // "X:"
     }
     // Any ".." bounded by separators or by the ends of the string.
     int i = 0
@@ -993,8 +996,8 @@ public bool safeName(const string name) {
         if i + 1 < n {
             byte a = 0
             byte b = 0
-            str.byteAt(name, i, a)
-            str.byteAt(name, i + 1, b)
+            a = str.byteAt(name, i)
+            b = str.byteAt(name, i + 1)
             int ai = a
             int bi = b
             ai = ai & 255
@@ -1003,8 +1006,7 @@ public bool safeName(const string name) {
             if dots {
                 bool leftOk = true
                 if i > 0 {
-                    byte p = 0
-                    str.byteAt(name, i - 1, p)
+                    byte p = str.byteAt(name, i - 1)
                     int pi = p
                     pi = pi & 255
                     bool sep = pi == 47 || pi == 92
@@ -1012,8 +1014,7 @@ public bool safeName(const string name) {
                 }
                 bool rightOk = true
                 if i + 2 < n {
-                    byte q = 0
-                    str.byteAt(name, i + 2, q)
+                    byte q = str.byteAt(name, i + 2)
                     int qi = q
                     qi = qi & 255
                     bool sep2 = qi == 47 || qi == 92
@@ -1026,7 +1027,7 @@ public bool safeName(const string name) {
         }
         i = i + 1
     }
-    out = ok
+    return ok
 }
 
 // extractTar — unpack an in-memory ustar archive under destDir, creating parent
@@ -1034,7 +1035,7 @@ public bool safeName(const string name) {
 public bool extractTar(const string data, const string destDir, int errOut) {
     errOut = 0
     pointer h = tarOpen(data)
-    if h == 0 { errOut = 1  out = false  return }
+    if h == 0 { errOut = 1  return false }
     fs.dirCreateAll(destDir, 493)
     bool ok = true
     bool go = true
@@ -1075,17 +1076,17 @@ public bool extractTar(const string data, const string destDir, int errOut) {
         errOut = e
         ok = false
     }
-    out = ok
+    return ok
 }
 
 // extractTarGz — read a .tar.gz from disk, verify it and unpack it under
 // destDir. This is the whole of what `tar -xzf` was being spawned for.
 public bool extractTarGz(const string archivePath, const string destDir, int errOut) {
     errOut = 0
-    if fs.exists(archivePath) == false { errOut = 1  out = false  return }
+    if fs.exists(archivePath) == false { errOut = 1  return false }
     string raw = fs.readBytes(archivePath)
     int ge = 0
     string tarBytes = gunzip(raw, ge)
-    if ge != 0 { errOut = ge  out = false  return }
-    out = extractTar(tarBytes, destDir, errOut)
+    if ge != 0 { errOut = ge  return false }
+    return extractTar(tarBytes, destDir, errOut)
 }

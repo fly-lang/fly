@@ -44,6 +44,6 @@ public class Logger {
 
     // End the record: append "}" and return the built string.
     public string end() {
-        out = str.concat(this.buf, "}")
+        return str.concat(this.buf, "}")
     }
 }

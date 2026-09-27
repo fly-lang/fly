@@ -59,7 +59,7 @@ public class ParserClass {
         // class's own text, which HeaderGen slices to ship a generic template.
         c.setEndLoc(p.curLoc())
         p.expectPunct("}")
-        out = c
+        return c
     }
 
     // parseMember — a constructor, method, or attribute.
@@ -71,8 +71,10 @@ public class ParserClass {
             p.bump()  // class name
             List<ASTParam> params = p.parseParams()
             ASTBlockStmt cbody = null
+            p.beginBody()
             if p.curIsPunct("{") { cbody = p.parseBlock() }
             ASTMethod ctor = ASTBuilder.CreateClassMethod(loc, c, className, mmods, params, cbody)
+            p.endBody(ctor)
             return
         }
         // Otherwise: Type name  →  method (if '(') or attribute
@@ -84,8 +86,10 @@ public class ParserClass {
         if p.curIsPunct("(") {
             List<ASTParam> params = p.parseParams()
             ASTBlockStmt mbody = null
+            p.beginBody()
             if p.curIsPunct("{") { mbody = p.parseBlock() }
             ASTMethod meth = ASTBuilder.CreateClassMethod(loc, c, nm, mmods, params, mbody)
+            p.endBody(meth)
             meth.setReturnType(ty)
             meth.setNameLoc(nloc)
         } else {

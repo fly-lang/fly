@@ -42,8 +42,8 @@ public class CodeGenType {
     // pointerWidth — the target pointer width in bits (default 64 when no target
     // is configured, e.g. unit tests that never call configureTarget).
     public int pointerWidth() {
-        if this.targetInfo == null { out = 64  return }
-        out = this.targetInfo.getPointerWidth()
+        if this.targetInfo == null { return 64 }
+        return this.targetInfo.getPointerWidth()
     }
 
     public pointer lowerType(const SemaType t) {
@@ -91,7 +91,7 @@ public class CodeGenType {
         // No caching on t.llvmType: a pointer value-struct field does NOT reliably
         // round-trip here (returns garbage), and LLVM interns scalar types anyway, so
         // recomputing is both correct and cheap.
-        out = r
+        return r
     }
 
     // ptrType — the opaque `ptr` type (LLVM 20). All Fly params are passed by
@@ -102,6 +102,6 @@ public class CodeGenType {
         llvm.int8TypeInContext(this.ctx, i8)
         pointer p
         llvm.pointerType(i8, 0, p)
-        out = p
+        return p
     }
 }

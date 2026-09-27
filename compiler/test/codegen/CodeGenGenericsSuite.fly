@@ -27,7 +27,7 @@ suite CodeGenGenericsSuite {
             string ir = cgIR("
                 public class Wrapper<T> { T value
                     public Wrapper(const T v) { this.value = v }
-                    public T get() { out = this.value }
+                    public T get() { return this.value }
                 }
                 void main() { Wrapper<int> w = new Wrapper<int>(42)
                     fail w.get()

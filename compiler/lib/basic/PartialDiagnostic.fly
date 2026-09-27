@@ -21,12 +21,12 @@ public class PartialDiagnostic {
         this.args = new List<string>()
     }
 
-    public PartialDiagnostic addStr(const string s) { this.args.add(s)  out = this }
-    public PartialDiagnostic addInt(const int n) { this.args.add(str.convert(n))  out = this }
+    public PartialDiagnostic addStr(const string s) { this.args.add(s)  return this }
+    public PartialDiagnostic addInt(const int n) { this.args.add(str.convert(n))  return this }
 
-    public DiagID getId() { out = this.id }
-    public SourceLocation getLoc() { out = this.loc }
-    public List<string> getArgs() { out = this.args }
+    public DiagID getId() { return this.id }
+    public SourceLocation getLoc() { return this.loc }
+    public List<string> getArgs() { return this.args }
 
     // emitWith — replay this captured diagnostic through an engine.
     public void emitWith(const DiagnosticsEngine engine) {

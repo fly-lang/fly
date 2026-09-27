@@ -11,10 +11,9 @@ import fly.assert
 // widening sign-extends on Linux and zero-extends on Windows, so an unmasked
 // 0xFF compares differently on the two platforms.
 int byteOfFile(const string s, const int i) {
-    byte b = 0
-    str.byteAt(s, i, b)
+    byte b = str.byteAt(s, i)
     int v = b
-    out = v & 255
+    return v & 255
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -283,6 +282,20 @@ suite OsFsSuite {
             assert.assertNotNull(es.items, 511)
             fs.dirDeleteAll(dir)
         }
+        case "long entry names are listed and deleted": {
+            // A 150-byte name gives a Linux dirent record of 176 bytes: the low
+            // byte of its length is >= 128, which sign-extended into a negative
+            // length and sent dirRead and dirDeleteAll into an endless loop.
+            string dir = "fly_fs_long_dir"
+            fs.dirCreateAll(dir, 493)
+            string name = str.repeat("n", 150)
+            fs.writeStr(path.join(dir, name), "x", 420)
+            fs.writeStr(path.join(dir, "short.txt"), "y", 420)
+            fly.os.fs.DirEntries es = fs.dirRead(dir)
+            assert.assertEqL((long)es.len, 2, 512)
+            fs.dirDeleteAll(dir)
+            assert.assertFalse(fs.exists(dir), 513)
+        }
     }
 
     // ── stat / lstat / size / chmod ──────────────────────────────────────────
@@ -503,8 +516,7 @@ suite OsFsSuite {
             mem.writeByte(buf, 5, 255)
             mem.writeByte(buf, 6, 0)       // an embedded NUL, for good measure
             mem.writeByte(buf, 7, 65)
-            string payload = ""
-            str.fromBytes(buf, 8, payload)
+            string payload = str.fromBytes(buf, 8)
 
             fs.writeBytes(p, payload, 420)
             string back = fs.readBytes(p)
@@ -527,8 +539,7 @@ suite OsFsSuite {
             mem.writeByte(buf, 1, 10)
             mem.writeByte(buf, 2, 10)
             mem.writeByte(buf, 3, 10)
-            string nl4 = ""
-            str.fromBytes(buf, 4, nl4)
+            string nl4 = str.fromBytes(buf, 4)
             fs.writeBytes(p, nl4, 420)
             assert.assertEqL((long)fs.size(p), 4, 909)
             fs.delete(p)
@@ -544,8 +555,7 @@ suite OsFsSuite {
                 mem.writeByte(buf, i, (byte)(i % 256))
                 i = i + 1
             }
-            string big = ""
-            str.fromBytes(buf, n, big)
+            string big = str.fromBytes(buf, n)
             fs.writeBytes(p, big, 420)
             assert.assertEqL((long)fs.size(p), 70000, 910)
             string back = fs.readBytes(p)

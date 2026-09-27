@@ -27,13 +27,13 @@ public class CodeGenLLVM {
         this.llvm = new LLVM()
     }
 
-    public LLVM getLLVM() { out = this.llvm }
+    public LLVM getLLVM() { return this.llvm }
 
     // packAddrs — allocate an n*8 buffer and store each handle address; returns the
     // buffer address (0 for empty). Caller frees with freeBuf.
     public pointer packAddrs(const List<pointer> addrs) {
         int n = (int)addrs.size()
-        if n == 0 { out = 0  return }
+        if n == 0 { return 0 }
         pointer sz = n * 8
         pointer buf = mem.alloc(sz)
         int i = 0
@@ -42,7 +42,7 @@ public class CodeGenLLVM {
             mem.writePtr(buf, i * 8, v)
             i = i + 1
         }
-        out = buf
+        return buf
     }
 
     public void freeBuf(const pointer buf, const int count) {
@@ -113,7 +113,7 @@ public class CodeGenLLVM {
         // external and COLLIDE when two self-host objects link (e.g. a program + the
         // self-host-built fly_std_lib.a: `duplicate symbol .str`).
         this.llvm.setLinkage(g, 9)
-        out = g
+        return g
     }
 
     // buildGEP2N — LLVMBuildGEP2 over a marshalled index-value array.

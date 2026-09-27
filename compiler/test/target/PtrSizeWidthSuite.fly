@@ -25,16 +25,16 @@ public string cgIRTarget(const string src, const string triple) {
     assert.assertTrue(p.isSuccess(), 90)
     List<ASTModule> mods = new List<ASTModule>()
     mods.add(m)
-    // Twin of TestUtil.cgIR, and it needs the same two guards: resolve with a REAL
+    // Twin of TestUtil.cgIR, and it needs the same guard: resolve with a REAL
     // engine (a null one swallows every semantic error, so a bad source reached
-    // codegen as a half-built AST and segfaulted the suite binary), and assign
-    // `out` BEFORE failing — `fail` does not unwind, the caller resumes and reads
-    // the out slot, so leaving it unset hands back an uninitialised string.
+    // codegen as a half-built AST and segfaulted the suite binary). The old body
+    // also assigned the out slot before failing, so a caller that read it after
+    // the failure saw an empty string; a failing function now simply hands back
+    // nothing, and every caller here asserts success first.
     DiagnosticsEngine diags = p.getDiags()
     SemaContext ctx = new SemaContext(diags)
-    List<SemaModule> res = ctx.Resolve(mods, false)
+    List<SemaModule> mres = ctx.Resolve(mods, false)
     if diags.hasErrorOccurred() {
-        out = ""
         fail 92, "cgIRTarget: source did not resolve"
     }
     CodeGenModule cgm = new CodeGenModule("t")
@@ -45,14 +45,14 @@ public string cgIRTarget(const string src, const string triple) {
     cgm.verify(ok)
     assert.assertTrue(ok, 91)
     cgm.emitIR("/tmp/cg/pointer.ll")
-    out = fs.readStr("/tmp/cg/pointer.ll")
+    return fs.readStr("/tmp/cg/pointer.ll")
 }
 
 suite PtrSizeWidthSuite {
 
     void widthTest() {
         case "pointer = i64 on x86_64, i32 on riscv32; long stays i64": {
-            string src = "pointer uid(const pointer a) { out = a }  long lid(const long a) { out = a }"
+            string src = "pointer uid(const pointer a) { return a }  long lid(const long a) { return a }"
             string ir64 = cgIRTarget(src, "x86_64-unknown-linux-gnu")
             string ir32 = cgIRTarget(src, "riscv32-unknown-linux-gnu")
 

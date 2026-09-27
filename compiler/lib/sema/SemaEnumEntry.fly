@@ -20,12 +20,12 @@ public class SemaEnumEntry : SemaExpr {
         this.index = 0
     }
 
-    public SemaEnumEntry asEnumEntry() { out = this }
+    public SemaEnumEntry asEnumEntry() { return this }
 
-    public string getName() { out = this.entryAst.getName() }
-    public long getIndex() { out = this.index }
+    public string getName() { return this.entryAst.getName() }
+    public long getIndex() { return this.index }
     public void setIndex(const long index) { this.index = index }
-    public SemaComment getComment() { out = this.comment }
+    public SemaComment getComment() { return this.comment }
     public void setComment(const SemaComment comment) { this.comment = comment }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }

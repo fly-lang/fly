@@ -48,7 +48,7 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
         this.messages.add(message)
     }
 
-    public int count() { out = (int)this.levels.size() }
+    public int count() { return (int)this.levels.size() }
 
     // jsonEscape — escape `\` then `"` so messages embed safely in JSON strings
     // (the search/replacement patterns are built from real bytes, since `"\\"` /
@@ -58,20 +58,20 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
         string q = quoteChar()
         string a = str.replace(s, bs, str.concat(bs, bs))
         string b = str.replace(a, q, str.concat(bs, q))
-        out = b
+        return b
     }
 
     // jstr — a JSON `"key":"val"` pair (val quoted), with real `"` bytes.
     public string jstr(const string key, const string val) {
         string q = quoteChar()
-        out = str.concat(q, str.concat(key, str.concat(q,
+        return str.concat(q, str.concat(key, str.concat(q,
               str.concat(":", str.concat(q, str.concat(val, q))))))
     }
 
     // jnum — a JSON `"key":val` pair (val unquoted, e.g. a number).
     public string jnum(const string key, const string val) {
         string q = quoteChar()
-        out = str.concat(q, str.concat(key, str.concat(q, str.concat(":", val))))
+        return str.concat(q, str.concat(key, str.concat(q, str.concat(":", val))))
     }
 
     // toJson — `[{"level":..,"file":..,"line":N,"column":M,"message":".."}, …]`.
@@ -98,7 +98,7 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
             res = acc
             i = i + 1
         }
-        out = str.concat(res, "]")
+        return str.concat(res, "]")
     }
 
     // toTextReport — the full text log written to --log-file: an `inputs:` /
@@ -118,7 +118,7 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
         }
         string sep = str.concat("---", lineFeed())
         string a3 = str.concat(res, sep)
-        out = str.concat(a3, this.toText())
+        return str.concat(a3, this.toText())
     }
 
     // toJsonReport — the full JSON log written to --log-file:
@@ -131,7 +131,7 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
         string dk = str.concat(q, str.concat("diagnostics", str.concat(q, ":")))
         string body = str.concat(p1, str.concat(",", str.concat(p2,
                       str.concat(",", str.concat(dk, this.toJson())))))
-        out = str.concat("{", str.concat(body, "}"))
+        return str.concat("{", str.concat(body, "}"))
     }
 
     // toText — one `level: file:line:col: message` line per diagnostic.
@@ -149,6 +149,6 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
             res = acc
             i = i + 1
         }
-        out = res
+        return res
     }
 }

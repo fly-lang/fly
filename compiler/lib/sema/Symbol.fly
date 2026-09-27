@@ -29,29 +29,29 @@ public class Symbol {
         this.ref = ref
     }
 
-    public string getName() { out = this.name }
-    public SymbolKind getKind() { out = this.kind }
-    public SemaNode getRef() { out = this.ref }
+    public string getName() { return this.name }
+    public SymbolKind getKind() { return this.kind }
+    public SemaNode getRef() { return this.ref }
 
     // Function signature for overload lookup. Set by the Resolver when inserting a
     // function/method symbol (the C++ recovers this via static_cast on the ref;
     // Fly has no downcast, so it is carried on the Symbol instead).
-    public List<SemaType> getParamTypes() { out = this.paramTypes }
+    public List<SemaType> getParamTypes() { return this.paramTypes }
     public void setParamTypes(const List<SemaType> paramTypes) { this.paramTypes = paramTypes }
 
     // The variable this symbol denotes, as a SemaExpr (set for VAR/LOCAL_VAR/PARAM),
     // so an identifier reference can recover it without downcasting `ref`.
-    public SemaExpr getExprRef() { out = this.exprRef }
+    public SemaExpr getExprRef() { return this.exprRef }
     public void setExprRef(const SemaExpr exprRef) { this.exprRef = exprRef }
 
     // The type this symbol denotes (set for BUILTIN_TYPE/CLASS/ENUM), recovered
     // without downcasting `ref`.
-    public SemaType getTypeRef() { out = this.typeRef }
+    public SemaType getTypeRef() { return this.typeRef }
     public void setTypeRef(const SemaType typeRef) { this.typeRef = typeRef }
 
     // isVarKind — true for any variable kind (VAR, LOCAL_VAR, PARAM, ATTRIBUTE).
     public bool isVarKind() {
-        out = this.kind == SymbolKind.VAR
+        return this.kind == SymbolKind.VAR
            || this.kind == SymbolKind.LOCAL_VAR
            || this.kind == SymbolKind.PARAM
            || this.kind == SymbolKind.ATTRIBUTE

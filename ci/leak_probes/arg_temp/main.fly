@@ -1,0 +1,19 @@
+// A call result passed straight to a const parameter, and one discarded as a
+// statement: nobody names them, so the call site must free them.
+string mk(const int i) {
+    string s = "abcdefghij" + "k"
+    return s
+}
+int size(const string s) {
+    if s == "" { return 0 }
+    return 1
+}
+void main() {
+    int i = 0
+    long acc = 0
+    while i < 2000000 {
+        acc = acc + size(mk(i))
+        mk(i)
+        i = i + 1
+    }
+}

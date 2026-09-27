@@ -97,27 +97,27 @@ public class SemaClassType : SemaType {
         this.classKind = sk
     }
 
-    public SemaClassType asClass() { out = this }
+    public SemaClassType asClass() { return this }
 
-    public ASTClass getAST() { out = this.classAst }
-    public SemaModule getModule() { out = this.module }
-    public SymbolTable getSymbols() { out = this.symbols }
-    public SemaComment getComment() { out = this.comment }
+    public ASTClass getAST() { return this.classAst }
+    public SemaModule getModule() { return this.module }
+    public SymbolTable getSymbols() { return this.symbols }
+    public SemaComment getComment() { return this.comment }
     public void setComment(const SemaComment comment) { this.comment = comment }
-    public List<SemaNode> getNodes() { out = this.nodes }
-    public SemaVisibilityKind getVisibility() { out = this.visibility }
+    public List<SemaNode> getNodes() { return this.nodes }
+    public SemaVisibilityKind getVisibility() { return this.visibility }
     public void setVisibility(const SemaVisibilityKind visibility) { this.visibility = visibility }
-    public bool isConstant() { out = this.constantFlag }
+    public bool isConstant() { return this.constantFlag }
     public void setConstant(const bool constantFlag) { this.constantFlag = constantFlag }
-    public bool isAbstract() { out = this.abstractFlag }
+    public bool isAbstract() { return this.abstractFlag }
     public void setAbstract(const bool abstractFlag) { this.abstractFlag = abstractFlag }
-    public bool isFinal() { out = this.finalFlag }
+    public bool isFinal() { return this.finalFlag }
     public void setFinal(const bool finalFlag) { this.finalFlag = finalFlag }
-    public bool isResolved() { out = this.resolvedFlag }
+    public bool isResolved() { return this.resolvedFlag }
     public void setResolved(const bool resolvedFlag) { this.resolvedFlag = resolvedFlag }
-    public bool isFromHeader() { out = this.fromHeader }
+    public bool isFromHeader() { return this.fromHeader }
     public void setFromHeader(const bool fromHeader) { this.fromHeader = fromHeader }
-    public SemaClassKind getClassKind() { out = this.classKind }
+    public SemaClassKind getClassKind() { return this.classKind }
 
     // matchesSuiteSel — true when `sel` selects this SUITE (--suite=<sel>):
     // empty = every suite; the bare suite name; the qualified `ns.SuiteName`;
@@ -128,9 +128,9 @@ public class SemaClassType : SemaType {
     // str calls fully-qualified: the inherited SemaType.str() method shadows the
     // short `str.` prefix throughout this class (reference-compiler behavior).
     public bool matchesSuiteSel(const string sel) {
-        if fly.str.isEmpty(sel) { out = true  return }
+        if fly.str.isEmpty(sel) { return true }
         string nm = this.getName()
-        if fly.str.equals(nm, sel) { out = true  return }
+        if fly.str.equals(nm, sel) { return true }
         // Full DOTTED namespace from the module's AST decl — SemaNameSpace only
         // carries its LEAF segment ("alloc", not "fly.compiler...test.alloc").
         // A namespace-less module leaves ns empty: bare-name matching only.
@@ -158,37 +158,37 @@ public class SemaClassType : SemaType {
                 }
             }
         }
-        if fly.str.isEmpty(ns) { out = false  return }
-        if fly.str.equals(ns, sel) { out = true  return }
+        if fly.str.isEmpty(ns) { return false }
+        if fly.str.equals(ns, sel) { return true }
         string dotNm = fly.str.concat(".", nm)
         string qual = fly.str.concat(ns, dotNm)
-        if fly.str.equals(qual, sel) { out = true  return }
+        if fly.str.equals(qual, sel) { return true }
         string pfx = fly.str.concat(sel, ".")
-        if fly.str.startsWith(ns, pfx) { out = true  return }
-        out = false
+        if fly.str.startsWith(ns, pfx) { return true }
+        return false
     }
-    public SemaClassInstance getThis() { out = this.thisInstance }
+    public SemaClassInstance getThis() { return this.thisInstance }
     public void setThis(const SemaClassInstance thisInstance) { this.thisInstance = thisInstance }
-    public List<SemaClassType> getBaseClasses() { out = this.baseClasses }
+    public List<SemaClassType> getBaseClasses() { return this.baseClasses }
     public void addBaseClass(const SemaClassType base) { this.baseClasses.add(base) }
-    public SemaClassMethod getDefaultConstructor() { out = this.defaultConstructor }
+    public SemaClassMethod getDefaultConstructor() { return this.defaultConstructor }
     public void setDefaultConstructor(const SemaClassMethod method) { this.defaultConstructor = method }
-    public Map<string, SemaClassAttribute> getAttributes() { out = this.attributes }
-    public Map<string, SemaClassMethod> getMethods() { out = this.methods }
-    public Map<string, SemaClassMethod> getConstructors() { out = this.constructors }
-    public List<SemaTypeParam> getTypeParams() { out = this.typeParams }
+    public Map<string, SemaClassAttribute> getAttributes() { return this.attributes }
+    public Map<string, SemaClassMethod> getMethods() { return this.methods }
+    public Map<string, SemaClassMethod> getConstructors() { return this.constructors }
+    public List<SemaTypeParam> getTypeParams() { return this.typeParams }
     public void addTypeParam(const SemaTypeParam tp) { this.typeParams.add(tp) }
-    public bool isGeneric() { out = this.typeParams.size() > 0 }
-    public SemaClassType getGenericTemplate() { out = this.genericTemplate }
+    public bool isGeneric() { return this.typeParams.size() > 0 }
+    public SemaClassType getGenericTemplate() { return this.genericTemplate }
     public void setGenericTemplate(const SemaClassType t) { this.genericTemplate = t }
-    public Map<string, SemaClassType> getSpecializations() { out = this.specializations }
-    public List<SemaClassType> getSpecializationList() { out = this.specializationList }
+    public Map<string, SemaClassType> getSpecializations() { return this.specializations }
+    public List<SemaClassType> getSpecializationList() { return this.specializationList }
     public void addSpecialization(const SemaClassType spec) { this.specializationList.add(spec) }
-    public string getMangledName() { out = this.mangledName }
+    public string getMangledName() { return this.mangledName }
     public void setMangledName(const string mangledName) { this.mangledName = mangledName }
-    public pointer getLlvmStructType() { out = this.llvmStructType }
+    public pointer getLlvmStructType() { return this.llvmStructType }
     public void setLlvmStructType(const pointer t) { this.llvmStructType = t }
-    public pointer getLlvmVTable() { out = this.llvmVTable }
+    public pointer getLlvmVTable() { return this.llvmVTable }
     public void setLlvmVTable(const pointer t) { this.llvmVTable = t }
 
     // addAttribute / addMethod — append to Nodes and index by name. Overloaded
@@ -200,7 +200,7 @@ public class SemaClassType : SemaType {
         this.attributes.put(attribute.getName(), attribute)
     }
 
-    public List<SemaClassAttribute> getAttributeList() { out = this.attributeList }
+    public List<SemaClassAttribute> getAttributeList() { return this.attributeList }
 
     public void addMethod(const SemaClassMethod method) {
         this.nodes.add(method)
@@ -210,7 +210,7 @@ public class SemaClassType : SemaType {
         else { this.methods.put(nm, method) }
     }
 
-    public List<SemaClassMethod> getMethodList() { out = this.methodList }
+    public List<SemaClassMethod> getMethodList() { return this.methodList }
 
     // LookupAttribute / LookupMethod — this class then its bases (recursive).
     public SemaClassAttribute LookupAttribute(const string name) {
@@ -225,7 +225,7 @@ public class SemaClassType : SemaType {
                 i = i + 1
             }
         }
-        out = r
+        return r
     }
 
     public SemaClassMethod LookupMethod(const string name) {
@@ -240,13 +240,13 @@ public class SemaClassType : SemaType {
                 i = i + 1
             }
         }
-        out = r
+        return r
     }
 
     public SemaClassMethod LookupConstructor(const string name) {
         SemaClassMethod r = null
         if this.constructors.has(name) { r = this.constructors.get(name) }
-        out = r
+        return r
     }
 
     // Inheritance queries (recursive over baseClasses).
@@ -262,7 +262,7 @@ public class SemaClassType : SemaType {
                 i = i + 1
             }
         }
-        out = r
+        return r
     }
 
     public bool isDerived(const SemaClassType base) {
@@ -273,7 +273,7 @@ public class SemaClassType : SemaType {
             r = b.isDerivedOrEquals(base)
             i = i + 1
         }
-        out = r
+        return r
     }
 
     public bool isBaseOrEquals(const SemaClassType derived) {
@@ -289,7 +289,7 @@ public class SemaClassType : SemaType {
                 i = i + 1
             }
         }
-        out = r
+        return r
     }
 
     public bool isBase(const SemaClassType derived) {
@@ -301,6 +301,6 @@ public class SemaClassType : SemaType {
             if this.isEquals(b) { r = true }
             i = i + 1
         }
-        out = r
+        return r
     }
 }

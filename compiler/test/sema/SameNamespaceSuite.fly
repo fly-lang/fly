@@ -26,9 +26,9 @@ suite SameNamespaceSuite {
     void crossFileFunctionTest() {
         case "a function in another file of the same namespace resolves without import": {
             // module A: declares helperFn in namespace demo
-            string srcA = "namespace demo  public int helperFn(const int x) { out = x + 1 }"
+            string srcA = "namespace demo  public int helperFn(const int x) { return x + 1 }"
             // module B: same namespace, calls helperFn with NO `import`
-            string srcB = "namespace demo  public int useIt(const int y) { out = helperFn(y) }"
+            string srcB = "namespace demo  public int useIt(const int y) { return helperFn(y) }"
 
             Parser pa = new Parser(srcA)
             ASTModule ma = pa.parseModule("a")

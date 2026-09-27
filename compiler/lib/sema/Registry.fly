@@ -56,33 +56,33 @@ public class Registry {
         this.nsByPath = new Map<string, SemaNameSpace>()
     }
 
-    public DiagnosticsEngine getDiags() { out = this.diags }
-    public SymbolTable getBuiltinScope() { out = this.builtinScope }
-    public SymbolTable getGlobalScope() { out = this.globalScope }
-    public SemaNameSpace getDefaultNameSpace() { out = this.defaultNameSpace }
+    public DiagnosticsEngine getDiags() { return this.diags }
+    public SymbolTable getBuiltinScope() { return this.builtinScope }
+    public SymbolTable getGlobalScope() { return this.globalScope }
+    public SemaNameSpace getDefaultNameSpace() { return this.defaultNameSpace }
 
     // isDefaultNameSpace — true for the catch-all default namespace (Fly has no
     // object reference equality, so compare by the reserved "default" name).
     public bool isDefaultNameSpace(const SemaNameSpace ns) {
-        if ns == null { out = true  return }
-        out = str.equals(ns.getName(), "default")
+        if ns == null { return true }
+        return str.equals(ns.getName(), "default")
     }
 
     public void addModule(const SemaModule module) { this.modules.add(module) }
-    public List<SemaModule> getModules() { out = this.modules }
+    public List<SemaModule> getModules() { return this.modules }
     public void addBody(const SemaFunctionBase fb) { this.bodies.add(fb) }
-    public List<SemaFunctionBase> getBodies() { out = this.bodies }
+    public List<SemaFunctionBase> getBodies() { return this.bodies }
 
     // generic function TEMPLATES, registered TYPED at declaration time so call
     // resolution can specialize without a SemaFunctionBase→SemaFunction downcast
     // (new narrowing virtuals mis-dispatch under the bootstrap — audit V4).
     public void addGenericFn(const SemaFunction fn) { this.genericFns.put(fn.getName(), fn) }
     public SemaFunction lookupGenericFn(const string name) {
-        if this.genericFns.has(name) { out = this.genericFns.get(name)  return }
-        out = null
+        if this.genericFns.has(name) { return this.genericFns.get(name) }
+        return null
     }
     public void addClass(const SemaClassType cls) { this.classes.add(cls) }
-    public List<SemaClassType> getClasses() { out = this.classes }
+    public List<SemaClassType> getClasses() { return this.classes }
 
     // createBuiltinScope — a scope holding every builtin type, keyed by its name.
     public SymbolTable createBuiltinScope() {
@@ -115,7 +115,7 @@ public class Registry {
         bool r11 = b.insert(new Symbol(vT.getName(), SymbolKind.BUILTIN_TYPE, vT))
         SemaType eT = SemaBuiltin.getErrorType()
         bool r12 = b.insert(new Symbol(eT.getName(), SymbolKind.BUILTIN_TYPE, eT))
-        out = b
+        return b
     }
 
     // getOrCreateNameSpace — descend/create the namespace path; empty → default.
@@ -152,14 +152,14 @@ public class Registry {
                 i = i + 1
             }
         }
-        out = ns
+        return ns
     }
 
     // lookupNameSpaceByNames — find an already-created namespace by its dotted path
     // (same "ns.a.b" key scheme as getOrCreateNameSpace); null if absent. Used to
     // resolve a wildcard import's target namespace.
     public SemaNameSpace lookupNameSpaceByNames(const List<ASTName> names) {
-        if names.size() == 0 { out = null  return }
+        if names.size() == 0 { return null }
         string path = "ns"
         int i = 0
         while i < names.size() {
@@ -172,15 +172,15 @@ public class Registry {
         }
         SemaNameSpace r = null
         if this.nsByPath.has(path) { r = this.nsByPath.get(path) }
-        out = r
+        return r
     }
 
     public Symbol LookupBuiltinType(const string typeName) {
-        out = firstOf(this.builtinScope.lookup(typeName))
+        return firstOf(this.builtinScope.lookup(typeName))
     }
 
     public Symbol LookupNamedType(const string name, const SymbolTable scope) {
-        out = firstOf(scope.lookupTypeInParents(name))
+        return firstOf(scope.lookupTypeInParents(name))
     }
 
     // LookupQualifiedType — resolve a dotted type name (e.g. `pointer`) by walking
@@ -191,7 +191,7 @@ public class Registry {
     // since GenerateHeader strips imports).
     public Symbol LookupQualifiedType(const List<ASTName> names) {
         int last = (int)names.size() - 1
-        if last < 1 { out = null  return }
+        if last < 1 { return null }
         string path = "ns"
         int i = 0
         while i < last {
@@ -200,15 +200,15 @@ public class Registry {
             path = pn
             i = i + 1
         }
-        if this.nsByPath.has(path) == false { out = null  return }
+        if this.nsByPath.has(path) == false { return null }
         SemaNameSpace ns = this.nsByPath.get(path)
-        out = firstOf(ns.getSymbols().lookup(names.get(last).getName()))
+        return firstOf(ns.getSymbols().lookup(names.get(last).getName()))
     }
 
     // lookupNameSpaceByStrings — like lookupNameSpaceByNames but keyed off a plain
     // string list (the flattened receiver of a qualified call fly.os.io.printLn).
     public SemaNameSpace lookupNameSpaceByStrings(const List<string> names) {
-        if names.size() == 0 { out = null  return }
+        if names.size() == 0 { return null }
         string path = "ns"
         int i = 0
         while i < names.size() {
@@ -219,7 +219,7 @@ public class Registry {
         }
         SemaNameSpace r = null
         if this.nsByPath.has(path) { r = this.nsByPath.get(path) }
-        out = r
+        return r
     }
 
     // LookupFunctionInNamespace — overload-resolve `fnName` against the functions
@@ -227,12 +227,12 @@ public class Registry {
     // matching overload is absent. Enables a qualified call without an import.
     public Symbol LookupFunctionInNamespace(const List<string> nsNames, const string fnName, const List<SemaType> argTypes) {
         SemaNameSpace ns = this.lookupNameSpaceByStrings(nsNames)
-        if ns == null { out = null  return }
-        out = this.LookupFunction(fnName, argTypes, ns.getSymbols())
+        if ns == null { return null }
+        return this.LookupFunction(fnName, argTypes, ns.getSymbols())
     }
 
     public Symbol LookupName(const string name, const SymbolTable scope) {
-        out = firstOf(scope.lookupInParents(name))
+        return firstOf(scope.lookupInParents(name))
     }
 
     // LookupFunctionExact — first FUNCTION symbol whose explicit signature exactly
@@ -253,7 +253,7 @@ public class Registry {
                 i = i + 1
             }
         }
-        out = r
+        return r
     }
 
     // LookupFunction — overload resolution (Stage 7). Two passes mirroring the C++
@@ -264,7 +264,7 @@ public class Registry {
     // Returns the single best candidate (ambiguity diagnostics come with a Validator).
     public Symbol LookupFunction(const string name, const List<SemaType> types, const SymbolTable scope) {
         List<Symbol> syms = scope.lookupInParents(name)
-        if syms == null { out = null  return }
+        if syms == null { return null }
 
         // Pass 0: MULTI-RETURN called with its out slots SUPPLIED. `A,B f(x)` can be
         // invoked either way:
@@ -289,7 +289,7 @@ public class Registry {
             }
             f0 = f0 + 1
         }
-        if fullCount == 1 { out = full  return }
+        if fullCount == 1 { return full }
 
         // Pass 1: exact (inheritance-tolerant)
         Symbol exact = null
@@ -308,7 +308,7 @@ public class Registry {
             }
             i = i + 1
         }
-        if exactCount == 1 { out = exact  return }
+        if exactCount == 1 { return exact }
         if exactCount > 1 {
             // Strict tie-break: a uniquely identical (no-upcast) overload wins.
             Symbol strict = null
@@ -327,9 +327,8 @@ public class Registry {
                 }
                 k = k + 1
             }
-            if strictCount == 1 { out = strict  return }
-            out = exact
-            return
+            if strictCount == 1 { return strict }
+            return exact
         }
 
         // Pass 2: promotion-aware fallback
@@ -347,7 +346,7 @@ public class Registry {
             }
             j = j + 1
         }
-        if promo != null { out = promo  return }
+        if promo != null { return promo }
 
         // Pass 3: DEFAULT PARAMETERS — last resort, so an overload that takes the
         // supplied arity exactly always wins over one that would fall back on its
@@ -365,7 +364,7 @@ public class Registry {
             }
             d = d + 1
         }
-        out = def
+        return def
     }
 }
 
@@ -380,22 +379,22 @@ public class Registry {
 // synthetic, so `int f()` is never callable as `f(v)`.
 public bool outArgsSupplied(const Symbol s, const List<SemaType> types) {
     SemaNode ref = s.getRef()
-    if ref == null { out = false  return }
+    if ref == null { return false }
     SemaFunctionBase fn = ref.asFunctionBase()
-    if fn == null { out = false  return }
-    if fn.getOutParamCount() < 2 { out = false  return }
+    if fn == null { return false }
+    if fn.getOutParamCount() < 2 { return false }
     List<SemaParam> ps = fn.getParams()
-    if ps == null { out = false  return }
+    if ps == null { return false }
     int np = (int)ps.size()
     int na = (int)types.size()
-    if np != na { out = false  return }
+    if np != na { return false }
     int i = 0
     while i < ps.size() {
         SemaParam p = ps.get(i)
-        if p == null { out = false  return }
+        if p == null { return false }
         SemaType pt = p.getType()
         SemaType at = types.get(i)
-        if pt == null { out = false  return }
+        if pt == null { return false }
         bool ok = matchClassOrEqual(pt, at)
         if ok == false {
             if at != null {
@@ -404,10 +403,10 @@ public bool outArgsSupplied(const Symbol s, const List<SemaType> types) {
                 }
             }
         }
-        if ok == false { out = false  return }
+        if ok == false { return false }
         i = i + 1
     }
-    out = true
+    return true
 }
 
 // defaultsMatch — true when candidate `s` declares MORE parameters than the call
@@ -422,26 +421,26 @@ public bool outArgsSupplied(const Symbol s, const List<SemaType> types) {
 // of every failed lookup.
 public bool defaultsMatch(const Symbol s, const List<SemaType> a) {
     List<SemaType> p = s.getParamTypes()
-    if p == null { out = false  return }
+    if p == null { return false }
     int np = (int)p.size()
     int na = (int)a.size()
-    if np <= na { out = false  return }
+    if np <= na { return false }
     SemaNode ref = s.getRef()
-    if ref == null { out = false  return }
+    if ref == null { return false }
     SemaFunctionBase fn = ref.asFunctionBase()
-    if fn == null { out = false  return }
+    if fn == null { return false }
     ASTFunction fa = fn.getAST()
-    if fa == null { out = false  return }
+    if fa == null { return false }
     List<ASTParam> dps = fa.getParams()
-    if dps == null { out = false  return }
+    if dps == null { return false }
     int ndp = (int)dps.size()
-    if ndp != np { out = false  return }
+    if ndp != np { return false }
     // every param the call did not supply must have a default
     int k = na
     while k < np {
         ASTParam dp = dps.get(k)
-        if dp == null { out = false  return }
-        if dp.getExpr() == null { out = false  return }
+        if dp == null { return false }
+        if dp.getExpr() == null { return false }
         k = k + 1
     }
     // the supplied prefix must be compatible
@@ -449,7 +448,7 @@ public bool defaultsMatch(const Symbol s, const List<SemaType> a) {
     while i < na {
         SemaType pt = p.get(i)
         SemaType at = a.get(i)
-        if pt == null { out = false  return }
+        if pt == null { return false }
         bool ok = matchClassOrEqual(pt, at)
         if ok == false {
             if at != null {
@@ -458,36 +457,36 @@ public bool defaultsMatch(const Symbol s, const List<SemaType> a) {
                 }
             }
         }
-        if ok == false { out = false  return }
+        if ok == false { return false }
         i = i + 1
     }
-    out = true
+    return true
 }
 
 // typesMatchExact — arity + per-element: isEquals, or arg-class derived-or-equals
 // param-class. No numeric promotion (so int vs long overloads stay distinct).
 public bool typesMatchExact(const List<SemaType> p, const List<SemaType> a) {
-    if p.size() != a.size() { out = false  return }
+    if p.size() != a.size() { return false }
     int i = 0
     while i < p.size() {
         SemaType pt = p.get(i)
         SemaType at = a.get(i)
-        if pt == null { out = false  return }
+        if pt == null { return false }
         bool ok = matchClassOrEqual(pt, at)
-        if ok == false { out = false  return }
+        if ok == false { return false }
         i = i + 1
     }
-    out = true
+    return true
 }
 
 // typesMatchStrict — arity + per-element identity (isEquals only; no upcast).
 public bool typesMatchStrict(const List<SemaType> p, const List<SemaType> a) {
-    if p.size() != a.size() { out = false  return }
+    if p.size() != a.size() { return false }
     int i = 0
     while i < p.size() {
         SemaType pt = p.get(i)
         SemaType at = a.get(i)
-        if pt == null { out = false  return }
+        if pt == null { return false }
         bool ok = false
         if at == null {
             SemaClassType pc = pt.asClass()
@@ -495,20 +494,20 @@ public bool typesMatchStrict(const List<SemaType> p, const List<SemaType> a) {
         } else {
             if pt.isEquals(at) { ok = true }
         }
-        if ok == false { out = false  return }
+        if ok == false { return false }
         i = i + 1
     }
-    out = true
+    return true
 }
 
 // typesMatchPromote — exact rules plus number→number widening.
 public bool typesMatchPromote(const List<SemaType> p, const List<SemaType> a) {
-    if p.size() != a.size() { out = false  return }
+    if p.size() != a.size() { return false }
     int i = 0
     while i < p.size() {
         SemaType pt = p.get(i)
         SemaType at = a.get(i)
-        if pt == null { out = false  return }
+        if pt == null { return false }
         bool ok = matchClassOrEqual(pt, at)
         if ok == false {
             if at != null {
@@ -517,10 +516,10 @@ public bool typesMatchPromote(const List<SemaType> p, const List<SemaType> a) {
                 }
             }
         }
-        if ok == false { out = false  return }
+        if ok == false { return false }
         i = i + 1
     }
-    out = true
+    return true
 }
 
 // matchClassOrEqual — a single param/arg pair under exact rules (isEquals, or
@@ -528,18 +527,17 @@ public bool typesMatchPromote(const List<SemaType> p, const List<SemaType> a) {
 public bool matchClassOrEqual(const SemaType pt, const SemaType at) {
     if at == null {
         SemaClassType pc = pt.asClass()
-        if pc != null { out = true } else { out = false }
-        return
+        if pc != null { return true } else { return false }
     }
-    if pt.isEquals(at) { out = true  return }
+    if pt.isEquals(at) { return true }
     SemaClassType pc = pt.asClass()
     SemaClassType ac = at.asClass()
     if pc != null {
         if ac != null {
-            if ac.isDerivedOrEquals(pc) { out = true  return }
+            if ac.isDerivedOrEquals(pc) { return true }
         }
     }
-    out = false
+    return false
 }
 
 // firstOf — the first symbol of a lookup result, or null.
@@ -548,7 +546,7 @@ public Symbol firstOf(const List<Symbol> syms) {
     if syms != null {
         if syms.size() > 0 { r = syms.get(0) }
     }
-    out = r
+    return r
 }
 
 // signaturesEqual — same arity and each type isEquals.
@@ -565,5 +563,5 @@ public bool signaturesEqual(const List<SemaType> a, const List<SemaType> b) {
             i = i + 1
         }
     }
-    out = eq
+    return eq
 }

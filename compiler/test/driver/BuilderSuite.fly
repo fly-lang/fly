@@ -23,7 +23,7 @@ import fly.assert
 // keeps `\"` raw). Free helpers, not `this.` methods (suite `this` is invalid).
 // ─────────────────────────────────────────────────────────────────────────────
 
-string qb(const string v) { out = str.concat(driver.dq(), str.concat(v, driver.dq())) }
+string qb(const string v) { return str.concat(driver.dq(), str.concat(v, driver.dq())) }
 
 suite BuilderSuite {
 

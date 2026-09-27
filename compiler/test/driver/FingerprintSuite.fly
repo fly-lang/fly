@@ -22,18 +22,18 @@ string fpsTempDir(const string name) {
     string tmp = env.get("TMPDIR")
     if str.isEmpty(tmp) { tmp = env.get("TEMP") }
     if str.isEmpty(tmp) { tmp = "/tmp" }
-    out = path.join(tmp, name)
+    return path.join(tmp, name)
 }
 
 // fpsHeader — a fixed fake header ending with a newline, as compute expects.
 string fpsHeader() {
-    out = str.concat("hdr test", driver.nl())
+    return str.concat("hdr test", driver.nl())
 }
 
 // fpsCompute — one-shot compute with a fresh Fingerprint.
 string fpsCompute(const string dir) {
     Fingerprint f = new Fingerprint()
-    out = f.compute(dir, fpsHeader())
+    return f.compute(dir, fpsHeader())
 }
 
 suite FingerprintSuite {

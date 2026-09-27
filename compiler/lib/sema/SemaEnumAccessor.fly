@@ -27,9 +27,9 @@ public class SemaEnumAccessor : SemaExpr {
         this.isNameFlag = isNameFlag
     }
 
-    public SemaEnumType getEnumType() { out = this.enumType }
-    public SemaEnumEntry getEntry() { out = this.entry }
-    public SemaVar getVar() { out = this.var }
-    public bool isName() { out = this.isNameFlag }
+    public SemaEnumType getEnumType() { return this.enumType }
+    public SemaEnumEntry getEntry() { return this.entry }
+    public SemaVar getVar() { return this.var }
+    public bool isName() { return this.isNameFlag }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }

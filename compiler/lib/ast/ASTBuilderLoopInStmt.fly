@@ -19,10 +19,10 @@ public class ASTBuilderLoopInStmt {
         if stmt != null {
             stmt.setParent(b.loopStmt)
         }
-        out = b
+        return b
     }
     public ASTBuilderLoopInStmt setCycle(const ASTBlockStmt stmt) {
         this.loopStmt.setStmt(stmt)
-        out = this
+        return this
     }
 }

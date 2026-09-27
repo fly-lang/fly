@@ -25,27 +25,25 @@ public class Lexer {
     // spanText / tokenText — resolve a source slice to a fresh string (owned by
     // the caller, so safe to return and store as a local).
     public string spanText(const int s0, const int s1) {
-        out = str.substring(this.source, s0, s1)
+        return str.substring(this.source, s0, s1)
     }
     public string tokenText(const Token t) {
-        out = str.substring(this.source, t.start, t.end)
+        return str.substring(this.source, t.start, t.end)
     }
 
     // byteAt — byte code at index i, or 256 past end (256 matches no real byte).
     public int byteAt(const int i) {
         if i >= this.len {
-            out = 256
-            return
+            return 256
         }
-        byte b = 0
-        str.byteAt(this.source, i, b)
-        out = b
+        byte b = str.byteAt(this.source, i)
+        return b
     }
 
     // here — the current position as a SourceLocation (byte offset). Line/col
     // are no longer tracked eagerly; SourceManager decodes them from the offset.
     public SourceLocation here() {
-        out = slGetFileLoc(this.pos)
+        return slGetFileLoc(this.pos)
     }
 
     // advance — consume one byte.
@@ -98,54 +96,54 @@ public class Lexer {
         int c2 = this.byteAt(this.pos + 1)
         int c3 = this.byteAt(this.pos + 2)
         // 3-char: <<=  >>=
-        if c1 == 60 && c2 == 60 && c3 == 61 { out = "<<=" return }
-        if c1 == 62 && c2 == 62 && c3 == 61 { out = ">>=" return }
+        if c1 == 60 && c2 == 60 && c3 == 61 { return "<<=" }
+        if c1 == 62 && c2 == 62 && c3 == 61 { return ">>=" }
         // 2-char
-        if c1 == 61 && c2 == 61 { out = "==" return }
-        if c1 == 33 && c2 == 61 { out = "!=" return }
-        if c1 == 60 && c2 == 61 { out = "<=" return }
-        if c1 == 62 && c2 == 61 { out = ">=" return }
-        if c1 == 38 && c2 == 38 { out = "&&" return }
-        if c1 == 124 && c2 == 124 { out = "||" return }
-        if c1 == 60 && c2 == 60 { out = "<<" return }
-        if c1 == 62 && c2 == 62 { out = ">>" return }
-        if c1 == 43 && c2 == 43 { out = "++" return }
-        if c1 == 45 && c2 == 45 { out = "--" return }
-        if c1 == 43 && c2 == 61 { out = "+=" return }
-        if c1 == 45 && c2 == 61 { out = "-=" return }
-        if c1 == 42 && c2 == 61 { out = "*=" return }
-        if c1 == 47 && c2 == 61 { out = "/=" return }
-        if c1 == 37 && c2 == 61 { out = "%=" return }
-        if c1 == 38 && c2 == 61 { out = "&=" return }
-        if c1 == 124 && c2 == 61 { out = "|=" return }
-        if c1 == 94 && c2 == 61 { out = "^=" return }
+        if c1 == 61 && c2 == 61 { return "==" }
+        if c1 == 33 && c2 == 61 { return "!=" }
+        if c1 == 60 && c2 == 61 { return "<=" }
+        if c1 == 62 && c2 == 61 { return ">=" }
+        if c1 == 38 && c2 == 38 { return "&&" }
+        if c1 == 124 && c2 == 124 { return "||" }
+        if c1 == 60 && c2 == 60 { return "<<" }
+        if c1 == 62 && c2 == 62 { return ">>" }
+        if c1 == 43 && c2 == 43 { return "++" }
+        if c1 == 45 && c2 == 45 { return "--" }
+        if c1 == 43 && c2 == 61 { return "+=" }
+        if c1 == 45 && c2 == 61 { return "-=" }
+        if c1 == 42 && c2 == 61 { return "*=" }
+        if c1 == 47 && c2 == 61 { return "/=" }
+        if c1 == 37 && c2 == 61 { return "%=" }
+        if c1 == 38 && c2 == 61 { return "&=" }
+        if c1 == 124 && c2 == 61 { return "|=" }
+        if c1 == 94 && c2 == 61 { return "^=" }
         // 1-char
-        if c1 == 40 { out = "(" return }
-        if c1 == 41 { out = ")" return }
-        if c1 == 123 { out = "{" return }
-        if c1 == 125 { out = "}" return }
-        if c1 == 91 { out = "[" return }
-        if c1 == 93 { out = "]" return }
-        if c1 == 46 { out = "." return }
-        if c1 == 44 { out = "," return }
-        if c1 == 58 { out = ":" return }
-        if c1 == 59 { out = ";" return }
-        if c1 == 63 { out = "?" return }
-        if c1 == 64 { out = "@" return }
-        if c1 == 43 { out = "+" return }
-        if c1 == 45 { out = "-" return }
-        if c1 == 42 { out = "*" return }
-        if c1 == 47 { out = "/" return }
-        if c1 == 37 { out = "%" return }
-        if c1 == 61 { out = "=" return }
-        if c1 == 60 { out = "<" return }
-        if c1 == 62 { out = ">" return }
-        if c1 == 33 { out = "!" return }
-        if c1 == 38 { out = "&" return }
-        if c1 == 124 { out = "|" return }
-        if c1 == 94 { out = "^" return }
-        if c1 == 126 { out = "~" return }
-        out = ""
+        if c1 == 40 { return "(" }
+        if c1 == 41 { return ")" }
+        if c1 == 123 { return "{" }
+        if c1 == 125 { return "}" }
+        if c1 == 91 { return "[" }
+        if c1 == 93 { return "]" }
+        if c1 == 46 { return "." }
+        if c1 == 44 { return "," }
+        if c1 == 58 { return ":" }
+        if c1 == 59 { return ";" }
+        if c1 == 63 { return "?" }
+        if c1 == 64 { return "@" }
+        if c1 == 43 { return "+" }
+        if c1 == 45 { return "-" }
+        if c1 == 42 { return "*" }
+        if c1 == 47 { return "/" }
+        if c1 == 37 { return "%" }
+        if c1 == 61 { return "=" }
+        if c1 == 60 { return "<" }
+        if c1 == 62 { return ">" }
+        if c1 == 33 { return "!" }
+        if c1 == 38 { return "&" }
+        if c1 == 124 { return "|" }
+        if c1 == 94 { return "^" }
+        if c1 == 126 { return "~" }
+        return ""
     }
 
     // lexWord — identifier or keyword, starting at `start` (alpha already seen).
@@ -158,7 +156,7 @@ public class Lexer {
         if isKeyword(word) {
             kind = TokenKind.KEYWORD
         }
-        out = new Token(kind, loc, start, this.pos)
+        return new Token(kind, loc, start, this.pos)
     }
 
     // lexNumber — integer / float / hex (digits, '.', trailing alnum).
@@ -172,7 +170,7 @@ public class Lexer {
                 more = false
             }
         }
-        out = new Token(TokenKind.NUMBER, loc, start, this.pos)
+        return new Token(TokenKind.NUMBER, loc, start, this.pos)
     }
 
     // lexQuoted — string ("...") or char ('...') literal; `quote` is the delimiter
@@ -190,7 +188,7 @@ public class Lexer {
         if this.pos < this.len {
             this.advance()             // closing delimiter
         }
-        out = new Token(kind, loc, contentStart, contentEnd)
+        return new Token(kind, loc, contentStart, contentEnd)
     }
 
     // lexPunct — punctuator via maximal munch, or TOK_UNKNOWN for a stray byte.
@@ -203,11 +201,10 @@ public class Lexer {
                 this.advance()
                 k = k + 1
             }
-            out = new Token(TokenKind.PUNCT, loc, start, this.pos)
-            return
+            return new Token(TokenKind.PUNCT, loc, start, this.pos)
         }
         this.advance()
-        out = new Token(TokenKind.UNKNOWN, loc, start, this.pos)
+        return new Token(TokenKind.UNKNOWN, loc, start, this.pos)
     }
 
     // next — produce the next token (TOK_EOF at end of input).
@@ -215,26 +212,25 @@ public class Lexer {
         this.skipTrivia()
         SourceLocation loc = this.here()
         if this.pos >= this.len {
-            out = new Token(TokenKind.EOF, loc, this.pos, this.pos)
-            return
+            return new Token(TokenKind.EOF, loc, this.pos, this.pos)
         }
         int c = this.byteAt(this.pos)
         int start = this.pos
         if isIdentifierHead(c) {
-            out = this.lexWord(loc, start)
+            return this.lexWord(loc, start)
         } elsif isDigit(c) {
-            out = this.lexNumber(loc, start)
+            return this.lexNumber(loc, start)
         } elsif c == 34 {
-            out = this.lexQuoted(loc, 34, TokenKind.STRING)
+            return this.lexQuoted(loc, 34, TokenKind.STRING)
         } elsif c == 39 {
-            out = this.lexQuoted(loc, 39, TokenKind.CHAR)
+            return this.lexQuoted(loc, 39, TokenKind.CHAR)
         } else {
-            out = this.lexPunct(loc, start)
+            return this.lexPunct(loc, start)
         }
     }
 }
 
 // newLexer — convenience factory.
 public Lexer newLexer(const string src) {
-    out = new Lexer(src)
+    return new Lexer(src)
 }

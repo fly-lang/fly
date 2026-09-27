@@ -44,7 +44,7 @@ suite ParserAstSuite {
 
     void classMemberCountTest() {
         case "class with attribute + method registers two members": {
-            Parser p = new Parser("class Box { int v  public int get() { out = v } }")
+            Parser p = new Parser("class Box { int v  public int get() { return v } }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 20)
             List<ASTNode> nodes = mod.getNodes()

@@ -13,78 +13,76 @@ import fly.compiler.basic.*
 // ─────────────────────────────────────────────────────────────────────────────
 
 public bool isASCII(const int c) {
-    out = c >= 0 && c <= 127
+    return c >= 0 && c <= 127
 }
 
 // ' ', '\t', '\v', '\f'
 public bool isHorizontalWhitespace(const int c) {
-    out = c == 32 || c == 9 || c == 11 || c == 12
+    return c == 32 || c == 9 || c == 11 || c == 12
 }
 
 // '\n', '\r'
 public bool isVerticalWhitespace(const int c) {
-    out = c == 10 || c == 13
+    return c == 10 || c == 13
 }
 
 public bool isWhitespace(const int c) {
-    out = isHorizontalWhitespace(c) || isVerticalWhitespace(c)
+    return isHorizontalWhitespace(c) || isVerticalWhitespace(c)
 }
 
 public bool isDigit(const int c) {
-    out = c >= 48 && c <= 57
+    return c >= 48 && c <= 57
 }
 
 public bool isLowercase(const int c) {
-    out = c >= 97 && c <= 122
+    return c >= 97 && c <= 122
 }
 
 public bool isUppercase(const int c) {
-    out = c >= 65 && c <= 90
+    return c >= 65 && c <= 90
 }
 
 public bool isLetter(const int c) {
-    out = isLowercase(c) || isUppercase(c)
+    return isLowercase(c) || isUppercase(c)
 }
 
 public bool isAlphanumeric(const int c) {
-    out = isLetter(c) || isDigit(c)
+    return isLetter(c) || isDigit(c)
 }
 
 // [0-9a-fA-F]
 public bool isHexDigit(const int c) {
-    out = isDigit(c) || (c >= 97 && c <= 102) || (c >= 65 && c <= 70)
+    return isDigit(c) || (c >= 97 && c <= 102) || (c >= 65 && c <= 70)
 }
 
 // First character of an identifier: [a-zA-Z_]
 public bool isIdentifierHead(const int c) {
-    out = isLetter(c) || c == 95
+    return isLetter(c) || c == 95
 }
 
 // Body character of an identifier: [a-zA-Z0-9_]
 public bool isIdentifierBody(const int c) {
-    out = isAlphanumeric(c) || c == 95
+    return isAlphanumeric(c) || c == 95
 }
 
 // Any printable ASCII punctuation (note '_' is both punctuation and identifier).
 public bool isPunctuation(const int c) {
-    out = (c >= 33 && c <= 47) || (c >= 58 && c <= 64)
+    return (c >= 33 && c <= 47) || (c >= 58 && c <= 64)
        || (c >= 91 && c <= 96) || (c >= 123 && c <= 126)
 }
 
 // Uppercase letter -> lowercase; otherwise unchanged.
 public int toLowercase(const int c) {
     if isUppercase(c) {
-        out = c + 32
-        return
+        return c + 32
     }
-    out = c
+    return c
 }
 
 // Lowercase letter -> uppercase; otherwise unchanged.
 public int toUppercase(const int c) {
     if isLowercase(c) {
-        out = c - 32
-        return
+        return c - 32
     }
-    out = c
+    return c
 }

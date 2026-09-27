@@ -98,9 +98,9 @@ public class ResolverClass {
     // at all is not the same thing: it is simply a data holder, and specializing it
     // is fine. Interfaces are excluded — bodiless is their normal state.
     public static bool templateHasNoBodies(const SemaClassType cls) {
-        if cls.getClassKind() == SemaClassKind.INTERFACE { out = false  return }
+        if cls.getClassKind() == SemaClassKind.INTERFACE { return false }
         ASTClass ac = cls.getAST()
-        if ac == null { out = false  return }
+        if ac == null { return false }
         List<ASTNode> nodes = ac.getNodes()
         bool sawMethod = false
         int i = 0
@@ -108,11 +108,11 @@ public class ResolverClass {
             ASTFunction meth = nodes.get(i).asFunction()
             if meth != null {
                 sawMethod = true
-                if meth.getBody() != null { out = false  return }
+                if meth.getBody() != null { return false }
             }
             i = i + 1
         }
-        out = sawMethod
+        return sawMethod
     }
 
     // checkAbstractMethods — a concrete class must provide a concrete implementation
@@ -172,7 +172,7 @@ public class ResolverClass {
             SemaClassMethod m = ms.get(i)
             if m.isAbstract() == false {
                 if m.isConstructor() == false {
-                    if str.equals(m.getName(), name) { out = true  return }
+                    if str.equals(m.getName(), name) { return true }
                 }
             }
             i = i + 1
@@ -181,10 +181,10 @@ public class ResolverClass {
         int j = 0
         while j < bases.size() {
             SemaClassType b = bases.get(j)
-            if ResolverClass.hasConcreteMethod(b, name) { out = true  return }
+            if ResolverClass.hasConcreteMethod(b, name) { return true }
             j = j + 1
         }
-        out = false
+        return false
     }
 
     // checkDiamond — a class that inherits a DEFAULT (concrete) method of the same
@@ -264,7 +264,7 @@ public class ResolverClass {
             }
             i = i + 1
         }
-        out = (int)seen.size()
+        return (int)seen.size()
     }
 
     // hasOwnMethod — cls declares its own (non-ctor) method named `name`, resolving a
@@ -275,11 +275,11 @@ public class ResolverClass {
         while i < ms.size() {
             SemaClassMethod m = ms.get(i)
             if m.isConstructor() == false {
-                if str.equals(m.getName(), name) { out = true  return }
+                if str.equals(m.getName(), name) { return true }
             }
             i = i + 1
         }
-        out = false
+        return false
     }
 
     // listHasStr — membership test on a string list.
@@ -287,10 +287,10 @@ public class ResolverClass {
         int i = 0
         while i < list.size() {
             string x = list.get(i)
-            if str.equals(x, s) { out = true  return }
+            if str.equals(x, s) { return true }
             i = i + 1
         }
-        out = false
+        return false
     }
 
     // resolveClassTypeIsolated — resolve a (generic specialization) class while
@@ -365,7 +365,7 @@ public class ResolverClass {
 
     // typesMatch — element-wise SemaType.isEquals over two explicit-param lists.
     public static bool typesMatch(const List<SemaType> a, const List<SemaType> b) {
-        if a.size() != b.size() { out = false  return }
+        if a.size() != b.size() { return false }
         int i = 0
         while i < a.size() {
             SemaType ta = a.get(i)
@@ -374,10 +374,10 @@ public class ResolverClass {
             if ta != null {
                 if tb != null { eq = ta.isEquals(tb) }
             }
-            if eq == false { out = false  return }
+            if eq == false { return false }
             i = i + 1
         }
-        out = true
+        return true
     }
 
     // attribute — visit(ASTAttribute): resolve the field type + optional initializer
@@ -476,13 +476,15 @@ public class ResolverClass {
             if rtt != null { isVoidRet = rtt.isVoid() }
             if isVoidRet == false {
                 List<ASTModifier> noMods = new List<ASTModifier>()
-                ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rt, "out", noMods, null)
+                ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rt, "__ret", noMods, null)
                 outAst.accept(r)
-                meth.addParam(r.getCurrentParam())
+                SemaParam retParam = r.getCurrentParam()
+                retParam.setSynthetic(true)
+                meth.addParam(retParam)
                 meth.setOutParamCount(1)
             }
         } else {
-            // Multi-return METHOD: one synthetic `__out_i` per declared return type,
+            // Multi-return METHOD: one synthetic `__ret_i` per declared return type,
             // mirroring ResolverDecl.resolveSignature for free functions.
             List<ASTType> rts = node.getReturnTypes()
             int ri = 0
@@ -490,10 +492,12 @@ public class ResolverClass {
                 ASTType rti = rts.get(ri)
                 rti.accept(r)
                 List<ASTModifier> noMods = new List<ASTModifier>()
-                string on = str.concat("__out_", str.convert(ri))
+                string on = str.concat("__ret_", str.convert(ri))
                 ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rti, on, noMods, null)
                 outAst.accept(r)
-                meth.addParam(r.getCurrentParam())
+                SemaParam retParam = r.getCurrentParam()
+                retParam.setSynthetic(true)
+                meth.addParam(retParam)
                 ri = ri + 1
             }
             meth.setOutParamCount((int)rts.size())
@@ -591,13 +595,13 @@ public class ResolverClass {
 // arguments: empty, or every param carrying a default value (ASTVar.expr, set by
 // ParserFunction.parseParams).
 public bool allParamsDefaulted(const List<ASTParam> ps) {
-    if ps == null { out = true  return }
+    if ps == null { return true }
     int i = 0
     while i < ps.size() {
         ASTParam p = ps.get(i)
-        if p == null { out = false  return }
-        if p.getExpr() == null { out = false  return }
+        if p == null { return false }
+        if p.getExpr() == null { return false }
         i = i + 1
     }
-    out = true
+    return true
 }

@@ -219,6 +219,7 @@ public class ResolverExpr {
         ASTType tt = node.getToType()
         tt.accept(r)
         SemaType toType = r.getCurrentType()
+        checkCastTypes(r, node.getLoc(), from.getType(), toType)
         SemaCast c = SemaBuilder.CreateCast(node, from, toType)
         r.setCurrentExpr(c)
     }
@@ -435,7 +436,7 @@ public class ResolverExpr {
 // promoteNumberTypes — rank-based widening (1:1 with C++ Resolver::PromoteNumberTypes):
 // the operand with the higher (or equal) rank wins.
 public SemaType promoteNumberTypes(const SemaType left, const SemaType right) {
-    if left.getRank() >= right.getRank() { out = left } else { out = right }
+    if left.getRank() >= right.getRank() { return left } else { return right }
 }
 
 // checkAssignTypes — kind-level assignment compatibility, the reference
@@ -468,4 +469,52 @@ public void checkAssignTypes(const Resolver r, const SourceLocation loc, const S
     if ok == false {
         r.diagStr2(loc, DiagID.err_sema_type_mismatch, rhs.getName(), lhs.getName())
     }
+}
+
+// checkCastTypes — a port of the reference SemaValidator::CheckCast: which
+// `(T)expr` conversions the language actually allows. bool / integer / float
+// form one mutually-castable numeric group (`pointer` is an integer KIND, so
+// pointer<->long arithmetic keeps working); string, complex and array cast only
+// to themselves; a class or an enum casts only along its own derivation chain.
+// Everything else is rejected HERE — `(pointer)aClassRef` used to sail through
+// sema and die in the backend verifier on `sext ptr to i64`, which reports no
+// source location at all.
+// The reference's lossy-narrowing WARNINGS are deliberately not ported: the
+// self-host has no warning id for them, and they are not what this guard is for.
+// A null side is skipped — an unresolved expr (already diagnosed) or a `null` /
+// `unset` literal, which carries no type — as are generic type variables, which
+// only take their real type at monomorphization.
+public void checkCastTypes(const Resolver r, const SourceLocation loc, const SemaType fromType, const SemaType toType) {
+    if fromType == null { return }
+    if toType == null { return }
+    if fromType.getKind() == SemaKind.TYPE_PARAM { return }
+    if toType.getKind() == SemaKind.TYPE_PARAM { return }
+
+    // identity: the same type is always castable to itself
+    if fromType.isEquals(toType) { return }
+
+    // numeric group: bool / integer / float convert freely among themselves
+    bool fromNum = fromType.isBool() || fromType.isNumber()
+    bool toNum = toType.isBool() || toType.isNumber()
+    if fromNum && toNum { return }
+
+    // same-kind identity casts (string, complex, array)
+    if fromType.isString() && toType.isString() { return }
+    if fromType.isComplex() && toType.isComplex() { return }
+    if fromType.isArray() && toType.isArray() { return }
+
+    // class / enum: allow an upcast or the same derivation
+    SemaClassType fromCls = fromType.asClass()
+    SemaClassType toCls = toType.asClass()
+    if fromCls != null && toCls != null {
+        if fromCls.isDerivedOrEquals(toCls) { return }
+    }
+    SemaEnumType fromEnum = fromType.asEnum()
+    SemaEnumType toEnum = toType.asEnum()
+    if fromEnum != null && toEnum != null {
+        if fromEnum.isDerivedOrEquals(toEnum) { return }
+    }
+
+    // every other combination is invalid
+    r.diagStr2(loc, DiagID.err_sema_invalid_cast, fromType.getName(), toType.getName())
 }

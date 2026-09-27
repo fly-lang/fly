@@ -16,7 +16,7 @@ public class ASTBuilderIfStmt {
     }
 
     public static ASTBuilderIfStmt Create(const ASTBlockStmt parent) {
-        out = new ASTBuilderIfStmt(parent)
+        return new ASTBuilderIfStmt(parent)
     }
     public ASTBuilderIfStmt If(const SourceLocation loc, const ASTExpr expr, const ASTBlockStmt stmt) {
         this.ifStmt = new ASTIfStmt(loc)
@@ -24,17 +24,17 @@ public class ASTBuilderIfStmt {
         this.ifStmt.setStmt(stmt)
         this.parent.addContent(this.ifStmt)
         this.ifStmt.setParent(this.parent)
-        out = this
+        return this
     }
     public ASTBuilderIfStmt ElseIf(const SourceLocation loc, const ASTExpr expr, const ASTBlockStmt stmt) {
         ASTRuleStmt elsifRule = new ASTRuleStmt(loc, ASTStmtKind.STMT_IF)
         elsifRule.setExpr(expr)
         elsifRule.setStmt(stmt)
         this.ifStmt.addElsif(elsifRule)
-        out = this
+        return this
     }
     public ASTBuilderIfStmt Else(const SourceLocation loc, const ASTBlockStmt stmt) {
         this.ifStmt.setElse(stmt)
-        out = this
+        return this
     }
 }

@@ -35,7 +35,7 @@ import fly.assert
 // ─────────────────────────────────────────────────────────────────────────────
 
 string fixturePath() {
-    out = "std/test/fixtures/pkg.tar.gz"
+    return "std/test/fixtures/pkg.tar.gz"
 }
 
 // withByte — a copy of s with one byte replaced. Corrupting a specific field of
@@ -45,32 +45,87 @@ string withByte(const string s, const int idx, const int val) {
     pointer b = mem.alloc(n)
     int i = 0
     while i < n {
-        byte v = 0
-        str.byteAt(s, i, v)
+        byte v = str.byteAt(s, i)
         mem.writeByte(b, i, v)
         i = i + 1
     }
     int m = val & 255
     mem.writeByte(b, idx, (byte)m)
-    string r = ""
-    str.fromBytes(b, n, r)
-    out = r
+    string r = str.fromBytes(b, n)
+    return r
 }
 
 // digestOf — the bare hex SHA-256 of a string's bytes.
 string digestOf(const string s) {
-    out = hash.sha256Hex(s)
+    return hash.sha256Hex(s)
 }
 
 // The four expected digests, from sha256sum on the pre-archive files.
-string shaReadme()  { out = "f420e8be059e1a738bf413c201e991eca029d0ce5cb0b8a994f5e6e2fdc7a203" }
-string shaMain()    { out = "1c41d5c6e11e1f32a5e2c874ddc7bd6e46cad1a065686176a9366a36387ab2c2" }
-string shaBlob()    { out = "d3859081b6ebe8d1e0ff6387a734eeb63afe2142343e77be4f836b961e7b141f" }
-string shaEmpty()   { out = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" }
-string shaLeaf()    { out = "64896f89fd11190013b70103e603a1c5826e56b7fb7d2197ab279b0690043599" }
+string shaReadme()  { return "f420e8be059e1a738bf413c201e991eca029d0ce5cb0b8a994f5e6e2fdc7a203" }
+string shaMain()    { return "1c41d5c6e11e1f32a5e2c874ddc7bd6e46cad1a065686176a9366a36387ab2c2" }
+string shaBlob()    { return "d3859081b6ebe8d1e0ff6387a734eeb63afe2142343e77be4f836b961e7b141f" }
+string shaEmpty()   { return "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" }
+string shaLeaf()    { return "64896f89fd11190013b70103e603a1c5826e56b7fb7d2197ab279b0690043599" }
+
+// tarBlock — one 512-byte tar header with a VALID checksum: `name`, the size
+// field as octal digits, typeflag `ty`. The fixture only holds well-formed
+// records; hand-built ones reach the GNU long-name edge cases.
+string tarBlock(const string name, const string sizeOct, const int ty) {
+    pointer b = mem.alloc(512)
+    mem.zero(b, 512)
+    int i = 0
+    while i < str.len(name) {
+        mem.writeByte(b, i, str.byteAt(name, i))
+        i = i + 1
+    }
+    i = 0
+    while i < str.len(sizeOct) {
+        mem.writeByte(b, 124 + i, str.byteAt(sizeOct, i))
+        i = i + 1
+    }
+    mem.writeByte(b, 156, (byte)ty)
+    long sum = 0
+    i = 0
+    while i < 512 {
+        int c = mem.readByte(b, i) & 255
+        if i >= 148 && i < 156 { c = 32 }
+        sum = sum + (long)c
+        i = i + 1
+    }
+    // the checksum field: six octal digits, NUL, space
+    int d = 5
+    while d >= 0 {
+        long q = sum / 8
+        int digit = (int)(sum - q * 8)
+        mem.writeByte(b, 148 + d, (byte)(48 + digit))
+        sum = q
+        d = d - 1
+    }
+    mem.writeByte(b, 154, (byte)0)
+    mem.writeByte(b, 155, (byte)32)
+    string r = str.fromBytes(b, 512)
+    return r
+}
+
+// dataBlock — `payload` padded with NULs to one 512-byte block.
+string dataBlock(const string payload) {
+    pointer b = mem.alloc(512)
+    mem.zero(b, 512)
+    int i = 0
+    while i < str.len(payload) {
+        mem.writeByte(b, i, str.byteAt(payload, i))
+        i = i + 1
+    }
+    string r = str.fromBytes(b, 512)
+    return r
+}
+
+string zeroBlock() {
+    return dataBlock("")
+}
 
 string longLeaf() {
-    out = "pkg/very/deeply/nested/directory/structure/that/goes/past/the/one/hundred/byte/limit/of/ustar/leaf.txt"
+    return "pkg/very/deeply/nested/directory/structure/that/goes/past/the/one/hundred/byte/limit/of/ustar/leaf.txt"
 }
 
 suite TarGzSuite {
@@ -365,8 +420,7 @@ suite TarGzSuite {
             // what the producer wrote — exactly the case a size check misses.
             string raw = fs.readBytes(fixturePath())
             int n = str.len(raw)
-            byte cur = 0
-            str.byteAt(raw, n - 8, cur)
+            byte cur = str.byteAt(raw, n - 8)
             int flipped = cur
             flipped = (flipped & 255) ^ 1
             int e = 0
@@ -376,8 +430,7 @@ suite TarGzSuite {
         case "a wrong ISIZE is caught": {
             string raw = fs.readBytes(fixturePath())
             int n = str.len(raw)
-            byte cur = 0
-            str.byteAt(raw, n - 4, cur)
+            byte cur = str.byteAt(raw, n - 4)
             int flipped = cur
             flipped = (flipped & 255) ^ 1
             int e = 0
@@ -432,6 +485,35 @@ suite TarGzSuite {
                 bool more = targz.tarNext(h)
                 assert.assertFalse(more, 711)
                 assert.assertEqI(targz.tarErr(h), 9, 712)
+                targz.tarFree(h)
+            }
+        }
+        case "a GNU long-name record larger than the archive is error 9": {
+            // The name is copied out of the record's data, which must lie inside
+            // the archive; this one claims megabytes the input does not have.
+            string t = tarBlock("././@LongLink", "00077777777", 76) + zeroBlock()
+            pointer h = targz.tarOpen(t)
+            assert.assertTrue(h != 0, 720)
+            if h != 0 {
+                assert.assertFalse(targz.tarNext(h), 721)
+                assert.assertEqI(targz.tarErr(h), 9, 722)
+                targz.tarFree(h)
+            }
+        }
+        case "an empty long-name record drops the pending name": {
+            // A second, EMPTY 'L' freed the first one's name but left the pointer
+            // behind: the next entry adopted freed memory as its name and tarFree
+            // freed it again.
+            string t = tarBlock("././@LongLink", "00000000005", 76) + dataBlock("abcd")
+            t = t + tarBlock("././@LongLink", "00000000000", 76)
+            t = t + tarBlock("short", "00000000000", 48) + zeroBlock() + zeroBlock()
+            pointer h = targz.tarOpen(t)
+            assert.assertTrue(h != 0, 723)
+            if h != 0 {
+                assert.assertTrue(targz.tarNext(h), 724)
+                assert.assertStr(targz.tarName(h), "short", 725)
+                assert.assertFalse(targz.tarNext(h), 726)
+                assert.assertEqI(targz.tarErr(h), 0, 727)
                 targz.tarFree(h)
             }
         }

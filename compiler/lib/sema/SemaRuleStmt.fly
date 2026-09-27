@@ -16,6 +16,6 @@ public class SemaRuleStmt {
         this.stmt = stmt
     }
 
-    public SemaExpr getExpr() { out = this.expr }
-    public SemaStmt getStmt() { out = this.stmt }
+    public SemaExpr getExpr() { return this.expr }
+    public SemaStmt getStmt() { return this.stmt }
 }

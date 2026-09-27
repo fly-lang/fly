@@ -52,13 +52,14 @@ public class List<T> {
     }
 
     public T get(const pointer idx) {
+        T res
         if idx < this.len {
-            fly.llvm.slotReadT(this.items, idx * this.stride, out)
-            return
+            fly.llvm.slotReadT(this.items, idx * this.stride, res)
+            return res
         }
-        // out of bounds → default-initialized T (0 / empty string / null)
+        // res of bounds → default-initialized T (0 / empty string / null)
         T def
-        out = def
+        return def
     }
 
     public void set(const pointer idx, const T val) {
@@ -69,7 +70,7 @@ public class List<T> {
     }
 
     public pointer size() {
-        out = this.len
+        return this.len
     }
 
     public void remove(const pointer idx) {
@@ -109,5 +110,11 @@ public class List<T> {
         if this.items != 0 {
             fly.runtime.mem_free(this.items, this.cap * this.stride)
         }
+        // Back to the empty state: the freed buffers must not stay reachable. A
+        // second free() released them again, and an add() after free() wrote
+        // into freed memory; now both work (every add re-allocates lazily).
+        this.items = 0
+        this.len = 0
+        this.cap = 0
     }
 }

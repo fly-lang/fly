@@ -28,7 +28,7 @@ public string formatMessage(const string desc, const List<string> args) {
         res = next
         i = i + 1
     }
-    out = res
+    return res
 }
 
 // FixItHint — a suggested source edit attached to a diagnostic (insert/remove/
@@ -42,18 +42,18 @@ public class FixItHint {
         this.insertText = insertText
     }
 
-    public SourceRange getRange() { out = this.range }
-    public string getInsertText() { out = this.insertText }
+    public SourceRange getRange() { return this.range }
+    public string getInsertText() { return this.insertText }
 }
 
 public FixItHint fixItInsert(const SourceLocation loc, const string text) {
-    out = new FixItHint(srcRangeFromLoc(loc), text)
+    return new FixItHint(srcRangeFromLoc(loc), text)
 }
 public FixItHint fixItReplace(const SourceRange range, const string text) {
-    out = new FixItHint(range, text)
+    return new FixItHint(range, text)
 }
 public FixItHint fixItRemove(const SourceRange range) {
-    out = new FixItHint(range, "")
+    return new FixItHint(range, "")
 }
 
 // Diagnostic — a fully-formed diagnostic handed to a DiagnosticConsumer. Carries
@@ -83,14 +83,14 @@ public class Diagnostic {
         this.sm = sm
     }
 
-    public DiagLevel getLevel()        { out = this.level }
-    public SourceLocation getLoc()     { out = this.loc }
-    public int getLine()               { out = this.line }
-    public int getColumn()             { out = this.col }
-    public string getFilename()        { out = this.filename }
-    public string getMessage()         { out = this.message }
-    public string getRendered()        { out = this.rendered }
-    public SourceManager getSourceManager() { out = this.sm }
+    public DiagLevel getLevel()        { return this.level }
+    public SourceLocation getLoc()     { return this.loc }
+    public int getLine()               { return this.line }
+    public int getColumn()             { return this.col }
+    public string getFilename()        { return this.filename }
+    public string getMessage()         { return this.message }
+    public string getRendered()        { return this.rendered }
+    public SourceManager getSourceManager() { return this.sm }
 }
 
 // DiagnosticConsumer — sink for fully-formed diagnostics. The base is a no-op;
@@ -143,15 +143,15 @@ public class StoringDiagnosticConsumer : DiagnosticConsumer {
         elsif level == DiagLevel.Warning { this.warnings = this.warnings + 1 }
     }
 
-    public int count() { out = (int)this.messages.size() }
-    public string getMessage(const int i) { out = this.messages.get(i) }
-    public string getLevelName(const int i) { out = this.levels.get(i) }
-    public string getFile(const int i) { out = this.files.get(i) }
-    public string getLine(const int i) { out = this.lines.get(i) }
-    public string getCol(const int i) { out = this.cols.get(i) }
-    public string getText(const int i) { out = this.texts.get(i) }
-    public int errorCount() { out = this.errors }
-    public int warningCount() { out = this.warnings }
+    public int count() { return (int)this.messages.size() }
+    public string getMessage(const int i) { return this.messages.get(i) }
+    public string getLevelName(const int i) { return this.levels.get(i) }
+    public string getFile(const int i) { return this.files.get(i) }
+    public string getLine(const int i) { return this.lines.get(i) }
+    public string getCol(const int i) { return this.cols.get(i) }
+    public string getText(const int i) { return this.texts.get(i) }
+    public int errorCount() { return this.errors }
+    public int warningCount() { return this.warnings }
 }
 
 // DiagnosticBuilder — accumulates a diagnostic's arguments and fix-its, then emits
@@ -171,14 +171,14 @@ public class DiagnosticBuilder {
         this.fixits = new List<FixItHint>()
     }
 
-    public DiagnosticBuilder addStr(const string s) { this.args.add(s)  out = this }
-    public DiagnosticBuilder addInt(const int n) { this.args.add(str.convert(n))  out = this }
-    public DiagnosticBuilder addFixIt(const FixItHint h) { this.fixits.add(h)  out = this }
+    public DiagnosticBuilder addStr(const string s) { this.args.add(s)  return this }
+    public DiagnosticBuilder addInt(const int n) { this.args.add(str.convert(n))  return this }
+    public DiagnosticBuilder addFixIt(const FixItHint h) { this.fixits.add(h)  return this }
 
-    public DiagID getId() { out = this.id }
-    public SourceLocation getLoc() { out = this.loc }
-    public List<string> getArgs() { out = this.args }
-    public List<FixItHint> getFixits() { out = this.fixits }
+    public DiagID getId() { return this.id }
+    public SourceLocation getLoc() { return this.loc }
+    public List<string> getArgs() { return this.args }
+    public List<FixItHint> getFixits() { return this.fixits }
 
     public void emit() { this.engine.emitDiagnostic(this) }
 }
@@ -204,7 +204,7 @@ public class DiagnosticsEngine {
 
     // report — begin a diagnostic at loc with id; caller adds args then calls emit().
     public DiagnosticBuilder report(const SourceLocation loc, const DiagID id) {
-        out = new DiagnosticBuilder(this, loc, id)
+        return new DiagnosticBuilder(this, loc, id)
     }
 
     public void emitDiagnostic(const DiagnosticBuilder b) {
@@ -233,8 +233,8 @@ public class DiagnosticsEngine {
         }
     }
 
-    public bool hasErrorOccurred() { out = this.errorOccurred }
-    public int getNumErrors() { out = this.errorCount }
-    public int getNumWarnings() { out = this.warningCount }
-    public DiagnosticConsumer getConsumer() { out = this.consumer }
+    public bool hasErrorOccurred() { return this.errorOccurred }
+    public int getNumErrors() { return this.errorCount }
+    public int getNumWarnings() { return this.warningCount }
+    public DiagnosticConsumer getConsumer() { return this.consumer }
 }

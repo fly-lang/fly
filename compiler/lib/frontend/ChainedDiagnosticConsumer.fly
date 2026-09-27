@@ -23,6 +23,6 @@ public class ChainedDiagnosticConsumer : DiagnosticConsumer {
         if this.secondary != null { this.secondary.handleDiagnostic(diag) }
     }
 
-    public DiagnosticConsumer getPrimary()   { out = this.primary }
-    public DiagnosticConsumer getSecondary() { out = this.secondary }
+    public DiagnosticConsumer getPrimary()   { return this.primary }
+    public DiagnosticConsumer getSecondary() { return this.secondary }
 }

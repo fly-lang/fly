@@ -55,8 +55,8 @@ public string uriToPath(const string uri) {
     if str.len(s) >= 3 {
         byte b0 = 0
         byte b2 = 0
-        str.byteAt(s, 0, b0)
-        str.byteAt(s, 2, b2)
+        b0 = str.byteAt(s, 0)
+        b2 = str.byteAt(s, 2)
         int i0 = b0
         int i2 = b2
         i0 = i0 & 255
@@ -65,7 +65,7 @@ public string uriToPath(const string uri) {
             if i2 == 58 { s = str.substring(s, 1, str.len(s)) }
         }
     }
-    out = s
+    return s
 }
 
 // pathToUri — the inverse: a Windows drive path gains the extra slash.
@@ -73,13 +73,12 @@ public string pathToUri(const string path) {
     string p = str.replace(path, "\\", "/")
     bool drive = false
     if str.len(p) >= 2 {
-        byte b1 = 0
-        str.byteAt(p, 1, b1)
+        byte b1 = str.byteAt(p, 1)
         int i1 = b1
         i1 = i1 & 255
         if i1 == 58 { drive = true }
     }
-    if drive { out = str.concat("file:///", p) } else { out = str.concat("file://", p) }
+    if drive { return str.concat("file:///", p) } else { return str.concat("file://", p) }
 }
 
 // mkPosition — an LSP Position node from 1-based compiler coordinates.
@@ -91,7 +90,7 @@ public pointer mkPosition(const int line1, const int col1) {
     pointer o = json.newObject()
     json.put(o, "line", json.newInt(l))
     json.put(o, "character", json.newInt(c))
-    out = o
+    return o
 }
 
 // mkRange — a single-character range at (line1, col1): enough to place the
@@ -101,7 +100,7 @@ public pointer mkRange(const int line1, const int col1) {
     json.put(o, "start", mkPosition(line1, col1))
     int endCol = col1 + 1
     json.put(o, "end", mkPosition(line1, endCol))
-    out = o
+    return o
 }
 
 // mkDiagnostic — one LSP Diagnostic node.
@@ -111,49 +110,56 @@ public pointer mkDiagnostic(const LspDiag d) {
     json.put(o, "severity", json.newInt(d.severity))
     json.put(o, "source", json.newString("fly"))
     json.put(o, "message", json.newString(d.message))
-    out = o
+    return o
 }
 
 // lfStr — a one-byte "\n" string; literals keep escapes raw in this dialect.
 public string lfStr() {
     pointer p = mem.alloc(1)
     mem.writeByte(p, 0, 10)
-    string s = ""
-    str.fromBytes(p, 1, s)
-    out = s
+    string s = str.fromBytes(p, 1)
+    return s
+}
+
+// isInternalName — a name the compiler made up, never one the user typed: the
+// hidden return slots (`__ret`, `__ret_0`…), the call-site result locals
+// (`__out_N`), the implicit `__error`, the for-in cursors. None of them belong
+// in a completion list.
+public bool isInternalName(const string n) {
+    return str.startsWith(n, "__")
 }
 
 // completionKindOf — SymbolKind → LSP CompletionItemKind.
 public int completionKindOf(const SymbolKind k) {
-    if k == SymbolKind.FUNCTION { out = 3  return }
-    if k == SymbolKind.CLASS { out = 7  return }
-    if k == SymbolKind.LOCAL_VAR || k == SymbolKind.PARAM || k == SymbolKind.VAR { out = 6  return }
-    if k == SymbolKind.ATTRIBUTE || k == SymbolKind.ENUM_ENTRY { out = 5  return }
-    if k == SymbolKind.NAMESPACE { out = 9  return }
-    out = 1
+    if k == SymbolKind.FUNCTION { return 3 }
+    if k == SymbolKind.CLASS { return 7 }
+    if k == SymbolKind.LOCAL_VAR || k == SymbolKind.PARAM || k == SymbolKind.VAR { return 6 }
+    if k == SymbolKind.ATTRIBUTE || k == SymbolKind.ENUM_ENTRY { return 5 }
+    if k == SymbolKind.NAMESPACE { return 9 }
+    return 1
 }
 
 // tokenTypeOf — SymbolKind → semantic token type index (the server's legend:
 // 0 namespace, 1 class, 2 function, 3 variable, 4 parameter, 5 property,
 // 6 enumMember, 7 type). -1 = skip.
 public int tokenTypeOf(const SymbolKind k) {
-    if k == SymbolKind.NAMESPACE { out = 0  return }
-    if k == SymbolKind.CLASS { out = 1  return }
-    if k == SymbolKind.FUNCTION { out = 2  return }
-    if k == SymbolKind.LOCAL_VAR || k == SymbolKind.VAR { out = 3  return }
-    if k == SymbolKind.PARAM { out = 4  return }
-    if k == SymbolKind.ATTRIBUTE { out = 5  return }
-    if k == SymbolKind.ENUM_ENTRY { out = 6  return }
-    if k == SymbolKind.TYPE || k == SymbolKind.ENUM || k == SymbolKind.BUILTIN_TYPE { out = 7  return }
-    out = 0 - 1
+    if k == SymbolKind.NAMESPACE { return 0 }
+    if k == SymbolKind.CLASS { return 1 }
+    if k == SymbolKind.FUNCTION { return 2 }
+    if k == SymbolKind.LOCAL_VAR || k == SymbolKind.VAR { return 3 }
+    if k == SymbolKind.PARAM { return 4 }
+    if k == SymbolKind.ATTRIBUTE { return 5 }
+    if k == SymbolKind.ENUM_ENTRY { return 6 }
+    if k == SymbolKind.TYPE || k == SymbolKind.ENUM || k == SymbolKind.BUILTIN_TYPE { return 7 }
+    return 0 - 1
 }
 
 // severityOfWord — "error"/"fatal" → 1, "warning" → 2, anything else → 3.
 public int severityOfWord(const string w) {
-    if str.equals(w, "error") { out = 1  return }
-    if str.equals(w, "fatal") { out = 1  return }
-    if str.equals(w, "warning") { out = 2  return }
-    out = 3
+    if str.equals(w, "error") { return 1 }
+    if str.equals(w, "fatal") { return 1 }
+    if str.equals(w, "warning") { return 2 }
+    return 3
 }
 
 // parseRendered — decode the engine's "line:col: level: message" short form into
@@ -170,8 +176,7 @@ public LspDiag parseRendered(const string s, const string file) {
     bool go = true
     while go {
         if i >= n { go = false } else {
-            byte b = 0
-            str.byteAt(s, i, b)
+            byte b = str.byteAt(s, i)
             int c = b
             c = c & 255
             bool digit = c >= 48 && c <= 57
@@ -179,21 +184,19 @@ public LspDiag parseRendered(const string s, const string file) {
             else { go = false }
         }
     }
-    if sawLine == false { out = null  return }
-    if i >= n { out = null  return }
-    byte sep = 0
-    str.byteAt(s, i, sep)
+    if sawLine == false { return null }
+    if i >= n { return null }
+    byte sep = str.byteAt(s, i)
     int sepI = sep
     sepI = sepI & 255
-    if sepI != 58 { out = null  return }            // ':'
+    if sepI != 58 { return null }            // ':'
     i = i + 1
     int col = 0
     bool sawCol = false
     go = true
     while go {
         if i >= n { go = false } else {
-            byte b2 = 0
-            str.byteAt(s, i, b2)
+            byte b2 = str.byteAt(s, i)
             int c2 = b2
             c2 = c2 & 255
             bool digit2 = c2 >= 48 && c2 <= 57
@@ -201,16 +204,16 @@ public LspDiag parseRendered(const string s, const string file) {
             else { go = false }
         }
     }
-    if sawCol == false { out = null  return }
+    if sawCol == false { return null }
     // ": level: message"
     string tail = str.substring(s, i, n)
-    if str.startsWith(tail, ": ") == false { out = null  return }
+    if str.startsWith(tail, ": ") == false { return null }
     tail = str.substring(tail, 2, str.len(tail))
     int lv = str.indexOf(tail, ": ")
-    if lv < 0 { out = null  return }
+    if lv < 0 { return null }
     string word = str.substring(tail, 0, lv)
     string msg = str.substring(tail, lv + 2, str.len(tail))
-    out = new LspDiag(line, col, severityOfWord(word), msg, file)
+    return new LspDiag(line, col, severityOfWord(word), msg, file)
 }
 
 // diagFileSet — the distinct files carrying at least one diagnostic, with
@@ -242,7 +245,7 @@ public List<string> diagFileSet(const List<LspDiag> diags, const string always) 
         else { k = k + 1 }
     }
     if hasTrigger == false { files.add(always) }
-    out = files
+    return files
 }
 
 // LspLink — one documentLink: a span on ONE line (1-based, compiler
@@ -270,5 +273,5 @@ public pointer mkDocumentLink(const LspLink l) {
     pointer o = json.newObject()
     json.put(o, "range", range)
     json.put(o, "target", json.newString(pathToUri(l.target)))
-    out = o
+    return o
 }

@@ -15,8 +15,8 @@ public class ASTMember : ASTExpr {
         this.name = name
     }
 
-    public string getName() { out = this.name }
-    public ASTMember asMember() { out = this }
+    public string getName() { return this.name }
+    public ASTMember asMember() { return this }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

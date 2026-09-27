@@ -21,12 +21,12 @@ public class SemaSwitchStmt : SemaStmt {
         this.cases = new List<SemaRuleStmt>()
     }
 
-    public SemaExpr getExpr() { out = this.expr }
+    public SemaExpr getExpr() { return this.expr }
     public void addCase(const SemaExpr caseExpr, const SemaStmt caseStmt) {
         this.cases.add(new SemaRuleStmt(caseExpr, caseStmt))
     }
-    public List<SemaRuleStmt> getCases() { out = this.cases }
-    public SemaStmt getDefault() { out = this.defaultStmt }
+    public List<SemaRuleStmt> getCases() { return this.cases }
+    public SemaStmt getDefault() { return this.defaultStmt }
     public void setDefault(const SemaStmt defaultStmt) { this.defaultStmt = defaultStmt }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }

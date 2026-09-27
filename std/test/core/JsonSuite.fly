@@ -7,22 +7,23 @@ import fly.assert
 // escapes RAW, so a `"` cannot come from a literal; build it byte-wise. Same
 // trick as StrSuite's asciiChar.
 string dq() {
+    string res
     pointer buf = mem.alloc(1)
     mem.writeByte(buf, 0, 34)
-    str.fromBytes(buf, 1, out)
+    res = str.fromBytes(buf, 1)
+    return res
 }
 
 // mkJson — turn a `|`-placeholder template into real JSON by replacing every
 // `|` with a double quote, so a case can spell a payload readably.
 string mkJson(const string tpl) {
-    out = str.replace(tpl, "|", dq())
+    return str.replace(tpl, "|", dq())
 }
 
 // byteOf — the i-th byte of s as an int (byte widens to int by zero extension).
 int byteOf(const string s, const int i) {
-    byte b = 0
-    str.byteAt(s, i, b)
-    out = b & 255
+    byte b = str.byteAt(s, i)
+    return b & 255
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

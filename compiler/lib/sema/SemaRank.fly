@@ -24,11 +24,11 @@ public int semaIntRank(const SemaIntTypeKind k) {
     elsif k == SemaIntTypeKind.TYPE_INT    { r = 31 }
     elsif k == SemaIntTypeKind.TYPE_LONG   { r = 63 }
     elsif k == SemaIntTypeKind.TYPE_POINTER { r = 64 }  // unsigned, ptr-sized; rank == ulong
-    out = r
+    return r
 }
 
 public int semaFloatRank(const SemaFloatTypeKind k) {
     int r = 320
     if k == SemaFloatTypeKind.TYPE_DOUBLE { r = 640 }
-    out = r
+    return r
 }

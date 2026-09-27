@@ -16,9 +16,9 @@ public class ASTIdentifier : ASTExpr {
         this.name = name
     }
 
-    public ASTIdentifier asIdentifier() { out = this }
-    public string getName() { out = this.name }
-    public ASTVar getVar() { out = this.var }
+    public ASTIdentifier asIdentifier() { return this }
+    public string getName() { return this.name }
+    public ASTVar getVar() { return this.var }
     public void setVar(const ASTVar v) { this.var = v }
 
     public void accept(const ASTVisitor v) { v.visit(this) }

@@ -7,9 +7,11 @@ import fly.assert
 // compiler/lib/frontend/TextDiagnostic.fly), so the whitespace bytes the trim
 // tests need have to be built byte-wise.
 string asciiChar(const int code) {
+    string res
     pointer buf = mem.alloc(1)
     mem.writeByte(buf, 0, (byte)code)
-    str.fromBytes(buf, 1, out)
+    res = str.fromBytes(buf, 1)
+    return res
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -52,12 +54,11 @@ suite StrSuite {
             string tab = asciiChar(9)
             string lf = asciiChar(10)
             string cr = asciiChar(13)
-            byte b = 0
-            str.byteAt(tab, 0, b)
+            byte b = str.byteAt(tab, 0)
             assert.assertEqI((int)b & 255, 9, 127)
-            str.byteAt(lf, 0, b)
+            b = str.byteAt(lf, 0)
             assert.assertEqI((int)b & 255, 10, 128)
-            str.byteAt(cr, 0, b)
+            b = str.byteAt(cr, 0)
             assert.assertEqI((int)b & 255, 13, 129)
         }
         case "isEmpty": {
@@ -83,10 +84,9 @@ suite StrSuite {
             assert.assertFalse(str.equalsIgnoreCase("a", "b"), 120)      // first byte differs
         }
         case "byteAt reads individual bytes": {
-            byte b = 0
-            str.byteAt("ABC", 0, b)
+            byte b = str.byteAt("ABC", 0)
             assert.assertEqI((int)b & 255, 65, 121)
-            str.byteAt("ABC", 2, b)
+            b = str.byteAt("ABC", 2)
             assert.assertEqI((int)b & 255, 67, 122)
         }
         case "fromBytes round-trips a raw buffer": {
@@ -96,8 +96,7 @@ suite StrSuite {
             mem.writeByte(p, 0, 102)                  // 'f'
             mem.writeByte(p, 1, 108)                  // 'l'
             mem.writeByte(p, 2, 121)                  // 'y'
-            string s = ""
-            str.fromBytes(p, 3, s)
+            string s = str.fromBytes(p, 3)
             assert.assertStr(s, "fly", 123)
             assert.assertEqI(str.len(s), 3, 124)
         }
@@ -105,7 +104,7 @@ suite StrSuite {
             pointer q = mem.alloc(1)
             mem.writeByte(q, 0, 65)
             string empty = "x"
-            str.fromBytes(q, 0, empty)
+            empty = str.fromBytes(q, 0)
             assert.assertEmpty(empty, 125)
         }
     }
@@ -282,6 +281,9 @@ suite StrSuite {
             assert.assertEmpty(str.repeat("abc", 0 - 1), 423)         // count <= 0
             assert.assertEmpty(str.repeat("", 5), 424)                // size == 0
             assert.assertEmpty(str.repeat("", 0), 425)
+            // size * count past the int range: computed in int it wrapped to a
+            // short buffer that the copy loop overran
+            assert.assertEmpty(str.repeat("abcd", 1073741824), 430)
         }
         case "repeat a long run": {
             string s = str.repeat("ab", 100)
@@ -381,6 +383,17 @@ suite StrSuite {
             assert.assertStr(str.convert(100), "100", 613)
             assert.assertStr(str.convert(1001), "1001", 614)          // interior zeros
             assert.assertStr(str.convert(1000), "1000", 615)          // trailing zeros
+        }
+        case "the most negative values": {
+            // their magnitude does not fit the type: negating first gave "-"
+            int imin = 0 - 2147483647 - 1
+            assert.assertStr(str.convert(imin), "-2147483648", 620)
+            long lmin = 0 - 9223372036854775807
+            lmin = lmin - 1
+            assert.assertStr(str.convertL(lmin), "-9223372036854775808", 621)
+            long lmax = 9223372036854775807
+            assert.assertStr(str.convertL(lmax), "9223372036854775807", 622)
+            assert.assertStr(str.convertL(0), "0", 623)
         }
         case "convert composes with the other helpers": {
             string s = str.concat("n=", str.convert(0 - 7))

@@ -29,8 +29,8 @@ public class ASTArrayAccess : ASTExpr {
         this.index = index
     }
 
-    public ASTExpr getBase() { out = this.base }
-    public ASTExpr getIndex() { out = this.index }
+    public ASTExpr getBase() { return this.base }
+    public ASTExpr getIndex() { return this.index }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

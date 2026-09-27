@@ -25,14 +25,14 @@ public class ASTModule : ASTNode {
         this.imports = new List<ASTImport>()
     }
 
-    public bool isHeader() { out = this.header }
+    public bool isHeader() { return this.header }
     public void setHeader(const bool header) { this.header = header }
-    public string getName() { out = this.name }
-    public ASTNameSpace getNameSpace() { out = this.nameSpace }
+    public string getName() { return this.name }
+    public ASTNameSpace getNameSpace() { return this.nameSpace }
     public void setNameSpace(const ASTNameSpace nameSpace) { this.nameSpace = nameSpace }
-    public List<ASTNode> getNodes() { out = this.nodes }
+    public List<ASTNode> getNodes() { return this.nodes }
     public void addNode(const ASTNode node) { this.nodes.add(node) }
-    public List<ASTImport> getImports() { out = this.imports }
+    public List<ASTImport> getImports() { return this.imports }
     public void addImport(const ASTImport imp) { this.imports.add(imp) }
 
     public void accept(const ASTVisitor v) { v.visit(this) }

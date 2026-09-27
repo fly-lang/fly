@@ -40,12 +40,12 @@ public class FetchResult {
         this.ok = false
         this.errMsg = ""
     }
-    public string getRev()      { out = this.rev }
-    public string getVersion()  { out = this.version }
-    public string getLocalPath() { out = this.localPath }
-    public string getChecksum() { out = this.checksum }
-    public bool getOk()         { out = this.ok }
-    public string getErrMsg()   { out = this.errMsg }
+    public string getRev()      { return this.rev }
+    public string getVersion()  { return this.version }
+    public string getLocalPath() { return this.localPath }
+    public string getChecksum() { return this.checksum }
+    public bool getOk()         { return this.ok }
+    public string getErrMsg()   { return this.errMsg }
 
     public void setRev(const string v)       { this.rev = v }
     public void setVersion(const string v)   { this.version = v }
@@ -90,8 +90,7 @@ public class GitFetcher {
         if rc != 0 {
             fs.dirDeleteAll(bare)
             r.errMsg = str.concat("failed to clone ", str.concat(url, str.concat(" ref=", refVal)))
-            out = r
-            return
+            return r
         }
 
         // 2) resolve the commit hash
@@ -112,8 +111,7 @@ public class GitFetcher {
         if str.len(rev) != 40 {
             fs.dirDeleteAll(bare)
             r.errMsg = str.concat("could not resolve commit hash for ", name)
-            out = r
-            return
+            return r
         }
 
         // version from a tag ref
@@ -132,8 +130,7 @@ public class GitFetcher {
             r.localPath = entry
             r.checksum = this.tomlChecksum(entry)
             r.ok = true
-            out = r
-            return
+            return r
         }
 
         // 4) extract the tree into the cache entry.
@@ -192,17 +189,19 @@ public class GitFetcher {
         r.localPath = entry
         r.checksum = this.tomlChecksum(entry)
         r.ok = true
-        out = r
+        return r
     }
 
     // tomlChecksum — sha256 of <entry>/Manifest.fly (or "sha256:" if absent).
     public string tomlChecksum(const string entry) {
+        string res
         string tomlPath = str.concat(entry, "/Manifest.fly")
         if fs.exists(tomlPath) {
-            out = fly.driver.sha256File(tomlPath)
+            res = fly.driver.sha256File(tomlPath)
         } else {
-            out = "sha256:"
+            return "sha256:"
         }
+        return res
     }
 
     // readManifest — parse <entry>/Manifest.fly. `errOut`: 1 = no Manifest.fly, else the
@@ -211,15 +210,14 @@ public class GitFetcher {
         string mpath = str.concat(entry, "/Manifest.fly")
         if fs.exists(mpath) == false {
             errOut = 1
-            out = new Manifest()
-            return
+            return new Manifest()
         }
         string src = fs.readStr(mpath)
         int e = 0
         FlyManifestReader r = new FlyManifestReader()
         Manifest m = r.read(src, e)
         errOut = e
-        out = m
+        return m
     }
 
     // listTags — remote tags, one per line (for error hints).
@@ -236,7 +234,7 @@ public class GitFetcher {
         int rc = 0
         string raw = fly.driver.captureArgs("git", la, rc)
         proc.argsFree(la)
-        if str.isEmpty(raw) { out = ""  return }
+        if str.isEmpty(raw) { return "" }
 
         string nl = fly.driver.nl()
         string res = ""
@@ -264,6 +262,6 @@ public class GitFetcher {
             }
             if e < 0 { go = false } else { pos = stop + 1 }
         }
-        out = res
+        return res
     }
 }

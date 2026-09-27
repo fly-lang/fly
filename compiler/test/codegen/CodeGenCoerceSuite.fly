@@ -28,32 +28,32 @@ suite CodeGenCoerceSuite {
 
     void declInitTest() {
         case "B1: int literal into a long decl stores all 8 bytes": {
-            string ir = cgIR("long f() { long x = 0  out = x }")
+            string ir = cgIR("long f() { long x = 0  return x }")
             assert.assertTrue(str.contains(ir, "store i64 0"), 11)
             assert.assertFalse(str.contains(ir, "store i32 0, ptr %lv"), 12)
         }
         case "B1: int literal into a double decl converts to fp": {
-            string ir = cgIR("double f() { double d = 1  out = d }")
+            string ir = cgIR("double f() { double d = 1  return d }")
             assert.assertTrue(str.contains(ir, "store double"), 13)
         }
     }
 
     void binopTest() {
         case "B2: long - intLiteral emits a pure i64 sub (module verifies)": {
-            string ir = cgIR("long f(const long a) { out = a - 1 }")
+            string ir = cgIR("long f(const long a) { return a - 1 }")
             assert.assertTrue(str.contains(ir, "sub i64"), 21)
         }
         case "B2: long > intLiteral emits a pure i64 icmp": {
-            string ir = cgIR("bool f(const long a) { bool r = false  if a > 3 { r = true }  out = r }")
+            string ir = cgIR("bool f(const long a) { bool r = false  if a > 3 { r = true }  return r }")
             assert.assertTrue(str.contains(ir, "icmp sgt i64"), 22)
         }
         case "int + long promotes the int operand (sext) to i64": {
-            string ir = cgIR("long f(const int a, const long b) { out = a + b }")
+            string ir = cgIR("long f(const int a, const long b) { return a + b }")
             assert.assertTrue(str.contains(ir, "sext i32"), 23)
             assert.assertTrue(str.contains(ir, "add i64"), 24)
         }
         case "int + double converts the int side (sitofp) to fp": {
-            string ir = cgIR("double f(const int a, const double b) { out = a + b }")
+            string ir = cgIR("double f(const int a, const double b) { return a + b }")
             assert.assertTrue(str.contains(ir, "sitofp"), 25)
             assert.assertTrue(str.contains(ir, "fadd double"), 26)
         }
@@ -61,7 +61,7 @@ suite CodeGenCoerceSuite {
 
     void signednessTest() {
         case "B3: pointer relational compare is unsigned": {
-            string ir = cgIR("bool f(const pointer a, const pointer b) { bool r = false  if a > b { r = true }  out = r }")
+            string ir = cgIR("bool f(const pointer a, const pointer b) { bool r = false  if a > b { r = true }  return r }")
             assert.assertTrue(str.contains(ir, "icmp ugt"), 31)
         }
         case "B3: uint relational compare is unsigned, int stays signed": {
@@ -69,17 +69,17 @@ suite CodeGenCoerceSuite {
                 bool f(const uint a, const uint b, const int c, const int d) { bool r = false
                     if a < b { r = true }
                     if c < d { r = false }
-                    out = r
+                    return r
                 }
             ")
             assert.assertTrue(str.contains(ir, "icmp ult i32"), 32)
             assert.assertTrue(str.contains(ir, "icmp slt i32"), 33)
         }
         case "division/remainder follow signedness (udiv/urem vs sdiv/srem)": {
-            string ir = cgIR("ulong f(const ulong a, const ulong b) { out = a / b + a % b }")
+            string ir = cgIR("ulong f(const ulong a, const ulong b) { return a / b + a % b }")
             assert.assertTrue(str.contains(ir, "udiv i64"), 34)
             assert.assertTrue(str.contains(ir, "urem i64"), 35)
-            string ir2 = cgIR("int g(const int a, const int b) { out = a / b + a % b }")
+            string ir2 = cgIR("int g(const int a, const int b) { return a / b + a % b }")
             assert.assertTrue(str.contains(ir2, "sdiv i32"), 36)
             assert.assertTrue(str.contains(ir2, "srem i32"), 37)
         }
@@ -87,15 +87,15 @@ suite CodeGenCoerceSuite {
 
     void assignAndCallTest() {
         case "assignment widens the RHS to the assignee's width": {
-            string ir = cgIR("long f(const int a) { long x = 5  x = a  out = x }")
+            string ir = cgIR("long f(const int a) { long x = 5  x = a  return x }")
             assert.assertTrue(str.contains(ir, "sext i32"), 41)
         }
         case "int arg widens to a long param at the call site": {
-            string ir = cgIR("long callee(const long v) { out = v }  long caller() { out = callee(7) }")
+            string ir = cgIR("long callee(const long v) { return v }  long caller() { return callee(7) }")
             assert.assertTrue(str.contains(ir, "store i64"), 42)
         }
         case "switch on a long coerces its int case labels to i64": {
-            string ir = cgIR("int f(const long k) { int r = 0  switch k { case 1: r = 10  default: r = 99 }  out = r }")
+            string ir = cgIR("int f(const long k) { int r = 0  switch k { case 1: r = 10  default: r = 99 }  return r }")
             assert.assertTrue(str.contains(ir, "switch i64"), 43)
         }
     }

@@ -17,9 +17,9 @@ public class SemaFailStmt : SemaStmt {
         super(SemaKind.STMT_FAIL, ast)
     }
 
-    public SemaExpr getFirst() { out = this.first }
-    public SemaExpr getSecond() { out = this.second }
-    public SemaExpr getThird() { out = this.third }
+    public SemaExpr getFirst() { return this.first }
+    public SemaExpr getSecond() { return this.second }
+    public SemaExpr getThird() { return this.third }
     public void setFirst(const SemaExpr e) { this.first = e }
     public void setSecond(const SemaExpr e) { this.second = e }
     public void setThird(const SemaExpr e) { this.third = e }

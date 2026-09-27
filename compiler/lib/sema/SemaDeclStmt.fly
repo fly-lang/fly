@@ -19,7 +19,7 @@ public class SemaDeclStmt : SemaStmt {
         this.expr = expr
     }
 
-    public SemaLocalVar getVar() { out = this.var }
-    public SemaExpr getExpr() { out = this.expr }
+    public SemaLocalVar getVar() { return this.var }
+    public SemaExpr getExpr() { return this.expr }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }

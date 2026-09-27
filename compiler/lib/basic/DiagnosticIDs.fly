@@ -58,7 +58,6 @@ public enum DiagID {
     err_parser_unexpected_top_level_token,
     err_parser_missing_return_type,
     err_parser_string_not_terminated,
-    err_parser_return_with_value,
     err_parser_import_wildcard_alias,
     err_parser_unknown_token,
     err_parser_paren_wrapped_cond,
@@ -83,103 +82,114 @@ public enum DiagID {
     err_sema_array_element_mismatch,
     err_sema_cannot_infer_array_type,
     err_sema_type_mismatch,
+    err_sema_invalid_cast,
     err_sema_multi_assign_arity,
     err_sema_main_with_return,
+    err_sema_return_missing_value,
+    err_sema_return_value_in_void,
+    err_sema_return_arity,
+    err_sema_missing_return,
     err_sema_array_no_size_or_init,
     err_sema_subscript_not_array,
     err_sema_subscript_index_not_int,
     err_sema_array_class_no_default_ctor,
     err_sema_generic_template_no_body,
+    err_sema_generic_not_instantiable,
     warn_header_private_shipped
 }
 
 // getDiagClass — the class column for a diagnostic id.
 public DiagClass getDiagClass(const DiagID id) {
-    if id == DiagID.err_lex_unterminated_block_comment { out = DiagClass.CLASS_ERROR  return }
-    if id == DiagID.warn_header_private_shipped { out = DiagClass.CLASS_WARNING  return }
+    if id == DiagID.err_lex_unterminated_block_comment { return DiagClass.CLASS_ERROR }
+    if id == DiagID.warn_header_private_shipped { return DiagClass.CLASS_WARNING }
     // every other id in this subset is a hard error
-    out = DiagClass.CLASS_ERROR
+    return DiagClass.CLASS_ERROR
 }
 
 // getDefaultLevel — the default mapped level for a diagnostic id (extensions are
 // ignored by default; everything else maps straight from its class).
 public DiagLevel getDefaultLevel(const DiagID id) {
     DiagClass c = getDiagClass(id)
-    if c == DiagClass.CLASS_ERROR     { out = DiagLevel.Error    return }
-    if c == DiagClass.CLASS_WARNING   { out = DiagLevel.Warning  return }
-    if c == DiagClass.CLASS_NOTE      { out = DiagLevel.Note     return }
-    if c == DiagClass.CLASS_REMARK    { out = DiagLevel.Remark   return }
-    out = DiagLevel.Ignored
+    if c == DiagClass.CLASS_ERROR     { return DiagLevel.Error }
+    if c == DiagClass.CLASS_WARNING   { return DiagLevel.Warning }
+    if c == DiagClass.CLASS_NOTE      { return DiagLevel.Note }
+    if c == DiagClass.CLASS_REMARK    { return DiagLevel.Remark }
+    return DiagLevel.Ignored
 }
 
 // levelName — the text label used in rendered diagnostics ("error", "warning", …).
 public string levelName(const DiagLevel l) {
-    if l == DiagLevel.Note    { out = "note"    return }
-    if l == DiagLevel.Remark  { out = "remark"  return }
-    if l == DiagLevel.Warning { out = "warning" return }
-    if l == DiagLevel.Error   { out = "error"   return }
-    if l == DiagLevel.Fatal   { out = "fatal error" return }
-    out = "ignored"
+    if l == DiagLevel.Note    { return "note" }
+    if l == DiagLevel.Remark  { return "remark" }
+    if l == DiagLevel.Warning { return "warning" }
+    if l == DiagLevel.Error   { return "error" }
+    if l == DiagLevel.Fatal   { return "fatal error" }
+    return "ignored"
 }
 
 // getDescription — the format string for a diagnostic id ('%0' placeholders are
 // substituted by DiagnosticBuilder from the supplied arguments).
 public string getDescription(const DiagID id) {
-    if id == DiagID.err_parser_syntax_error { out = "unexpected token; cannot determine what statement or declaration this begins" return }
-    if id == DiagID.err_parser_identifier_expected { out = "expected an identifier here" return }
-    if id == DiagID.err_parser_ternary_expr { out = "expected ':' in ternary expression" return }
-    if id == DiagID.err_parser_expr_close_paren { out = "missing ')' to close the sub-expression" return }
-    if id == DiagID.err_parser_expr_expected_primary { out = "expected a value, variable, or sub-expression; found an unexpected token" return }
-    if id == DiagID.err_parser_invalid_id { out = "'%0' is a reserved keyword and cannot be used as an identifier" return }
-    if id == DiagID.err_parser_invalid_type { out = "expected a type or a named type; found an unexpected token" return }
-    if id == DiagID.err_parser_invalid_param { out = "invalid parameter declaration; expected a type followed by a name" return }
-    if id == DiagID.err_parser_invalid_value { out = "unexpected token '%0'; expected a literal value or an identifier" return }
-    if id == DiagID.err_parser_expected_comma_or_rparen { out = "expected ',' to continue the list or ')' to close it" return }
-    if id == DiagID.err_parser_expected_greater { out = "unclosed type argument list: expected '>' to close the generic type arguments" return }
-    if id == DiagID.err_parser_expected_lbrace { out = "expected '{' to open a block" return }
-    if id == DiagID.err_parser_unclosed_bracket { out = "unclosed block: missing '}'" return }
-    if id == DiagID.err_parser_right_paren { out = "unclosed '(': missing ')' to match the opening parenthesis" return }
-    if id == DiagID.err_parser_syntax_default_error { out = "duplicate 'default' label in switch" return }
-    if id == DiagID.err_parser_class_block_unclosed { out = "unclosed class or struct body: missing '}'" return }
-    if id == DiagID.err_parser_new_instance { out = "expected a class name after 'new'" return }
-    if id == DiagID.err_parser_fail_too_many_expr { out = "'fail' accepts at most 3 expressions: (code, message, cause)" return }
-    if id == DiagID.err_parser_multi_assign_call { out = "the right side of a multi-assignment must be a function or method call" return }
-    if id == DiagID.err_parser_namespace_not_first { out = "'namespace' must be the first declaration in a file" return }
-    if id == DiagID.err_parser_multiple_namespace { out = "a file can contain only one 'namespace' declaration" return }
-    if id == DiagID.err_parser_unexpected_top_level_token { out = "unexpected '%0' at top level; expected a function, class, enum, struct, or import declaration" return }
-    if id == DiagID.err_parser_missing_return_type { out = "function or method declaration is missing a return type; use 'void' for no value" return }
-    if id == DiagID.err_parser_string_not_terminated { out = "unterminated string literal; missing closing quote" return }
-    if id == DiagID.err_parser_return_with_value { out = "'return' cannot carry a value; use 'out = expr' and bare 'return' to exit early" return }
-    if id == DiagID.err_parser_import_wildcard_alias { out = "wildcard import ('.*') cannot be combined with 'as' alias" return }
-    if id == DiagID.err_parser_paren_wrapped_cond { out = "conditions are paren-less in Fly: drop the parentheses wrapping the whole condition (write 'if x > 0 {', not 'if (x > 0) {')" return }
-    if id == DiagID.err_parser_error_type_not_declarable { out = "'error' is not a declarable type: a handle block always binds the implicit 'error' variable — write a bare 'handle { }' (it cannot be tied to a named variable), then test 'if error'" return }
-    if id == DiagID.err_parser_unknown_token { out = "unknown character '%0'; this character is not part of Fly's syntax" return }
-    if id == DiagID.err_lex_unterminated_block_comment { out = "unterminated /* comment" return }
-    if id == DiagID.err_sema_unresolved_identifier { out = "cannot find '%0' in this scope" return }
-    if id == DiagID.err_sema_unknown_type { out = "unknown type '%0'" return }
-    if id == DiagID.err_sema_function_not_found { out = "no function or method named '%0' matches this call" return }
-    if id == DiagID.err_sema_unknown_member { out = "'%0' is not a member of this type" return }
-    if id == DiagID.err_sema_new_not_class { out = "'%0' is not a class; only classes can be instantiated with 'new'" return }
-    if id == DiagID.err_sema_abstract_not_implemented { out = "class '%0' must implement inherited abstract method '%1'" return }
-    if id == DiagID.err_sema_diamond_ambiguous { out = "member '%0' is inherited ambiguously from multiple base classes of '%1'" return }
-    if id == DiagID.err_sema_generic_template_no_body { out = "generic '%0' is declared without a body and cannot be specialized; its template must be shipped as source" return }
-    if id == DiagID.warn_header_private_shipped { out = "private '%0' is shipped as readable source in '%1' because a generic template in this module uses it" return }
-    if id == DiagID.err_sema_bad_type_args { out = "invalid type arguments for '%0': wrong argument count, not a generic type, or unresolved argument" return }
-    if id == DiagID.err_sema_not_supported { out = "%0 are not yet supported by the self-host compiler" return }
-    if id == DiagID.err_sema_error_var_read { out = "'%0' has type 'error' and cannot be read; test the implicit 'error' variable after a handle block instead" return }
-    if id == DiagID.err_sema_not_a_value { out = "'%0' is a namespace, not a value; it can only be used as a qualifier (e.g. '%0.function(...)')" return }
-    if id == DiagID.err_sema_type_not_a_value { out = "'%0' is a type name, not a value; a type can only appear in a declaration (or after 'new'/before a member), not as a value" return }
-    if id == DiagID.err_sema_function_not_a_value { out = "'%0' is a function, not a value; call it with '%0(...)' (Fly has no function values)" return }
-    if id == DiagID.err_sema_multiple_inheritance { out = "class '%0' extends multiple classes; only one base class (plus interfaces) is allowed" return }
-    if id == DiagID.err_sema_forin_not_iterable { out = "for-in requires a collection with 'size()' and 'get(index)' methods; type '%0' does not provide them" return }
-    if id == DiagID.err_sema_array_element_mismatch { out = "array element of type '%0' does not match the array's element type" return }
-    if id == DiagID.err_sema_cannot_infer_array_type { out = "cannot infer the element type of an empty array literal; annotate the target (e.g. 'int[] a = {}')" return }
-    if id == DiagID.err_sema_type_mismatch { out = "cannot assign a value of type '%0' to a variable of type '%1'" return }
-    if id == DiagID.err_sema_multi_assign_arity { out = "the receivers of the multi-assignment do not match the return values of '%0'" return }
-    if id == DiagID.err_sema_main_with_return { out = "'main()' must be declared 'void': the exit code comes from an unhandled 'fail', not from 'out'" return }
-    if id == DiagID.err_sema_array_no_size_or_init { out = "array declaration must specify either a size (e.g. 'int[10]') or an initializer (e.g. 'int[] = {1,2,3}')" return }
-    if id == DiagID.err_sema_subscript_not_array { out = "'%0' is not an array; only arrays can be indexed with '[]'" return }
-    if id == DiagID.err_sema_subscript_index_not_int { out = "the array subscript index must be an integer, not '%0'" return }
-    if id == DiagID.err_sema_array_class_no_default_ctor { out = "a sized array of '%0' cannot be created: every index would be built with '%0()', and '%0' has no constructor taking no arguments; use an array literal to supply the elements instead" return }
-    out = "unknown diagnostic"
+    if id == DiagID.err_parser_syntax_error { return "unexpected token; cannot determine what statement or declaration this begins" }
+    if id == DiagID.err_parser_identifier_expected { return "expected an identifier here" }
+    if id == DiagID.err_parser_ternary_expr { return "expected ':' in ternary expression" }
+    if id == DiagID.err_parser_expr_close_paren { return "missing ')' to close the sub-expression" }
+    if id == DiagID.err_parser_expr_expected_primary { return "expected a value, variable, or sub-expression; found an unexpected token" }
+    if id == DiagID.err_parser_invalid_id { return "'%0' is a reserved keyword and cannot be used as an identifier" }
+    if id == DiagID.err_parser_invalid_type { return "expected a type or a named type; found an unexpected token" }
+    if id == DiagID.err_parser_invalid_param { return "invalid parameter declaration; expected a type followed by a name" }
+    if id == DiagID.err_parser_invalid_value { return "unexpected token '%0'; expected a literal value or an identifier" }
+    if id == DiagID.err_parser_expected_comma_or_rparen { return "expected ',' to continue the list or ')' to close it" }
+    if id == DiagID.err_parser_expected_greater { return "unclosed type argument list: expected '>' to close the generic type arguments" }
+    if id == DiagID.err_parser_expected_lbrace { return "expected '{' to open a block" }
+    if id == DiagID.err_parser_unclosed_bracket { return "unclosed block: missing '}'" }
+    if id == DiagID.err_parser_right_paren { return "unclosed '(': missing ')' to match the opening parenthesis" }
+    if id == DiagID.err_parser_syntax_default_error { return "duplicate 'default' label in switch" }
+    if id == DiagID.err_parser_class_block_unclosed { return "unclosed class or struct body: missing '}'" }
+    if id == DiagID.err_parser_new_instance { return "expected a class name after 'new'" }
+    if id == DiagID.err_parser_fail_too_many_expr { return "'fail' accepts at most 3 expressions: (code, message, cause)" }
+    if id == DiagID.err_parser_multi_assign_call { return "the right side of a multi-assignment must be a function or method call" }
+    if id == DiagID.err_parser_namespace_not_first { return "'namespace' must be the first declaration in a file" }
+    if id == DiagID.err_parser_multiple_namespace { return "a file can contain only one 'namespace' declaration" }
+    if id == DiagID.err_parser_unexpected_top_level_token { return "unexpected '%0' at top level; expected a function, class, enum, struct, or import declaration" }
+    if id == DiagID.err_parser_missing_return_type { return "function or method declaration is missing a type; use 'void' for no value" }
+    if id == DiagID.err_parser_string_not_terminated { return "unterminated string literal; missing closing quote" }
+    if id == DiagID.err_parser_import_wildcard_alias { return "wildcard import ('.*') cannot be combined with 'as' alias" }
+    if id == DiagID.err_parser_paren_wrapped_cond { return "conditions are paren-less in Fly: drop the parentheses wrapping the whole condition (write 'if x > 0 {', not 'if (x > 0) {')" }
+    if id == DiagID.err_parser_error_type_not_declarable { return "'error' is not a declarable type: a handle block always binds the implicit 'error' variable — write a bare 'handle { }' (it cannot be tied to a named variable), then test 'if error'" }
+    if id == DiagID.err_parser_unknown_token { return "unknown character '%0'; this character is not part of Fly's syntax" }
+    if id == DiagID.err_lex_unterminated_block_comment { return "unterminated /* comment" }
+    if id == DiagID.err_sema_unresolved_identifier { return "cannot find '%0' in this scope" }
+    if id == DiagID.err_sema_unknown_type { return "unknown type '%0'" }
+    if id == DiagID.err_sema_function_not_found { return "no function or method named '%0' matches this call" }
+    if id == DiagID.err_sema_unknown_member { return "'%0' is not a member of this type" }
+    if id == DiagID.err_sema_new_not_class { return "'%0' is not a class; only classes can be instantiated with 'new'" }
+    if id == DiagID.err_sema_abstract_not_implemented { return "class '%0' must implement inherited abstract method '%1'" }
+    if id == DiagID.err_sema_diamond_ambiguous { return "member '%0' is inherited ambiguously from multiple base classes of '%1'" }
+    if id == DiagID.err_sema_generic_template_no_body { return "generic '%0' is declared without a body and cannot be specialized; its template must be shipped as source" }
+    if id == DiagID.err_sema_generic_not_instantiable { return "cannot instantiate generic '%0' without type arguments: every type parameter must be inferable from the call's arguments (Fly has no explicit type arguments on a function call)" }
+    if id == DiagID.warn_header_private_shipped { return "private '%0' is shipped as readable source in '%1' because a generic template in this module uses it" }
+    if id == DiagID.err_sema_bad_type_args { return "invalid type arguments for '%0': wrong argument count, not a generic type, or unresolved argument" }
+    if id == DiagID.err_sema_not_supported { return "%0 are not yet supported by the self-host compiler" }
+    if id == DiagID.err_sema_error_var_read { return "'%0' has type 'error' and cannot be read; test the implicit 'error' variable after a handle block instead" }
+    if id == DiagID.err_sema_not_a_value { return "'%0' is a namespace, not a value; it can only be used as a qualifier (e.g. '%0.function(...)')" }
+    if id == DiagID.err_sema_type_not_a_value { return "'%0' is a type name, not a value; a type can only appear in a declaration (or after 'new'/before a member), not as a value" }
+    if id == DiagID.err_sema_function_not_a_value { return "'%0' is a function, not a value; call it with '%0(...)' (Fly has no function values)" }
+    if id == DiagID.err_sema_multiple_inheritance { return "class '%0' extends multiple classes; only one base class (plus interfaces) is allowed" }
+    if id == DiagID.err_sema_forin_not_iterable { return "for-in requires a collection with 'size()' and 'get(index)' methods; type '%0' does not provide them" }
+    if id == DiagID.err_sema_array_element_mismatch { return "array element of type '%0' does not match the array's element type" }
+    if id == DiagID.err_sema_cannot_infer_array_type { return "cannot infer the element type of an empty array literal; annotate the target (e.g. 'int[] a = {}')" }
+    if id == DiagID.err_sema_type_mismatch { return "cannot assign a value of type '%0' to a variable of type '%1'" }
+    if id == DiagID.err_sema_invalid_cast { return "invalid cast: '%0' cannot be converted to '%1'; these types are not compatible" }
+    if id == DiagID.err_sema_multi_assign_arity { return "the receivers of the multi-assignment do not match the values of '%0'" }
+    if id == DiagID.err_sema_main_with_return { return "'main()' must be declared 'void': the exit code comes from an unhandled 'fail', not from a returned value" }
+    if id == DiagID.err_sema_return_missing_value { return "'return' needs a value here: this function declares %0 return value(s)" }
+    if id == DiagID.err_sema_return_value_in_void { return "'return' cannot carry a value in a function declared 'void'; use a bare 'return' to exit early" }
+    if id == DiagID.err_sema_return_arity { return "'return' carries %0 value(s) but this function declares %1 return type(s)" }
+    if id == DiagID.err_sema_missing_return { return "'%0' must return a value on every path: this one can reach the end of the body without a 'return'" }
+    if id == DiagID.err_sema_array_no_size_or_init { return "array declaration must specify either a size (e.g. 'int[10]') or an initializer (e.g. 'int[] = {1,2,3}')" }
+    if id == DiagID.err_sema_subscript_not_array { return "'%0' is not an array; only arrays can be indexed with '[]'" }
+    if id == DiagID.err_sema_subscript_index_not_int { return "the array subscript index must be an integer, not '%0'" }
+    if id == DiagID.err_sema_array_class_no_default_ctor { return "a sized array of '%0' cannot be created: every index would be built with '%0()', and '%0' has no constructor taking no arguments; use an array literal to supply the elements instead" }
+    return "unknown diagnostic"
 }

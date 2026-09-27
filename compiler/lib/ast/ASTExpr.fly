@@ -31,13 +31,13 @@ public class ASTExpr : ASTNode {
         this.exprKind = exprKind
     }
 
-    public ASTExprKind getExprKind() { out = this.exprKind }
+    public ASTExprKind getExprKind() { return this.exprKind }
     // asIdentifier — narrow to ASTIdentifier (null on the base; overridden there).
-    public ASTIdentifier asIdentifier() { out = null }
+    public ASTIdentifier asIdentifier() { return null }
     // asMember — narrow to ASTMember (null on the base; overridden there).
-    public ASTMember asMember() { out = null }
-    public ASTExpr getParent() { out = this.parent }
-    public ASTExpr getChild() { out = this.child }
+    public ASTMember asMember() { return null }
+    public ASTExpr getParent() { return this.parent }
+    public ASTExpr getChild() { return this.child }
     public void setParent(const ASTExpr parent) { this.parent = parent }
     public void setChild(const ASTExpr child) { this.child = child }
 }

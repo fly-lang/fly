@@ -29,19 +29,19 @@ public int fpStrCompare(const string a, const string b) {
     while i < n {
         byte ba = 0
         byte bb = 0
-        str.byteAt(a, i, ba)
-        str.byteAt(b, i, bb)
+        ba = str.byteAt(a, i)
+        bb = str.byteAt(b, i)
         int ia = (int)ba
         ia = ia & 255
         int ib = (int)bb
         ib = ib & 255
-        if ia < ib { out = 0 - 1  return }
-        if ia > ib { out = 1  return }
+        if ia < ib { return 0 - 1 }
+        if ia > ib { return 1 }
         i = i + 1
     }
-    if la < lb { out = 0 - 1  return }
-    if la > lb { out = 1  return }
-    out = 0
+    if la < lb { return 0 - 1 }
+    if la > lb { return 1 }
+    return 0
 }
 
 // fpBackslash — a one-byte string holding "\" (92); literals keep escapes raw,
@@ -52,7 +52,7 @@ public string fpBackslash() {
     fly.llvm.strPoke(buf, 0, b)
     string s = ""
     fly.llvm.strMake(buf, 1, s)
-    out = s
+    return s
 }
 
 // fpCompilerId — "<version> <size> <mtimeSec>" identity of the compiler binary:
@@ -62,8 +62,7 @@ public string fpBackslash() {
 public string fpCompilerId(const string flyBinaryPath) {
     string ver = flyVersion()
     if fs.exists(flyBinaryPath) == false {
-        out = str.concat(ver, " 0 0")
-        return
+        return str.concat(ver, " 0 0")
     }
     fly.os.fs.Stat st = fs.stat(flyBinaryPath)
     long szL = (long)st.size
@@ -72,7 +71,7 @@ public string fpCompilerId(const string flyBinaryPath) {
     r = str.concat(r, str.convertL(szL))
     r = str.concat(r, " ")
     r = str.concat(r, str.convertL(mtL))
-    out = r
+    return r
 }
 
 // Fingerprint — computes the "files" section for one source dir. A CLASS with
@@ -134,7 +133,7 @@ public class Fingerprint {
             i = i + 1
         }
         string filesHdr = str.concat("files", fly.driver.nl())
-        out = str.concat(header, str.concat(filesHdr, this.lines))
+        return str.concat(header, str.concat(filesHdr, this.lines))
     }
 
     // scanOneDirAt — scan the qi-th pending directory: enqueue subdirectories,
@@ -154,8 +153,7 @@ public class Fingerprint {
             int off = i * 56
             pointer namePtr = mem.readPtr(items, off)
             int nameLen = mem.readInt(items, off + 8)
-            string entry = ""
-            str.fromBytes(namePtr, nameLen, entry)
+            string entry = str.fromBytes(namePtr, nameLen)
             string full = path.join(dir, entry)
             if path.isDir(full) {
                 this.pending = segAppend(this.pending, full)

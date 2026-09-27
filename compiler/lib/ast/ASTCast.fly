@@ -16,8 +16,8 @@ public class ASTCast : ASTExpr {
         this.toType = toType
     }
 
-    public ASTExpr getExpr() { out = this.expr }
-    public ASTType getToType() { out = this.toType }
+    public ASTExpr getExpr() { return this.expr }
+    public ASTType getToType() { return this.toType }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

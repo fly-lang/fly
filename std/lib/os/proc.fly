@@ -47,7 +47,7 @@ private pointer strToCstr(const string src) {
         i = i + 1
     }
     fly.llvm.strPoke(buf, size, 0)
-    out = buf
+    return buf
 }
 
 // argsNew — allocate an empty ArgList; returns its handle.
@@ -60,7 +60,7 @@ public pointer argsNew() {
     mem.writePtr(h, 0, items)
     mem.writeInt(h, 8, 0)
     mem.writeInt(h, 12, cap)
-    out = h
+    return h
 }
 
 // argsAdd — append a copy of 'a' to the ArgList, growing if needed.
@@ -117,12 +117,12 @@ public int exec(const string path, const pointer h) {
     fly.runtime.mem_free(cpath, 0)
     fly.runtime.mem_free(argv, slots * 8)
 
-    out = code
+    return code
 }
 
 // run — convenience: exec 'path' with no extra arguments.
 public int run(const string path) {
-    out = exec(path, 0)
+    return exec(path, 0)
 }
 
 // execCapture — exec 'path' with the ArgList args, redirecting the child's STDOUT
@@ -171,7 +171,7 @@ public int execCapture(const string path, const pointer h, const string outPath)
     fly.runtime.mem_free(cout, 0)
     fly.runtime.mem_free(argv, slots * 8)
 
-    out = code
+    return code
 }
 
 // argsFree — release an ArgList and every C-string it owns.

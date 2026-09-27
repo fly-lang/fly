@@ -42,17 +42,17 @@ public class SemaBuilderModifiers {
             elsif k == ASTModifierKind.MOD_FINAL { m.setFinal(true) }
             i = i + 1
         }
-        out = m
+        return m
     }
 
-    public SemaVisibilityKind getVisibility() { out = this.visibility }
+    public SemaVisibilityKind getVisibility() { return this.visibility }
     public void setVisibility(const SemaVisibilityKind visibility) { this.visibility = visibility }
-    public bool isConstant() { out = this.constantFlag }
+    public bool isConstant() { return this.constantFlag }
     public void setConstant(const bool constantFlag) { this.constantFlag = constantFlag }
-    public bool isStatic() { out = this.staticFlag }
+    public bool isStatic() { return this.staticFlag }
     public void setStatic(const bool staticFlag) { this.staticFlag = staticFlag }
-    public bool isAbstract() { out = this.abstractFlag }
+    public bool isAbstract() { return this.abstractFlag }
     public void setAbstract(const bool abstractFlag) { this.abstractFlag = abstractFlag }
-    public bool isFinal() { out = this.finalFlag }
+    public bool isFinal() { return this.finalFlag }
     public void setFinal(const bool finalFlag) { this.finalFlag = finalFlag }
 }

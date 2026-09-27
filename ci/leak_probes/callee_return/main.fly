@@ -1,0 +1,19 @@
+// The callee owns a string local and leaves through `return`: the return must
+// free it (the cleanup used to run only on fall-through).
+string mk(const int i) {
+    string s = "abcdefghij" + "k"
+    return s
+}
+int f(const int i) {
+    string t = mk(i)
+    if i < 0 { return 0 }
+    return 1
+}
+void main() {
+    int i = 0
+    long acc = 0
+    while i < 2000000 {
+        acc = acc + f(i)
+        i = i + 1
+    }
+}

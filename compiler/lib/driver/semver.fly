@@ -23,9 +23,9 @@ public class SemVer {
         this.patch = pa
     }
 
-    public int getMajor() { out = this.major }
-    public int getMinor() { out = this.minor }
-    public int getPatch() { out = this.patch }
+    public int getMajor() { return this.major }
+    public int getMinor() { return this.minor }
+    public int getPatch() { return this.patch }
 
     // fully-qualified: inside a method named `str` the short prefix is shadowed
     public string str() {
@@ -33,32 +33,29 @@ public class SemVer {
         string b = fly.str.concat(a, ".")
         string c = fly.str.concat(b, fly.str.convert(this.minor))
         string d = fly.str.concat(c, ".")
-        out = fly.str.concat(d, fly.str.convert(this.patch))
+        return fly.str.concat(d, fly.str.convert(this.patch))
     }
 
     // cmp — 0 if this < o, 1 if equal, 2 if this > o (no negative literals: the
     // reference parser rejects `-1` in an expression). Lexicographic on the triplet.
     public int cmp(const SemVer o) {
         if this.major != o.getMajor() {
-            if this.major < o.getMajor() { out = 0 } else { out = 2 }
-            return
+            if this.major < o.getMajor() { return 0 } else { return 2 }
         }
         if this.minor != o.getMinor() {
-            if this.minor < o.getMinor() { out = 0 } else { out = 2 }
-            return
+            if this.minor < o.getMinor() { return 0 } else { return 2 }
         }
         if this.patch != o.getPatch() {
-            if this.patch < o.getPatch() { out = 0 } else { out = 2 }
-            return
+            if this.patch < o.getPatch() { return 0 } else { return 2 }
         }
-        out = 1
+        return 1
     }
 
-    public bool eq(const SemVer o)  { out = this.cmp(o) == 1 }
-    public bool lt(const SemVer o)  { out = this.cmp(o) == 0 }
-    public bool gt(const SemVer o)  { out = this.cmp(o) == 2 }
-    public bool lte(const SemVer o) { out = this.cmp(o) <= 1 }
-    public bool gte(const SemVer o) { out = this.cmp(o) >= 1 }
+    public bool eq(const SemVer o)  { return this.cmp(o) == 1 }
+    public bool lt(const SemVer o)  { return this.cmp(o) == 0 }
+    public bool gt(const SemVer o)  { return this.cmp(o) == 2 }
+    public bool lte(const SemVer o) { return this.cmp(o) <= 1 }
+    public bool gte(const SemVer o) { return this.cmp(o) >= 1 }
 }
 
 // One atom of a range: an operator plus a version. op codes:
@@ -73,14 +70,14 @@ public class Atom {
     }
 
     public bool matches(const SemVer v) {
-        if this.op == 0 { out = true  return }
+        if this.op == 0 { return true }
         int c = v.cmp(this.ver)        // 0=lt 1=eq 2=gt
-        if this.op == 1 { out = c == 1  return }   // Eq
-        if this.op == 2 { out = c == 2  return }   // Gt
-        if this.op == 3 { out = c >= 1  return }   // Gte
-        if this.op == 4 { out = c == 0  return }   // Lt
-        if this.op == 5 { out = c <= 1  return }   // Lte
-        out = true
+        if this.op == 1 { return c == 1 }   // Eq
+        if this.op == 2 { return c == 2 }   // Gt
+        if this.op == 3 { return c >= 1 }   // Gte
+        if this.op == 4 { return c == 0 }   // Lt
+        if this.op == 5 { return c <= 1 }   // Lte
+        return true
     }
 }
 
@@ -91,7 +88,7 @@ public class SemVerRange {
     public SemVerRange() { this.atoms = new List<Atom>() }
 
     public void add(const Atom a)  { this.atoms.add(a) }
-    public bool isAny()            { out = this.atoms.size() == 0 }
+    public bool isAny()            { return this.atoms.size() == 0 }
 
     public bool matches(const SemVer v) {
         // `int i` (not pointer): matches the compiler-sources convention so this
@@ -103,7 +100,7 @@ public class SemVerRange {
             if a.matches(v) == false { ok = false }
             i = i + 1
         }
-        out = ok
+        return ok
     }
 }
 
@@ -115,15 +112,14 @@ public int parseUIntAt(const string s, int pos) {
     int n = str.len(s)
     int v = 0
     while pos < n {
-        byte b = 0
-        str.byteAt(s, pos, b)
+        byte b = str.byteAt(s, pos)
         int c = b
-        if c < 48 { out = v  return }
-        if c > 57 { out = v  return }
+        if c < 48 { return v }
+        if c > 57 { return v }
         v = v * 10 + (c - 48)
         pos = pos + 1
     }
-    out = v
+    return v
 }
 
 // semverParse — strips a leading v/V, reads major[.minor[.patch]]; 0.0.0 on failure.
@@ -131,35 +127,30 @@ public SemVer semverParse(const string s) {
     int pos = 0
     int n = str.len(s)
     if n > 0 {
-        byte b0 = 0
-        str.byteAt(s, 0, b0)
+        byte b0 = str.byteAt(s, 0)
         if b0 == 118 || b0 == 86 { pos = 1 }        // 'v' | 'V'
     }
     int ma = parseUIntAt(s, pos)
     // advance past the digits just consumed, then optional '.'
     while pos < n {
-        byte b = 0
-        str.byteAt(s, pos, b)
+        byte b = str.byteAt(s, pos)
         if b < 48 || b > 57 { break }
         pos = pos + 1
     }
     int mi = 0
     int pa = 0
     if pos < n {
-        byte d = 0
-        str.byteAt(s, pos, d)
+        byte d = str.byteAt(s, pos)
         if d == 46 {                                 // '.'
             pos = pos + 1
             mi = parseUIntAt(s, pos)
             while pos < n {
-                byte b = 0
-                str.byteAt(s, pos, b)
+                byte b = str.byteAt(s, pos)
                 if b < 48 || b > 57 { break }
                 pos = pos + 1
             }
             if pos < n {
-                byte e = 0
-                str.byteAt(s, pos, e)
+                byte e = str.byteAt(s, pos)
                 if e == 46 {                         // '.'
                     pos = pos + 1
                     pa = parseUIntAt(s, pos)
@@ -167,15 +158,15 @@ public SemVer semverParse(const string s) {
             }
         }
     }
-    out = new SemVer(ma, mi, pa)
+    return new SemVer(ma, mi, pa)
 }
 
 // rangeParse — parse a range expression into a SemVerRange (empty/"*" → any).
 public SemVerRange rangeParse(const string s) {
     SemVerRange range = new SemVerRange()
     string t = str.trim(s)
-    if str.isEmpty(t) { out = range  return }
-    if str.equals(t, "*") { out = range  return }
+    if str.isEmpty(t) { return range }
+    if str.equals(t, "*") { return range }
 
     // split on ',' (AND) into trimmed tokens
     int n = str.len(t)
@@ -185,8 +176,7 @@ public SemVerRange rangeParse(const string s) {
         bool atEnd = i == n
         bool isComma = false
         if atEnd == false {
-            byte b = 0
-            str.byteAt(t, i, b)
+            byte b = str.byteAt(t, i)
             if b == 44 { isComma = true }            // ','
         }
         if atEnd || isComma {
@@ -196,13 +186,12 @@ public SemVerRange rangeParse(const string s) {
         }
         i = i + 1
     }
-    out = range
+    return range
 }
 
 // rangeAddAtom — dispatch one trimmed token to atoms (mirrors MVSResolver.cpp:64-118).
 public void rangeAddAtom(SemVerRange range, const string tok) {
-    byte b0 = 0
-    str.byteAt(tok, 0, b0)
+    byte b0 = str.byteAt(tok, 0)
     int c0 = b0
     int len = str.len(tok)
 
@@ -226,8 +215,7 @@ public void rangeAddAtom(SemVerRange range, const string tok) {
     }
     // comparison operators
     if len >= 2 {
-        byte b1 = 0
-        str.byteAt(tok, 1, b1)
+        byte b1 = str.byteAt(tok, 1)
         if c0 == 62 && b1 == 61 {                    // ">="
             range.add(new Atom(3, semverParse(str.substring(tok, 2, len))))
             return
@@ -259,19 +247,19 @@ public void rangeAddAtom(SemVerRange range, const string tok) {
 
 public SemVer caretUpper(const SemVer base) {
     if base.getMajor() > 0 {
-        out = new SemVer(base.getMajor() + 1, 0, 0)
+        return new SemVer(base.getMajor() + 1, 0, 0)
     } elsif base.getMinor() > 0 {
-        out = new SemVer(0, base.getMinor() + 1, 0)
+        return new SemVer(0, base.getMinor() + 1, 0)
     } else {
-        out = new SemVer(0, 0, base.getPatch() + 1)
+        return new SemVer(0, 0, base.getPatch() + 1)
     }
 }
 
 public SemVer tildeUpper(const SemVer base, const int dots) {
     if dots >= 1 {
-        out = new SemVer(base.getMajor(), base.getMinor() + 1, 0)
+        return new SemVer(base.getMajor(), base.getMinor() + 1, 0)
     } else {
-        out = new SemVer(base.getMajor() + 1, 0, 0)
+        return new SemVer(base.getMajor() + 1, 0, 0)
     }
 }
 
@@ -279,5 +267,5 @@ public SemVer tildeUpper(const SemVer base, const int dots) {
 public bool rangeMatchesStr(const string rangeStr, const string version) {
     SemVerRange r = rangeParse(rangeStr)
     SemVer v = semverParse(version)
-    out = r.matches(v)
+    return r.matches(v)
 }

@@ -22,11 +22,11 @@ public class ASTTernary : ASTExpr {
         this.falseExpr = falseExpr
     }
 
-    public ASTExpr getConditionExpr() { out = this.conditionExpr }
-    public SourceLocation getTrueOpLocation() { out = this.trueOpLocation }
-    public ASTExpr getTrueExpr() { out = this.trueExpr }
-    public SourceLocation getFalseOpLocation() { out = this.falseOpLocation }
-    public ASTExpr getFalseExpr() { out = this.falseExpr }
+    public ASTExpr getConditionExpr() { return this.conditionExpr }
+    public SourceLocation getTrueOpLocation() { return this.trueOpLocation }
+    public ASTExpr getTrueExpr() { return this.trueExpr }
+    public SourceLocation getFalseOpLocation() { return this.falseOpLocation }
+    public ASTExpr getFalseExpr() { return this.falseExpr }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

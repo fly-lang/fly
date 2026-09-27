@@ -36,22 +36,22 @@ public class CodeGenBridge {
     // (SemaNameSpace nodes hold only the leaf segment; classNsFlat rebuilds the
     // dotted path flattened with '_'). No downcasts, no new virtuals.
     public static bool isCLangClass(const SemaClassType cls) {
-        if cls == null { out = false  return }
-        if str.equals(cls.getName(), "CLang") == false { out = false  return }
-        out = str.equals(SemaBuilder.classNsFlat(cls), "fly_bridge")
+        if cls == null { return false }
+        if str.equals(cls.getName(), "CLang") == false { return false }
+        return str.equals(SemaBuilder.classNsFlat(cls), "fly_bridge")
     }
 
     // isBridgeCall — `<CLang instance>.call(…)`: intercept instead of dispatching
     // to the archive stub (which is an empty body).
     public static bool isBridgeCall(const SemaCall node) {
         SemaFunctionBase fn = node.getFunction()
-        if fn == null { out = false  return }
-        if str.equals(fn.getName(), "call") == false { out = false  return }
+        if fn == null { return false }
+        if str.equals(fn.getName(), "call") == false { return false }
         SemaExpr parent = node.getParent()
-        if parent == null { out = false  return }
+        if parent == null { return false }
         SemaType pt = parent.getType()
-        if pt == null { out = false  return }
-        out = CodeGenBridge.isCLangClass(pt.asClass())
+        if pt == null { return false }
+        return CodeGenBridge.isCLangClass(pt.asClass())
     }
 
     // captureCtorLib — after genNew generated the ctor args of `new CLang(lib)`,
@@ -75,8 +75,8 @@ public class CodeGenBridge {
     // absolute path as-is; `.a` archive → -l:<name>; else strip the extension
     // and the `lib` prefix → -l<name> ("libm.so.6" → "-lm").
     public static string normalizeLibFlag(const string lib) {
-        if str.startsWith(lib, "/") { out = lib  return }
-        if str.endsWith(lib, ".a") { out = str.concat("-l:", lib)  return }
+        if str.startsWith(lib, "/") { return lib }
+        if str.endsWith(lib, ".a") { return str.concat("-l:", lib) }
         string name = lib
         int dot = str.indexOf(name, ".")
         if dot >= 0 { name = str.substring(name, 0, dot) }
@@ -84,7 +84,7 @@ public class CodeGenBridge {
             int L = str.len(name)
             name = str.substring(name, 3, L)
         }
-        out = str.concat("-l", name)
+        return str.concat("-l", name)
     }
 
     // genCall — emit the direct C call for `<CLang>.call(sym, args [, out])`.

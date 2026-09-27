@@ -69,7 +69,14 @@ Buf bufOf(const string s) {
     b.ptr = own
     b.size = n
     b.cap = n
-    out = b
+    return b
+}
+
+// FailReader — every read reports an error (-1). readAll and friends took the
+// -1 for data: as a ulong it became an enormous byte count.
+class FailReader : Reader {
+    public long read(Buf buf, const ulong n) { return 0 - 1 }
+    public void close() { }
 }
 
 suite OsIoSuite {
@@ -476,6 +483,35 @@ suite OsIoSuite {
             } else {
                 assert.assertTrue(r, 815)
             }
+        }
+    }
+
+    // ── errors are errors, not data ──────────────────────────────────────────
+    void errorTest() {
+        case "a failing Reader ends every reader helper cleanly": {
+            FailReader fr = new FailReader()
+            Buf all = io.readAll(fr)
+            assert.assertEqL((long)all.size, 0, 901)
+            io.bufFree(all)
+            assert.assertEmpty(io.readLine(fr), 902)
+            fly.os.env.StringArray lines = io.readLines(fr)
+            assert.assertEqL((long)lines.count, 0, 903)
+            env.stringArrayFree(lines)
+            Writer sink = io.fileWriter(1)
+            assert.assertEqL(io.copy(fr, sink), 0, 904)
+        }
+        case "a write that fails reports failure": {
+            // FileWriter.write turned a failed write into 0, which writeString
+            // and writeAll read as success
+            Writer w = io.fileWriter(9999)
+            assert.assertFalse(io.writeString(w, "x"), 905)
+        }
+        case "bufFree empties the Buf and tolerates a second call": {
+            Buf b = bufOf("abc")
+            io.bufFree(b)
+            assert.assertNull(b.ptr, 906)
+            assert.assertEqL((long)b.size, 0, 907)
+            io.bufFree(b)
         }
     }
 }

@@ -40,6 +40,6 @@ public class ParserEnum {
             }
         }
         p.expectPunct("}")
-        out = e
+        return e
     }
 }

@@ -49,7 +49,13 @@ ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # directory holds, carrying declarations plus the source of the templates alone —
 # not the whole module. It also spaces nested generic closers itself, so the
 # build script no longer rewrites `>>` over shipped code.
-FLY_VERSION="${FLY_VERSION:-0.13.17}"
+# 0.13.18 replaces the implicit `out` return variable with `return expr` (and
+# `return a, b` for a multi-return). The lowering is unchanged — the value is
+# still stored into a hidden trailing out parameter, then `ret void` — so the ABI
+# is the same; what changed is the surface syntax, plus two rules the seed now
+# enforces: a value function must return on every path, and a struct local that
+# every return hands back is built directly in the caller's slot (NRVO).
+FLY_VERSION="${FLY_VERSION:-0.13.18}"
 
 BUILD_DIR="$ROOT/build"
 STAGE0_DIR="$BUILD_DIR/stage0"

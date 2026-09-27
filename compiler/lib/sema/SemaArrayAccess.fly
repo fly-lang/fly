@@ -26,8 +26,8 @@ public class SemaArrayAccess : SemaExpr {
         this.index = index
     }
 
-    public ASTArrayAccess getAST() { out = this.accessAst }
-    public SemaExpr getBase() { out = this.base }
-    public SemaExpr getIndex() { out = this.index }
+    public ASTArrayAccess getAST() { return this.accessAst }
+    public SemaExpr getBase() { return this.base }
+    public SemaExpr getIndex() { return this.index }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }

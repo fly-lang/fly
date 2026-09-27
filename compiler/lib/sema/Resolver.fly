@@ -42,6 +42,18 @@ public class Resolver : ASTVisitor {
     SemaClassType currentClass
     SemaEnumType currentEnum
     SemaFunctionBase currentFunction
+
+    // NRVO: name of the struct local every `return` in the body being resolved
+    // hands back, or "" when the optimization does not apply. That local is bound
+    // to the caller's return slot, so building it field by field stays copy-free.
+    string nrvoName
+
+    // Every-path-returns analysis, computed during this very walk: each statement
+    // handler records whether control certainly leaves the function there, and a
+    // block inherits it from its contents. `sawBreak` tells an endless loop that
+    // it can be left after all.
+    bool stmtExits
+    bool sawBreak
     SemaNameSpace currentNameSpace
 
     // result of the most recent expression / type / var resolution (typed per
@@ -88,6 +100,9 @@ public class Resolver : ASTVisitor {
         this.switchDepth = 0
         this.handleDepth = 0
         this.outVarCounter = 0
+        this.nrvoName = ""
+        this.stmtExits = false
+        this.sawBreak = false
         this.forInCounter = 0
         this.currentExpectedType = null
     }
@@ -97,7 +112,7 @@ public class Resolver : ASTVisitor {
         string n = str.convert(this.outVarCounter)
         this.outVarCounter = this.outVarCounter + 1
         string t = str.concat("__out_", n)
-        out = t
+        return t
     }
 
     // nextForInName — synthetic name for the desugared for-in hoist/index locals
@@ -105,38 +120,38 @@ public class Resolver : ASTVisitor {
     public string nextForInName() {
         string n = str.convert(this.forInCounter)
         this.forInCounter = this.forInCounter + 1
-        out = str.concat("__forin_", n)
+        return str.concat("__forin_", n)
     }
 
     // ── control-flow nesting ──────────────────────────────────────────────────
-    public int getLoopDepth() { out = this.loopDepth }
+    public int getLoopDepth() { return this.loopDepth }
     public void enterLoop() { this.loopDepth = this.loopDepth + 1 }
     public void exitLoop() { this.loopDepth = this.loopDepth - 1 }
-    public int getSwitchDepth() { out = this.switchDepth }
+    public int getSwitchDepth() { return this.switchDepth }
     public void enterSwitch() { this.switchDepth = this.switchDepth + 1 }
     public void exitSwitch() { this.switchDepth = this.switchDepth - 1 }
-    public int getHandleDepth() { out = this.handleDepth }
+    public int getHandleDepth() { return this.handleDepth }
     public void enterHandle() { this.handleDepth = this.handleDepth + 1 }
     public void exitHandle() { this.handleDepth = this.handleDepth - 1 }
-    public SemaError getCurrentErrorHandler() { out = this.currentErrorHandler }
+    public SemaError getCurrentErrorHandler() { return this.currentErrorHandler }
     public void setCurrentErrorHandler(const SemaError h) { this.currentErrorHandler = h }
 
     // ── accessors for companions ────────────────────────────────────────────
-    public Registry getReg() { out = this.reg }
-    public int getRun() { out = this.run }
-    public bool isTestMode() { out = this.testMode }
-    public bool isCurrentModuleHeader() { out = this.currentModuleIsHeader }
+    public Registry getReg() { return this.reg }
+    public int getRun() { return this.run }
+    public bool isTestMode() { return this.testMode }
+    public bool isCurrentModuleHeader() { return this.currentModuleIsHeader }
 
     // currentNsFlat — the current module's namespace flattened with '_' (fly.os.io →
     // "fly_os_io"), for function mangling (matches the reference CodeGenHelper::FlattenNS
     // so std symbols resolve against fly_std_lib.a). Empty for the default namespace.
     public string currentNsFlat() {
         SemaModule m = this.currentModule
-        if m == null { out = ""  return }
+        if m == null { return "" }
         ASTModule am = m.getAST()
-        if am == null { out = ""  return }
+        if am == null { return "" }
         ASTNameSpace ns = am.getNameSpace()
-        if ns == null { out = ""  return }
+        if ns == null { return "" }
         List<ASTName> names = ns.getNames()
         string r = ""
         int i = 0
@@ -149,34 +164,40 @@ public class Resolver : ASTVisitor {
             }
             i = i + 1
         }
-        out = r
+        return r
     }
-    public SymbolTable getCurrentScope() { out = this.currentScope }
+    public SymbolTable getCurrentScope() { return this.currentScope }
     public void setCurrentScope(const SymbolTable s) { this.currentScope = s }
-    public SemaModule getCurrentModule() { out = this.currentModule }
+    public SemaModule getCurrentModule() { return this.currentModule }
     public void setCurrentModule(const SemaModule m) { this.currentModule = m }
-    public SemaNameSpace getCurrentNameSpace() { out = this.currentNameSpace }
-    public SemaClassType getCurrentClass() { out = this.currentClass }
+    public SemaNameSpace getCurrentNameSpace() { return this.currentNameSpace }
+    public SemaClassType getCurrentClass() { return this.currentClass }
     public void setCurrentClass(const SemaClassType c) { this.currentClass = c }
-    public SemaEnumType getCurrentEnum() { out = this.currentEnum }
+    public SemaEnumType getCurrentEnum() { return this.currentEnum }
     public void setCurrentEnum(const SemaEnumType e) { this.currentEnum = e }
-    public SemaFunctionBase getCurrentFunction() { out = this.currentFunction }
+    public SemaFunctionBase getCurrentFunction() { return this.currentFunction }
     public void setCurrentFunctionBase(const SemaFunctionBase f) { this.currentFunction = f }
-    public SemaExpr getCurrentExpr() { out = this.currentExpr }
+    public string getNrvoName() { return this.nrvoName }
+    public bool getStmtExits() { return this.stmtExits }
+    public void setStmtExits(const bool v) { this.stmtExits = v }
+    public bool getSawBreak() { return this.sawBreak }
+    public void setSawBreak(const bool v) { this.sawBreak = v }
+    public void setNrvoName(const string n) { this.nrvoName = n }
+    public SemaExpr getCurrentExpr() { return this.currentExpr }
     public void setCurrentExpr(const SemaExpr e) { this.currentExpr = e }
-    public SemaType getExpectedType() { out = this.currentExpectedType }
+    public SemaType getExpectedType() { return this.currentExpectedType }
     public void setExpectedType(const SemaType t) { this.currentExpectedType = t }
-    public SemaType getCurrentType() { out = this.currentType }
+    public SemaType getCurrentType() { return this.currentType }
     public void setCurrentType(const SemaType t) { this.currentType = t }
-    public SemaVar getCurrentVar() { out = this.currentVar }
+    public SemaVar getCurrentVar() { return this.currentVar }
     public void setCurrentVar(const SemaVar v) { this.currentVar = v }
-    public SemaParam getCurrentParam() { out = this.currentParam }
+    public SemaParam getCurrentParam() { return this.currentParam }
     public void setCurrentParam(const SemaParam p) { this.currentParam = p }
-    public SemaLocalVar getCurrentLocalVar() { out = this.currentLocalVar }
+    public SemaLocalVar getCurrentLocalVar() { return this.currentLocalVar }
     public void setCurrentLocalVar(const SemaLocalVar v) { this.currentLocalVar = v }
-    public SemaBlockStmt getCurrentSemaBlock() { out = this.currentSemaBlock }
+    public SemaBlockStmt getCurrentSemaBlock() { return this.currentSemaBlock }
     public void setCurrentSemaBlock(const SemaBlockStmt b) { this.currentSemaBlock = b }
-    public SemaBlockStmt getLastBlock() { out = this.lastBlock }
+    public SemaBlockStmt getLastBlock() { return this.lastBlock }
     public void setLastBlock(const SemaBlockStmt b) { this.lastBlock = b }
 
     // ── scope management ────────────────────────────────────────────────────

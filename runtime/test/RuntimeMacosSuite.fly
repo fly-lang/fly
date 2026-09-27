@@ -191,8 +191,7 @@ suite RuntimeMacosSuite {
             pointer cp = mem.alloc(len + 1)
             int i = 0
             while i < len {
-                byte b = 0
-                str.byteAt(f, i, b)
+                byte b = str.byteAt(f, i)
                 mem.writeByte(cp, i, b)
                 i = i + 1
             }

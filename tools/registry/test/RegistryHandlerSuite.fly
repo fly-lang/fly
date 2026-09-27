@@ -39,7 +39,7 @@ import fly.registry
 // gzipFixture — the checked-in package tarball (mypkg/Manifest.fly + a source).
 // Read as BYTES: it is gzip, and a text-mode read on Windows corrupts it.
 string gzipFixture() {
-    out = fs.readBytes("std/test/fixtures/regpkg.tar.gz")
+    return fs.readBytes("std/test/fixtures/regpkg.tar.gz")
 }
 
 // quoted / arr1 / arr2 / arr3 — expected JSON built from RAW BYTES, not from
@@ -49,19 +49,18 @@ string gzipFixture() {
 string quoted(const string x) {
     pointer p = mem.alloc(1)
     mem.writeByte(p, 0, 34)
-    string q = ""
-    str.fromBytes(p, 1, q)
-    out = str.concat(q, str.concat(x, q))
+    string q = str.fromBytes(p, 1)
+    return str.concat(q, str.concat(x, q))
 }
 string arr1(const string a) {
-    out = str.concat("[", str.concat(quoted(a), "]"))
+    return str.concat("[", str.concat(quoted(a), "]"))
 }
 string arr2(const string a, const string b) {
-    out = str.concat("[", str.concat(quoted(a),
+    return str.concat("[", str.concat(quoted(a),
           str.concat(",", str.concat(quoted(b), "]"))))
 }
 string arr3(const string a, const string b, const string c) {
-    out = str.concat("[", str.concat(quoted(a),
+    return str.concat("[", str.concat(quoted(a),
           str.concat(",", str.concat(quoted(b),
           str.concat(",", str.concat(quoted(c), "]"))))))
 }
@@ -72,7 +71,7 @@ string freshStorage(const string tag) {
     string d = str.concat("reg_suite_", tag)
     fs.dirDeleteAll(d)
     fs.dirCreateAll(d, 493)
-    out = d
+    return d
 }
 
 suite RegistryHandlerSuite {

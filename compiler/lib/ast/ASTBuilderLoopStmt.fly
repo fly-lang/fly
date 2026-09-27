@@ -16,12 +16,12 @@ public class ASTBuilderLoopStmt {
         b.loopStmt = new ASTLoopStmt(loc)
         parent.addContent(b.loopStmt)
         b.loopStmt.setParent(parent)
-        out = b
+        return b
     }
     public ASTBuilderLoopStmt setCycle(const ASTExpr expr, const ASTBlockStmt stmt) {
         this.loopStmt.setExpr(expr)
         this.loopStmt.setLoop(stmt)
-        out = this
+        return this
     }
     public ASTBuilderLoopStmt setInit(const ASTBlockStmt blockStmt) {
         List<ASTStmt> content = blockStmt.getContent()
@@ -32,7 +32,7 @@ public class ASTBuilderLoopStmt {
             this.loopStmt.addInit(s)
             i = i + 1
         }
-        out = this
+        return this
     }
     public ASTBuilderLoopStmt setPost(const ASTBlockStmt blockStmt) {
         List<ASTStmt> content = blockStmt.getContent()
@@ -43,7 +43,7 @@ public class ASTBuilderLoopStmt {
             this.loopStmt.addPost(s)
             i = i + 1
         }
-        out = this
+        return this
     }
     public void VerifyConditionAtEnd() {
         this.loopStmt.setVerifyConditionAtEnd(true)

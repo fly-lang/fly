@@ -22,19 +22,15 @@ import fly.assert
 // ─────────────────────────────────────────────────────────────────────────────
 
 int,int divmod(const int a, const int b) {
-    out[0] = a / b
-    out[1] = a % b
+    return a / b, a % b
 }
 
 string,string splitPair() {
-    out[0] = "left"
-    out[1] = "right"
+    return "left", "right"
 }
 
 string,string,int triple() {
-    out[0] = "alpha"
-    out[1] = "beta"
-    out[2] = 7
+    return "alpha", "beta", 7
 }
 
 struct Box { int a  int b }
@@ -44,32 +40,27 @@ struct Box { int a  int b }
 // instead left every caller pointing at the same callee frame, and two live
 // results aliased.
 string,Box boxed(const int v) {
-    out[0] = "n"
     Box t = new Box()
     t.a = v
     t.b = v * 10
-    out[1] = t
+    return "n", t
 }
 
 Box justBox(const int v) {
     Box t = new Box()
     t.a = v
     t.b = v * 10
-    out = t
+    return t
 }
 
 long,long,long,long quad(const long n) {
-    out[0] = n
-    out[1] = n * 2
-    out[2] = n * 3
-    out[3] = n * 4
+    return n, n * 2, n * 3, n * 4
 }
 
 // A multi-return function that itself CALLS one.
 int,int viaInner(const int a) {
     int q = divmod(a, 3)
-    out[0] = q
-    out[1] = q + 1
+    return q, q + 1
 }
 
 suite MultiReturnSuite {
@@ -188,7 +179,7 @@ suite MultiReturnSuite {
             assert.assertEqI(y.a, 4, 425)
         }
         case "both forms of the same function coexist": {
-            int only = divmod(17, 5)          // short: binds out[0]
+            int only = divmod(17, 5)          // short: binds the first value
             int q4 = 0
             int r4 = 0
             divmod(17, 5, q4, r4)             // full: both slots

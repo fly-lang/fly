@@ -30,8 +30,8 @@ public class Token {
 
     // Location accessors. `offset()` is the byte offset; line/col are decoded
     // from `getLoc()` via a SourceManager (the location no longer stores them).
-    public SourceLocation getLoc() { out = this.loc }
-    public int offset() { out = this.loc.getOffset() }
+    public SourceLocation getLoc() { return this.loc }
+    public int offset() { return this.loc.getOffset() }
 
-    public bool isEof() { out = this.kind == TokenKind.EOF }
+    public bool isEof() { return this.kind == TokenKind.EOF }
 }

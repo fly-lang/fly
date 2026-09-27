@@ -61,43 +61,43 @@ public class Triple {
     }
 
     // getTriple — the full triple string (llvm::Triple::getTriple / str()).
-    public string getTriple() { out = this.full }
+    public string getTriple() { return this.full }
 
-    public Arch getArch()        { out = this.arch }
-    public string getArchName()  { out = this.archName }
-    public string getVendorName(){ out = this.vendor }
-    public string getOSName()    { out = this.os }
-    public string getEnvName()   { out = this.env }
+    public Arch getArch()        { return this.arch }
+    public string getArchName()  { return this.archName }
+    public string getVendorName(){ return this.vendor }
+    public string getOSName()    { return this.os }
+    public string getEnvName()   { return this.env }
 
-    public bool isOSLinux()      { out = str.equals(this.os, "linux") }
-    public bool isKnown()        { out = this.arch != Arch.UNKNOWN }
+    public bool isOSLinux()      { return str.equals(this.os, "linux") }
+    public bool isKnown()        { return this.arch != Arch.UNKNOWN }
 
     // ── Query helpers consumed by the ToolChain port (1:1 with llvm::Triple) ──
     public bool isOSDarwin() {
-        out = str.equals(this.os, "darwin") || str.equals(this.os, "macosx") || str.equals(this.os, "ios")
+        return str.equals(this.os, "darwin") || str.equals(this.os, "macosx") || str.equals(this.os, "ios")
     }
     public bool isWindowsMSVC() {
-        out = str.equals(this.os, "windows") && str.equals(this.env, "msvc")
+        return str.equals(this.os, "windows") && str.equals(this.env, "msvc")
     }
-    public bool isOSWindows() { out = str.equals(this.os, "windows") }
-    public bool isAndroid()  { out = str.contains(this.env, "android") }
-    public bool isOSIAMCU()  { out = str.equals(this.os, "elfiamcu") }
-    public bool isVE()       { out = this.arch == Arch.VE }
-    public bool isARM()      { out = this.arch == Arch.ARM || this.arch == Arch.ARMEB }
-    public bool isThumb()    { out = false }   // self-host has no separate thumb arch token
-    public bool isAArch64()  { out = this.arch == Arch.AARCH64 || this.arch == Arch.AARCH64_BE }
-    public bool isArmBigEndian() { out = this.arch == Arch.ARMEB }
+    public bool isOSWindows() { return str.equals(this.os, "windows") }
+    public bool isAndroid()  { return str.contains(this.env, "android") }
+    public bool isOSIAMCU()  { return str.equals(this.os, "elfiamcu") }
+    public bool isVE()       { return this.arch == Arch.VE }
+    public bool isARM()      { return this.arch == Arch.ARM || this.arch == Arch.ARMEB }
+    public bool isThumb()    { return false }   // self-host has no separate thumb arch token
+    public bool isAArch64()  { return this.arch == Arch.AARCH64 || this.arch == Arch.AARCH64_BE }
+    public bool isArmBigEndian() { return this.arch == Arch.ARMEB }
     // Object format: ELF unless Darwin (Mach-O) or Windows (COFF). ALL Windows
     // environments (msvc AND gnu/gnullvm) emit PE/COFF, not just -msvc.
-    public bool isOSBinFormatELF()   { out = this.isOSDarwin() == false && this.isOSWindows() == false }
-    public bool isOSBinFormatMachO() { out = this.isOSDarwin() }
-    public bool isOSBinFormatCOFF()  { out = this.isOSWindows() }
+    public bool isOSBinFormatELF()   { return this.isOSDarwin() == false && this.isOSWindows() == false }
+    public bool isOSBinFormatMachO() { return this.isOSDarwin() }
+    public bool isOSBinFormatCOFF()  { return this.isOSWindows() }
     // x32 ABI (32-bit pointers on x86_64). env == "gnux32".
-    public bool isX32()      { out = str.equals(this.env, "gnux32") }
+    public bool isX32()      { return str.equals(this.env, "gnux32") }
 
     // isArch64Bit — true for the 64-bit-pointer arches (used by getOSLibDir).
     public bool isArch64Bit() {
-        out = this.arch == Arch.X86_64 || this.arch == Arch.AARCH64 || this.arch == Arch.AARCH64_BE
+        return this.arch == Arch.X86_64 || this.arch == Arch.AARCH64 || this.arch == Arch.AARCH64_BE
            || this.arch == Arch.MIPS64 || this.arch == Arch.MIPS64EL
            || this.arch == Arch.PPC64 || this.arch == Arch.PPC64LE
            || this.arch == Arch.RISCV64 || this.arch == Arch.SPARCV9 || this.arch == Arch.SYSTEMZ
@@ -105,67 +105,67 @@ public class Triple {
            || this.arch == Arch.NVPTX64 || this.arch == Arch.AMDGCN || this.arch == Arch.LE64
            || this.arch == Arch.SPIR64 || this.arch == Arch.VE
     }
-    public bool isArch32Bit() { out = this.isArch64Bit() == false }
+    public bool isArch32Bit() { return this.isArch64Bit() == false }
 }
 
 // archFromName — map the raw arch token onto the Arch enum, accepting the
 // canonical token plus the common aliases LLVM's parseArch recognises. The
 // `eq` helper keeps the long chain readable.
-public bool archEq(const string a, const string b) { out = str.equals(a, b) }
+public bool archEq(const string a, const string b) { return str.equals(a, b) }
 
 public Arch archFromName(const string name) {
     // x86 family
-    if archEq(name, "x86_64") || archEq(name, "amd64")           { out = Arch.X86_64  return }
-    if archEq(name, "x86") || archEq(name, "i386") || archEq(name, "i486") || archEq(name, "i586") || archEq(name, "i686") { out = Arch.X86  return }
+    if archEq(name, "x86_64") || archEq(name, "amd64")           { return Arch.X86_64 }
+    if archEq(name, "x86") || archEq(name, "i386") || archEq(name, "i486") || archEq(name, "i586") || archEq(name, "i686") { return Arch.X86 }
     // aarch64
-    if archEq(name, "aarch64") || archEq(name, "arm64")          { out = Arch.AARCH64  return }
-    if archEq(name, "aarch64_be")                                { out = Arch.AARCH64_BE  return }
+    if archEq(name, "aarch64") || archEq(name, "arm64")          { return Arch.AARCH64 }
+    if archEq(name, "aarch64_be")                                { return Arch.AARCH64_BE }
     // arm
-    if archEq(name, "arm") || archEq(name, "thumb")              { out = Arch.ARM  return }
-    if archEq(name, "armeb") || archEq(name, "thumbeb")          { out = Arch.ARMEB  return }
+    if archEq(name, "arm") || archEq(name, "thumb")              { return Arch.ARM }
+    if archEq(name, "armeb") || archEq(name, "thumbeb")          { return Arch.ARMEB }
     // mips
-    if archEq(name, "mips")                                      { out = Arch.MIPS  return }
-    if archEq(name, "mipsel")                                    { out = Arch.MIPSEL  return }
-    if archEq(name, "mips64")                                    { out = Arch.MIPS64  return }
-    if archEq(name, "mips64el")                                  { out = Arch.MIPS64EL  return }
+    if archEq(name, "mips")                                      { return Arch.MIPS }
+    if archEq(name, "mipsel")                                    { return Arch.MIPSEL }
+    if archEq(name, "mips64")                                    { return Arch.MIPS64 }
+    if archEq(name, "mips64el")                                  { return Arch.MIPS64EL }
     // powerpc
-    if archEq(name, "ppc") || archEq(name, "powerpc")           { out = Arch.PPC  return }
-    if archEq(name, "ppc64") || archEq(name, "powerpc64")       { out = Arch.PPC64  return }
-    if archEq(name, "ppc64le") || archEq(name, "powerpc64le")   { out = Arch.PPC64LE  return }
+    if archEq(name, "ppc") || archEq(name, "powerpc")           { return Arch.PPC }
+    if archEq(name, "ppc64") || archEq(name, "powerpc64")       { return Arch.PPC64 }
+    if archEq(name, "ppc64le") || archEq(name, "powerpc64le")   { return Arch.PPC64LE }
     // riscv
-    if archEq(name, "riscv32")                                   { out = Arch.RISCV32  return }
-    if archEq(name, "riscv64")                                   { out = Arch.RISCV64  return }
+    if archEq(name, "riscv32")                                   { return Arch.RISCV32 }
+    if archEq(name, "riscv64")                                   { return Arch.RISCV64 }
     // sparc
-    if archEq(name, "sparc")                                     { out = Arch.SPARC  return }
-    if archEq(name, "sparcv9") || archEq(name, "sparc64")       { out = Arch.SPARCV9  return }
+    if archEq(name, "sparc")                                     { return Arch.SPARC }
+    if archEq(name, "sparcv9") || archEq(name, "sparc64")       { return Arch.SPARCV9 }
     // systemz
-    if archEq(name, "systemz") || archEq(name, "s390x")         { out = Arch.SYSTEMZ  return }
+    if archEq(name, "systemz") || archEq(name, "s390x")         { return Arch.SYSTEMZ }
     // wasm
-    if archEq(name, "wasm32")                                    { out = Arch.WASM32  return }
-    if archEq(name, "wasm64")                                    { out = Arch.WASM64  return }
+    if archEq(name, "wasm32")                                    { return Arch.WASM32 }
+    if archEq(name, "wasm64")                                    { return Arch.WASM64 }
     // bpf
-    if archEq(name, "bpfel") || archEq(name, "bpf")             { out = Arch.BPFEL  return }
-    if archEq(name, "bpfeb")                                     { out = Arch.BPFEB  return }
+    if archEq(name, "bpfel") || archEq(name, "bpf")             { return Arch.BPFEL }
+    if archEq(name, "bpfeb")                                     { return Arch.BPFEB }
     // nvptx
-    if archEq(name, "nvptx")                                     { out = Arch.NVPTX  return }
-    if archEq(name, "nvptx64")                                   { out = Arch.NVPTX64  return }
+    if archEq(name, "nvptx")                                     { return Arch.NVPTX }
+    if archEq(name, "nvptx64")                                   { return Arch.NVPTX64 }
     // amdgpu
-    if archEq(name, "amdgcn")                                    { out = Arch.AMDGCN  return }
-    if archEq(name, "r600")                                      { out = Arch.R600  return }
+    if archEq(name, "amdgcn")                                    { return Arch.AMDGCN }
+    if archEq(name, "r600")                                      { return Arch.R600 }
     // micro / dsp / ir / vector
-    if archEq(name, "avr")                                       { out = Arch.AVR  return }
-    if archEq(name, "msp430")                                    { out = Arch.MSP430  return }
-    if archEq(name, "hexagon")                                   { out = Arch.HEXAGON  return }
-    if archEq(name, "lanai")                                     { out = Arch.LANAI  return }
-    if archEq(name, "le64")                                      { out = Arch.LE64  return }
-    if archEq(name, "arc")                                       { out = Arch.ARC  return }
-    if archEq(name, "xcore")                                     { out = Arch.XCORE  return }
-    if archEq(name, "spir")                                      { out = Arch.SPIR  return }
-    if archEq(name, "spir64")                                    { out = Arch.SPIR64  return }
-    if archEq(name, "tce")                                       { out = Arch.TCE  return }
-    if archEq(name, "tcele")                                     { out = Arch.TCELE  return }
-    if archEq(name, "ve")                                        { out = Arch.VE  return }
-    out = Arch.UNKNOWN
+    if archEq(name, "avr")                                       { return Arch.AVR }
+    if archEq(name, "msp430")                                    { return Arch.MSP430 }
+    if archEq(name, "hexagon")                                   { return Arch.HEXAGON }
+    if archEq(name, "lanai")                                     { return Arch.LANAI }
+    if archEq(name, "le64")                                      { return Arch.LE64 }
+    if archEq(name, "arc")                                       { return Arch.ARC }
+    if archEq(name, "xcore")                                     { return Arch.XCORE }
+    if archEq(name, "spir")                                      { return Arch.SPIR }
+    if archEq(name, "spir64")                                    { return Arch.SPIR64 }
+    if archEq(name, "tce")                                       { return Arch.TCE }
+    if archEq(name, "tcele")                                     { return Arch.TCELE }
+    if archEq(name, "ve")                                        { return Arch.VE }
+    return Arch.UNKNOWN
 }
 
 // tripleComponent — return the substring of `s` up to the first '-', and (via the
@@ -173,15 +173,15 @@ public Arch archFromName(const string name) {
 // helper returns the head; tripleParse advances the tail itself.
 public string tripleHead(const string s) {
     int p = str.indexOf(s, "-")
-    if p < 0 { out = s  return }
-    out = str.substring(s, 0, p)
+    if p < 0 { return s }
+    return str.substring(s, 0, p)
 }
 
 // tripleTail — the remainder of `s` after the first '-' ("" if there is none).
 public string tripleTail(const string s) {
     int p = str.indexOf(s, "-")
-    if p < 0 { out = ""  return }
-    out = str.substring(s, p + 1, str.len(s))
+    if p < 0 { return "" }
+    return str.substring(s, p + 1, str.len(s))
 }
 
 // tripleParse — split "arch-vendor-os-env" into a Triple. Missing trailing
@@ -201,5 +201,5 @@ public Triple tripleParse(const string s) {
     string env = r3                 // whatever is left (may contain further '-')
 
     Arch a = archFromName(archName)
-    out = new Triple(s, a, archName, vendor, os, env)
+    return new Triple(s, a, archName, vendor, os, env)
 }

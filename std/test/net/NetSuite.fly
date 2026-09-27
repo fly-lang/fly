@@ -10,25 +10,27 @@ import fly.assert
 long elapsedMs(const Time a, const Time b) {
     long ds = b.sec - a.sec
     long dn = b.nsec - a.nsec
-    out = ds * 1000 + dn / 1000000
+    return ds * 1000 + dn / 1000000
 }
 
 // skipSockets — true when FLY_SKIP_NET_TESTS is set, which turns every case that
 // opens a socket into a no-op assertion. A sandboxed CI that forbids even
 // loopback sockets then reports green-but-skipped instead of a wall of red.
 bool skipSockets() {
-    out = str.isEmpty(env.get("FLY_SKIP_NET_TESTS")) == false
+    return str.isEmpty(env.get("FLY_SKIP_NET_TESTS")) == false
 }
 
 // blob — a string of `n` bytes cycling through 'a'..'z', for payload tests.
 string blob(const int n) {
+    string res
     pointer buf = mem.alloc(n)
     int i = 0
     while i < n {
         mem.writeByte(buf, i, (byte)(97 + (i % 26)))
         i = i + 1
     }
-    str.fromBytes(buf, n, out)
+    res = str.fromBytes(buf, n)
+    return res
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -660,7 +662,7 @@ suite NetSuite {
                     // fromBytes takes ownership, so the send buffer is a copy.
                     pointer cp = mem.alloc(n)
                     mem.copy(cp, buf, n)
-                    str.fromBytes(cp, n, expect)
+                    expect = str.fromBytes(cp, n)
 
                     assert.assertTrue(net.sendAll(cli, buf, n), 802)
                     net.shutdownWrite(cli)

@@ -13,7 +13,7 @@ import fly.assert
 public class ExecCompBox {
     int v
     public ExecCompBox(const int start) { this.v = start }
-    public int read() { out = this.v }
+    public int read() { return this.v }
 }
 
 suite ExecCompoundAssignSuite {

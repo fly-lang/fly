@@ -81,6 +81,23 @@ suite OsEnvSuite {
             assert.assertStr(env.expand("${FLY_ENV_EXP}!"), "world!", 202)
             env.delete("FLY_ENV_EXP")
         }
+        case "values larger than the output estimate": {
+            // three 3000-byte values from a short input: the output buffer was
+            // sized input*4+256 and never grew
+            string big = str.repeat("v", 3000)
+            env.set("FLY_ENV_TEST_BIG", big)
+            string out = env.expand("$FLY_ENV_TEST_BIG-$FLY_ENV_TEST_BIG-${FLY_ENV_TEST_BIG}")
+            assert.assertEqI(str.len(out), 9002, 212)
+            assert.assertTrue(str.startsWith(out, "vvv"), 213)
+            env.delete("FLY_ENV_TEST_BIG")
+        }
+        case "a variable name longer than 256 bytes": {
+            // the name went into a fixed 256-byte buffer
+            string name = str.concat("FLY_ENV_TEST_", str.repeat("N", 300))
+            env.set(name, "ok")
+            assert.assertStr(env.expand(str.concat("[${", str.concat(name, "}]"))), "[ok]", 214)
+            env.delete(name)
+        }
         case "a string with no references is returned as-is": {
             assert.assertStr(env.expand("plain text"), "plain text", 203)
             assert.assertEmpty(env.expand(""), 204)

@@ -13,7 +13,7 @@ import fly.str
 // FREE function on purpose: a suite helper called through `this` AVs (B018).
 string execStringMale() {
     string built = str.concat("ma", "le")
-    out = built
+    return built
 }
 
 // Returns a BORROWED string — its own parameter. Per the ownership rule the
@@ -21,7 +21,7 @@ string execStringMale() {
 // owned; without the clone the caller and the caller's argument would share one
 // buffer and free it twice.
 string execStringEcho(const string s) {
-    out = s
+    return s
 }
 
 // Reassigns its own NON-CONST parameter, which per §5.2 is an OUTPUT parameter:
@@ -29,7 +29,7 @@ string execStringEcho(const string s) {
 // caller ends up owning the new buffer and must not free the old one twice.
 string execStringOverwrite(string s) {
     s = "overwritten"
-    out = s
+    return s
 }
 
 // Binds a CONST parameter to a local and rebinds the local. The bind clones, so
@@ -37,7 +37,7 @@ string execStringOverwrite(string s) {
 string execStringLocalCopy(const string s) {
     string local = s
     local = "local only"
-    out = local
+    return local
 }
 
 // Holds a string and hands it back. Both directions cross an owned slot: the
@@ -45,7 +45,7 @@ string execStringLocalCopy(const string s) {
 public class ExecStringBox {
     string text
     public ExecStringBox(const string t) { this.text = t }
-    public string read() { out = this.text }
+    public string read() { return this.text }
     public void write(const string t) { this.text = t }
 }
 

@@ -24,13 +24,13 @@ public class SemaLoopStmt : SemaStmt {
     }
 
     public void addInit(const SemaStmt stmt) { this.init.add(stmt) }
-    public List<SemaStmt> getInit() { out = this.init }
-    public SemaExpr getCond() { out = this.cond }
+    public List<SemaStmt> getInit() { return this.init }
+    public SemaExpr getCond() { return this.cond }
     public void setCond(const SemaExpr cond) { this.cond = cond }
-    public SemaStmt getBody() { out = this.body }
+    public SemaStmt getBody() { return this.body }
     public void setBody(const SemaStmt body) { this.body = body }
     public void addPost(const SemaStmt stmt) { this.post.add(stmt) }
-    public List<SemaStmt> getPost() { out = this.post }
-    public bool hasVerifyConditionAtEnd() { out = this.verifyConditionAtEnd }
+    public List<SemaStmt> getPost() { return this.post }
+    public bool hasVerifyConditionAtEnd() { return this.verifyConditionAtEnd }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }

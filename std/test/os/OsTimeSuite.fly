@@ -222,6 +222,14 @@ suite OsTimeSuite {
             assert.assertStr(time.formatSec(0, "2006-01-02"), "1970-01-01", 404)
             assert.assertStr(time.formatSec(0, "15:04:05"), "00:00:00", 405)
         }
+        case "a pattern longer than the old fixed buffer": {
+            // 40 x 11 bytes of layout: the output buffer was a fixed 128 bytes
+            string pat = str.repeat("2006-01-02 ", 40)
+            string out = time.formatSec(0, pat)
+            assert.assertEqI(str.len(out), 440, 418)
+            assert.assertTrue(str.startsWith(out, "1970-01-01 1970-01-01 "), 419)
+            assert.assertTrue(str.endsWith(out, "1970-01-01 "), 420)
+        }
         case "single-digit fields are zero-padded": {
             // 1970-01-02 03:04:05 UTC
             long ts = 86400 + 3 * 3600 + 4 * 60 + 5

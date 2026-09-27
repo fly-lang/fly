@@ -54,7 +54,7 @@ suite ParserCoverageSuite {
 
     void ternaryTest() {
         case "ternary in assignment": {
-            Parser p = new Parser("int m() { out = a > b ? a : b }")
+            Parser p = new Parser("int m() { return a > b ? a : b }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 30)
         }
@@ -62,12 +62,12 @@ suite ParserCoverageSuite {
 
     void castTest() {
         case "C-style builtin cast": {
-            Parser p = new Parser("int m() { byte b = (byte)5  out = (int)b }")
+            Parser p = new Parser("int m() { byte b = (byte)5  return (int)b }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 40)
         }
         case "parenthesized expr still works (not a cast)": {
-            Parser p = new Parser("int m() { out = (a + b) * c }")
+            Parser p = new Parser("int m() { return (a + b) * c }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 41)
         }
@@ -100,7 +100,7 @@ suite ParserCoverageSuite {
             assert.assertTrue(p.isSuccess(), 62)
         }
         case "generic function": {
-            Parser p = new Parser("T id<T>(T v) { out = v }")
+            Parser p = new Parser("T id<T>(T v) { return v }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 63)
         }

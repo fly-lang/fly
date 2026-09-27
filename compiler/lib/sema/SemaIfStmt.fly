@@ -23,13 +23,13 @@ public class SemaIfStmt : SemaStmt {
         this.elsifList = new List<SemaRuleStmt>()
     }
 
-    public SemaExpr getCond() { out = this.cond }
-    public SemaStmt getThen() { out = this.thenStmt }
+    public SemaExpr getCond() { return this.cond }
+    public SemaStmt getThen() { return this.thenStmt }
     public void addElsif(const SemaExpr expr, const SemaStmt stmt) {
         this.elsifList.add(new SemaRuleStmt(expr, stmt))
     }
-    public List<SemaRuleStmt> getElsif() { out = this.elsifList }
-    public SemaStmt getElse() { out = this.elseStmt }
+    public List<SemaRuleStmt> getElsif() { return this.elsifList }
+    public SemaStmt getElse() { return this.elseStmt }
     public void setElse(const SemaStmt elseStmt) { this.elseStmt = elseStmt }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }

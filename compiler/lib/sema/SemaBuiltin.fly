@@ -23,23 +23,23 @@ public class SemaBuiltin {
 
     public SemaBuiltin() { }
 
-    public static SemaType getBoolType()   { out = new SemaBoolType() }
-    public static SemaIntType getByteType()   { out = new SemaIntType(SemaIntTypeKind.TYPE_BYTE, "byte") }
-    public static SemaIntType getUShortType() { out = new SemaIntType(SemaIntTypeKind.TYPE_USHORT, "ushort") }
-    public static SemaIntType getShortType()  { out = new SemaIntType(SemaIntTypeKind.TYPE_SHORT, "short") }
-    public static SemaIntType getUIntType()   { out = new SemaIntType(SemaIntTypeKind.TYPE_UINT, "uint") }
-    public static SemaIntType getIntType()    { out = new SemaIntType(SemaIntTypeKind.TYPE_INT, "int") }
-    public static SemaIntType getULongType()  { out = new SemaIntType(SemaIntTypeKind.TYPE_ULONG, "ulong") }
-    public static SemaIntType getLongType()   { out = new SemaIntType(SemaIntTypeKind.TYPE_LONG, "long") }
-    public static SemaIntType getPtrSizeType() { out = new SemaIntType(SemaIntTypeKind.TYPE_POINTER, "pointer") }
-    public static SemaFloatType getFloatType()  { out = new SemaFloatType(SemaFloatTypeKind.TYPE_FLOAT, "float") }
-    public static SemaFloatType getDoubleType() { out = new SemaFloatType(SemaFloatTypeKind.TYPE_DOUBLE, "double") }
-    public static SemaComplexType getComplexType() { out = new SemaComplexType() }
-    public static SemaType getVoidType()   { out = new SemaVoidType() }
-    public static SemaType getStringType() { out = new SemaStringType() }
-    public static SemaErrorType getErrorType() { out = new SemaErrorType() }
+    public static SemaType getBoolType()   { return new SemaBoolType() }
+    public static SemaIntType getByteType()   { return new SemaIntType(SemaIntTypeKind.TYPE_BYTE, "byte") }
+    public static SemaIntType getUShortType() { return new SemaIntType(SemaIntTypeKind.TYPE_USHORT, "ushort") }
+    public static SemaIntType getShortType()  { return new SemaIntType(SemaIntTypeKind.TYPE_SHORT, "short") }
+    public static SemaIntType getUIntType()   { return new SemaIntType(SemaIntTypeKind.TYPE_UINT, "uint") }
+    public static SemaIntType getIntType()    { return new SemaIntType(SemaIntTypeKind.TYPE_INT, "int") }
+    public static SemaIntType getULongType()  { return new SemaIntType(SemaIntTypeKind.TYPE_ULONG, "ulong") }
+    public static SemaIntType getLongType()   { return new SemaIntType(SemaIntTypeKind.TYPE_LONG, "long") }
+    public static SemaIntType getPtrSizeType() { return new SemaIntType(SemaIntTypeKind.TYPE_POINTER, "pointer") }
+    public static SemaFloatType getFloatType()  { return new SemaFloatType(SemaFloatTypeKind.TYPE_FLOAT, "float") }
+    public static SemaFloatType getDoubleType() { return new SemaFloatType(SemaFloatTypeKind.TYPE_DOUBLE, "double") }
+    public static SemaComplexType getComplexType() { return new SemaComplexType() }
+    public static SemaType getVoidType()   { return new SemaVoidType() }
+    public static SemaType getStringType() { return new SemaStringType() }
+    public static SemaErrorType getErrorType() { return new SemaErrorType() }
 
     public static SemaArrayType CreateArrayType(const SemaType elementType, const long size) {
-        out = new SemaArrayType(elementType, size)
+        return new SemaArrayType(elementType, size)
     }
 }

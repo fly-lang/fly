@@ -31,19 +31,17 @@ public class FlyManifestReader {
         ASTModule mod = p.parseModule("Manifest")
         if p.isSuccess() == false {
             errOut = 210
-            out = new Manifest()
-            return
+            return new Manifest()
         }
         ASTClass mc = this.findManifestClass(mod)
         if mc == null {
             errOut = 211
-            out = new Manifest()
-            return
+            return new Manifest()
         }
         Manifest m = new Manifest()
         this.readManifestClass(mc, m)
         errOut = 0
-        out = m
+        return m
     }
 
     // findManifestClass — the first top-level class whose base list names `Manifest`.
@@ -53,11 +51,11 @@ public class FlyManifestReader {
         while i < nodes.size() {
             ASTClass c = nodes.get(i).asClass()
             if c != null {
-                if this.extendsManifest(c) { out = c  return }
+                if this.extendsManifest(c) { return c }
             }
             i = i + 1
         }
-        out = null
+        return null
     }
 
     bool extendsManifest(const ASTClass c) {
@@ -69,12 +67,12 @@ public class FlyManifestReader {
                 List<ASTName> names = nt.getNames()
                 if names.size() > 0 {
                     string last = names.get(names.size() - 1).getName()
-                    if str.equals(last, "Manifest") { out = true  return }
+                    if str.equals(last, "Manifest") { return true }
                 }
             }
             i = i + 1
         }
-        out = false
+        return false
     }
 
     void readManifestClass(const ASTClass c, const Manifest m) {
@@ -112,7 +110,7 @@ public class FlyManifestReader {
     // strOf — the string value of a scalar initializer ("" if not a string literal).
     string strOf(const ASTExpr e) {
         ASTStringValue sv = e.asStringValue()
-        if sv != null { out = sv.getValue() } else { out = "" }
+        if sv != null { return sv.getValue() } else { return "" }
     }
 
     // readStrArray — a `{"a", "b"}` initializer; kind 0 = authors, 1 = linkLibs.
@@ -199,6 +197,6 @@ public class FlyManifestReader {
     string argStr(const List<ASTArg> args, const int idx) {
         ASTNode e = args.get(idx).getExpr()
         ASTStringValue sv = e.asStringValue()
-        if sv != null { out = sv.getValue() } else { out = "" }
+        if sv != null { return sv.getValue() } else { return "" }
     }
 }

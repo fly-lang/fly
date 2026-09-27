@@ -36,29 +36,35 @@ import fly.os.env
 
 // crlf — the two bytes 13, 10.
 private string crlf() {
+    string res = ""
     pointer b = mem.alloc(2)
     mem.writeByte(b, 0, 13)
     mem.writeByte(b, 1, 10)
-    str.fromBytes(b, 2, out)
+    res = str.fromBytes(b, 2)
+    return res
 }
 
 // dq — a one-byte string holding a double quote (34). Needed by the multipart
 // builder, whose Content-Disposition values are quoted; a literal cannot produce
 // a bare `"` because escapes stay raw.
 private string dq() {
+    string res = ""
     pointer b = mem.alloc(1)
     mem.writeByte(b, 0, 34)
-    str.fromBytes(b, 1, out)
+    res = str.fromBytes(b, 1)
+    return res
 }
 
 // crlf2 — the header-block terminator, 13 10 13 10.
 private string crlf2() {
+    string res = ""
     pointer b = mem.alloc(4)
     mem.writeByte(b, 0, 13)
     mem.writeByte(b, 1, 10)
     mem.writeByte(b, 2, 13)
     mem.writeByte(b, 3, 10)
-    str.fromBytes(b, 4, out)
+    res = str.fromBytes(b, 4)
+    return res
 }
 
 // ── scanning helpers ─────────────────────────────────────────────────────────
@@ -69,8 +75,8 @@ private string crlf2() {
 private int findFrom(const string s, const string sub, const int from) {
     int n = str.len(s)
     int m = str.len(sub)
-    if m == 0 { out = 0 - 1  return }
-    if m > n { out = 0 - 1  return }
+    if m == 0 { return 0 - 1 }
+    if m > n { return 0 - 1 }
     int i = from
     if i < 0 { i = 0 }
     int last = n - m
@@ -80,14 +86,14 @@ private int findFrom(const string s, const string sub, const int from) {
         while same && j < m {
             byte a = 0
             byte b = 0
-            str.byteAt(s, i + j, a)
-            str.byteAt(sub, j, b)
+            a = str.byteAt(s, i + j)
+            b = str.byteAt(sub, j)
             if a != b { same = false } else { j = j + 1 }
         }
-        if same { out = i  return }
+        if same { return i }
         i = i + 1
     }
-    out = 0 - 1
+    return 0 - 1
 }
 
 // findByte — index of byte `c` in `s` at or after `from`, bounded by `stop`;
@@ -99,19 +105,18 @@ private int findByte(const string s, const int c, const int from, const int stop
     int i = from
     if i < 0 { i = 0 }
     while i < end {
-        byte b = 0
-        str.byteAt(s, i, b)
+        byte b = str.byteAt(s, i)
         int v = b & 255
-        if v == c { out = i  return }
+        if v == c { return i }
         i = i + 1
     }
-    out = 0 - 1
+    return 0 - 1
 }
 
 // lineEnd — index of the CRLF that ends the line starting at `from`; -1 when the
 // line is not terminated.
 private int lineEnd(const string raw, const int from) {
-    out = findFrom(raw, crlf(), from)
+    return findFrom(raw, crlf(), from)
 }
 
 // ── Request parsing ──────────────────────────────────────────────────────────
@@ -120,70 +125,70 @@ private int lineEnd(const string raw, const int from) {
 // the body starts. -1 while the header block has not fully arrived.
 public int headerEnd(const string raw) {
     int i = findFrom(raw, crlf2(), 0)
-    if i < 0 { out = 0 - 1  return }
-    out = i + 4
+    if i < 0 { return 0 - 1 }
+    return i + 4
 }
 
 // requestLine — the first line, or "" when it is not terminated.
 private string requestLine(const string raw) {
     int e = lineEnd(raw, 0)
-    if e < 0 { out = ""  return }
-    out = str.substring(raw, 0, e)
+    if e < 0 { return "" }
+    return str.substring(raw, 0, e)
 }
 
 // field — the i-th space-separated field (0,1,2) of the request/status line.
 private string field(const string line, const int which) {
     int n = str.len(line)
-    if n == 0 { out = ""  return }
+    if n == 0 { return "" }
     int start = 0
     int idx = 0
     while idx < which {
         int sp = findByte(line, 32, start, n)
-        if sp < 0 { out = ""  return }
+        if sp < 0 { return "" }
         start = sp + 1
         idx = idx + 1
     }
     // The loop above already returned "" if field `which` does not exist, so
     // reaching here with no further space means this field runs to end of line.
     int sp2 = findByte(line, 32, start, n)
-    if sp2 < 0 { out = str.substring(line, start, n)  return }
-    out = str.substring(line, start, sp2)
+    if sp2 < 0 { return str.substring(line, start, n) }
+    return str.substring(line, start, sp2)
 }
 
 // method — "GET", "POST", …; "" when the request line is unparseable.
 public string method(const string raw) {
-    out = field(requestLine(raw), 0)
+    return field(requestLine(raw), 0)
 }
 
 // target — the full request target including the query ("/v1/pkg?x=1"); "" on
 // a malformed request line.
 public string target(const string raw) {
-    out = field(requestLine(raw), 1)
+    return field(requestLine(raw), 1)
 }
 
 // version — "HTTP/1.1"; "" on a malformed request line.
 public string version(const string raw) {
-    out = field(requestLine(raw), 2)
+    return field(requestLine(raw), 2)
 }
 
 // path — the target up to '?'. "" on a malformed request line.
 public string path(const string raw) {
     string t = target(raw)
     int n = str.len(t)
-    if n == 0 { out = ""  return }
+    if n == 0 { return t }
     int q = findByte(t, 63, 0, n)
-    if q < 0 { out = t  return }
-    out = str.substring(t, 0, q)
+    if q >= 0 { t = str.substring(t, 0, q) }
+    return t
 }
 
 // query — the target after '?'; "" when there is none.
 public string query(const string raw) {
     string t = target(raw)
     int n = str.len(t)
-    if n == 0 { out = ""  return }
+    if n == 0 { return "" }
     int q = findByte(t, 63, 0, n)
-    if q < 0 { out = ""  return }
-    out = str.substring(t, q + 1, n)
+    if q < 0 { return "" }
+    return str.substring(t, q + 1, n)
 }
 
 // header — case-insensitive header lookup, value trimmed of surrounding spaces.
@@ -195,7 +200,7 @@ public string header(const string raw, const string name) {
     int limit = str.len(raw)
     if he >= 0 { limit = he }
     int pos = lineEnd(raw, 0)
-    if pos < 0 { out = ""  return }
+    if pos < 0 { return "" }
     pos = pos + 2
     bool go = true
     while go && pos < limit {
@@ -206,41 +211,39 @@ public string header(const string raw, const string name) {
                 if colon > 0 {
                     string key = str.substring(raw, pos, colon)
                     if str.equalsIgnoreCase(str.trim(key), name) {
-                        out = str.trim(str.substring(raw, colon + 1, e))
-                        return
+                        return str.trim(str.substring(raw, colon + 1, e))
                     }
                 }
                 pos = e + 2
             }
         }
     }
-    out = ""
+    return ""
 }
 
 // contentLength — the Content-Length value; -1 when absent or not a number.
 public int contentLength(const string raw) {
     string v = header(raw, "Content-Length")
     int n = str.len(v)
-    if n == 0 { out = 0 - 1  return }
+    if n == 0 { return 0 - 1 }
     int acc = 0
     int i = 0
     while i < n {
-        byte b = 0
-        str.byteAt(v, i, b)
+        byte b = str.byteAt(v, i)
         int c = b & 255
         bool isDigit = c >= 48 && c <= 57
-        if isDigit == false { out = 0 - 1  return }
+        if isDigit == false { return 0 - 1 }
         acc = acc * 10 + (c - 48)
         i = i + 1
     }
-    out = acc
+    return acc
 }
 
 // body — everything after the CRLFCRLF; "" while the header block is incomplete.
 public string body(const string raw) {
     int he = headerEnd(raw)
-    if he < 0 { out = ""  return }
-    out = str.substring(raw, he, str.len(raw))
+    if he < 0 { return "" }
+    return str.substring(raw, he, str.len(raw))
 }
 
 // ── Chunked transfer-encoding ─────────────────────────────────────────────────
@@ -262,8 +265,7 @@ private int hexIntOf(const string s) {
     int i = 0
     bool go = true
     while go && i < n {
-        byte b = 0
-        str.byteAt(s, i, b)
+        byte b = str.byteAt(s, i)
         int cv = b
         int c = cv & 255
         int v = 0 - 1
@@ -276,16 +278,16 @@ private int hexIntOf(const string s) {
             i = i + 1
         }
     }
-    if seen == 0 { out = 0 - 1  return }
-    out = acc
+    if seen == 0 { return 0 - 1 }
+    return acc
 }
 
 // isChunked — true when the message declares `Transfer-Encoding: chunked`. The
 // header may list several codings, so this is a substring test, not equality.
 public bool isChunked(const string raw) {
     string te = header(raw, "Transfer-Encoding")
-    if str.isEmpty(te) { out = false  return }
-    out = str.contains(str.toLower(te), "chunked")
+    if str.isEmpty(te) { return false }
+    return str.contains(str.toLower(te), "chunked")
 }
 
 // chunkedSize — the DECODED length of a chunked body, or -1 when the body is
@@ -298,16 +300,16 @@ private int chunkedSize(const string body) {
     int i = 0
     while i < n {
         int e = lineEnd(body, i)
-        if e < 0 { out = 0 - 1  return }             // size line not terminated yet
+        if e < 0 { return 0 - 1 }             // size line not terminated yet
         int sz = hexIntOf(str.substring(body, i, e))
-        if sz < 0 { out = 0 - 1  return }            // not a chunk header
-        if sz == 0 { out = total  return }           // terminating chunk
+        if sz < 0 { return 0 - 1 }            // not a chunk header
+        if sz == 0 { return total }           // terminating chunk
         int dataStart = e + 2
-        if dataStart + sz + 2 > n { out = 0 - 1  return }   // chunk still arriving
+        if dataStart + sz + 2 > n { return 0 - 1 }   // chunk still arriving
         total = total + sz
         i = dataStart + sz + 2
     }
-    out = 0 - 1
+    return 0 - 1
 }
 
 // dechunk — a chunked body decoded into its payload. "" when the body is
@@ -316,9 +318,10 @@ private int chunkedSize(const string body) {
 // The size is computed first and the buffer allocated ONCE: growing it per chunk
 // would reallocate for every chunk of a large transfer.
 public string dechunk(const string body) {
+    string res = ""
     int want = chunkedSize(body)
-    if want < 0 { out = ""  return }
-    if want == 0 { out = ""  return }
+    if want < 0 { return res }
+    if want == 0 { return res }
     pointer buf = 0
     fly.runtime.mem_alloc(want, buf)
     int n = str.len(body)
@@ -333,8 +336,7 @@ public string dechunk(const string body) {
                 int dataStart = e + 2
                 int k = 0
                 while k < sz {
-                    byte b = 0
-                    str.byteAt(body, dataStart + k, b)
+                    byte b = str.byteAt(body, dataStart + k)
                     fly.llvm.strPoke(buf, o + k, b)
                     k = k + 1
                 }
@@ -343,7 +345,8 @@ public string dechunk(const string body) {
             }
         }
     }
-    fly.llvm.strMake(buf, o, out)
+    fly.llvm.strMake(buf, o, res)
+    return res
 }
 
 // bodyDecoded — the message body with the transfer coding removed: dechunked
@@ -351,8 +354,8 @@ public string dechunk(const string body) {
 // wants instead of body().
 public string bodyDecoded(const string raw) {
     string b = body(raw)
-    if isChunked(raw) { out = dechunk(b)  return }
-    out = b
+    if isChunked(raw) { b = dechunk(b) }
+    return b
 }
 
 // isComplete — true once the whole message has arrived. This is the receive
@@ -367,14 +370,13 @@ public string bodyDecoded(const string raw) {
 // no Content-Length.
 public bool isComplete(const string raw) {
     int he = headerEnd(raw)
-    if he < 0 { out = false  return }
+    if he < 0 { return false }
     if isChunked(raw) {
-        out = chunkedSize(str.substring(raw, he, str.len(raw))) >= 0
-        return
+        return chunkedSize(str.substring(raw, he, str.len(raw))) >= 0
     }
     int cl = contentLength(raw)
-    if cl < 0 { out = true  return }
-    out = str.len(raw) - he >= cl
+    if cl < 0 { return true }
+    return str.len(raw) - he >= cl
 }
 
 // queryParam — the value of `key` in the query string; "" when absent. Values
@@ -382,7 +384,7 @@ public bool isComplete(const string raw) {
 public string queryParam(const string raw, const string key) {
     string q = query(raw)
     int n = str.len(q)
-    if n == 0 { out = ""  return }
+    if n == 0 { return "" }
     int pos = 0
     bool go = true
     while go && pos < n {
@@ -393,13 +395,12 @@ public string queryParam(const string raw, const string key) {
         if eq > 0 {
             string k = str.substring(q, pos, eq)
             if str.equals(k, key) {
-                out = str.substring(q, eq + 1, stop)
-                return
+                return str.substring(q, eq + 1, stop)
             }
         }
         if amp < 0 { go = false } else { pos = amp + 1 }
     }
-    out = ""
+    return ""
 }
 
 // ── Response building ────────────────────────────────────────────────────────
@@ -407,23 +408,23 @@ public string queryParam(const string raw, const string key) {
 // statusText — the reason phrase for a status code; "Unknown" for anything not
 // listed. The set is the one the registry protocol actually uses.
 public string statusText(const int status) {
-    if status == 200 { out = "OK"  return }
-    if status == 201 { out = "Created"  return }
-    if status == 204 { out = "No Content"  return }
-    if status == 301 { out = "Moved Permanently"  return }
-    if status == 302 { out = "Found"  return }
-    if status == 304 { out = "Not Modified"  return }
-    if status == 400 { out = "Bad Request"  return }
-    if status == 401 { out = "Unauthorized"  return }
-    if status == 403 { out = "Forbidden"  return }
-    if status == 404 { out = "Not Found"  return }
-    if status == 405 { out = "Method Not Allowed"  return }
-    if status == 409 { out = "Conflict"  return }
-    if status == 413 { out = "Payload Too Large"  return }
-    if status == 500 { out = "Internal Server Error"  return }
-    if status == 501 { out = "Not Implemented"  return }
-    if status == 503 { out = "Service Unavailable"  return }
-    out = "Unknown"
+    if status == 200 { return "OK" }
+    if status == 201 { return "Created" }
+    if status == 204 { return "No Content" }
+    if status == 301 { return "Moved Permanently" }
+    if status == 302 { return "Found" }
+    if status == 304 { return "Not Modified" }
+    if status == 400 { return "Bad Request" }
+    if status == 401 { return "Unauthorized" }
+    if status == 403 { return "Forbidden" }
+    if status == 404 { return "Not Found" }
+    if status == 405 { return "Method Not Allowed" }
+    if status == 409 { return "Conflict" }
+    if status == 413 { return "Payload Too Large" }
+    if status == 500 { return "Internal Server Error" }
+    if status == 501 { return "Not Implemented" }
+    if status == 503 { return "Service Unavailable" }
+    return "Unknown"
 }
 
 // appendSegs — append each LINE-FEED-separated item of `extra` as its own header
@@ -442,7 +443,7 @@ public string statusText(const int status) {
 private string appendSegs(const string acc, const string extra) {
     string s = acc
     int n = str.len(extra)
-    if n == 0 { out = s  return }
+    if n == 0 { return s }
     string nl = crlf()
     int pos = 0
     bool go = true
@@ -457,20 +458,19 @@ private string appendSegs(const string acc, const string extra) {
         }
         if semi < 0 { go = false } else { pos = semi + 1 }
     }
-    out = s
+    return s
 }
 
 // joinHeaders — combine two header lines into one `extraHeaders` argument. A Fly
 // literal cannot hold the LF that separates them, so this is how a caller sends
 // more than one extra header. Chain it for three or more.
 public string joinHeaders(const string a, const string b) {
-    if str.isEmpty(a) { out = b  return }
-    if str.isEmpty(b) { out = a  return }
+    if str.isEmpty(a) { return b }
+    if str.isEmpty(b) { return a }
     pointer p = mem.alloc(1)
     mem.writeByte(p, 0, 10)
-    string lf = ""
-    str.fromBytes(p, 1, lf)
-    out = str.concat(a, str.concat(lf, b))
+    string lf = str.fromBytes(p, 1)
+    return str.concat(a, str.concat(lf, b))
 }
 
 // responseWith — a complete HTTP/1.1 response with `Connection: close`: status
@@ -478,7 +478,7 @@ public string joinHeaders(const string a, const string b) {
 // the blank line, then the body. `extraHeaders` is an LF-separated list of
 // "Name: Value" items (see joinHeaders); "" for none.
 public string responseWith(const int status, const string contentType, const string extraHeaders, const string bodyStr) {
-    out = responseConn(status, contentType, extraHeaders, false, bodyStr)
+    return responseConn(status, contentType, extraHeaders, false, bodyStr)
 }
 
 // responseConn — responseWith with the connection disposition chosen. A server
@@ -508,19 +508,19 @@ public string responseConn(const int status, const string contentType, const str
     s = str.concat(s, nl)
     s = str.concat(s, nl)
     s = str.concat(s, bodyStr)
-    out = s
+    return s
 }
 
 // response — responseWith without extra headers.
 public string response(const int status, const string contentType, const string bodyStr) {
-    out = responseWith(status, contentType, "", bodyStr)
+    return responseWith(status, contentType, "", bodyStr)
 }
 
 // buildRequest — a complete request with `Connection: close`, i.e. one exchange
 // per connection. `extraHeaders` uses the same ';' convention as responseWith;
 // Content-Length is added automatically when the body is non-empty.
 public string buildRequest(const string method, const string targetPath, const string host, const string extraHeaders, const string bodyStr) {
-    out = buildRequestConn(method, targetPath, host, extraHeaders, bodyStr, false)
+    return buildRequestConn(method, targetPath, host, extraHeaders, bodyStr, false)
 }
 
 // buildRequestConn — buildRequest with the connection disposition chosen:
@@ -552,7 +552,7 @@ public string buildRequestConn(const string method, const string targetPath, con
     s = str.concat(s, nl)
     s = str.concat(s, nl)
     s = str.concat(s, bodyStr)
-    out = s
+    return s
 }
 
 // basicAuth — the value for an `Authorization` header: "Basic " followed by the
@@ -563,7 +563,7 @@ public string buildRequestConn(const string method, const string targetPath, con
 // credentials are trivially recoverable. Use it only over TLS.
 public string basicAuth(const string user, const string password) {
     string pair = str.concat(user, str.concat(":", password))
-    out = str.concat("Basic ", codec.base64Encode(pair))
+    return str.concat("Basic ", codec.base64Encode(pair))
 }
 
 // ── Response parsing ─────────────────────────────────────────────────────────
@@ -572,29 +572,28 @@ public string basicAuth(const string user, const string password) {
 public int respStatus(const string raw) {
     string code = field(requestLine(raw), 1)
     int n = str.len(code)
-    if n == 0 { out = 0 - 1  return }
+    if n == 0 { return 0 - 1 }
     int acc = 0
     int i = 0
     while i < n {
-        byte b = 0
-        str.byteAt(code, i, b)
+        byte b = str.byteAt(code, i)
         int c = b & 255
         bool isDigit = c >= 48 && c <= 57
-        if isDigit == false { out = 0 - 1  return }
+        if isDigit == false { return 0 - 1 }
         acc = acc * 10 + (c - 48)
         i = i + 1
     }
-    out = acc
+    return acc
 }
 
 // respHeader — case-insensitive header lookup in a response; "" when absent.
 public string respHeader(const string raw, const string name) {
-    out = header(raw, name)
+    return header(raw, name)
 }
 
 // respBody — the response body; "" while the header block is incomplete.
 public string respBody(const string raw) {
-    out = body(raw)
+    return body(raw)
 }
 
 // ── URL splitting ────────────────────────────────────────────────────────────
@@ -602,30 +601,30 @@ public string respBody(const string raw) {
 // authorityOf — the host[:port] component, and where the path starts.
 private string authorityOf(const string url) {
     int n = str.len(url)
-    if n == 0 { out = ""  return }
+    if n == 0 { return "" }
     int start = 0
     int sep = findFrom(url, "://", 0)
     if sep >= 0 { start = sep + 3 }
     int slash = findByte(url, 47, start, n)
-    if slash < 0 { out = str.substring(url, start, n)  return }
-    out = str.substring(url, start, slash)
+    if slash < 0 { return str.substring(url, start, n) }
+    return str.substring(url, start, slash)
 }
 
 // urlScheme — "http" / "https"; "" when the URL carries no scheme.
 public string urlScheme(const string url) {
     int sep = findFrom(url, "://", 0)
-    if sep < 0 { out = ""  return }
-    out = str.toLower(str.substring(url, 0, sep))
+    if sep < 0 { return "" }
+    return str.toLower(str.substring(url, 0, sep))
 }
 
 // urlHost — the host, port stripped; "" on a malformed URL.
 public string urlHost(const string url) {
     string a = authorityOf(url)
     int n = str.len(a)
-    if n == 0 { out = ""  return }
+    if n == 0 { return a }
     int colon = findByte(a, 58, 0, n)
-    if colon < 0 { out = a  return }
-    out = str.substring(a, 0, colon)
+    if colon >= 0 { a = str.substring(a, 0, colon) }
+    return a
 }
 
 // urlPort — the explicit port, else 80 for http and 443 for https (and 80 when
@@ -636,34 +635,32 @@ public int urlPort(const string url) {
     int colon = 0 - 1
     if n > 0 { colon = findByte(a, 58, 0, n) }
     if colon < 0 {
-        if str.equals(urlScheme(url), "https") { out = 443 } else { out = 80 }
-        return
+        if str.equals(urlScheme(url), "https") { return 443 } else { return 80 }
     }
     int acc = 0
     int i = colon + 1
-    if i >= n { out = 0 - 1  return }
+    if i >= n { return 0 - 1 }
     while i < n {
-        byte b = 0
-        str.byteAt(a, i, b)
+        byte b = str.byteAt(a, i)
         int c = b & 255
         bool isDigit = c >= 48 && c <= 57
-        if isDigit == false { out = 0 - 1  return }
+        if isDigit == false { return 0 - 1 }
         acc = acc * 10 + (c - 48)
         i = i + 1
     }
-    out = acc
+    return acc
 }
 
 // urlPath — the path plus query; "/" when the URL has none.
 public string urlPath(const string url) {
     int n = str.len(url)
-    if n == 0 { out = "/"  return }
+    if n == 0 { return "/" }
     int start = 0
     int sep = findFrom(url, "://", 0)
     if sep >= 0 { start = sep + 3 }
     int slash = findByte(url, 47, start, n)
-    if slash < 0 { out = "/"  return }
-    out = str.substring(url, slash, n)
+    if slash < 0 { return "/" }
+    return str.substring(url, slash, n)
 }
 
 // ── Redirects ─────────────────────────────────────────────────────────────────
@@ -672,24 +669,24 @@ public string urlPath(const string url) {
 // Modified is deliberately EXCLUDED: it is a cache answer, not a redirect, and
 // following it would turn a conditional request into a loop.
 public bool isRedirect(const int status) {
-    if status == 301 || status == 302 { out = true  return }
-    if status == 303 || status == 307 || status == 308 { out = true  return }
-    out = false
+    if status == 301 || status == 302 { return true }
+    if status == 303 || status == 307 || status == 308 { return true }
+    return false
 }
 
 // dirOf — everything up to and including the last '/' of a path, "/" when there
 // is none. The base for resolving a relative Location.
 private string dirOf(const string path) {
     int n = str.len(path)
-    if n == 0 { out = "/"  return }
+    if n == 0 { return "/" }
     int last = 0 - 1
     int i = 0
     while i < n {
         if findByte(path, 47, i, i + 1) == i { last = i }
         i = i + 1
     }
-    if last < 0 { out = "/"  return }
-    out = str.substring(path, 0, last + 1)
+    if last < 0 { return "/" }
+    return str.substring(path, 0, last + 1)
 }
 
 // resolveUrl — an absolute URL from a Location value and the URL it came from.
@@ -700,10 +697,10 @@ private string dirOf(const string path) {
 //                                   ("../" is NOT collapsed; servers rarely send it)
 // "" when `location` is empty or the base URL has no host.
 public string resolveUrl(const string baseUrl, const string location) {
-    if str.isEmpty(location) { out = ""  return }
-    if findFrom(location, "://", 0) >= 0 { out = location  return }
+    if str.isEmpty(location) { return "" }
+    if findFrom(location, "://", 0) >= 0 { return location }
     string host = urlHost(baseUrl)
-    if str.isEmpty(host) { out = ""  return }
+    if str.isEmpty(host) { return "" }
     string scheme = urlScheme(baseUrl)
     if str.isEmpty(scheme) { scheme = "http" }
     int port = urlPort(baseUrl)
@@ -715,17 +712,16 @@ public string resolveUrl(const string baseUrl, const string location) {
         origin = str.concat(origin, str.concat(":", str.convert(port)))
     }
     if findByte(location, 47, 0, 1) == 0 {
-        out = str.concat(origin, location)
-        return
+        return str.concat(origin, location)
     }
-    out = str.concat(origin, str.concat(dirOf(urlPath(baseUrl)), location))
+    return str.concat(origin, str.concat(dirOf(urlPath(baseUrl)), location))
 }
 
 // redirectTarget — the absolute URL a 3xx response points at, or "" when the
 // response is not a redirect or carries no usable Location.
 public string redirectTarget(const string resp, const string baseUrl) {
-    if isRedirect(respStatus(resp)) == false { out = ""  return }
-    out = resolveUrl(baseUrl, respHeader(resp, "Location"))
+    if isRedirect(respStatus(resp)) == false { return "" }
+    return resolveUrl(baseUrl, respHeader(resp, "Location"))
 }
 
 // ── Multipart/form-data bodies ────────────────────────────────────────────────
@@ -764,8 +760,7 @@ private void mpPut(const pointer h, const string s) {
     int len = mem.readInt(h, 8)
     int i = 0
     while i < n {
-        byte b = 0
-        str.byteAt(s, i, b)
+        byte b = str.byteAt(s, i)
         fly.llvm.strPoke(data, len + i, b)
         i = i + 1
     }
@@ -773,13 +768,15 @@ private void mpPut(const pointer h, const string s) {
 }
 
 private string mpBoundary(const pointer h) {
+    string res = ""
     pointer bnd = mem.readPtr(h, 16)
     int bl = mem.readInt(h, 24)
-    if bnd == 0 || bl <= 0 { out = ""  return }
+    if bnd == 0 || bl <= 0 { return res }
     pointer copy = 0
     fly.runtime.mem_alloc(bl, copy)
     mem.copy(copy, bnd, bl)
-    fly.llvm.strMake(copy, bl, out)
+    fly.llvm.strMake(copy, bl, res)
+    return res
 }
 
 // mpNew — a multipart builder. `boundary` must not occur in any part's content;
@@ -802,21 +799,20 @@ public pointer mpNew(const string boundary) {
     fly.runtime.mem_alloc(bl, bnd)
     int i = 0
     while i < bl {
-        byte c = 0
-        str.byteAt(b, i, c)
+        byte c = str.byteAt(b, i)
         fly.llvm.strPoke(bnd, i, c)
         i = i + 1
     }
     mem.writePtr(h, 16, bnd)
     mem.writeInt(h, 24, bl)
-    out = h
+    return h
 }
 
 // mpContentType — the value for the request's Content-Type header. It carries the
 // boundary, so it MUST come from the same builder that produced the body.
 public string mpContentType(const pointer h) {
-    if h == 0 { out = ""  return }
-    out = str.concat("multipart/form-data; boundary=", mpBoundary(h))
+    if h == 0 { return "" }
+    return str.concat("multipart/form-data; boundary=", mpBoundary(h))
 }
 
 // mpAddField — a plain form field. The name is emitted verbatim: a name
@@ -867,18 +863,20 @@ public void mpAddFile(const pointer h, const string name, const string filename,
 // still valid afterwards but must NOT be added to again: a second finish would
 // append a second terminator.
 public string mpFinish(const pointer h) {
-    if h == 0 { out = ""  return }
+    string res = ""
+    if h == 0 { return res }
     mpPut(h, "--")
     mpPut(h, mpBoundary(h))
     mpPut(h, "--")
     mpPut(h, crlf())
     pointer data = mem.readPtr(h, 0)
     int len = mem.readInt(h, 8)
-    if len <= 0 { out = ""  return }
+    if len <= 0 { return res }
     pointer copy = 0
     fly.runtime.mem_alloc(len, copy)
     mem.copy(copy, data, len)
-    fly.llvm.strMake(copy, len, out)
+    fly.llvm.strMake(copy, len, res)
+    return res
 }
 
 // mpFree — release the builder. Safe on a null handle.
@@ -898,17 +896,17 @@ public void mpFree(const pointer h) {
 // side is half-closed after the request so the server sees EOF and answers even
 // when it reads to end-of-stream.
 public string exchange(const string host, const int port, const string rawRequest) {
+    string resp = ""
     long s = net.connectTo(host, port)
-    if s < 0 { out = ""  return }
+    if s < 0 { return resp }
     if net.sendStr(s, rawRequest) == false {
         net.close(s)
-        out = ""
-        return
+        return resp
     }
     net.shutdownWrite(s)
-    string resp = net.recvAll(s)
+    resp = net.recvAll(s)
     net.close(s)
-    out = resp
+    return resp
 }
 
 // ── Keep-alive: several exchanges on one connection ──────────────────────────
@@ -925,12 +923,12 @@ public string exchange(const string host, const int port, const string rawReques
 // socket blocking indefinitely.
 public long connOpen(const string host, const int port, const int timeoutMs) {
     long s = net.connectTo(host, port)
-    if s < 0 { out = 0 - 1  return }
+    if s < 0 { return 0 - 1 }
     if timeoutMs > 0 { net.setRecvTimeout(s, timeoutMs) }
     // Small request/response exchanges gain nothing from coalescing and lose a
     // round trip's worth of latency to it.
     net.setNoDelay(s, true)
-    out = s
+    return s
 }
 
 // connExchange — send one request on an open connection and read exactly one
@@ -941,9 +939,9 @@ public long connOpen(const string host, const int port, const int timeoutMs) {
 // keep the connection open; a server that answers `Connection: close` anyway is
 // within its rights, and connIsClosing() reports that.
 public string connExchange(const long s, const string rawRequest) {
-    if s < 0 { out = ""  return }
-    if net.sendStr(s, rawRequest) == false { out = ""  return }
     string acc = ""
+    if s < 0 { return acc }
+    if net.sendStr(s, rawRequest) == false { return acc }
     bool go = true
     while go {
         if isComplete(acc) { go = false } else {
@@ -953,13 +951,12 @@ public string connExchange(const long s, const string rawRequest) {
                 // to be a whole message.
                 go = false
             } else {
-                string grown = str.concat(acc, chunk)
-                acc = grown
+                acc = str.concat(acc, chunk)
             }
         }
     }
-    if isComplete(acc) == false { out = ""  return }
-    out = acc
+    if isComplete(acc) == false { acc = "" }
+    return acc
 }
 
 // connIsClosing — true when the response says the server will not accept another
@@ -967,8 +964,8 @@ public string connExchange(const long s, const string rawRequest) {
 // keep-alive, so only an explicit `Connection: close` counts.
 public bool connIsClosing(const string resp) {
     string c = header(resp, "Connection")
-    if str.isEmpty(c) { out = false  return }
-    out = str.contains(str.toLower(c), "close")
+    if str.isEmpty(c) { return false }
+    return str.contains(str.toLower(c), "close")
 }
 
 // connClose — release a connection opened with connOpen.
@@ -995,13 +992,13 @@ public void connClose(const long s) {
 public bool httpsAvailable() {
     int v = 0
     fly.runtime.net_https_available(v)
-    out = v != 0
+    return v != 0
 }
 
 // httpsSupported — true when an https URL can be served AT ALL, by either route.
 public bool httpsSupported() {
-    if tls.tlsAvailable() { out = true  return }
-    out = httpsAvailable()
+    if tls.tlsAvailable() { return true }
+    return httpsAvailable()
 }
 
 // tmpOutPath — a scratch file for the WinHTTP body handoff, in the platform temp
@@ -1010,25 +1007,24 @@ private string tmpOutPath() {
     string d = env.get("TEMP")
     if str.isEmpty(d) { d = env.get("TMPDIR") }
     if str.isEmpty(d) { d = "." }
-    out = str.concat(fs.tempDir(d, "flyhttps"), "/body")
+    return str.concat(fs.tempDir(d, "flyhttps"), "/body")
 }
 
 // cstr — a Fly string as a fresh null-terminated C buffer, or 0 for "". Duplicated
 // per the std convention rather than shared across modules.
 private pointer cstr(const string s) {
     int n = str.len(s)
-    if n == 0 { out = 0  return }
+    if n == 0 { return 0 }
     pointer buf = 0
     fly.runtime.mem_alloc(n + 1, buf)
     int i = 0
     while i < n {
-        byte b = 0
-        str.byteAt(s, i, b)
+        byte b = str.byteAt(s, i)
         fly.llvm.strPoke(buf, i, b)
         i = i + 1
     }
     fly.llvm.strPoke(buf, n, 0)
-    out = buf
+    return buf
 }
 
 // httpsRequest — the C-string marshalling for the runtime's whole-client HTTPS
@@ -1051,7 +1047,7 @@ private int httpsRequest(const string verb, const string host, const int port,
     if cHdrs != 0 { fly.runtime.mem_free(cHdrs, 0) }
     if cBody != 0 { fly.runtime.mem_free(cBody, 0) }
     if cOut != 0 { fly.runtime.mem_free(cOut, 0) }
-    out = st
+    return st
 }
 
 // secureViaTls — the transport route: one exchange over a real TLS connection,
@@ -1059,11 +1055,10 @@ private int httpsRequest(const string verb, const string host, const int port,
 private string secureViaTls(const string rawRequest, const string host, const int port, int statusOut) {
     statusOut = 0 - 1
     pointer c = tls.tlsConnectOpts(host, port, true, 30000)
-    if c == 0 { out = ""  return }
+    if c == 0 { return "" }
     if tls.tlsSendStr(c, rawRequest) == false {
         tls.tlsClose(c)
-        out = ""
-        return
+        return ""
     }
     string acc = ""
     bool go = true
@@ -1077,19 +1072,20 @@ private string secureViaTls(const string rawRequest, const string host, const in
         }
     }
     tls.tlsClose(c)
-    if isComplete(acc) == false { out = ""  return }
+    if isComplete(acc) == false { return "" }
     statusOut = respStatus(acc)
-    out = bodyDecoded(acc)
+    return bodyDecoded(acc)
 }
 
 // secureViaClient — the WinHTTP route: the backend does the whole exchange and
 // leaves the body in a file, so there is no raw response to parse.
 private string secureViaClient(const string verb, const string url, const string extraHeaders, const string bodyIn, int statusOut) {
     statusOut = 0 - 1
+    string body = ""
     string host = urlHost(url)
-    if str.isEmpty(host) { out = ""  return }
+    if str.isEmpty(host) { return body }
     int port = urlPort(url)
-    if port < 0 { out = ""  return }
+    if port < 0 { return body }
     string tmp = tmpOutPath()
     // WinHTTP wants the header block CRLF-separated; extraHeaders is LF-separated
     // (see appendSegs), so translate before handing it over.
@@ -1097,18 +1093,15 @@ private string secureViaClient(const string verb, const string url, const string
     if str.isEmpty(extraHeaders) == false {
         pointer p = mem.alloc(1)
         mem.writeByte(p, 0, 10)
-        string lf = ""
-        str.fromBytes(p, 1, lf)
+        string lf = str.fromBytes(p, 1)
         hdrs = str.replace(extraHeaders, lf, crlf())
     }
     int st = httpsRequest(verb, host, port, urlPath(url), hdrs, bodyIn, tmp)
     statusOut = st
     if st < 0 {
         if fs.exists(tmp) { fs.delete(tmp) }
-        out = ""
-        return
+        return body
     }
-    string body = ""
     if fs.exists(tmp) {
         // readBytes, NOT readStr: this spool file holds a response body, which may
         // be a tarball. The backend wrote it byte-exact (WriteFile bypasses the
@@ -1117,32 +1110,30 @@ private string secureViaClient(const string verb, const string url, const string
         body = fs.readBytes(tmp)
         fs.delete(tmp)
     }
-    out = body
+    return body
 }
 
 // secureExchange — dispatch to whichever backend exists. `statusOut` is the HTTP
 // status, or -1 when the exchange never happened.
 private string secureExchange(const string verb, const string url, const string extraHeaders, const string bodyIn, int statusOut) {
+    string res = ""
+    statusOut = 0 - 1
     if tls.tlsAvailable() {
         string host = urlHost(url)
         int port = urlPort(url)
-        if str.isEmpty(host) || port < 0 { statusOut = 0 - 1  out = ""  return }
+        if str.isEmpty(host) || port < 0 { return res }
         string req = buildRequest(verb, urlPath(url), host, extraHeaders, bodyIn)
         int st = 0
-        string b = secureViaTls(req, host, port, st)
+        res = secureViaTls(req, host, port, st)
         statusOut = st
-        out = b
-        return
+        return res
     }
     if httpsAvailable() {
         int st2 = 0
-        string b2 = secureViaClient(verb, url, extraHeaders, bodyIn, st2)
+        res = secureViaClient(verb, url, extraHeaders, bodyIn, st2)
         statusOut = st2
-        out = b2
-        return
     }
-    statusOut = 0 - 1
-    out = ""
+    return res
 }
 
 // getSecure — GET an https URL and return the BODY. "" on any failure, on a
@@ -1150,9 +1141,8 @@ private string secureExchange(const string verb, const string url, const string 
 public string getSecure(const string url) {
     int st = 0
     string body = secureExchange("GET", url, "", "", st)
-    if st < 0 { out = ""  return }
-    if isOk(st) == false { out = ""  return }
-    out = body
+    if st < 0 || isOk(st) == false { body = "" }
+    return body
 }
 
 // getSecureStatus — GET an https URL and return only the status code; -1 when the
@@ -1160,7 +1150,7 @@ public string getSecure(const string url) {
 public int getSecureStatus(const string url) {
     int st = 0
     secureExchange("GET", url, "", "", st)
-    out = st
+    return st
 }
 
 // downloadSecure — GET an https URL and write the body to destPath. false on any
@@ -1168,17 +1158,17 @@ public int getSecureStatus(const string url) {
 public bool downloadSecure(const string url, const string destPath) {
     int st = 0
     string body = secureExchange("GET", url, "", "", st)
-    if st < 0 { out = false  return }
-    if isOk(st) == false { out = false  return }
+    if st < 0 { return false }
+    if isOk(st) == false { return false }
     fs.writeBytes(destPath, body, 420)
-    out = fs.exists(destPath)
+    return fs.exists(destPath)
 }
 
 // postFileSecure — POST a file's contents to an https URL as
 // application/octet-stream, with an optional Bearer token. false on any failure
 // or a non-2xx status.
 public bool postFileSecure(const string url, const string filePath, const string token) {
-    if fs.exists(filePath) == false { out = false  return }
+    if fs.exists(filePath) == false { return false }
     string payload = fs.readBytes(filePath)
     string extra = "Content-Type: application/octet-stream"
     if str.isEmpty(token) == false {
@@ -1186,26 +1176,26 @@ public bool postFileSecure(const string url, const string filePath, const string
     }
     int st = 0
     secureExchange("POST", url, extra, payload, st)
-    if st < 0 { out = false  return }
-    out = isOk(st)
+    if st < 0 { return false }
+    return isOk(st)
 }
 
 // fetch — the shared plaintext GET path. An https URL is NOT handled here; the
 // public entry points route it to getSecure/downloadSecure instead.
 private string fetch(const string url) {
-    if str.equals(urlScheme(url), "https") { out = ""  return }
+    if str.equals(urlScheme(url), "https") { return "" }
     string host = urlHost(url)
-    if str.isEmpty(host) { out = ""  return }
+    if str.isEmpty(host) { return "" }
     int port = urlPort(url)
-    if port < 0 { out = ""  return }
+    if port < 0 { return "" }
     string req = buildRequest("GET", urlPath(url), host, "", "")
-    out = exchange(host, port, req)
+    return exchange(host, port, req)
 }
 
 // isOk — a 2xx status.
 private bool isOk(const int status) {
     bool lo = status >= 200
-    out = lo && status < 300
+    return lo && status < 300
 }
 
 // get — GET a URL and return the response BODY, transfer coding removed. "" on
@@ -1215,11 +1205,11 @@ private bool isOk(const int status) {
 // refused, so a caller no longer has to branch on the scheme itself. When no
 // HTTPS backend is available it still fails rather than downgrading.
 public string get(const string url) {
-    if str.equals(urlScheme(url), "https") { out = getSecure(url)  return }
+    if str.equals(urlScheme(url), "https") { return getSecure(url) }
     string resp = fetch(url)
-    if str.isEmpty(resp) { out = ""  return }
-    if isOk(respStatus(resp)) == false { out = ""  return }
-    out = bodyDecoded(resp)
+    if str.isEmpty(resp) { return "" }
+    if isOk(respStatus(resp)) == false { return "" }
+    return bodyDecoded(resp)
 }
 
 // getFollow — GET a URL, following up to `maxHops` redirects, and return the
@@ -1236,50 +1226,51 @@ public string getFollow(const string url, const int maxHops) {
     if limit < 0 { limit = 0 }
     while hops <= limit {
         string resp = fetch(current)
-        if str.isEmpty(resp) { out = ""  return }
+        if str.isEmpty(resp) { return "" }
         int st = respStatus(resp)
         if isRedirect(st) == false {
-            if isOk(st) == false { out = ""  return }
-            out = bodyDecoded(resp)
-            return
+            if isOk(st) == false { return "" }
+            return bodyDecoded(resp)
         }
         string next = redirectTarget(resp, current)
-        if str.isEmpty(next) { out = ""  return }
+        if str.isEmpty(next) { return "" }
         current = next
         hops = hops + 1
     }
-    out = ""
+    return ""
 }
 
 // getStatus — GET a URL and return only the status code; -1 on failure.
 public int getStatus(const string url) {
-    if str.equals(urlScheme(url), "https") { out = getSecureStatus(url)  return }
+    if str.equals(urlScheme(url), "https") { return getSecureStatus(url) }
     string resp = fetch(url)
-    if str.isEmpty(resp) { out = 0 - 1  return }
-    out = respStatus(resp)
+    if str.isEmpty(resp) { return 0 - 1 }
+    return respStatus(resp)
 }
 
 // download — GET a URL and write the body to destPath. false on any failure,
 // including a non-2xx status; destPath is left untouched on failure.
 public bool download(const string url, const string destPath) {
-    if str.equals(urlScheme(url), "https") { out = downloadSecure(url, destPath)  return }
+    if str.equals(urlScheme(url), "https") { return downloadSecure(url, destPath) }
     string resp = fetch(url)
-    if str.isEmpty(resp) { out = false  return }
-    if isOk(respStatus(resp)) == false { out = false  return }
-    fs.writeBytes(destPath, respBody(resp), 420)
-    out = fs.exists(destPath)
+    if str.isEmpty(resp) { return false }
+    if isOk(respStatus(resp)) == false { return false }
+    // bodyDecoded: a chunked response otherwise wrote its chunk-size lines into
+    // the file (the https path already decoded; plain http did not)
+    fs.writeBytes(destPath, bodyDecoded(resp), 420)
+    return fs.exists(destPath)
 }
 
 // postFile — POST the contents of filePath as application/octet-stream. A
 // non-empty `token` adds an "Authorization: Bearer <token>" header. false on any
 // failure or a non-2xx status.
 public bool postFile(const string url, const string filePath, const string token) {
-    if str.equals(urlScheme(url), "https") { out = postFileSecure(url, filePath, token)  return }
-    if fs.exists(filePath) == false { out = false  return }
+    if str.equals(urlScheme(url), "https") { return postFileSecure(url, filePath, token) }
+    if fs.exists(filePath) == false { return false }
     string host = urlHost(url)
-    if str.isEmpty(host) { out = false  return }
+    if str.isEmpty(host) { return false }
     int port = urlPort(url)
-    if port < 0 { out = false  return }
+    if port < 0 { return false }
     string payload = fs.readBytes(filePath)
     string extra = "Content-Type: application/octet-stream"
     if str.isEmpty(token) == false {
@@ -1287,6 +1278,6 @@ public bool postFile(const string url, const string filePath, const string token
     }
     string req = buildRequest("POST", urlPath(url), host, extra, payload)
     string resp = exchange(host, port, req)
-    if str.isEmpty(resp) { out = false  return }
-    out = isOk(respStatus(resp))
+    if str.isEmpty(resp) { return false }
+    return isOk(respStatus(resp))
 }

@@ -10,11 +10,11 @@ import fly.assert
 // and off by default. See the header note: TLS correctness here is validated by
 // that case, not by CI.
 bool onlineTests() {
-    out = str.isEmpty(env.get("FLY_NET_ONLINE_TESTS")) == false
+    return str.isEmpty(env.get("FLY_NET_ONLINE_TESTS")) == false
 }
 
 bool skipSockets() {
-    out = str.isEmpty(env.get("FLY_SKIP_NET_TESTS")) == false
+    return str.isEmpty(env.get("FLY_SKIP_NET_TESTS")) == false
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

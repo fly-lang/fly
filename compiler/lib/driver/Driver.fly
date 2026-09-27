@@ -51,11 +51,10 @@ void main() {
 // copied .fly sources). Shared by the driver discovery walk and the frontend
 // dependency walk; the reference mirrors the same rule.
 public bool discoverySkipsDir(const string entry) {
-    if str.isEmpty(entry) { out = false  return }
-    byte b0 = 0
-    str.byteAt(entry, 0, b0)
-    if b0 == 46 { out = true  return }        // '.'
-    out = str.equals(entry, "build")
+    if str.isEmpty(entry) { return false }
+    byte b0 = str.byteAt(entry, 0)
+    if b0 == 46 { return true }        // '.'
+    return str.equals(entry, "build")
 }
 
 // declLastDot — index of the last '.' in `s`, -1 when none.
@@ -64,12 +63,11 @@ public int declLastDot(const string s) {
     int i = 0
     int last = 0 - 1
     while i < n {
-        byte b = 0
-        str.byteAt(s, i, b)
+        byte b = str.byteAt(s, i)
         if b == 46 { last = i }
         i = i + 1
     }
-    out = last
+    return last
 }
 
 // declSuiteSelMatches — CLI-side mirror of SemaClassType.matchesSuiteSel over a
@@ -78,16 +76,16 @@ public int declLastDot(const string s) {
 // suite name, by its namespace, or by an ANCESTOR namespace (prefix) — so
 // `--suite=fly.driver.test` picks every suite under that namespace tree.
 public bool declSuiteSelMatches(const string entry, const string sel) {
-    if str.equals(entry, sel) { out = true  return }
+    if str.equals(entry, sel) { return true }
     int ld = declLastDot(entry)
-    if ld < 0 { out = false  return }          // bare entry: exact match only
+    if ld < 0 { return false }          // bare entry: exact match only
     string bare = str.substring(entry, ld + 1, str.len(entry))
-    if str.equals(bare, sel) { out = true  return }
+    if str.equals(bare, sel) { return true }
     string ns = str.substring(entry, 0, ld)
-    if str.equals(ns, sel) { out = true  return }
+    if str.equals(ns, sel) { return true }
     string pfx = str.concat(sel, ".")
-    if str.startsWith(ns, pfx) { out = true  return }
-    out = false
+    if str.startsWith(ns, pfx) { return true }
+    return false
 }
 
 public class Driver {
@@ -176,20 +174,20 @@ public class Driver {
             string a = this.normalizeArg(this.argAt(args, i))
             if str.equals(a, "-o") {
                 i = i + 1
-                if i < n { outPath = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+                if i < n { outPath = this.argAt(args, i) } else { return this.missingValue(a) }
             } elsif str.equals(a, "--out-dir") {
                 i = i + 1
-                if i < n { outDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+                if i < n { outDir = this.argAt(args, i) } else { return this.missingValue(a) }
             } elsif str.equals(a, "--target") {
                 i = i + 1
-                if i < n { targetTriple = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+                if i < n { targetTriple = this.argAt(args, i) } else { return this.missingValue(a) }
             } elsif str.startsWith(a, "--target=") {
                 // `=`-form: the Builder (invokeFly) emits --target=<triple> as a
                 // single argv token — accept it like --suite=/--test= below.
                 targetTriple = this.eqValue(a)
             } elsif str.equals(a, "--target-cpu") {
                 i = i + 1
-                if i < n { targetCpu = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+                if i < n { targetCpu = this.argAt(args, i) } else { return this.missingValue(a) }
             } elsif str.equals(a, "-c") {
                 // STAGE, not format: emit the artifact and stop before the link.
                 compileOnly = true
@@ -201,32 +199,31 @@ public class Driver {
                 emitFormat = 4
             } elsif str.equals(a, "--mcmodel") {
                 i = i + 1
-                if i < n { codeModel = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+                if i < n { codeModel = this.argAt(args, i) } else { return this.missingValue(a) }
             } elsif str.equals(a, "--mthread-model") {
                 i = i + 1
-                if i < n { threadModel = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+                if i < n { threadModel = this.argAt(args, i) } else { return this.missingValue(a) }
             } elsif str.equals(a, "--jobs") || str.equals(a, "-j") {
                 i = i + 1
-                if i < n { jobs = this.parseUInt(this.argAt(args, i), 0) } else { out = this.missingValue(a)  return }
+                if i < n { jobs = this.parseUInt(this.argAt(args, i), 0) } else { return this.missingValue(a) }
             } elsif str.equals(a, "--stats-file") {
                 i = i + 1
-                if i < n { statsFile = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+                if i < n { statsFile = this.argAt(args, i) } else { return this.missingValue(a) }
             } elsif str.equals(a, "--log-file") {
                 i = i + 1
-                if i < n { logFile = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+                if i < n { logFile = this.argAt(args, i) } else { return this.missingValue(a) }
             } elsif str.equals(a, "--log-format") {
                 i = i + 1
-                if i >= n { out = this.missingValue(a)  return }
+                if i >= n { return this.missingValue(a) }
                 logFormat = this.argAt(args, i)
                 // mirror of the reference CLI11 IsMember({"txt","json"}) check
                 if this.validLogFormat(logFormat) == false {
                     io.printErrLn(str.concat(str.concat("error: invalid --log-format '", logFormat), "' (expected txt or json)"))
-                    out = 1
-                    return
+                    return 1
                 }
             } elsif str.equals(a, "--src-dir") {
                 i = i + 1
-                if i >= n { out = this.missingValue(a)  return }
+                if i >= n { return this.missingValue(a) }
                 // --src-dir may be given MORE THAN ONCE. The roots play two
                 // distinct roles and only the first plays both:
                 //   segment 0  → the entry-DISCOVERY root (see the discovery
@@ -241,7 +238,7 @@ public class Driver {
                 srcDirs = sdNew
             } elsif str.equals(a, "--entry") {
                 i = i + 1
-                if i >= n { out = this.missingValue(a)  return }
+                if i >= n { return this.missingValue(a) }
                 // --entry names the single source file holding main(), instead
                 // of discovering it under the source root. That is what lets a
                 // second executable be built from a tree that already contains
@@ -251,7 +248,7 @@ public class Driver {
                 entryFile = this.argAt(args, i)
             } elsif str.equals(a, "--working-dir") {
                 i = i + 1                 // value consumed; FileSystemOptions not ported
-                if i >= n { out = this.missingValue(a)  return }
+                if i >= n { return this.missingValue(a) }
                 io.printErrLn("warning: --working-dir is accepted but not implemented; paths resolve against the current directory")
             } elsif str.equals(a, "--debug") {
                 verbose = true
@@ -287,23 +284,23 @@ public class Driver {
                 optLevel = this.parseUInt(lvl, 0)
             } elsif str.equals(a, "--runtime-lib-dir") {
                 i = i + 1
-                if i < n { runtimeLibDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+                if i < n { runtimeLibDir = this.argAt(args, i) } else { return this.missingValue(a) }
             } elsif str.equals(a, "--mingw-sysroot") {
                 i = i + 1
-                if i < n { mingwSysrootDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+                if i < n { mingwSysrootDir = this.argAt(args, i) } else { return this.missingValue(a) }
             } elsif str.equals(a, "--llvm-lib-dir") {
                 i = i + 1
-                if i < n { llvmLibDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+                if i < n { llvmLibDir = this.argAt(args, i) } else { return this.missingValue(a) }
             } elsif str.equals(a, "-L") {
                 i = i + 1
-                if i < n { toolchainLibDir = this.argAt(args, i) } else { out = this.missingValue(a)  return }
+                if i < n { toolchainLibDir = this.argAt(args, i) } else { return this.missingValue(a) }
             } elsif str.equals(a, "--link-lib") {
                 i = i + 1
                 if i < n {
                     // distinct temp — same self-alias gotcha as --src-dir above
                     llNew = str.concat(linkLibs, str.concat(str.concat("-l", this.argAt(args, i)), ";"))
                     linkLibs = llNew
-                } else { out = this.missingValue(a)  return }
+                } else { return this.missingValue(a) }
             } elsif str.startsWith(a, "--link-lib=") {
                 // `=`-form emitted by the Builder — same handling as the two-arg
                 // spelling above (distinct temp: self-alias gotcha).
@@ -342,26 +339,22 @@ public class Driver {
                 // printErrLn — there is nothing to suppress today.
             } elsif str.equals(a, "--help") || str.equals(a, "-help") {
                 this.printUsage()
-                out = 0
-                return
+                return 0
             } elsif str.equals(a, "--version") || str.equals(a, "-version") {
                 this.printVersion()
-                out = 0
-                return
+                return 0
             } elsif str.startsWith(a, "-") {
                 // Reference parity (Driver.cpp remaining-args loop): an unknown
                 // option is a hard ERROR, not a warning — a typo must not be
                 // silently ignored.
                 io.printErrLn(str.concat("error: unknown option: ", a))
                 io.printErrLn("Use 'fly --help' for a complete list of options.")
-                out = 1
-                return
+                return 1
             } else {
                 // `fly version` is an alias of `fly --version` (same output).
                 if str.equals(a, "version") {
                     this.printVersion()
-                    out = 0
-                    return
+                    return 0
                 }
                 // Package mode: if the first positional is a subcommand, hand the
                 // FULL argv to runPackage and stop compile parsing.
@@ -375,15 +368,13 @@ public class Driver {
                 if str.equals(a, "remove") { firstIsPkg = true }
                 if str.equals(a, "why")    { firstIsPkg = true }
                 if firstIsPkg {
-                    out = this.runPackage(args)
-                    return
+                    return this.runPackage(args)
                 }
                 // No positional inputs exist: fly compiles a source DIRECTORY
                 // (--src-dir, default: current directory), never named files —
                 // mirror of the reference directory-mode CLI.
                 io.printErrLn(str.concat(str.concat("error: unexpected argument '", a), "': fly compiles a source directory, use --src-dir <dir> (default: current directory)"))
-                out = 1
-                return
+                return 1
             }
             i = i + 1
         }
@@ -396,15 +387,13 @@ public class Driver {
         int axisErr = this.axisError(createLibrary, isShared, emitFormat, compileOnly, noOutput, hasOutPath)
         if axisErr != 0 {
             io.printErrLn(this.axisErrorText(axisErr))
-            out = 1
-            return
+            return 1
         }
         bool hasEntry = str.isEmpty(entryFile) == false
         int entryErr = this.entryError(hasEntry, createLibrary, isShared, testMode)
         if entryErr != 0 {
             io.printErrLn(this.axisErrorText(entryErr))
-            out = 1
-            return
+            return 1
         }
         bool linkStep = this.linkStepFor(compileOnly, noOutput, emitFormat)
 
@@ -426,8 +415,7 @@ public class Driver {
         if str.isEmpty(entryFile) == false {
             if fs.exists(entryFile) == false {
                 io.printErrLn(str.concat(str.concat("error: --entry file '", entryFile), "' does not exist"))
-                out = 1
-                return
+                return 1
             }
             // stem, not basename: the fallback artifact name for
             // tools/lsp/FlyLsp.fly must be "FlyLsp", not "FlyLsp.fly".
@@ -439,8 +427,7 @@ public class Driver {
             discovered = this.discoverInputs(discRoot, createLibrary || isShared, testMode, linkStep, suiteName)
         }
         if str.isEmpty(discovered) {
-            out = 1
-            return
+            return 1
         }
         srcInputs = discovered
         input = segAt(discovered, 0)
@@ -467,8 +454,7 @@ public class Driver {
         string src = fs.readStr(input)
         if str.isEmpty(src) {
             io.printErrLn(str.concat("error: cannot read input file: ", input))
-            out = 1
-            return
+            return 1
         }
 
         string basePath = outPath
@@ -592,8 +578,7 @@ public class Driver {
         // fo.getCreateHeader() is set, generates the headers after resolution.
         if createLibrary {
             fo.setBackendAction(1)                      // a library is built from an object, not linked
-            out = fe.execute("", false)
-            return
+            return fe.execute("", false)
         }
         // Header-only mode (--header, without --lib/--lib-dyn): the `.fly.h` headers
         // are the sole artifact — no object. HeaderGen runs before codegen in
@@ -604,8 +589,7 @@ public class Driver {
         // fo.getCreateHeader() inside execute). This branch used to swallow --lib-dyn
         // and return after the headers, so no .so/.dll was ever produced.
         if createHeader && (isShared == false) {
-            out = fe.execute("", true)
-            return
+            return fe.execute("", true)
         }
 
         // Link mode (default): the Frontend emits a temp object, then the ToolChain
@@ -621,22 +605,20 @@ public class Driver {
             if rc != 0 {
                 // don't leave a partially-written temp object behind on failure
                 if fs.exists(tempObj) { fs.delete(tempObj) }
-                out = rc
-                return
+                return rc
             }
             int lrc = this.linkExecutable(ci, fe.getOutputFile(), libInputs)
             // --suite: after a clean link, RUN the suite binary and adopt its exit
             // code as fly's own (reference Driver::Execute SuiteRun path). This is
             // what lets a test script be just `fly Suite.fly --suite`.
             if suiteRun {
-                if lrc == 0 { out = this.runSuiteBinary(finalPath)  return }
+                if lrc == 0 { return this.runSuiteBinary(finalPath) }
             }
-            out = lrc
-            return
+            return lrc
         }
 
         // Emit-only modes (.ll / .o / .s, or --no-output).
-        out = fe.execute("", noOutput)
+        return fe.execute("", noOutput)
     }
 
     // ── Input discovery (directory mode) ──────────────────────────────────────
@@ -649,15 +631,13 @@ public class Driver {
         string sorted = this.collectFlySources(root)
         if segCount(sorted) <= 0 {
             io.printErrLn(str.concat(str.concat("error: no .fly source files found in source directory '", root), "'"))
-            out = ""
-            return
+            return ""
         }
 
         // Library build: the whole directory IS the library.
         if wantLib {
             this.discStem = this.rootStem(root)
-            out = sorted
-            return
+            return sorted
         }
 
         // Scan the top-level declarations of every source.
@@ -705,12 +685,10 @@ public class Driver {
             if str.isEmpty(suiteSel) == false {
                 if segCount(chosen) <= 0 {
                     io.printErrLn(str.concat(str.concat(str.concat("error: no suite or namespace matches '", suiteSel), "' in source directory '"), str.concat(root, "'")))
-                    out = ""
-                    return
+                    return ""
                 }
                 this.discStem = suiteSel
-                out = chosen
-                return
+                return chosen
             }
             if segCount(suiteFiles) > 0 {
                 if segCount(allSuites) == 1 {
@@ -718,8 +696,7 @@ public class Driver {
                 } else {
                     this.discStem = this.rootStem(root)
                 }
-                out = suiteFiles
-                return
+                return suiteFiles
             }
             // No suite anywhere: fall through to main() (main + --test test exe).
         }
@@ -731,22 +708,19 @@ public class Driver {
         if mc > 1 {
             string list = this.segJoin(mains)
             io.printErrLn(str.concat(str.concat(str.concat("error: multiple main() functions found in source directory '", root), "': "), list))
-            out = ""
-            return
+            return ""
         }
         if mc == 1 {
-            out = mains
-            return
+            return mains
         }
         // No main: a non-linking build compiles the whole directory; a linking
         // build has nothing to link.
         if wantLink == false {
             this.discStem = this.rootStem(root)
-            out = sorted
-            return
+            return sorted
         }
         io.printErrLn(str.concat(str.concat("error: no main() function found in source directory '", root), "'"))
-        out = ""
+        return ""
     }
 
     // collectFlySources — walk `root` and return every `*.fly` under it (never
@@ -772,7 +746,7 @@ public class Driver {
             this.scanOneDirAt(qi)
             qi = qi + 1
         }
-        out = this.discFiles
+        return this.discFiles
     }
 
     // scanOneDirAt — scan the qi-th pending directory: enqueue its subdirectories
@@ -792,8 +766,7 @@ public class Driver {
             int off = i * 56
             pointer namePtr = mem.readPtr(items, off)
             int nameLen = mem.readInt(items, off + 8)
-            string entry = ""
-            str.fromBytes(namePtr, nameLen, entry)
+            string entry = str.fromBytes(namePtr, nameLen)
             string full = path.join(dir, entry)
             if path.isDir(full) {
                 // B009: hidden dirs (.git, .fly, .claude, …) and build/ are
@@ -819,11 +792,11 @@ public class Driver {
     // backend in and failed to link on any machine without the libssl development
     // symlink, which is exactly the regression the --tls gate exists to prevent.
     public bool isFlyInternalArchive(const string entry) {
-        if str.startsWith(entry, "fly_std_lib.") { out = true  return }
-        if str.startsWith(entry, "fly_runtime_lib.") { out = true  return }
-        if str.startsWith(entry, "fly_tls_lib.") { out = true  return }
-        if str.startsWith(entry, "fly_tls_stub.") { out = true  return }
-        out = false
+        if str.startsWith(entry, "fly_std_lib.") { return true }
+        if str.startsWith(entry, "fly_runtime_lib.") { return true }
+        if str.startsWith(entry, "fly_tls_lib.") { return true }
+        if str.startsWith(entry, "fly_tls_stub.") { return true }
+        return false
     }
 
     // scanLibDirArchives — every .a/.lib at the TOP level of the -L dir, as link
@@ -832,11 +805,11 @@ public class Driver {
     // how a package's archive reaches the linker.
     public string scanLibDirArchives(const string dir) {
         string acc = ";"
-        if str.isEmpty(dir) { out = acc  return }
-        if path.isDir(dir) == false { out = acc  return }
+        if str.isEmpty(dir) { return acc }
+        if path.isDir(dir) == false { return acc }
         fly.os.fs.DirEntries de = fs.dirRead(dir)
         pointer items = de.items
-        if items == 0 { out = acc  return }
+        if items == 0 { return acc }
         long lenL = (long)de.len
         int n = 0
         fly.llvm.longToInt(lenL, n)
@@ -845,8 +818,7 @@ public class Driver {
             int off = i * 56
             pointer namePtr = mem.readPtr(items, off)
             int nameLen = mem.readInt(items, off + 8)
-            string entry = ""
-            str.fromBytes(namePtr, nameLen, entry)
+            string entry = str.fromBytes(namePtr, nameLen)
             bool isArchive = str.endsWith(entry, ".a") || str.endsWith(entry, ".lib")
             if isArchive && this.isFlyInternalArchive(entry) == false {
                 string full = path.join(dir, entry)
@@ -855,14 +827,14 @@ public class Driver {
             }
             i = i + 1
         }
-        out = acc
+        return acc
     }
 
     // rootStem — the source-root directory name for auto-named outputs; "" for
     // the cwd default ("."), which falls back to entry-file naming.
     public string rootStem(const string root) {
-        if str.equals(root, ".") { out = ""  return }
-        out = path.basename(root)
+        if str.equals(root, ".") { return "" }
+        return path.basename(root)
     }
 
     // segJoin — ";a;b;" → "a, b" (for error messages).
@@ -879,7 +851,7 @@ public class Driver {
             res = r3
             i = i + 1
         }
-        out = res
+        return res
     }
 
     // runSuiteBinary — launch the just-linked suite executable and return its exit
@@ -896,8 +868,7 @@ public class Driver {
         }
         if fs.exists(exe) == false {
             io.printErrLn(str.concat("error: cannot run suite binary: ", exe))
-            out = 1
-            return
+            return 1
         }
         // A bare name (no directory component) must be anchored to the cwd:
         // CreateProcess skips the cwd for separator-less names when the
@@ -907,13 +878,12 @@ public class Driver {
         int n = str.len(exe)
         int i = 0
         while i < n {
-            byte b = 0
-            str.byteAt(exe, i, b)
+            byte b = str.byteAt(exe, i)
             if b == 47 || b == 92 { hasSep = true }      // '/' or '\'
             i = i + 1
         }
         if hasSep == false { exe = str.concat("./", exe) }
-        out = proc.run(exe)
+        return proc.run(exe)
     }
 
     // linkExecutable — construct a ToolChain from the CompilerInstance and link
@@ -935,16 +905,16 @@ public class Driver {
         }
         bool ok = tc.BuildOutput(inFiles, ci.getFrontendOptions())
         if fs.exists(objFile) { fs.delete(objFile) }
-        if ok { out = 0 } else { out = 1 }
+        if ok { return 0 } else { return 1 }
     }
 
     // emitExt — output extension for an emit mode (0=.ll, 1=.o, 2=.s, 3=link/exe, 4=.bc).
     public string emitExt(const int emitMode) {
-        if emitMode == 1 { out = ".o"  return }
-        if emitMode == 2 { out = ".s"  return }
-        if emitMode == 3 { out = ""    return }   // executable: no extension
-        if emitMode == 4 { out = ".bc" return }
-        out = ".ll"
+        if emitMode == 1 { return ".o" }
+        if emitMode == 2 { return ".s" }
+        if emitMode == 3 { return "" }   // executable: no extension
+        if emitMode == 4 { return ".bc" }
+        return ".ll"
     }
 
     // normalizeArg — reference Driver.cpp normaliseDashes: a single-dash LONG
@@ -953,25 +923,23 @@ public class Driver {
     // (-O2, -Lfoo must stay single-dash).
     public string normalizeArg(const string a) {
         int n = str.len(a)
-        if n <= 2 { out = a  return }
-        byte b0 = 0
-        str.byteAt(a, 0, b0)
-        if b0 != 45 { out = a  return }        // not an option token
-        byte b1 = 0
-        str.byteAt(a, 1, b1)
+        if n <= 2 { return a }
+        byte b0 = str.byteAt(a, 0)
+        if b0 != 45 { return a }        // not an option token
+        byte b1 = str.byteAt(a, 1)
         int c1 = b1 & 255                       // byte→int sign-extends: mask
-        if c1 == 45 { out = a  return }         // already --long
-        if c1 == 111 { out = a  return }        // o
-        if c1 == 79 { out = a  return }         // O
-        if c1 == 106 { out = a  return }        // j
-        if c1 == 76 { out = a  return }         // L
-        if c1 == 73 { out = a  return }         // I
-        out = str.concat("-", a)
+        if c1 == 45 { return a }         // already --long
+        if c1 == 111 { return a }        // o
+        if c1 == 79 { return a }         // O
+        if c1 == 106 { return a }        // j
+        if c1 == 76 { return a }         // L
+        if c1 == 73 { return a }         // I
+        return str.concat("-", a)
     }
 
     // validLogFormat — --log-format accepts txt|json only (reference IsMember).
     public bool validLogFormat(const string f) {
-        out = str.equals(f, "txt") || str.equals(f, "json")
+        return str.equals(f, "txt") || str.equals(f, "json")
     }
 
     // eqValue — the value after the '=' of an `--opt=value` token ("" when
@@ -980,31 +948,30 @@ public class Driver {
     // from hand-counted substring offsets.
     public string eqValue(const string a) {
         int eq = str.indexOf(a, "=")
-        if eq < 0 { out = ""  return }
-        out = str.substring(a, eq + 1, str.len(a))
+        if eq < 0 { return "" }
+        return str.substring(a, eq + 1, str.len(a))
     }
 
     // missingValue — report a value-taking option used without its value.
     public int missingValue(const string opt) {
         io.printErrLn(str.concat(str.concat("error: option '", opt), "' requires a value"))
-        out = 1
+        return 1
     }
 
     // parseUInt — parse a non-negative decimal string; non-digits/empty → dflt.
     public int parseUInt(const string s, const int dflt) {
         int len = str.len(s)
-        if len == 0 { out = dflt  return }
+        if len == 0 { return dflt }
         int acc = 0
         int i = 0
         while i < len {
-            byte b = 0
-            str.byteAt(s, i, b)
+            byte b = str.byteAt(s, i)
             int c = b
-            if c < 48 || c > 57 { out = dflt  return }
+            if c < 48 || c > 57 { return dflt }
             acc = acc * 10 + (c - 48)
             i = i + 1
         }
-        out = acc
+        return acc
     }
 
     // ── The three-axis option rules (reference Driver.cpp::BuildOptions) ─────────
@@ -1017,13 +984,13 @@ public class Driver {
     // Order matters: the most specific conflict is reported first.
     public int axisError(const bool createLibrary, const bool isShared, const int emitFormat, const bool compileOnly, const bool noOutput, const bool hasOutPath) {
         bool wantsLibrary = createLibrary || isShared
-        if createLibrary && isShared { out = 1  return }
-        if wantsLibrary && emitFormat != 1 { out = 2  return }
-        if wantsLibrary && (compileOnly || noOutput) { out = 3  return }
+        if createLibrary && isShared { return 1 }
+        if wantsLibrary && emitFormat != 1 { return 2 }
+        if wantsLibrary && (compileOnly || noOutput) { return 3 }
         // -o names the single emitted artifact and is valid for every format; only
         // --no-output, which emits nothing, has nothing to name.
-        if hasOutPath && noOutput { out = 4  return }
-        out = 0
+        if hasOutPath && noOutput { return 4 }
+        return 0
     }
 
     // entryError — 0 when --entry's combination is coherent, otherwise:
@@ -1033,27 +1000,27 @@ public class Driver {
     // merely redundant. Kept separate from axisError() so that function's
     // signature, which DriverCliSuite drives directly, stays untouched.
     public int entryError(const bool hasEntry, const bool createLibrary, const bool isShared, const bool testMode) {
-        if hasEntry == false { out = 0  return }
-        if createLibrary || isShared { out = 5  return }
-        if testMode { out = 6  return }
-        out = 0
+        if hasEntry == false { return 0 }
+        if createLibrary || isShared { return 5 }
+        if testMode { return 6 }
+        return 0
     }
 
     public string axisErrorText(const int code) {
-        if code == 1 { out = "error: cannot specify both --lib and --lib-dyn"  return }
-        if code == 2 { out = "error: cannot specify --lib/--lib-dyn with --emit-ll/--emit-bc/--emit-as"  return }
-        if code == 3 { out = "error: cannot specify --lib/--lib-dyn with -c or --no-output"  return }
-        if code == 4 { out = "error: cannot specify -o with --no-output"  return }
-        if code == 5 { out = "error: cannot specify --entry with --lib/--lib-dyn"  return }
-        if code == 6 { out = "error: cannot specify --entry with --test/--suite"  return }
-        out = ""
+        if code == 1 { return "error: cannot specify both --lib and --lib-dyn" }
+        if code == 2 { return "error: cannot specify --lib/--lib-dyn with --emit-ll/--emit-bc/--emit-as" }
+        if code == 3 { return "error: cannot specify --lib/--lib-dyn with -c or --no-output" }
+        if code == 4 { return "error: cannot specify -o with --no-output" }
+        if code == 5 { return "error: cannot specify --entry with --lib/--lib-dyn" }
+        if code == 6 { return "error: cannot specify --entry with --test/--suite" }
+        return ""
     }
 
     // linkStepFor — whether the build links. Decided ONCE, not re-derived
     // downstream from "the output file happens to be non-empty". Only object code
     // can be linked, so any other format stops at the artifact, exactly as -c does.
     public bool linkStepFor(const bool compileOnly, const bool noOutput, const int emitFormat) {
-        out = compileOnly == false && noOutput == false && emitFormat == 1
+        return compileOnly == false && noOutput == false && emitFormat == 1
     }
 
     // printUsage — the --help usage text.
@@ -1126,21 +1093,19 @@ public class Driver {
     // "<outDir>/C:\out\x" — an invalid path the object emitter then crashes writing.
     // So recognize POSIX ("/…"), drive-absolute ("X:…") and root/UNC ("\…") forms.
     public string applyOutDir(const string outDir, const string outPath) {
-        if str.isEmpty(outDir) { out = outPath  return }
+        if str.isEmpty(outDir) { return outPath }
         int L = str.len(outPath)
         if L >= 1 {
-            byte b0 = 0
-            str.byteAt(outPath, 0, b0)
-            if b0 == 47 { out = outPath  return }        // '/'  POSIX absolute
-            if b0 == 92 { out = outPath  return }        // '\'  Windows root / UNC
+            byte b0 = str.byteAt(outPath, 0)
+            if b0 == 47 { return outPath }        // '/'  POSIX absolute
+            if b0 == 92 { return outPath }        // '\'  Windows root / UNC
             if L >= 2 {
-                byte b1 = 0
-                str.byteAt(outPath, 1, b1)
-                if b1 == 58 { out = outPath  return }     // 'X:' Windows drive-absolute
+                byte b1 = str.byteAt(outPath, 1)
+                if b1 == 58 { return outPath }     // 'X:' Windows drive-absolute
             }
         }
         string slash = str.concat(outDir, "/")
-        out = str.concat(slash, outPath)
+        return str.concat(slash, outPath)
     }
 
     // argAt — read argv[i] from the StringArray's 16-byte {ptr,len} slots.
@@ -1166,7 +1131,7 @@ public class Driver {
         }
         string s = ""
         fly.llvm.strMake(buf, len, s)
-        out = s
+        return s
     }
 
     // ── Package mode (Manifest.fly) ───────────────────────────────────────────────
@@ -1179,78 +1144,79 @@ public class Driver {
         int i = 2
         while i < n {
             if str.equals(this.argAt(args, i), flag) {
-                if i + 1 < n { out = this.argAt(args, i + 1)  return }
+                if i + 1 < n { return this.argAt(args, i + 1) }
             }
             i = i + 1
         }
-        out = ""
+        return ""
     }
 
     // hasFlag — true if `flag` appears anywhere in argv.
     public bool hasFlag(const fly.os.env.StringArray args, const int n, const string flag) {
         int i = 2
         while i < n {
-            if str.equals(this.argAt(args, i), flag) { out = true  return }
+            if str.equals(this.argAt(args, i), flag) { return true }
             i = i + 1
         }
-        out = false
+        return false
     }
 
     // profileOf — --release → "release", else --profile VALUE, else "".
     public string profileOf(const fly.os.env.StringArray args, const int n) {
-        if this.hasFlag(args, n, "--release") { out = "release"  return }
-        out = this.flagValue(args, n, "--profile")
+        if this.hasFlag(args, n, "--release") { return "release" }
+        return this.flagValue(args, n, "--profile")
     }
 
     // runPackage — dispatch a project subcommand to fly.driver.
     public int runPackage(const fly.os.env.StringArray args) {
+        int res
         int n = (int)args.count
         if n < 2 {
             io.printLn("usage: fly <version|init|build|run|test|clean|cache|add|remove|lock|why|...>")
-            out = 1
-            return
+            return 1
         }
         string cmd = this.argAt(args, 1)
 
         if str.equals(cmd, "version") {
-            out = fly.driver.cmdVersion()
+            res = fly.driver.cmdVersion()
         } elsif str.equals(cmd, "init") {
-            out = fly.driver.cmdInit(this.flagValue(args, n, "--name"), this.flagValue(args, n, "--version"))
+            res = fly.driver.cmdInit(this.flagValue(args, n, "--name"), this.flagValue(args, n, "--version"))
         } elsif str.equals(cmd, "build") {
-            out = fly.driver.cmdBuild(this.profileOf(args, n), this.flagValue(args, n, "--target"),
+            res = fly.driver.cmdBuild(this.profileOf(args, n), this.flagValue(args, n, "--target"),
                     this.hasFlag(args, n, "--force"))
         } elsif str.equals(cmd, "run") {
-            out = fly.driver.cmdRun(this.profileOf(args, n), this.flagValue(args, n, "--bin"),
+            res = fly.driver.cmdRun(this.profileOf(args, n), this.flagValue(args, n, "--bin"),
                     this.hasFlag(args, n, "--force"))
         } elsif str.equals(cmd, "test") {
-            out = fly.driver.cmdTest(this.profileOf(args, n), this.hasFlag(args, n, "--force"))
+            res = fly.driver.cmdTest(this.profileOf(args, n), this.hasFlag(args, n, "--force"))
         } elsif str.equals(cmd, "clean") {
-            out = fly.driver.cmdClean(this.profileOf(args, n))
+            res = fly.driver.cmdClean(this.profileOf(args, n))
         } elsif str.equals(cmd, "lock") {
-            out = fly.driver.cmdLock()
+            res = fly.driver.cmdLock()
         } elsif str.equals(cmd, "add") {
             string depName = ""
             if n >= 3 { depName = this.argAt(args, 2) }
-            out = fly.driver.cmdAdd(depName, this.flagValue(args, n, "--git"),
+            res = fly.driver.cmdAdd(depName, this.flagValue(args, n, "--git"),
                     this.flagValue(args, n, "--tag"), this.flagValue(args, n, "--branch"),
                     this.flagValue(args, n, "--rev"), this.hasFlag(args, n, "--dev"))
         } elsif str.equals(cmd, "remove") {
             string depName = ""
             if n >= 3 { depName = this.argAt(args, 2) }
-            out = fly.driver.cmdRemove(depName)
+            res = fly.driver.cmdRemove(depName)
         } elsif str.equals(cmd, "why") {
             string depName = ""
             if n >= 3 { depName = this.argAt(args, 2) }
-            out = fly.driver.cmdWhy(depName)
+            return fly.driver.cmdWhy(depName)
         } else {
-            out = fly.driver.cmdNotPorted(cmd)
+            return fly.driver.cmdNotPorted(cmd)
         }
+        return res
     }
 
     // defaultOut — `<input>.fly` → `<input>.ll` (default IR extension). Kept as a
     // 1-arg overload for callers/tests that only want the IR path.
     public string defaultOut(const string input) {
-        out = this.defaultOut(input, ".ll")
+        return this.defaultOut(input, ".ll")
     }
 
     // defaultOut — `<input>.fly` → `<input><ext>`, else append `<ext>`.
@@ -1258,9 +1224,9 @@ public class Driver {
         if str.endsWith(input, ".fly") {
             int L = str.len(input)
             string base = str.substring(input, 0, L - 4)
-            out = str.concat(base, ext)
+            return str.concat(base, ext)
         } else {
-            out = str.concat(input, ext)
+            return str.concat(input, ext)
         }
     }
 
@@ -1268,9 +1234,9 @@ public class Driver {
     public string moduleName(const string input) {
         if str.endsWith(input, ".fly") {
             int L = str.len(input)
-            out = str.substring(input, 0, L - 4)
+            return str.substring(input, 0, L - 4)
         } else {
-            out = input
+            return input
         }
     }
 }

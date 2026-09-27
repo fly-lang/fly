@@ -55,53 +55,57 @@ class LogState {
 
 // parseValue — level name (case-insensitive) to its LogLevel value; 0 = unknown.
 int parseValue(const string name) {
-    if str.equalsIgnoreCase(name, LogLevel.ERROR.name) { out = LogLevel.ERROR.value  return }
-    if str.equalsIgnoreCase(name, LogLevel.WARN.name)  { out = LogLevel.WARN.value   return }
-    if str.equalsIgnoreCase(name, LogLevel.INFO.name)  { out = LogLevel.INFO.value   return }
-    if str.equalsIgnoreCase(name, LogLevel.DEBUG.name) { out = LogLevel.DEBUG.value  return }
-    if str.equalsIgnoreCase(name, LogLevel.TRACE.name) { out = LogLevel.TRACE.value  return }
-    out = 0
+    if str.equalsIgnoreCase(name, LogLevel.ERROR.name) { return LogLevel.ERROR.value }
+    if str.equalsIgnoreCase(name, LogLevel.WARN.name)  { return LogLevel.WARN.value }
+    if str.equalsIgnoreCase(name, LogLevel.INFO.name)  { return LogLevel.INFO.value }
+    if str.equalsIgnoreCase(name, LogLevel.DEBUG.name) { return LogLevel.DEBUG.value }
+    if str.equalsIgnoreCase(name, LogLevel.TRACE.name) { return LogLevel.TRACE.value }
+    return 0
 }
 
 // levelFromValue — 1..5 back to the enum entry; anything else maps to ERROR
 // (the least verbose defined level; callers gate the 0/off case via isOff).
 LogLevel levelFromValue(const int v) {
-    if v == 2 { out = LogLevel.WARN   return }
-    if v == 3 { out = LogLevel.INFO   return }
-    if v == 4 { out = LogLevel.DEBUG  return }
-    if v == 5 { out = LogLevel.TRACE  return }
-    out = LogLevel.ERROR
+    if v == 2 { return LogLevel.WARN }
+    if v == 3 { return LogLevel.INFO }
+    if v == 4 { return LogLevel.DEBUG }
+    if v == 5 { return LogLevel.TRACE }
+    return LogLevel.ERROR
 }
 
 // tagOf — the bracket tag as a string LITERAL. Deliberately not the enum
 // `.name` accessor: storing an entry's .name in a local aliases the generated
 // names table, and the local's scope-exit auto-free corrupts the heap.
 string tagOf(const int v) {
-    if v == 1 { out = "ERROR"  return }
-    if v == 2 { out = "WARN"   return }
-    if v == 3 { out = "INFO"   return }
-    if v == 4 { out = "DEBUG"  return }
-    out = "TRACE"
+    if v == 1 { return "ERROR" }
+    if v == 2 { return "WARN" }
+    if v == 3 { return "INFO" }
+    if v == 4 { return "DEBUG" }
+    return "TRACE"
 }
 
 // filePathStr — a FRESH copy of the configured path (strMake owns the copy, so
 // the caller's scope-exit free releases the copy, never the stored buffer).
 string filePathStr() {
+    string res = ""
     int n = LogState.fpLen
     pointer src = LogState.fpPtr
     pointer buf = 0
     fly.runtime.mem_alloc(n, buf)
     mem.copy(buf, src, n)
-    fly.llvm.strMake(buf, n, out)
+    fly.llvm.strMake(buf, n, res)
+    return res
 }
 
 // nl — a real newline string. Fly string escapes are RAW ("\n" is backslash+n),
 // so the byte is poked into a buffer; strMake takes ownership, no free.
 string nl() {
+    string res = ""
     pointer buf = 0
     fly.runtime.mem_alloc(1, buf)
     fly.llvm.strPoke(buf, 0, 10)
-    fly.llvm.strMake(buf, 1, out)
+    fly.llvm.strMake(buf, 1, res)
+    return res
 }
 
 // indent — two spaces per call-depth level (fresh temp per step: a
@@ -114,7 +118,7 @@ string indent() {
         r = c
         i = i + 1
     }
-    out = r
+    return r
 }
 
 // ensureInit — lazy one-shot environment read; explicit setters preempt it.
@@ -184,7 +188,7 @@ public void setOff() {
 
 public bool isOff() {
     ensureInit()
-    out = LogState.level == 0
+    return LogState.level == 0
 }
 
 // getLevel — the effective threshold. When isOff() it returns ERROR (the
@@ -192,19 +196,19 @@ public bool isOff() {
 public LogLevel getLevel() {
     ensureInit()
     int v = LogState.level
-    out = levelFromValue(v)
+    return levelFromValue(v)
 }
 
 // parseLevel — name to entry, unknown maps to INFO; isLevelName tells whether
 // the name is one of the five entries.
 public LogLevel parseLevel(const string name) {
     int v = parseValue(name)
-    if v == 0 { out = LogLevel.INFO  return }
-    out = levelFromValue(v)
+    if v == 0 { return LogLevel.INFO }
+    return levelFromValue(v)
 }
 
 public bool isLevelName(const string name) {
-    out = parseValue(name) != 0
+    return parseValue(name) != 0
 }
 
 // setFile — mirror every printed line into an append-mode file (created on

@@ -4,12 +4,24 @@ import fly.compiler.basic.SourceLocation
 import fly.compiler.ast.ASTStmt
 import fly.compiler.ast.ASTStmtKind
 import fly.compiler.ast.ASTVisitor
+import fly.compiler.ast.ASTExpr
+import fly.data.List
 
+// `return`, `return expr`, or `return a, b` for a function with several declared
+// return types. The values are surface syntax: the Resolver lowers them into
+// assignments to the hidden return params (__ret / __ret_i) placed right before
+// the return, which is exactly what the old explicit `out = expr` produced.
 public class ASTReturnStmt : ASTStmt {
+
+    List<ASTExpr> exprs
 
     public ASTReturnStmt(const SourceLocation loc) {
         super(loc, ASTStmtKind.STMT_RETURN)
+        this.exprs = new List<ASTExpr>()
     }
+
+    public List<ASTExpr> getExprs() { return this.exprs }
+    public void addExpr(const ASTExpr e) { this.exprs.add(e) }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

@@ -49,6 +49,12 @@ echo "stage2: std -> build/stage2/lib (copied from stage1, reference ABI)"
 ./ci/linux/build_registry.sh
 ./ci/linux/test_registry.sh
 ./ci/linux/test_tools.sh
+# ABI guard: the shipped pair is a SELF-HOST compiler over a SEED-built std, so
+# the two compilers' calling conventions must match. No suite can see this — a
+# suite compiles both sides with one compiler.
+./ci/linux/test_abi.sh
+# Leak guard: the probes are compiled by the stage2 fly, the one that ships.
+./ci/linux/test_leaks.sh
 # The debugger is PROVISIONED (bundled by link_fly.sh from the fork LLVM), not
 # compiled — but it ships from build/stage2/bin like the tools, so verify it here.
 ./ci/linux/test_dbg.sh

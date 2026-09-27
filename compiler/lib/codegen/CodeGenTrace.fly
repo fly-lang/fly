@@ -39,14 +39,14 @@ public class CodeGenTrace {
     // because the hooks themselves live in fly.log (tracing them would recurse).
     public static bool shouldTrace(const CodeGenModule cgm, const SemaFunctionBase fn) {
         CodeGenOptions o = cgm.getCodeGenOpts()
-        if o == null { out = false  return }
-        if o.getTraceCalls() == false { out = false  return }
+        if o == null { return false }
+        if o.getTraceCalls() == false { return false }
         SemaBlockStmt body = fn.getBody()
-        if body == null { out = false  return }
+        if body == null { return false }
         string ns = fn.getNamespaceName()
-        if str.equals(ns, "fly") { out = false  return }
-        if str.startsWith(ns, "fly_") { out = false  return }
-        out = true
+        if str.equals(ns, "fly") { return false }
+        if str.startsWith(ns, "fly_") { return false }
+        return true
     }
 
     // prettyName — `ns.name` for free functions, `ns.Class.name` for methods
@@ -61,7 +61,7 @@ public class CodeGenTrace {
             string c2 = str.concat(c1, ".")
             base = c2
         }
-        out = str.concat(base, fn.getName())
+        return str.concat(base, fn.getName())
     }
 
     // emitEnter — decide, then stow the name on cge and call the enter hook.

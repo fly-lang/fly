@@ -46,7 +46,7 @@ suite CodeGenDriverSuite {
             CodeGenOptions cgo = new CodeGenOptions()
             TargetOptions to = new TargetOptions("x86_64-unknown-linux-gnu")
             CompilerInstance ci = new CompilerInstance(null, fo, cgo, to)
-            ci.createSourceManager("t", "int main( { out =")
+            ci.createSourceManager("t", "int main( { return ")
             Frontend fe = new Frontend(ci)
             int code = fe.execute("", false)
             assert.assertEqI(code, 1, 11)

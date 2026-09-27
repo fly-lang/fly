@@ -25,7 +25,7 @@ int execSwitchPick(const int v) {
             r = 99
             break
     }
-    out = r
+    return r
 }
 
 suite ExecSwitchSuite {

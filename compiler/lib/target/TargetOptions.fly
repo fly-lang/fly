@@ -21,10 +21,10 @@ public class TargetOptions {
         this.codeModel = "default"
     }
 
-    public string getTriple()    { out = this.triple }
-    public string getCPU()       { out = this.cpu }
-    public string getFeatures()  { out = this.features }
-    public string getCodeModel() { out = this.codeModel }
+    public string getTriple()    { return this.triple }
+    public string getCPU()       { return this.cpu }
+    public string getFeatures()  { return this.features }
+    public string getCodeModel() { return this.codeModel }
 
     public void setCPU(const string cpu)            { this.cpu = cpu }
     public void setFeatures(const string features)  { this.features = features }

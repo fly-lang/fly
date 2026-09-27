@@ -14,12 +14,12 @@ import fly.assert
 // FREE functions on purpose: a suite helper called through `this` AVs (B018).
 bool execPrecSideAnd() {
     fail 7
-    out = true
+    return true
 }
 
 bool execPrecSideOr() {
     fail 9
-    out = true
+    return true
 }
 
 suite ExecPrecedenceSuite {

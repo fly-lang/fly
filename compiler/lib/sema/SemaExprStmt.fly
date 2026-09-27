@@ -16,6 +16,6 @@ public class SemaExprStmt : SemaStmt {
         this.expr = expr
     }
 
-    public SemaExpr getExpr() { out = this.expr }
+    public SemaExpr getExpr() { return this.expr }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }

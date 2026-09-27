@@ -41,8 +41,8 @@ public class RegistryFetcher {
     // httpsUsable — can this build actually serve an https URL? Used only to turn
     // "it returned nothing" into an actionable message.
     public bool httpsUsable(const string url) {
-        if str.equals(http.urlScheme(url), "https") == false { out = true  return }
-        out = http.httpsSupported()
+        if str.equals(http.urlScheme(url), "https") == false { return true }
+        return http.httpsSupported()
     }
 
     // reportNoHttps — one clear diagnostic instead of a silent empty result. A
@@ -54,16 +54,16 @@ public class RegistryFetcher {
     }
 
     public string httpGet(const string url) {
-        if this.httpsUsable(url) == false { this.reportNoHttps(url)  out = ""  return }
-        out = http.get(url)
+        if this.httpsUsable(url) == false { this.reportNoHttps(url)  return "" }
+        return http.get(url)
     }
     public bool httpDownload(const string url, const string dest) {
-        if this.httpsUsable(url) == false { this.reportNoHttps(url)  out = false  return }
-        out = http.download(url, dest)
+        if this.httpsUsable(url) == false { this.reportNoHttps(url)  return false }
+        return http.download(url, dest)
     }
     public bool httpPostFile(const string url, const string file, const string token) {
-        if this.httpsUsable(url) == false { this.reportNoHttps(url)  out = false  return }
-        out = http.postFile(url, file, token)
+        if this.httpsUsable(url) == false { this.reportNoHttps(url)  return false }
+        return http.postFile(url, file, token)
     }
 
     // ── version listing / resolution ──────────────────────────────────────────
@@ -75,16 +75,15 @@ public class RegistryFetcher {
         string body = this.httpGet(url)
         int e = 0
         pointer v = json.parse(body, e)
-        if e != 0 { json.freeValue(v)  out = vers  return }
-        if json.isArray(v) == false { json.freeValue(v)  out = vers  return }
+        if e != 0 { json.freeValue(v)  return vers }
+        if json.isArray(v) == false { json.freeValue(v)  return vers }
         int i = 0
         while i < json.size(v) {
             pointer el = json.at(v, i)
             if json.isString(el) {
                 string s = json.asString(el)
                 if str.isEmpty(s) == false {
-                    byte b0 = 0
-                    str.byteAt(s, 0, b0)
+                    byte b0 = str.byteAt(s, 0)
                     int c = b0
                     if c >= 48 && c <= 57 { vers.add(s) }   // starts with a digit
                 }
@@ -92,7 +91,7 @@ public class RegistryFetcher {
             i = i + 1
         }
         json.freeValue(v)
-        out = vers
+        return vers
     }
 
     // resolveVersion — exact req → normalised; else max version satisfying the
@@ -101,8 +100,7 @@ public class RegistryFetcher {
         // exact "v?d.d.d" → normalise
         if this.isExact(req) {
             SemVer sv = semverParse(req)
-            out = sv.str()
-            return
+            return sv.str()
         }
         List<string> vers = this.listVersions(registryUrl, pkg)
         SemVerRange range = rangeParse(req)
@@ -120,32 +118,30 @@ public class RegistryFetcher {
             }
             i = i + 1
         }
-        out = bestStr
+        return bestStr
     }
 
     // isExact — v?DIGITS.DIGITS.DIGITS (no range operators).
     public bool isExact(const string s) {
         int n = str.len(s)
-        if n == 0 { out = false  return }
+        if n == 0 { return false }
         int i = 0
-        byte b0 = 0
-        str.byteAt(s, 0, b0)
+        byte b0 = str.byteAt(s, 0)
         if b0 == 118 || b0 == 86 { i = 1 }      // leading v/V
         int dots = 0
         int digits = 0
         while i < n {
-            byte bb = 0
-            str.byteAt(s, i, bb)
+            byte bb = str.byteAt(s, i)
             int c = bb
             if c >= 48 && c <= 57 { digits = digits + 1 }
             elsif c == 46 {
-                if digits == 0 { out = false  return }
+                if digits == 0 { return false }
                 dots = dots + 1
                 digits = 0
-            } else { out = false  return }
+            } else { return false }
             i = i + 1
         }
-        out = dots == 2 && digits > 0
+        return dots == 2 && digits > 0
     }
 
     // ── fetch ─────────────────────────────────────────────────────────────────
@@ -160,16 +156,14 @@ public class RegistryFetcher {
         string version = this.resolveVersion(registryUrl, pkg, dep.getVersionReq())
         if str.isEmpty(version) {
             r.setError(str.concat("registry: no version of ", str.concat(pkg, str.concat(" satisfies ", dep.getVersionReq()))))
-            out = r
-            return
+            return r
         }
 
         string key = str.concat(pkg, str.concat("/", version))
         if this.cache.has(registryUrl, key) {
             string entry = this.cache.entryPath(registryUrl, key)
             this.fill(r, version, entry)
-            out = r
-            return
+            return r
         }
 
         // download tarball → extract → clean up
@@ -181,8 +175,7 @@ public class RegistryFetcher {
                          str.concat("-", str.concat(version, ".tar.gz")))))
         if this.httpDownload(durl, tarball) == false {
             r.setError(str.concat("registry: download failed for ", pkg))
-            out = r
-            return
+            return r
         }
         // Unpacked in-process by fly.targz — no `tar` on PATH, which is what
         // makes this work on a stock Windows box. It also gains two things the
@@ -194,11 +187,10 @@ public class RegistryFetcher {
         fs.delete(tarball)
         if xok == false {
             r.setError(str.concat("registry: corrupt or unreadable archive for ", pkg))
-            out = r
-            return
+            return r
         }
         this.fill(r, version, entry)
-        out = r
+        return r
     }
 
     // fill — populate a FetchResult from a cache entry (rev==version for registry).
@@ -217,7 +209,7 @@ public class RegistryFetcher {
     public bool publish(const string pkg, const string version, const string tarball, const string registryUrl, const string token) {
         string url = str.concat(registryUrl, str.concat("/v1/",
                      str.concat(pkg, str.concat("/", version))))
-        out = this.httpPostFile(url, tarball, token)
+        return this.httpPostFile(url, tarball, token)
     }
 
     // readManifest — parse <entry>/Manifest.fly. errOut: 1 = missing, else parser code.
@@ -225,14 +217,13 @@ public class RegistryFetcher {
         string mpath = str.concat(entry, "/Manifest.fly")
         if fs.exists(mpath) == false {
             errOut = 1
-            out = new Manifest()
-            return
+            return new Manifest()
         }
         string src = fs.readStr(mpath)
         int e = 0
         FlyManifestReader r = new FlyManifestReader()
         Manifest m = r.read(src, e)
         errOut = e
-        out = m
+        return m
     }
 }
