@@ -15,17 +15,13 @@ on:
       - release/*
   workflow_dispatch:
 
-env:
-  # stage0 bootstrap release (compiles the stage-1 world; see the stage map
-  # below). The seed is cut from the current fly/ reference — it must carry the
-  # header-gen/codegen fixes the self-host tree relies on. 0.13.13 brought the
-  # array subscript, `C[N]` declarations and refcounted arrays; 0.13.14 is the
-  # first STD-LESS seed (bin/fly + llvm.fly.h + runtime.fly.h + the C runtime
-  # archive only) and carries the inherited-interface-impl sema fix and the
-  # __out_N StringRef-dangle fix; 0.13.15 drops the CLI test runner
-  # (--test/--suite) and makes a lone `suite` the structural test entry — it is
-  # the first seed that never runs anything it builds.
-  FLY_VERSION: "0.13.15"
+# The stage0 seed version is NOT set here. Its single source of truth is the
+# FLY_VERSION default in ci/linux/stage0.sh (and ci/windows/stage0.ps1), which
+# also documents why each pin was needed. A workflow-level FLY_VERSION overrides
+# that default — the script honours the environment — so a copy here silently
+# drifts: this file once pinned 0.13.15 while the scripts had moved to 0.13.18,
+# and CI bootstrapped from a seed that could not parse the tree. To test another
+# seed, set FLY_VERSION on a one-off workflow_dispatch run, never as a default.
 
 jobs:
 

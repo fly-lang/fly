@@ -1,0 +1,3 @@
+interface I { void m() }
+class B : I { public B() {} }
+void main() { B b = new B() }

@@ -53,6 +53,9 @@ echo "stage2: std -> build/stage2/lib (copied from stage1, reference ABI)"
 # the two compilers' calling conventions must match. No suite can see this — a
 # suite compiles both sides with one compiler.
 ./ci/linux/test_abi.sh
+# Semantic guard: the compiler must still REJECT what the language forbids. No
+# suite can see a check that went missing - suites only compile valid programs.
+./ci/linux/test_sema.sh
 # Leak guard: the probes are compiled by the stage2 fly, the one that ships.
 ./ci/linux/test_leaks.sh
 # The debugger is PROVISIONED (bundled by link_fly.sh from the fork LLVM), not

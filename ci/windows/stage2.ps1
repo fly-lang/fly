@@ -8,14 +8,16 @@
 #   std       COPIED from stage1: the shipped std must keep the reference class
 #             ABI (see build_std.ps1) - a self-host std would break header
 #             consumers of classes with interface bases.
-#   compiler  stays the stage1 (stage0-built) archive, like Rust's beta-built
-#             rustc - linked in, never shipped as an artifact.
-#   driver    recompiled by the stage1 fly.exe and linked into build\stage2\bin.
+#   compiler  recompiled FROM SOURCE by the stage1 fly.exe, merged with the
+#   + driver  driver into one object (monolithic - see build_compiler.ps1) and
+#             linked into build\stage2\bin.
 #
-# The self-host Windows link path is still being validated in CI (no local
-# Windows): if the stage-2 rebuild fails, this script WARNS and ships the
-# stage1 artifacts by copying them into build\stage2, so the artifact layout is
-# always complete. Tighten (fail hard) once stage 2 is green on Windows.
+# A failed stage-2 rebuild is FATAL, exactly as in ci/linux/stage2.sh. This
+# script used to warn and copy the stage1 artifacts into build\stage2 instead,
+# from the time the Windows self-host link was still being brought up. That
+# fallback meant a release could ship a compiler built by the SEED - not the
+# self-host - with nothing but a line in the log to say so. build\stage2 is what
+# the release packages verbatim: it must be the stage-2 build or not exist.
 # -----------------------------------------------------------------------------
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
@@ -35,25 +37,20 @@ Copy-Item build/stage1/lib/fly_std_lib.lib build/stage2/lib/ -Force
 Get-ChildItem build/stage1/lib/*.fly.h | ForEach-Object { Copy-Item $_.FullName build/stage2/lib/ -Force }
 Write-Host "stage2: std -> build\stage2\lib (copied from stage1, reference ABI)"
 
-$ok = $true
-try {
-    foreach ($step in 'build_runtime', 'build_compiler', 'link_fly') {
+# The self-host rebuild. Any failure stops the stage: no fallback to stage1.
+# try/catch because $ErrorActionPreference = 'Stop' turns a cmdlet error inside
+# a step into a terminating exception rather than an exit code.
+foreach ($step in 'build_runtime', 'build_compiler', 'link_fly') {
+    try {
         & ".\ci\windows\$step.ps1"
-        if ($LASTEXITCODE -ne 0) { Write-Host "stage2: $step.ps1 failed (exit $LASTEXITCODE)"; $ok = $false; break }
+    } catch {
+        Write-Host "error: $step.ps1 failed: $_"; exit 1
     }
-} catch {
-    Write-Host "stage2: $_"
-    $ok = $false
+    if ($LASTEXITCODE -ne 0) { Write-Host "error: $step.ps1 failed (exit $LASTEXITCODE)"; exit 1 }
 }
-
-if (-not $ok) {
-    # Non-blocking fallback: build\stage2 always ends up a complete, shippable
-    # bin\ + lib\ layout even when the self-host rebuild fails.
-    Write-Host "warning: stage2 self-host rebuild FAILED - shipping the stage1 artifacts instead."
-    New-Item -ItemType Directory -Force build/stage2/bin, build/stage2/lib | Out-Null
-    # -Recurse so the bundled mingw\ sysroot directory copies with its contents.
-    Get-ChildItem build/stage1/bin/* -Exclude fly0.exe | ForEach-Object { Copy-Item $_.FullName build/stage2/bin/ -Recurse -Force }
-    Get-ChildItem build/stage1/lib/* | ForEach-Object { Copy-Item $_.FullName build/stage2/lib/ -Force }
+# The stage is only meaningful if it produced ITS OWN compiler.
+if (-not (Test-Path 'build/stage2/bin/fly.exe' -PathType Leaf)) {
+    Write-Host "error: stage2 rebuild reported success but build\stage2\bin\fly.exe is missing."; exit 1
 }
 
 # ── the tools: built and tested with the compiler that just finished ─────────
@@ -76,7 +73,9 @@ if (-not $ok) {
 # the two compilers' calling conventions must match. Belongs here for the same
 # reason as the leak guard: it is a property of the artifact, not of a stage's
 # sources, and no suite can see it (a suite compiles both sides with one compiler).
-foreach ($step in 'build_lsp', 'test_lsp', 'build_registry', 'test_registry', 'test_tools', 'test_abi', 'test_leaks', 'test_dbg') {
+# test_sema: the compiler must still REJECT what the language forbids. No suite
+# can see a check that went missing - suites only compile valid programs.
+foreach ($step in 'build_lsp', 'test_lsp', 'build_registry', 'test_registry', 'test_tools', 'test_abi', 'test_sema', 'test_leaks', 'test_dbg') {
     & ".\ci\windows\$step.ps1"
     if ($LASTEXITCODE -ne 0) { Write-Host "error: $step.ps1 failed (exit $LASTEXITCODE)"; exit 1 }
 }

@@ -1,0 +1,2 @@
+void main() { long big = 5000000000
+ int n = big }
