@@ -31,6 +31,11 @@ public class SemaExpr : SemaNode {
                         // here to avoid leaking the intermediate. A plain field, same
                         // rationale as escapedFlag (no narrowing virtual). NOT set by
                         // borrowed producers (var/param/literal/getter) → never freed.
+    bool constVar       // this expression IS a variable declared `const` (a local
+                        // or a parameter). Assignment needs to ask its left side
+                        // "are you const?", but holds only a SemaExpr and cannot
+                        // narrow it to SemaVar.isConstant(); so the flag is
+                        // mirrored here as a plain field, like escapedFlag.
 
     public SemaExpr(const SemaKind kind, const SemaType type) {
         super(kind)
@@ -38,6 +43,7 @@ public class SemaExpr : SemaNode {
         this.llvmValue = 0
         this.escapedFlag = false
         this.ownedStrTemp = false
+        this.constVar = false
     }
 
     public SemaType getType() { return this.type }
@@ -46,6 +52,8 @@ public class SemaExpr : SemaNode {
     public void setEscaped(const bool e) { this.escapedFlag = e }
     public bool isOwnedStrTemp() { return this.ownedStrTemp }
     public void setOwnedStrTemp(const bool o) { this.ownedStrTemp = o }
+    public bool isConstVar() { return this.constVar }
+    public void setConstVar(const bool c) { this.constVar = c }
 
     // asCall — narrow to SemaCall without a downcast (null on the base; SemaCall
     // overrides to return `this`). Used to spot `new` initializers for alloc tracking.

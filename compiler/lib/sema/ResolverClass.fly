@@ -331,6 +331,10 @@ public class ResolverClass {
             if bc != null {
                 ResolverClass.resolveClassType(r, bc)
                 cls.addBaseClass(bc)
+                // a `final` class is a leaf of the hierarchy
+                if bc.isFinal() {
+                    r.diagStr2(ac.getLoc(), DiagID.err_sema_final_class_subclassed, cls.getName(), bc.getName())
+                }
                 // single inheritance (Reference 6.1): at most ONE non-interface
                 // base — the layout/vtable flatten only the first one, so a second
                 // concrete base would silently lose its members.
@@ -506,6 +510,16 @@ public class ResolverClass {
         // Link this method to the base method it overrides (skip constructors).
         if meth.isConstructor() == false {
             ResolverClass.linkOverride(cls, meth, mn)
+            // `final` on the base method forbids exactly this link.
+            SemaClassMethod ovr = meth.getOverridden()
+            if ovr != null {
+                if ovr.isFinal() {
+                    string fo = "?"
+                    SemaClassType foc = ovr.getClass()
+                    if foc != null { fo = foc.getName() }
+                    r.diagStr2(node.getLoc(), DiagID.err_sema_final_method_overridden, mn, fo)
+                }
+            }
         }
 
         // `this` for non-static methods, added to the method scope so the body

@@ -4,6 +4,7 @@ import fly.compiler.sema.*
 import fly.compiler.ast.*
 import fly.compiler.basic.*
 import fly.data.List
+import fly.data.Map
 import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -87,6 +88,20 @@ public class Resolver : ASTVisitor {
     // empty `{}` gets a type). Set around the RHS resolution and reset to null.
     SemaType currentExpectedType
 
+    // The most recent INTEGER LITERAL resolved, with its source digits. The
+    // narrowing check needs the literal's VALUE ("does 300 fit a byte?"), but an
+    // assignment site only holds a SemaExpr and Fly has no downcast to reach
+    // SemaIntValue.getValue(). So the literal visit records itself here and the
+    // check recognises its operand BY IDENTITY (litExpr == rhs). A negated
+    // literal (`-5`) re-records the enclosing unary with litNeg set.
+    SemaExpr litExpr
+    string litRaw
+    bool litNeg
+
+    // Signatures of the free functions DEFINED so far, keyed per source file
+    // (namespace | module | name | parameter types) — see noteSignature.
+    Map<string, int> seenSigs
+
     public Resolver(const Registry reg, const bool testMode) {
         this.reg = reg
         this.testMode = testMode
@@ -105,6 +120,10 @@ public class Resolver : ASTVisitor {
         this.sawBreak = false
         this.forInCounter = 0
         this.currentExpectedType = null
+        this.litExpr = null
+        this.litRaw = ""
+        this.litNeg = false
+        this.seenSigs = new Map<string, int>()
     }
 
     // nextOutName — a fresh "__out_N" name for a call's synthetic return variable.
@@ -214,6 +233,56 @@ public class Resolver : ASTVisitor {
         bool ok = this.currentScope.insert(sym)
     }
 
+    // ── literal tracking (see the litExpr field) ──────────────────────────────
+    public void noteLiteral(const SemaExpr e, const string raw, const bool neg) {
+        this.litExpr = e
+        this.litRaw = raw
+        this.litNeg = neg
+    }
+    public SemaExpr getLitExpr() { return this.litExpr }
+    public string getLitRaw() { return this.litRaw }
+    public bool isLitNeg() { return this.litNeg }
+
+    // declareLocal — addSymbol for an EXPLICIT declaration: false when the name
+    // is already taken in the CURRENT scope (an outer scope may be shadowed).
+    public bool declareLocal(const Symbol sym) {
+        return this.currentScope.insert(sym)
+    }
+
+    // noteSignature — two functions of one file with the same name and the same
+    // parameter types are one definition written twice: no call can choose
+    // between them, and which body ran used to depend on declaration order.
+    // Scoped to a FILE on purpose: a header and the source it describes declare
+    // the same function legitimately, as do unrelated files that are compiled
+    // into one binary. Header declarations and generic templates are skipped.
+    public void noteSignature(const SemaFunctionBase fb) {
+        if fb.isFromHeader() { return }
+        ASTFunction af = fb.getAST()
+        if af == null { return }
+        List<ASTType> tps = af.getTypeParams()
+        if tps.size() > 0 { return }
+        SemaFunction ff = fb.asFunction()
+        if ff == null { return }
+        string key = str.concat(fb.getNamespaceName(), "|")
+        SemaModule fm = ff.getModule()
+        if fm != null { key = str.concat(key, fm.getName()) }
+        key = str.concat(key, "|")
+        key = str.concat(key, fb.getName())
+        List<SemaType> pts = fb.getParamTypes()
+        int i = 0
+        while i < pts.size() {
+            SemaType pt = pts.get(i)
+            key = str.concat(key, ",")
+            if pt != null { key = str.concat(key, pt.getName()) }
+            i = i + 1
+        }
+        if this.seenSigs.has(key) {
+            this.diagStr(af.getLoc(), DiagID.err_sema_duplicate_function, fb.getName())
+        } else {
+            this.seenSigs.put(key, 1)
+        }
+    }
+
     // registerInNamespace — also publish a top-level symbol in the file's namespace
     // table (skipping the default namespace), so sibling files in the same namespace
     // can see it via the implicit same-namespace import. Mirrors the C++ dual
@@ -282,6 +351,7 @@ public class Resolver : ASTVisitor {
             SemaFunctionBase fb = sigFns.get(fi)
             if fb.getKind() != SemaKind.METHOD {
                 ResolverDecl.resolveSignature(this, fb)
+                this.noteSignature(fb)
             }
             fi = fi + 1
         }
@@ -458,7 +528,10 @@ public class Resolver : ASTVisitor {
     public void visit(const ASTTernary node) { ResolverExpr.ternary(this, node) }
     public void visit(const ASTCast node) { ResolverExpr.cast(this, node) }
     public void visit(const ASTBoolValue node) { this.currentExpr = SemaBuilder.CreateBoolValue(node) }
-    public void visit(const ASTNumberValue node) { this.currentExpr = SemaBuilder.CreateNumberValue(node) }
+    public void visit(const ASTNumberValue node) {
+        this.currentExpr = SemaBuilder.CreateNumberValue(node)
+        this.noteLiteral(this.currentExpr, node.getValue(), false)
+    }
     public void visit(const ASTStringValue node) { this.currentExpr = SemaBuilder.CreateStringValue(node) }
     // Array/struct literals resolve via ResolverExpr (kept one-liners: large
     // method bodies inside a visit trip a self-host codegen bug).

@@ -24,9 +24,21 @@ public class ResolverStmt {
         // Does control certainly leave the function inside this block? One exiting
         // statement is enough — whatever follows it is unreachable.
         bool anyExit = false
+        bool afterReturn = false
         int i = 0
         while i < content.size() {
             ASTStmt s = content.get(i)
+            // A statement that follows a `return` in the same block can never
+            // run. It used to be lowered anyway, into a basic block with no
+            // terminator, and the build died in the LLVM verifier with no source
+            // location. Reported once per block, at the first dead statement.
+            // Only `return` is treated this way: a `fail` is routinely followed
+            // by the `return` that satisfies the every-path rule.
+            if afterReturn {
+                r.diag(s.getLoc(), DiagID.err_sema_unreachable_code)
+                afterReturn = false
+            }
+            if s.getStmtKind() == ASTStmtKind.STMT_RETURN { afterReturn = true }
             r.setStmtExits(false)
             s.accept(r)
             if r.getStmtExits() { anyExit = true }
@@ -56,7 +68,12 @@ public class ResolverStmt {
         if str.equals(r.getNrvoName(), lv.getName()) { slv.setReturnSlot(true) }
         Symbol sym = new Symbol(lv.getName(), SymbolKind.LOCAL_VAR, slv)
         sym.setExprRef(slv)
-        r.addSymbol(sym)
+        // An explicit declaration may shadow an OUTER scope, never redeclare a
+        // name of its own scope: the second `int a` used to be dropped silently
+        // and every later use kept reading the first variable.
+        if r.declareLocal(sym) == false {
+            r.diagStr(node.getLoc(), DiagID.err_sema_var_redefinition, lv.getName())
+        }
         SemaExpr init = null
         ASTExpr ie = node.getExpr()
         if ie != null {
@@ -68,6 +85,7 @@ public class ResolverStmt {
             // reference runs CheckAssignment here; parity for the kind level)
             if init != null {
                 checkAssignTypes(r, ie.getLoc(), slv.getType(), init.getType())
+                checkNarrowing(r, ie.getLoc(), slv.getType(), init)
             }
         }
         // `T[] k` with NEITHER a size NOR an initializer has no length to give it,
@@ -274,6 +292,7 @@ public class ResolverStmt {
         ASTExpr condAst = node.getExpr()
         condAst.accept(r)
         SemaExpr cond = r.getCurrentExpr()
+        checkCondition(r, condAst.getLoc(), cond)
         ASTStmt thenAst = node.getStmt()
         SemaBlockStmt thenBlk = ResolverStmt.resolveBlock(r, thenAst)
         // An if-chain exits only when it is total: an `else` must exist and every
@@ -288,6 +307,7 @@ public class ResolverStmt {
             ASTExpr ec = e.getExpr()
             ec.accept(r)
             SemaExpr ecExpr = r.getCurrentExpr()
+            checkCondition(r, ec.getLoc(), ecExpr)
             ASTStmt eStmt = e.getStmt()
             SemaBlockStmt eBlk = ResolverStmt.resolveBlock(r, eStmt)
             if r.getStmtExits() == false { allExit = false }
@@ -373,6 +393,7 @@ public class ResolverStmt {
         ASTExpr ce = node.getExpr()
         SemaExpr cond = null
         if ce != null { ce.accept(r)  cond = r.getCurrentExpr() }
+        if ce != null { checkCondition(r, ce.getLoc(), cond) }
         slp.setCond(cond)
 
         // An endless loop with no `break` of its own never falls through — the
@@ -693,6 +714,11 @@ public class ResolverStmt {
     }
 
     public static void breakStmt(const Resolver r, const ASTBreakStmt node) {
+        // `break` leaves the innermost loop or switch; with neither around it has
+        // nowhere to go, and codegen would branch to a block that does not exist.
+        if r.getLoopDepth() == 0 {
+            if r.getSwitchDepth() == 0 { r.diag(node.getLoc(), DiagID.err_sema_break_outside_loop) }
+        }
         r.setSawBreak(true)
         SemaBlockStmt blk = r.getCurrentSemaBlock()
         if blk != null {
@@ -702,6 +728,7 @@ public class ResolverStmt {
     }
 
     public static void continueStmt(const Resolver r, const ASTContinueStmt node) {
+        if r.getLoopDepth() == 0 { r.diag(node.getLoc(), DiagID.err_sema_continue_outside_loop) }
         SemaBlockStmt blk = r.getCurrentSemaBlock()
         if blk != null {
             SemaContinueStmt sc = SemaBuilder.CreateContinueStmt(node)

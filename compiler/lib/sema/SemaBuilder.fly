@@ -232,6 +232,7 @@ public class SemaBuilder {
         SemaLocalVar v = new SemaLocalVar(ast, type)
         SemaBuilderModifiers mods = SemaBuilderModifiers.Build(ast.getModifiers())
         v.setConstant(mods.isConstant())
+        v.setConstVar(mods.isConstant())
         return v
     }
 
@@ -239,6 +240,7 @@ public class SemaBuilder {
         SemaParam v = new SemaParam(ast, type)
         SemaBuilderModifiers mods = SemaBuilderModifiers.Build(ast.getModifiers())
         v.setConstant(mods.isConstant())
+        v.setConstVar(mods.isConstant())
         return v
     }
 

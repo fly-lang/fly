@@ -614,6 +614,13 @@ public class ResolverCall {
             }
             cls = spec
         }
+        // An abstract class has methods nothing defines: an instance of it would
+        // carry vtable slots with no target. Only its concrete subclasses can be
+        // built. (An interface never reaches here with a constructor to match.)
+        if cls.isAbstract() {
+            r.diagStr(node.getLoc(), DiagID.err_sema_abstract_instantiation, cls.getName())
+            return null
+        }
         // Header STRUCTS are plain stack objects (alloca + zero); header CLASSES
         // follow the reference protocol in codegen (malloc + <Id>.init_ctor from
         // the archive + mangled ctor) — both constructible now (audit V4 fase 2).

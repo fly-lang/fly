@@ -82,6 +82,18 @@ public class ResolverExpr {
                                     b.setType(promoteNumberTypes(lt, rtp))
                                 }
                             }
+                            // A string combines only with a string (`a + b` is
+                            // concatenation). `"a" + 1` used to resolve as a
+                            // string-typed binary and reach codegen with one
+                            // operand that is not a string at all.
+                            bool lStr = lt.isString()
+                            bool rStr = rtp.isString()
+                            if lStr != rStr {
+                                bool anyGeneric = lt.getKind() == SemaKind.TYPE_PARAM || rtp.getKind() == SemaKind.TYPE_PARAM
+                                if anyGeneric == false {
+                                    r.diagStr2(node.getOpLocation(), DiagID.err_sema_types_operation, lt.getName(), rtp.getName())
+                                }
+                            }
                         }
                     }
                 }
@@ -124,6 +136,20 @@ public class ResolverExpr {
                 if left != null {
                     if right != null {
                         checkAssignTypes(r, node.getOpLocation(), left.getType(), right.getType())
+                        // narrowing applies to a plain `=`; a compound `a += b`
+                        // computes in the assignee's own type by definition
+                        if node.isCompoundAssign() == false {
+                            checkNarrowing(r, node.getOpLocation(), left.getType(), right)
+                        }
+                    }
+                    // A `const` local or parameter is read-only. Only the variable
+                    // ITSELF is protected: `p.x = 1` through a const `p` writes a
+                    // field of the object, which const does not cover.
+                    if left.isConstVar() {
+                        string cn = "?"
+                        ASTIdentifier cid = l.asIdentifier()
+                        if cid != null { cn = cid.getName() }
+                        r.diagStr(node.getOpLocation(), DiagID.err_sema_const_assign, cn)
                     }
                 }
                 // string `+=` (or any compound on strings) is UNDEFINED by the
@@ -148,6 +174,28 @@ public class ResolverExpr {
         e.accept(r)
         SemaExpr inner = r.getCurrentExpr()
         SemaUnary u = SemaBuilder.CreateUnary(node, inner)
+        ASTUnaryKind uk = node.getOpKind()
+        if inner != null {
+            // `-5` is still a constant for the narrowing check: re-record the
+            // literal under the unary that negates it.
+            if uk == ASTUnaryKind.OP_UNARY_NEG {
+                if inner == r.getLitExpr() {
+                    if r.isLitNeg() == false { r.noteLiteral(u, r.getLitRaw(), true) }
+                }
+            }
+            // ++ / -- write their operand: not on a const variable.
+            bool writes = uk == ASTUnaryKind.OP_UNARY_PRE_INCR || uk == ASTUnaryKind.OP_UNARY_POST_INCR
+            if uk == ASTUnaryKind.OP_UNARY_PRE_DECR { writes = true }
+            if uk == ASTUnaryKind.OP_UNARY_POST_DECR { writes = true }
+            if writes {
+                if inner.isConstVar() {
+                    string un = "?"
+                    ASTIdentifier uid = e.asIdentifier()
+                    if uid != null { un = uid.getName() }
+                    r.diagStr(node.getLoc(), DiagID.err_sema_const_assign, un)
+                }
+            }
+        }
         r.setCurrentExpr(u)
     }
 
@@ -198,6 +246,7 @@ public class ResolverExpr {
         ASTExpr c = node.getConditionExpr()
         c.accept(r)
         SemaExpr cond = r.getCurrentExpr()
+        checkCondition(r, c.getLoc(), cond)
         ASTExpr te = node.getTrueExpr()
         te.accept(r)
         SemaExpr trueE = r.getCurrentExpr()
@@ -347,6 +396,29 @@ public class ResolverExpr {
             r.setCurrentExpr(null)
             return
         }
+        // A PRIVATE field is reachable only from the class that declares it
+        // (the reference rule: CurrentClass != &Attr->getClass()). The declaring
+        // class is compared by identity first and by name second: a generic
+        // specialization resolves its methods against its OWN attribute copies,
+        // but a field inherited into one may still name the template.
+        if attr.getVisibility() == SemaVisibilityKind.PRIVATE {
+            SemaClassType owner = attr.getClass()
+            SemaClassType here = r.getCurrentClass()
+            bool allowed = false
+            if here != null {
+                if owner != null {
+                    if here == owner { allowed = true }
+                    elsif str.equals(here.getName(), owner.getName()) { allowed = true }
+                }
+            }
+            if allowed == false {
+                string on = "?"
+                if owner != null { on = owner.getName() }
+                r.diagStr2(node.getLoc(), DiagID.err_sema_symbol_not_accessible, node.getName(), on)
+                r.setCurrentExpr(null)
+                return
+            }
+        }
         SemaMember mem = SemaBuilder.CreateMemberVar(node, attr, pe)
         r.setCurrentExpr(mem)
     }
@@ -424,6 +496,7 @@ public class ResolverExpr {
                 SemaExpr se = r.getCurrentExpr()
                 if se != null {
                     checkAssignTypes(r, fe.getLoc(), a.getType(), se.getType())
+                    checkNarrowing(r, fe.getLoc(), a.getType(), se)
                     sv.addField(nm, se)
                 }
             }
@@ -469,6 +542,91 @@ public void checkAssignTypes(const Resolver r, const SourceLocation loc, const S
     if ok == false {
         r.diagStr2(loc, DiagID.err_sema_type_mismatch, rhs.getName(), lhs.getName())
     }
+}
+
+// checkNarrowing — the VALUE-level half of assignment compatibility, a port of
+// the rank test in the reference SemaValidator::CheckAssignment: a number may be
+// stored into a number type of equal or higher rank, never a lower one. Without
+// it `int n = aLong` compiled and silently kept the low 32 bits.
+//
+// Two constants are exempt, because their value is known to fit:
+//   - an INTEGER LITERAL whose value fits the target (`byte b = 200`,
+//     `short s = -5`, `uint x = 3144134277`) — literals are typed int/long by
+//     default, so every small-typed initializer would otherwise need a cast;
+//   - a FLOAT LITERAL stored into a `float` (`float f = 1.5`): literals are
+//     typed double, and rounding a written constant is not a hidden loss.
+// Everything else that loses range needs an explicit cast, which checkCastTypes
+// accepts across the whole numeric group. A `bool` target is not a number and is
+// left to checkAssignTypes, as in the reference.
+public void checkNarrowing(const Resolver r, const SourceLocation loc, const SemaType lhs, const SemaExpr rhsExpr) {
+    if lhs == null { return }
+    if rhsExpr == null { return }
+    SemaType rhs = rhsExpr.getType()
+    if rhs == null { return }
+    if lhs.isNumber() == false { return }
+    if rhs.isNumber() == false { return }
+    int lr = lhs.getRank()
+    int rr = rhs.getRank()
+    if lr >= rr { return }
+
+    bool bothInt = lhs.isInteger() && rhs.isInteger()
+    if bothInt {
+        if rhsExpr == r.getLitExpr() {
+            if intLiteralFits(r.getLitRaw(), r.isLitNeg(), lr) { return }
+        }
+    } else {
+        if rhsExpr.getKind() == SemaKind.VALUE {
+            bool lFloat = lhs.isInteger() == false
+            bool rFloat = rhs.isInteger() == false
+            if lFloat && rFloat { return }
+        }
+    }
+    r.diagStr2(loc, DiagID.err_sema_narrowing, rhs.getName(), lhs.getName())
+}
+
+// intLiteralFits — does the decimal literal `raw` (negated when `neg`) fit an
+// integer type of promotion rank `rank`? The rank IS the layout: an even rank is
+// an unsigned type of that many bits (8, 16, 32, 64), an odd rank a signed type
+// of rank+1 bits (15, 31, 63). A literal that is not plain decimal digits is
+// accepted — this check only ever rejects what it can prove does not fit.
+public bool intLiteralFits(const string raw, const bool neg, const int rank) {
+    bool isUnsigned = rank % 2 == 0
+    int bits = rank
+    if isUnsigned == false { bits = rank + 1 }
+    if bits >= 64 { return true }
+
+    long mag = 0
+    bool huge = false
+    int n = str.len(raw)
+    int i = 0
+    while i < n {
+        byte b = str.byteAt(raw, i)
+        int c = b
+        if c < 48 { return true }
+        if c > 57 { return true }
+        if huge == false {
+            long d = c - 48
+            mag = mag * 10 + d
+            if mag > 4294967296 { huge = true }
+        }
+        i = i + 1
+    }
+    if huge { return false }
+
+    long max = 255
+    if bits == 16 { max = 65535 }
+    if bits == 32 { max = 4294967295 }
+    if isUnsigned {
+        // a negative constant never fits an unsigned type (zero does)
+        if neg { return mag == 0 }
+        return mag <= max
+    }
+    // signed: the positive range is half the unsigned one, the negative range
+    // reaches one further (-32768, -2147483648)
+    long smax = 32767
+    if bits == 32 { smax = 2147483647 }
+    if neg { return mag <= smax + 1 }
+    return mag <= smax
 }
 
 // checkCastTypes — a port of the reference SemaValidator::CheckCast: which
@@ -517,4 +675,20 @@ public void checkCastTypes(const Resolver r, const SourceLocation loc, const Sem
 
     // every other combination is invalid
     r.diagStr2(loc, DiagID.err_sema_invalid_cast, fromType.getName(), toType.getName())
+}
+
+// checkCondition — an `if` / `elsif` / loop / ternary condition must be `bool`
+// (the reference SemaValidator::CheckCondition). The implicit `error` variable
+// already reads as bool. An `int` condition used to resolve and then fail in the
+// LLVM verifier (`br` on an i32) with no source location. A null expression or
+// type was diagnosed where it failed to resolve; a generic type variable only
+// takes its real type at monomorphization.
+public void checkCondition(const Resolver r, const SourceLocation loc, const SemaExpr cond) {
+    if cond == null { return }
+    SemaType t = cond.getType()
+    if t == null { return }
+    if t.isBool() { return }
+    if t.isError() { return }
+    if t.getKind() == SemaKind.TYPE_PARAM { return }
+    r.diagStr(loc, DiagID.err_sema_condition_not_bool, t.getName())
 }

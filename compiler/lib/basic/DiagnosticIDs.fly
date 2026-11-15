@@ -95,6 +95,19 @@ public enum DiagID {
     err_sema_array_class_no_default_ctor,
     err_sema_generic_template_no_body,
     err_sema_generic_not_instantiable,
+    err_sema_narrowing,
+    err_sema_symbol_not_accessible,
+    err_sema_abstract_instantiation,
+    err_sema_final_method_overridden,
+    err_sema_final_class_subclassed,
+    err_sema_break_outside_loop,
+    err_sema_continue_outside_loop,
+    err_sema_var_redefinition,
+    err_sema_types_operation,
+    err_sema_const_assign,
+    err_sema_unreachable_code,
+    err_sema_condition_not_bool,
+    err_sema_duplicate_function,
     warn_header_private_shipped
 }
 
@@ -191,5 +204,18 @@ public string getDescription(const DiagID id) {
     if id == DiagID.err_sema_subscript_not_array { return "'%0' is not an array; only arrays can be indexed with '[]'" }
     if id == DiagID.err_sema_subscript_index_not_int { return "the array subscript index must be an integer, not '%0'" }
     if id == DiagID.err_sema_array_class_no_default_ctor { return "a sized array of '%0' cannot be created: every index would be built with '%0()', and '%0' has no constructor taking no arguments; use an array literal to supply the elements instead" }
+    if id == DiagID.err_sema_narrowing { return "cannot assign a value of type '%0' to a variable of type '%1' without a cast: the value may not fit (write '(%1)expr' to narrow explicitly)" }
+    if id == DiagID.err_sema_symbol_not_accessible { return "'%0' is private to '%1' and cannot be accessed from here" }
+    if id == DiagID.err_sema_abstract_instantiation { return "cannot instantiate '%0': it is declared 'abstract'" }
+    if id == DiagID.err_sema_final_method_overridden { return "'%0' cannot be overridden: it is declared 'final' in '%1'" }
+    if id == DiagID.err_sema_final_class_subclassed { return "'%0' cannot extend '%1': '%1' is declared 'final'" }
+    if id == DiagID.err_sema_break_outside_loop { return "'break' can only appear inside a loop or a switch" }
+    if id == DiagID.err_sema_continue_outside_loop { return "'continue' can only appear inside a loop" }
+    if id == DiagID.err_sema_var_redefinition { return "'%0' is already declared in this scope" }
+    if id == DiagID.err_sema_types_operation { return "this operator cannot be applied to operands of type '%0' and '%1'" }
+    if id == DiagID.err_sema_const_assign { return "cannot assign to '%0': it is declared 'const'" }
+    if id == DiagID.err_sema_unreachable_code { return "unreachable code: the statement before it always leaves the function" }
+    if id == DiagID.err_sema_condition_not_bool { return "a condition must be 'bool', not '%0'; compare explicitly (e.g. 'x != 0')" }
+    if id == DiagID.err_sema_duplicate_function { return "'%0' is already defined in this file with the same parameter types; overloads must differ in their parameters" }
     return "unknown diagnostic"
 }
