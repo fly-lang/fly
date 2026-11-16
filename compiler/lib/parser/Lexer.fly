@@ -15,12 +15,16 @@ public class Lexer {
     string source
     int pos
     int len
+    SourceManager sm     // the buffer's manager: every location the lexer makes is tagged with it
 
     public Lexer(const string src) {
         this.source = src
         this.pos = 0
         this.len = str.len(src)
+        this.sm = null
     }
+
+    public void setSourceManager(const SourceManager m) { this.sm = m }
 
     // spanText / tokenText — resolve a source slice to a fresh string (owned by
     // the caller, so safe to return and store as a local).
@@ -43,7 +47,7 @@ public class Lexer {
     // here — the current position as a SourceLocation (byte offset). Line/col
     // are no longer tracked eagerly; SourceManager decodes them from the offset.
     public SourceLocation here() {
-        return slGetFileLoc(this.pos)
+        return slGetFileLocIn(this.pos, this.sm)
     }
 
     // advance — consume one byte.

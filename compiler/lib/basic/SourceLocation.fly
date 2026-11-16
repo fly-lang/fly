@@ -79,10 +79,21 @@ public bool fileIDGe(const FileID a, const FileID b)     { return b.getOpaqueVal
 // offset. `int` encoding (see header note on the uint→int language limitation).
 public class SourceLocation {
     int id
+    // The buffer this offset points into. An offset alone is ambiguous as soon
+    // as one compilation holds more than one file: Sema resolves every module
+    // through ONE DiagnosticsEngine, and decoding a location against that
+    // engine's single SourceManager rendered an error from file B with the
+    // name, line and column of file A. The Lexer/Parser that produce a location
+    // tag it here; null for synthetic locations, which fall back to the engine.
+    SourceManager sm
 
     public SourceLocation(const int id) {
         this.id = id
+        this.sm = null
     }
+
+    public SourceManager getSourceManager() { return this.sm }
+    public void setSourceManager(const SourceManager m) { this.sm = m }
 
     public bool isFileID()  { return (this.id & macroIDBit()) == 0 }
 
@@ -99,7 +110,9 @@ public class SourceLocation {
 
     // Return a location offset by `delta` from this one.
     public SourceLocation getLocWithOffset(const int delta) {
-        return slGetFromRawEncoding(this.id + delta)
+        SourceLocation l = slGetFromRawEncoding(this.id + delta)
+        l.setSourceManager(this.sm)     // same buffer, so same manager
+        return l
     }
 
     // str — the raw encoding (id) as text. With no SourceManager this is the
@@ -119,6 +132,12 @@ public int offsetMask() { return 2147483647 }
 // Factories (C++ static SourceLocation::getFileLoc / getMacroLoc /
 // getFromRawEncoding; the asserts in the originals are dropped).
 public SourceLocation slGetFileLoc(const int offset)        { return new SourceLocation(offset) }
+// slGetFileLocIn — a file location tagged with the buffer it belongs to.
+public SourceLocation slGetFileLocIn(const int offset, const SourceManager m) {
+    SourceLocation l = new SourceLocation(offset)
+    l.setSourceManager(m)
+    return l
+}
 public SourceLocation slGetMacroLoc(const int offset)       { return new SourceLocation(macroIDBit() | offset) }
 public SourceLocation slGetFromRawEncoding(const int enc)   { return new SourceLocation(enc) }
 public SourceLocation slInvalid()                           { return new SourceLocation(0) }

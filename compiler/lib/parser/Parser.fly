@@ -80,6 +80,7 @@ public class Parser {
     public Parser(const string src) {
         this.lx = new Lexer(src)
         this.sm = new SourceManager("<input>", src)
+        this.lx.setSourceManager(this.sm)   // before the first next(): every token is tagged
         this.sink = new StoringDiagnosticConsumer()
         DiagnosticOptions opts = new DiagnosticOptions()
         this.diags = new DiagnosticsEngine(opts, this.sink, this.sm)
@@ -350,7 +351,7 @@ public class Parser {
     }
     public bool curIsEof() { return this.cur.isEof() }
     public string curText() { return this.lx.tokenText(this.cur) }
-    public SourceLocation curLoc() { return slGetFileLoc(this.cur.offset()) }
+    public SourceLocation curLoc() { return slGetFileLocIn(this.cur.offset(), this.sm) }
     public int curLine() { return this.sm.getLineNumber(this.cur.getLoc()) }
     public int prevTokenLine() { return this.prevLine }
     public int curCol()  { return this.sm.getColumnNumber(this.cur.getLoc()) }
@@ -471,7 +472,7 @@ public class Parser {
                 this.bump()
             } else {
                 int s = this.cur.offset()
-                this.cur = new Token(TokenKind.PUNCT, slGetFileLoc(s + 1), s + 1, s + str.len(t))
+                this.cur = new Token(TokenKind.PUNCT, slGetFileLocIn(s + 1, this.sm), s + 1, s + str.len(t))
             }
             return
         }
