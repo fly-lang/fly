@@ -459,9 +459,11 @@ public class CodeGenExpr : SemaVisitor {
     }
     public void visit(const SemaFloatValue node) {
         pointer ty = this.lowerType(node.getType())
-        double d = parseDouble(node.getValue())
+        // LLVM parses the literal's text: correctly rounded, exponent included.
+        // parseDouble summed the digits by hand, ignored any exponent and lost the
+        // last bits of precision.
         pointer c
-        this.llvm.constReal(ty, d, c)
+        this.llvm.constRealOfString(ty, node.getValue(), c)
         node.setLlvmValue(c)
     }
     public void visit(const SemaNullValue node) {
@@ -855,30 +857,3 @@ public long parseLong(const string s) {
     return r
 }
 
-public double parseDouble(const string s) {
-    // integer + fractional parts split on '.'; minimal (no exponent) for Stage 2.
-    int dot = str.indexOf(s, ".")
-    double result = 0.0
-    if dot < 0 {
-        result = parseLong(s)
-    } else {
-        string ip = str.substring(s, 0, dot)
-        int n = str.len(s)
-        string fp = str.substring(s, dot + 1, n)
-        double whole = parseLong(ip)
-        double frac = 0.0
-        double scale = 1.0
-        int fn = str.len(fp)
-        int i = 0
-        while i < fn {
-            byte b = str.byteAt(fp, i)
-            int bi = b
-            double d = bi - 48
-            scale = scale * 10.0
-            frac = frac + d / scale
-            i = i + 1
-        }
-        result = whole + frac
-    }
-    return result
-}

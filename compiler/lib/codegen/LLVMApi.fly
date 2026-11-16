@@ -1517,6 +1517,16 @@ public class LLVM {
         lib.call("LLVMConstReal", a, v)
     }
 
+    public void constRealOfString(const pointer realTy, const string text, pointer v) {
+        // LLVMConstRealOfString(RealTy, Text) — LLVM parses the literal itself:
+        // correctly rounded, exponent included (`1.1102230246251565e-16`).
+        PtrStrArgs a = new PtrStrArgs()
+        a.a = realTy
+        a.s = text
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMConstRealOfString", a, v)
+    }
+
     public void constNull(const pointer ty, pointer v) {
         Ptr1Args a = new Ptr1Args()
         a.a = ty
