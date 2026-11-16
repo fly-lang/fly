@@ -145,7 +145,12 @@ public class ASTBuilder {
     // ── Vars ─────────────────────────────────────────────────────────────────
     public static ASTParam CreateParam(const SourceLocation loc, const ASTType type, const string name, const List<ASTModifier> modifiers, const ASTValue defaultValue) {
         ASTParam param = new ASTParam(loc, type, name, modifiers)
-        param.setExpr(defaultValue)
+        // Only a REAL default is stored. Passing a null ASTValue on to
+        // setExpr(ASTExpr) is an upcast, and the seed-built compiler turned that
+        // null into a non-null pointer: every parameter then looked defaulted,
+        // the no-argument constructor was never synthesized, and stage 3 (the
+        // compiler rebuilt by itself) differed from stage 2.
+        if defaultValue != null { param.setExpr(defaultValue) }
         return param
     }
     public static ASTLocalVar CreateLocalVar(const SourceLocation loc, const ASTType type, const string name, const List<ASTModifier> modifiers) {
