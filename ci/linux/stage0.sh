@@ -126,6 +126,29 @@ fi
 # pinned version it had not installed. The failure that follows is thoroughly
 # misleading — stage1 compiles std with an old seed and a handful of suites fail
 # on constructs the language does support.
+#
+# The downloaded archive is checked against a PINNED SHA-256 before it is
+# extracted. The seed compiles the whole tree at stage 1, so it is the root of
+# trust of every artifact Fly ships: an archive that is not byte-for-byte the one
+# this pin was taken from must not be used. That covers a corrupted or tampered
+# download, and also a seed RE-CUT under the same version number — which the
+# `--version` check above cannot see. A re-cut must therefore update the hash
+# here (and in ci/windows/stage0.ps1) in the same change.
+#
+# seed_sha256 VERSION — the pinned SHA-256 of the Linux archive of that seed.
+# Taken from the published release asset (GitHub records the same digest):
+#   0.13.18  fly-0.13.18-linux-x86_64.tar.gz, released 2026-09-20 from the
+#            `bootstrap` branch at 32528a0bf (sources = release/0.13.X df0b20f0c)
+seed_sha256() {
+    case "$1" in
+        0.13.18) echo "f328c4d081de52140e3e704c6f73d71792f21b34b7039be8dc4470b7fb1bbf50" ;;
+        *)       echo "" ;;
+    esac
+}
+# FLY_SEED_SHA256 overrides the table: the hash of a candidate seed under test,
+# or `none` to skip verification (testing only — never set it in CI).
+SEED_SHA256="${FLY_SEED_SHA256:-$(seed_sha256 "$FLY_VERSION")}"
+
 have=""
 if [ -x "$FLY_BIN" ]; then
     have="$("$FLY_BIN" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)"
@@ -133,6 +156,12 @@ fi
 
 if [ "$have" != "$FLY_VERSION" ]; then
     [ -n "$have" ] && echo "stage0: seed is $have, pinned is $FLY_VERSION — fetching the pinned one."
+    if [ -z "$SEED_SHA256" ]; then
+        echo "error: no pinned SHA-256 for seed v$FLY_VERSION." >&2
+        echo "       add it to seed_sha256() in ci/linux/stage0.sh, or set FLY_SEED_SHA256" >&2
+        echo "       (FLY_SEED_SHA256=none skips the check — for testing a candidate seed only)." >&2
+        [ "$SOURCED" -eq 0 ] && exit 1 || return 1
+    fi
     url="https://github.com/fly-lang/fly/releases/download/v${FLY_VERSION}/fly-${FLY_VERSION}-linux-x86_64.tar.gz"
     # Staged swap: an existing seed is replaced only AFTER the new one is in
     # hand. Deleting first would strand a machine whose pinned release is not
@@ -140,6 +169,22 @@ if [ "$have" != "$FLY_VERSION" ]; then
     rm -rf "$STAGE0_DIR.new"
     mkdir -p "$STAGE0_DIR.new"
     if curl -fsSL --retry 6 --retry-delay 15 --retry-all-errors "$url" -o "$BUILD_DIR/fly.tar.gz"; then
+        if [ "$SEED_SHA256" = "none" ]; then
+            echo "warning: FLY_SEED_SHA256=none — the seed archive is NOT verified." >&2
+        else
+            got="$(sha256sum "$BUILD_DIR/fly.tar.gz" | cut -d' ' -f1)"
+            if [ "$got" != "$SEED_SHA256" ]; then
+                rm -rf "$STAGE0_DIR.new" "$BUILD_DIR/fly.tar.gz"
+                echo "error: seed v$FLY_VERSION failed verification: the archive is not the pinned one." >&2
+                echo "       expected sha256 $SEED_SHA256" >&2
+                echo "       got      sha256 $got" >&2
+                echo "       a corrupted download, or the release was re-cut: if the re-cut is intended," >&2
+                echo "       update seed_sha256() in this script and in ci/windows/stage0.ps1." >&2
+                [ -n "$have" ] && echo "       the existing $have seed was left in place." >&2
+                [ "$SOURCED" -eq 0 ] && exit 1 || return 1
+            fi
+            echo "stage0: seed v$FLY_VERSION verified (sha256 $got)"
+        fi
         tar -xzf "$BUILD_DIR/fly.tar.gz" -C "$STAGE0_DIR.new"
         rm -f "$BUILD_DIR/fly.tar.gz"
         rm -rf "$STAGE0_DIR"

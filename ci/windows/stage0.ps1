@@ -162,6 +162,26 @@ Assert-LdLld                                   # build\llvm\bin\ld.lld.exe (extr
 # forever, and the failure that follows is thoroughly misleading — stage1
 # compiles std with an old seed and suites fail on constructs the language
 # does support.
+#
+# The downloaded archive is checked against a PINNED SHA-256 before it is
+# extracted. The seed compiles the whole tree at stage 1, so it is the root of
+# trust of every artifact Fly ships: an archive that is not byte-for-byte the one
+# this pin was taken from must not be used. That covers a corrupted or tampered
+# download, and also a seed RE-CUT under the same version number - which the
+# --version check below cannot see. A re-cut must therefore update the hash here
+# (and in ci/linux/stage0.sh) in the same change.
+#
+# The pinned SHA-256 of the Windows archive of each seed, taken from the
+# published release asset (GitHub records the same digest):
+#   0.13.18  fly-0.13.18-win-x64.zip, released 2026-09-20 from the `bootstrap`
+#            branch at 32528a0bf (sources = release/0.13.X df0b20f0c)
+$SEED_SHA256_TABLE = @{
+    '0.13.18' = 'fa0f7507f60e34905e502a593ede54e56624b41d9c0ebf404112ad4e77e748ab'
+}
+# FLY_SEED_SHA256 overrides the table: the hash of a candidate seed under test,
+# or `none` to skip verification (testing only - never set it in CI).
+$SEED_SHA256 = if ($env:FLY_SEED_SHA256) { $env:FLY_SEED_SHA256 } else { $SEED_SHA256_TABLE[$FLY_VERSION] }
+
 $have = ''
 if (Test-Path $flyExe) {
     $have = (& $flyExe --version 2>$null | Select-String -Pattern '\d+\.\d+\.\d+' |
@@ -170,6 +190,12 @@ if (Test-Path $flyExe) {
 
 if ($have -ne $FLY_VERSION) {
     if ($have) { Write-Host "stage0: seed is $have, pinned is $FLY_VERSION - fetching the pinned one." }
+    if (-not $SEED_SHA256) {
+        Write-Host "error: no pinned SHA-256 for seed v$FLY_VERSION."
+        Write-Host "       add it to `$SEED_SHA256_TABLE in ci\windows\stage0.ps1, or set FLY_SEED_SHA256"
+        Write-Host "       (FLY_SEED_SHA256=none skips the check - for testing a candidate seed only)."
+        exit 1
+    }
     $url = "https://github.com/fly-lang/fly/releases/download/v$FLY_VERSION/fly-$FLY_VERSION-win-x64.zip"
     New-Item -ItemType Directory -Force $buildDir | Out-Null
     $zipPath = Join-Path $buildDir 'fly.zip'
@@ -186,6 +212,22 @@ if ($have -ne $FLY_VERSION) {
             Write-Host "       stage1 will compile std with it and can fail on newer constructs."
         }
         exit 1
+    }
+    if ($SEED_SHA256 -eq 'none') {
+        Write-Host "warning: FLY_SEED_SHA256=none - the seed archive is NOT verified."
+    } else {
+        $got = (Get-FileHash -Algorithm SHA256 -LiteralPath $zipPath).Hash.ToLowerInvariant()
+        if ($got -ne $SEED_SHA256.ToLowerInvariant()) {
+            Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
+            Write-Host "error: seed v$FLY_VERSION failed verification: the archive is not the pinned one."
+            Write-Host "       expected sha256 $SEED_SHA256"
+            Write-Host "       got      sha256 $got"
+            Write-Host "       a corrupted download, or the release was re-cut: if the re-cut is intended,"
+            Write-Host "       update `$SEED_SHA256_TABLE in this script and seed_sha256() in ci/linux/stage0.sh."
+            if ($have) { Write-Host "       the existing $have seed was left in place." }
+            exit 1
+        }
+        Write-Host "stage0: seed v$FLY_VERSION verified (sha256 $got)"
     }
     Expand-Archive $zipPath -DestinationPath "$flyDir.new" -Force
     Remove-Item $zipPath
