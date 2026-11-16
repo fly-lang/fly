@@ -70,6 +70,40 @@ $flyExe   = Join-Path $flyBin 'fly.exe'
 
 # === LLVM ====================================================================
 
+# --- Pinned SHA-256 of the downloaded toolchain archives ----------------------
+# Like the seed below: every fly-produced program links against these, so an
+# unverified download is as much a hole as an unverified seed. Values are the
+# digests GitHub records for the release assets. When bumping LLVM_VERSION or
+# MINGW_VERSION, pin the new hash here (and the Linux LLVM one in stage0.sh).
+# FLY_LLVM_SHA256 / FLY_MINGW_SHA256 override; `none` skips (testing only).
+$LLVM_SHA256_TABLE  = @{ '20.1.8'   = '4681ffc5da525a3498ffc1acdfc7b95b8d1b8616759f624dd247ded537435a12' }
+$MINGW_SHA256_TABLE = @{ '20260616' = 'b9b68a4d276e16fa25802aaba458e4638f64b3884c290aaccdc2d87083b6ca35' }
+
+# Assert-Archive - check a downloaded archive against its pinned hash; on any
+# failure delete it (a rerun downloads again) and return $false; the caller
+# then exits, like the seed check below.
+function Assert-Archive([string]$what, [string]$path, [string]$expected) {
+    if ($expected -eq 'none') {
+        Write-Host "warning: the $what archive is NOT verified (override set to 'none')."
+        return $true
+    }
+    if (-not $expected) {
+        Remove-Item -LiteralPath $path -ErrorAction SilentlyContinue
+        Write-Host "error: no pinned SHA-256 for the $what archive - add it to ci\windows\stage0.ps1."
+        return $false
+    }
+    $got = (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLowerInvariant()
+    if ($got -ne $expected.ToLowerInvariant()) {
+        Remove-Item -LiteralPath $path -ErrorAction SilentlyContinue
+        Write-Host "error: the $what archive does not match its pinned SHA-256."
+        Write-Host "       expected sha256 $expected"
+        Write-Host "       got      sha256 $got"
+        return $false
+    }
+    Write-Host "stage0: $what verified (sha256 $got)"
+    return $true
+}
+
 # --- Download LLVM (fly-lang build) ------------------------------------------
 # From the fork LLVM artifact we extract, all under their ORIGINAL install
 # names (no fly-specific renames): LLVM-C.lib (the link import lib), LLVM-C.dll
@@ -88,6 +122,8 @@ if (-not (Test-Path "$llvmLib\LLVM-C.lib") -or -not (Test-Path "$llvmBin\LLVM-C.
     New-Item -ItemType Directory -Force $llvmLib, $llvmBin | Out-Null
     $zipPath = Join-Path $buildDir 'llvm.zip'
     Invoke-WebRequest -Uri $url -OutFile $zipPath -MaximumRetryCount 6 -RetryIntervalSec 15
+    $llvmHash = if ($env:FLY_LLVM_SHA256) { $env:FLY_LLVM_SHA256 } else { $LLVM_SHA256_TABLE[$LLVM_VERSION] }
+    if (-not (Assert-Archive "LLVM $LLVM_VERSION" $zipPath $llvmHash)) { exit 1 }
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     $zip = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
     try {
@@ -132,6 +168,8 @@ if (-not (Test-MingwSysroot)) {
         $u = "https://github.com/mstorsjo/llvm-mingw/releases/download/$script:MINGW_VERSION/llvm-mingw-$script:MINGW_VERSION-ucrt-x86_64.zip"
         $z = Join-Path $buildDir 'mingw.zip'
         Invoke-WebRequest -Uri $u -OutFile $z -MaximumRetryCount 6 -RetryIntervalSec 15
+        $mingwHash = if ($env:FLY_MINGW_SHA256) { $env:FLY_MINGW_SHA256 } else { $MINGW_SHA256_TABLE[$script:MINGW_VERSION] }
+        if (-not (Assert-Archive "llvm-mingw $script:MINGW_VERSION" $z $mingwHash)) { exit 1 }
         $z
     }
     Add-Type -AssemblyName System.IO.Compression.FileSystem

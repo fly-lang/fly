@@ -73,6 +73,16 @@ FORK_LLVM="$BUILD_DIR/llvm"
 RT_BUILTINS="$FORK_LLVM/lib/clang/${LLVM_VERSION%%.*}/lib/x86_64-unknown-linux-gnu/libclang_rt.builtins.a"
 NEED_STATIC=0
 [ "${FLY_BUNDLE_LLVM:-0}" = "1" ] && [ ! -f "$FORK_LLVM/lib/liblldELF.a" ] && NEED_STATIC=1
+# llvm_sha256 VERSION — the pinned SHA-256 of the fork LLVM Linux archive. Taken
+# from the release asset (GitHub records the same digest). When bumping
+# LLVM_VERSION, pin the new hash here AND in ci/windows/stage0.ps1.
+llvm_sha256() {
+    case "$1" in
+        20.1.8) echo "ce7a10e2365a4343ae073133e33bdcc3d1ba0d4dc7904f0ec22365c0e6677231" ;;
+        *)      echo "" ;;
+    esac
+}
+LLVM_SHA256="${FLY_LLVM_SHA256:-$(llvm_sha256 "$LLVM_VERSION")}"
 if [ ! -f "$FORK_LLVM/lib/libLLVM.so" ] || [ ! -f "$RT_BUILTINS" ] || [ ! -x "$FORK_LLVM/bin/lldb" ] || [ "$NEED_STATIC" = "1" ]; then
     url="https://github.com/fly-lang/llvm-project/releases/download/v${LLVM_VERSION}-linux-x86_64/llvm-${LLVM_VERSION}-x86_64-linux-gnu.tar.gz"
     mkdir -p "$BUILD_DIR"
@@ -82,6 +92,27 @@ if [ ! -f "$FORK_LLVM/lib/libLLVM.so" ] || [ ! -f "$RT_BUILTINS" ] || [ ! -x "$F
     if [ ! -f "$tarball" ]; then
         curl -fSL --retry 6 --retry-delay 15 --retry-all-errors -o "$tarball.part" "$url"
         mv -f "$tarball.part" "$tarball"
+    fi
+    # Verify before extracting, exactly like the seed below: the toolchain links
+    # every fly-produced program, so an unverified archive is as much a hole as an
+    # unverified seed. A mismatch deletes the archive so a rerun downloads again.
+    if [ "$LLVM_SHA256" = "none" ]; then
+        echo "warning: FLY_LLVM_SHA256=none — the LLVM archive is NOT verified." >&2
+    elif [ -z "$LLVM_SHA256" ]; then
+        rm -f "$tarball"
+        echo "error: no pinned SHA-256 for LLVM $LLVM_VERSION — add it to llvm_sha256() in ci/linux/stage0.sh" >&2
+        echo "       (or set FLY_LLVM_SHA256; FLY_LLVM_SHA256=none skips the check, for testing only)." >&2
+        [ "$SOURCED" -eq 0 ] && exit 1 || return 1
+    else
+        got="$(sha256sum "$tarball" | cut -d' ' -f1)"
+        if [ "$got" != "$LLVM_SHA256" ]; then
+            rm -f "$tarball"
+            echo "error: the LLVM $LLVM_VERSION archive does not match its pinned SHA-256 ($url)" >&2
+            echo "       expected sha256 $LLVM_SHA256" >&2
+            echo "       got      sha256 $got" >&2
+            [ "$SOURCED" -eq 0 ] && exit 1 || return 1
+        fi
+        echo "stage0: LLVM $LLVM_VERSION verified (sha256 $got)"
     fi
     # Always: the shared libLLVM.so (link + runtime), the lld linker, llvm-config,
     # the compiler-rt builtins (linked into every fly-produced executable) and the
