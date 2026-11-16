@@ -167,6 +167,8 @@ public class Driver {
         bool createHeader = false       // --header / --lib
         bool showStats = false          // --print-stats
         bool showTimers = false         // --ftime-report
+        bool noWarn = false             // -w / --no-warning
+        bool askedDebugSymbols = false  // --debug-symbols given EXPLICITLY (not via --debug)
 
         int n = (int)args.count
         int i = 1                       // skip argv[0] (program name)
@@ -255,6 +257,7 @@ public class Driver {
                 debugSymbols = true
             } elsif str.equals(a, "--debug-symbols") {
                 debugSymbols = true
+                askedDebugSymbols = true
             } elsif str.equals(a, "--trace-calls") {
                 traceCalls = true
             } elsif str.equals(a, "--tls") {
@@ -334,9 +337,10 @@ public class Driver {
             } elsif str.equals(a, "-v") || str.equals(a, "--verbose") {
                 verbose = true
             } elsif str.equals(a, "-w") || str.equals(a, "--no-warning") {
-                // accepted (no-op): the self-host compiler emits no DiagnosticsEngine
-                // warnings, and the driver's own `warning:` lines are unconditional
-                // printErrLn — there is nothing to suppress today.
+                // The self-host compiler emits no DiagnosticsEngine warnings yet;
+                // what -w silences today is the driver's own "this option has no
+                // effect" notes below.
+                noWarn = true
             } elsif str.equals(a, "--help") || str.equals(a, "-help") {
                 this.printUsage()
                 return 0
@@ -506,6 +510,21 @@ public class Driver {
         cgo.setOptLevel(optLevel)
         cgo.setJobs(jobs)
         if str.isEmpty(codeModel) == false { cgo.setCodeModel(codeModel) }
+        // An option that is accepted but does nothing must SAY so: a flag that is
+        // silently ignored is indistinguishable from one that worked, which is
+        // exactly what "an unknown option is an error" exists to prevent. Each of
+        // these is a real gap in the self-host back end; -w silences the notes.
+        if noWarn == false {
+            if askedDebugSymbols {
+                io.printErrLn("warning: --debug-symbols has no effect yet: the self-host back end does not emit debug information")
+            }
+            if showTimers {
+                io.printErrLn("warning: --ftime-report has no effect yet: phase timers are not implemented (use --print-stats)")
+            }
+            if str.isEmpty(threadModel) == false {
+                io.printErrLn("warning: --mthread-model is validated but has no effect yet: the back end does not apply it")
+            }
+        }
         // Thread model: default posix; an invalid value warns AND falls back to
         // posix (it used to be applied anyway, with an unprefixed message). NOTE: the
         // value is validated and stored on CodeGenOptions but the LLVM-C backend never
@@ -1065,15 +1084,15 @@ public class Driver {
         io.printErrLn("                  Sel: a suite name, a qualified ns.SuiteName, or a NAMESPACE —")
         io.printErrLn("                  a namespace runs every suite declared under it (prefix match)")
         io.printErrLn("  --debug         verbose logging (+ request DWARF; self-host codegen emits none yet)")
-        io.printErrLn("  --debug-symbols request DWARF debug symbols (self-host codegen does not emit them yet)")
+        io.printErrLn("  --debug-symbols request DWARF debug symbols (no effect yet: a warning says so)")
         io.printErrLn("  --trace-calls   log every function entry/exit via fly.log (visible at FLY_LOG_LEVEL=trace)")
         io.printErrLn("  --print-stats   print compilation statistics to stderr")
-        io.printErrLn("  --ftime-report  accepted; not yet implemented (no output)")
+        io.printErrLn("  --ftime-report  phase timers (no effect yet: a warning says so)")
         io.printErrLn("  --stats-file <f>  write compilation statistics (JSON) to <f>")
         io.printErrLn("  --log-file <f>  log diagnostics to <f>")
         io.printErrLn("  --log-format <fmt>  diagnostics log format: txt (default) or json")
         io.printErrLn("  -v, --verbose   log each compilation phase")
-        io.printErrLn("  -w, --no-warning  accepted; the compiler emits no warnings to suppress")
+        io.printErrLn("  -w, --no-warning  suppress warnings (today: the 'no effect yet' notes of the driver)")
         io.printErrLn("  --version       print version")
         io.printErrLn("  --help          display this help")
     }
