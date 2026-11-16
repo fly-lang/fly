@@ -247,7 +247,7 @@ public class CodeGenClass {
         List<pointer> slots = new List<pointer>()
         pointer nullSlot
         llvm.constPointerNull(ptrTy, nullSlot)
-        slots.add(nullSlot)                     // slot 0: offset-to-top (null)
+        slots.add(nullSlot)                     // slot 0: the itable directory, set below (null when none)
         int i = 0
         while i < ms.size() {
             SemaClassMethod m = ms.get(i)
@@ -256,34 +256,80 @@ public class CodeGenClass {
             i = i + 1
         }
 
-        // Interface region (audit V4): implemented interfaces put their methods at
-        // MODULE-GLOBAL slots (cgm.ifaceBase + method index) so an interface-typed
-        // dispatch indexes the same slot in every implementing class's vtable. The
-        // gap between the own methods and the region is null padding.
+        // Interfaces: one ITABLE per implemented interface — the implementations
+        // in the interface's own method order — and slot 0 of the vtable points to
+        // a directory of (interface id, itable) pairs ending in (null, null).
+        //
+        // This replaced a module-global interface region (every interface at a
+        // fixed slot past the largest class's methods). That only works inside
+        // ONE object: a program and a library compiled separately computed
+        // different regions, so an interface call across the boundary — a
+        // program calling Reader.read on an object built by the std archive —
+        // hit the wrong slot. The itable index depends only on the interface's
+        // declaration and the id only on its qualified name, so both sides of
+        // any boundary agree. See emitInterfaceFn for the lookup.
         List<SemaClassType> ifs = implementedInterfaces(cls)
-        int fi = 0
-        while fi < ifs.size() {
-            SemaClassType ifc = ifs.get(fi)
-            int base = cgm.ifaceBase(ifc.getName())
-            if base > 0 {
+        if ifs.size() > 0 {
+            pointer i64Ty
+            llvm.int64TypeInContext(cgm.getCtx(), i64Ty)
+            List<pointer> dir = new List<pointer>()
+            int fi = 0
+            while fi < ifs.size() {
+                SemaClassType ifc = ifs.get(fi)
                 List<SemaClassMethod> ims = vmethods(ifc)
-                int need = base + (int)ims.size()
-                while slots.size() < need { slots.add(nullSlot) }
+                List<pointer> its = new List<pointer>()
                 int im = 0
                 while im < ims.size() {
                     SemaClassMethod idecl = ims.get(im)
                     // match the implementation by FULL SIGNATURE — by name the
-                    // overloaded visitor methods all hit the same slot
+                    // overloaded visitor methods would all hit the same entry
+                    pointer ifn = nullSlot
                     int own = indexOfMethodSig(ms, idecl)
                     if own >= 0 {
                         SemaClassMethod impl = ms.get(own)
-                        pointer ifn = impl.getLlvmFn()
-                        if ifn != 0 { slots.set(base + im, ifn) }
+                        pointer implFn = impl.getLlvmFn()
+                        if implFn != 0 { ifn = implFn }
                     }
+                    its.add(ifn)
                     im = im + 1
                 }
+                pointer itInit
+                cg.constArrayN(ptrTy, its, itInit)
+                pointer itTy
+                llvm.arrayType(ptrTy, (int)its.size(), itTy)
+                string itName = str.concat(vtableName(cls), str.concat(".itable.", ifc.getName()))
+                pointer itG
+                llvm.addGlobal(cgm.getModule(), itTy, itName, itG)
+                llvm.setInitializer(itG, itInit)
+                llvm.setGlobalConstant(itG, true)
+                if cls.getGenericTemplate() != null {
+                    llvm.setLinkage(itG, 3)
+                    cgm.setWeakComdat(itG, itName)
+                }
+                pointer idVal
+                llvm.constInt(i64Ty, ifaceId(ifc), false, idVal)
+                pointer idPtr
+                llvm.constIntToPtr(idVal, ptrTy, idPtr)
+                dir.add(idPtr)
+                dir.add(itG)
+                fi = fi + 1
             }
-            fi = fi + 1
+            dir.add(nullSlot)
+            dir.add(nullSlot)
+            pointer dirInit
+            cg.constArrayN(ptrTy, dir, dirInit)
+            pointer dirTy
+            llvm.arrayType(ptrTy, (int)dir.size(), dirTy)
+            string dirName = str.concat(vtableName(cls), ".itables")
+            pointer dirG
+            llvm.addGlobal(cgm.getModule(), dirTy, dirName, dirG)
+            llvm.setInitializer(dirG, dirInit)
+            llvm.setGlobalConstant(dirG, true)
+            if cls.getGenericTemplate() != null {
+                llvm.setLinkage(dirG, 3)
+                cgm.setWeakComdat(dirG, dirName)
+            }
+            slots.set(0, dirG)
         }
 
         pointer init
@@ -303,6 +349,35 @@ public class CodeGenClass {
             cgm.setWeakComdat(g, vtableName(cls))
         }
         cls.setLlvmVTable(g)
+    }
+
+    // ifaceId — an interface's identity in every itable directory: an FNV-1a-style
+    // 64-bit hash of its namespace-qualified name. A hash rather than the address
+    // of a global, so it is the same in every object and every DLL without any
+    // linker cooperation. Never 0: (0, null) terminates a directory.
+    public static long ifaceId(const SemaClassType iface) {
+        string key = str.concat(SemaBuilder.classNsFlat(iface), str.concat(".", iface.getName()))
+        long h = 1469598103934665603
+        int n = str.len(key)
+        int i = 0
+        while i < n {
+            byte kb = str.byteAt(key, i)
+            int kc = kb & 255
+            h = h ^ kc
+            h = h * 1099511628211
+            i = i + 1
+        }
+        if h == 0 { h = 1 }
+        return h
+    }
+
+    // ifaceMethodIndex — the entry of interface method `fn` in any itable of
+    // `iface`: its position in the interface's own method order.
+    public static int ifaceMethodIndex(const SemaClassType iface, const SemaFunctionBase fn) {
+        List<SemaClassMethod> ims = vmethods(iface)
+        int idx = indexOfMethodSig(ims, fn)
+        if idx < 0 { idx = 0 }
+        return idx
     }
 
     // implementedInterfaces — every INTERFACE reachable through the base list
@@ -693,10 +768,18 @@ public class CodeGenClass {
             llvm.buildStructGEP2(b, structTy, objPtr, 0, "vtslot", vtSlot)
             pointer vt
             llvm.buildLoad2(b, ptrTy, vtSlot, "vt", vt)
+            // `table` is where the function pointer is read: the vtable itself,
+            // or — for a native interface receiver — the itable that the object's
+            // itable directory holds for that interface.
+            pointer table = vt
             int slot = 0
             if cls.getClassKind() == SemaClassKind.INTERFACE {
-                if cls.isFromHeader() { slot = methodSlot(cls, fn) }
-                else { slot = cgm.ifaceSlot(cls, fn) }
+                if cls.isFromHeader() {
+                    slot = methodSlot(cls, fn)
+                } else {
+                    table = cgm.emitItableLookup(vt, ifaceId(cls))
+                    slot = ifaceMethodIndex(cls, fn)
+                }
             } else {
                 slot = methodSlot(cls, fn)
             }
@@ -707,7 +790,7 @@ public class CodeGenClass {
             List<pointer> idxAddrs = new List<pointer>()
             idxAddrs.add(slotIdx)
             pointer fnSlot
-            cg.buildGEP2N(b, ptrTy, vt, idxAddrs, "vfnslot", fnSlot)
+            cg.buildGEP2N(b, ptrTy, table, idxAddrs, "vfnslot", fnSlot)
             llvm.buildLoad2(b, ptrTy, fnSlot, "vfn", fnPtr)
         }
 
