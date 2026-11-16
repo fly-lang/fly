@@ -76,6 +76,12 @@ jobs:
           draft: false
           prerelease: false
           tag_name: v${{ steps.version.outputs.version }}
+          # Create the tag on the commit THIS run built. Without it the action
+          # tags the repository's default branch (`main`, the 0.14 line), so
+          # every seed tag v0.13.7 .. v0.13.18 pointed at a 0.14 merge commit
+          # instead of its `bootstrap` commit (fixed by hand 2026-11-16). Only
+          # affects a NEW tag: a re-run for an existing version keeps its tag.
+          target_commitish: ${{ github.sha }}
           name: Fly ${{ steps.version.outputs.version }}
           files: |
             fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }}
