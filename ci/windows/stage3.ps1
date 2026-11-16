@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
-# stage3.ps1 - OPTIONAL fixpoint check of the staged bootstrap (see the stage map
-# in stage1.ps1; Linux mirror: ci/linux/stage3.sh). Run only at release time.
+# stage3.ps1 - fixpoint check of the staged bootstrap (see the stage map in
+# stage1.ps1; Linux mirror: ci/linux/stage3.sh). CI runs it on every build.
 #
 #   stage1  built by the SEED (C++ reference)          -> self-host #1
 #   stage2  built by stage1 (self-host #1)             -> the SHIPPED compiler
@@ -21,8 +21,9 @@
 #
 # stage3 does NOT touch build\stage2 (that is what ships) - everything goes to
 # build\stage3. It needs a finished stage 2 (stage2.ps1) and costs one more
-# compile of the compiler (~minutes), which is why it is not part of the normal
-# pipeline: CI runs it only from release.yml (build-*.yml `stage3: "1"`).
+# compile of the compiler - seconds. It runs as its own CI step after stage 2,
+# blocking, on every push and release (it used to be release-only, and the
+# first release found a seed defect every push had carried: ASTBuilder.CreateParam).
 #
 # On a mismatch it recompiles ONCE MORE with the same stage2 compiler to tell
 # apart the two causes: stage3a != stage3b means the compiler is not
