@@ -59,6 +59,39 @@ for probe in ci/sema_probes/reject/*/; do
     fi
 done
 
+# -- seed verdicts ------------------------------------------------------------
+# The same reject probes, judged by the SEED (build/stage0). The seed compiles
+# the whole tree at stage 1, so what it accepts and refuses is part of the
+# language's effective definition - and every difference from the self-host must
+# be a recorded decision, not an accident. A probe the seed is known to accept
+# carries a seed-accepts.txt saying why; anything else must be refused by both.
+# A seed that starts accepting or refusing something else fails here, which is
+# exactly the moment a seed re-cut changed the language.
+SEED="build/stage0/bin/fly"
+SEEDLIB="build/stage1/lib"
+if [ -x "$SEED" ] && [ -d "$SEEDLIB" ]; then
+    SEED="$(cd "$(dirname "$SEED")" && pwd)/$(basename "$SEED")"
+    SEEDLIB="$(cd "$SEEDLIB" && pwd)"
+    for probe in ci/sema_probes/reject/*/; do
+        name="$(basename "$probe")"
+        count=$((count + 1))
+        known=0; [ -f "$probe/seed-accepts.txt" ] && known=1
+        "$SEED" --src-dir "$probe" --no-output -L "$SEEDLIB" > "$OUT/seed_$name.log" 2>&1
+        rc=$?
+        if [ "$rc" -eq 0 ] && [ "$known" -eq 0 ]; then
+            echo "  FAIL  seed/$name - the seed ACCEPTS it and no seed-accepts.txt records why"; failed=$((failed + 1))
+        elif [ "$rc" -ne 0 ] && [ "$known" -eq 1 ]; then
+            echo "  FAIL  seed/$name - seed-accepts.txt is stale: the seed now REJECTS it"; failed=$((failed + 1))
+        elif [ "$known" -eq 1 ]; then
+            echo "  ok    seed/$name (recorded divergence: seed accepts)"
+        else
+            echo "  ok    seed/$name"
+        fi
+    done
+else
+    echo "  skip  seed verdicts - build/stage0 or build/stage1/lib not present"
+fi
+
 for probe in ci/sema_probes/accept/*/; do
     name="$(basename "$probe")"
     count=$((count + 1))

@@ -62,6 +62,40 @@ foreach ($probe in Get-ChildItem 'ci/sema_probes/reject' -Directory | Sort-Objec
     }
 }
 
+# -- seed verdicts ------------------------------------------------------------
+# The same reject probes, judged by the SEED (build\stage0). The seed compiles
+# the whole tree at stage 1, so what it accepts and refuses is part of the
+# language's effective definition - and every difference from the self-host must
+# be a recorded decision, not an accident. A probe the seed is known to accept
+# carries a seed-accepts.txt saying why; anything else must be refused by both.
+# A seed that starts accepting or refusing something else fails here, which is
+# exactly the moment a seed re-cut changed the language.
+$SEED = 'build/stage0/bin/fly.exe'
+$SEEDLIB = 'build/stage1/lib'
+if ((Test-Path $SEED -PathType Leaf) -and (Test-Path $SEEDLIB)) {
+    $SEED = (Resolve-Path $SEED).Path
+    $SEEDLIB = (Resolve-Path $SEEDLIB).Path
+    foreach ($probe in Get-ChildItem 'ci/sema_probes/reject' -Directory | Sort-Object Name) {
+        $name = $probe.Name
+        $count++
+        $known = Test-Path (Join-Path $probe.FullName 'seed-accepts.txt')
+        $log = Join-Path $OUT "seed_$name.log"
+        & $SEED --src-dir $probe.FullName --no-output -L $SEEDLIB *> $log
+        $accepted = ($LASTEXITCODE -eq 0)
+        if ($accepted -and -not $known) {
+            Write-Host "  FAIL  seed/$name - the seed ACCEPTS it and no seed-accepts.txt records why"; $failed++
+        } elseif (-not $accepted -and $known) {
+            Write-Host "  FAIL  seed/$name - seed-accepts.txt is stale: the seed now REJECTS it"; $failed++
+        } elseif ($known) {
+            Write-Host "  ok    seed/$name (recorded divergence: seed accepts)"
+        } else {
+            Write-Host "  ok    seed/$name"
+        }
+    }
+} else {
+    Write-Host "  skip  seed verdicts - build\stage0 or build\stage1\lib not present"
+}
+
 foreach ($probe in Get-ChildItem 'ci/sema_probes/accept' -Directory | Sort-Object Name) {
     $name = $probe.Name
     $count++
