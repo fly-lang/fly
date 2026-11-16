@@ -5,9 +5,7 @@
 #
 #   runtime   re-seeded from stage1 (the Windows Fly-member rebuild is gated on
 #             RuntimeWindows.fly running cleanly on Windows - see build_runtime.ps1)
-#   std       COPIED from stage1: the shipped std must keep the reference class
-#             ABI (see build_std.ps1) - a self-host std would break header
-#             consumers of classes with interface bases.
+#   std       recompiled by the stage1 fly.exe - the std that ships
 #   compiler  recompiled FROM SOURCE by the stage1 fly.exe, merged with the
 #   + driver  driver into one object (monolithic - see build_compiler.ps1) and
 #             linked into build\stage2\bin.
@@ -28,19 +26,14 @@ if (-not (Test-Path 'build/stage1/bin/fly.exe' -PathType Leaf)) {
     Write-Host "error: stage1 fly missing - run ci\windows\stage1.ps1 first."; exit 1
 }
 
-# std: ship the stage1 (reference-ABI) build - archive + generated headers.
 New-Item -ItemType Directory -Force build/stage2/lib | Out-Null
-Copy-Item build/stage1/lib/fly_std_lib.lib build/stage2/lib/ -Force
-# One shape covers everything: a `.fly.h` carries declarations, and for a module
-# that declares generics it carries their source too (the specializer needs those
-# bodies). build_std has already put the template modules here under that name.
-Get-ChildItem build/stage1/lib/*.fly.h | ForEach-Object { Copy-Item $_.FullName build/stage2/lib/ -Force }
-Write-Host "stage2: std -> build\stage2\lib (copied from stage1, reference ABI)"
 
 # The self-host rebuild. Any failure stops the stage: no fallback to stage1.
 # try/catch because $ErrorActionPreference = 'Stop' turns a cmdlet error inside
 # a step into a terminating exception rather than an exit code.
-foreach ($step in 'build_runtime', 'build_compiler', 'link_fly') {
+# build_std: the std that ships, built by the stage-1 fly like every other
+# stage-2 artifact (it used to be the seed's stage-1 build, copied over).
+foreach ($step in 'build_runtime', 'build_std', 'build_compiler', 'link_fly') {
     try {
         & ".\ci\windows\$step.ps1"
     } catch {

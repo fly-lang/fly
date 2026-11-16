@@ -41,6 +41,11 @@ STAGE1_TESTS="${FLY_STAGE1_TESTS:-1}"
 ./ci/linux/build_std.sh
 ./ci/linux/build_compiler.sh
 ./ci/linux/link_fly.sh
+# Rebuild the std with the fly just linked. The seed's build above only served
+# to link that fly (both sides seed-compiled); everything from here on - the
+# stage-1 suites and stage 2 - uses a std built by the self-host, laid out the
+# way the self-host lays out classes.
+FLY_STD_BUILDER=self ./ci/linux/build_std.sh
 # No FLY override: at STAGE=1 the test scripts already default to
 # build/stage1/bin/fly, which link_fly has produced by the time they run.
 # Bottom-up (runtime → std → compiler): the runtime underpins std, which the

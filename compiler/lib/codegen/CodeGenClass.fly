@@ -31,11 +31,11 @@ public class CodeGenClass {
     public CodeGenClass() { }
 
     // declareStruct — create the named LLVM struct type.
-    //   native CLASS:  { ptr vtable, flattened fields… }          (flat model)
-    //   STRUCT:        { fields… }                                 (reference ABI)
-    //   HEADER class:  { ptr vtable, base subobjects…, own fields }(reference
-    //                   Itanium-style layout — these objects cross the archive
-    //                   boundary, so field offsets must match the reference)
+    //   CLASS:  { ptr vtable, flattened fields… } — bases first, then own (flat)
+    //   STRUCT: { fields… }
+    // The same for a class read from a header: the archive behind it was built
+    // by this compiler. (It used to take the seed's base-subobject layout, when
+    // the shipped std was compiled by the seed.)
     public static void declareStruct(const CodeGenModule cgm, const SemaClassType cls) {
         if cls.getLlvmStructType() != 0 { return }   // already declared (recursion)
         CodeGenLLVM cg = cgm.getCg()
@@ -53,35 +53,16 @@ public class CodeGenClass {
             pointer vtp = types.ptrType()
             fieldTys.add(vtp)                   // slot 0: vtable pointer
         }
-        if cls.isFromHeader() && isStruct == false {
-            // base subobjects BY VALUE (reference layout), then OWN fields only
-            List<SemaClassType> hb = cls.getBaseClasses()
-            int bi = 0
-            while bi < hb.size() {
-                SemaClassType hbase = hb.get(bi)
-                if hbase.getClassKind() != SemaClassKind.STRUCT {
-                    declareStruct(cgm, hbase)
-                    fieldTys.add(hbase.getLlvmStructType())
-                }
-                bi = bi + 1
-            }
-            List<SemaClassAttribute> own = cls.getAttributeList()
-            int oi = 0
-            while oi < own.size() {
-                SemaClassAttribute oa = own.get(oi)
-                pointer ofty = fieldLlvmType(cgm, oa.getType())
-                fieldTys.add(ofty)
-                oi = oi + 1
-            }
-        } else {
-            List<SemaClassAttribute> attrs = allAttributes(cls)   // base fields first, then own
-            int i = 0
-            while i < attrs.size() {
-                SemaClassAttribute a = attrs.get(i)
-                pointer fty = fieldLlvmType(cgm, a.getType())
-                fieldTys.add(fty)
-                i = i + 1
-            }
+        // ONE layout for every class, wherever it comes from: a class read from a
+        // `.fly.h` was compiled into its archive by this same compiler, so its
+        // objects have exactly the layout computed here.
+        List<SemaClassAttribute> attrs = allAttributes(cls)   // base fields first, then own
+        int i = 0
+        while i < attrs.size() {
+            SemaClassAttribute a = attrs.get(i)
+            pointer fty = fieldLlvmType(cgm, a.getType())
+            fieldTys.add(fty)
+            i = i + 1
         }
         cg.structSetBodyN(st, fieldTys, false)
 
@@ -126,19 +107,6 @@ public class CodeGenClass {
             }
         }
         return cgm.getTypes().lowerType(t)
-    }
-
-    // nonStructBaseCount — subobject slots a HEADER class's own fields sit after.
-    public static int nonStructBaseCount(const SemaClassType cls) {
-        int n = 0
-        List<SemaClassType> bs = cls.getBaseClasses()
-        int i = 0
-        while i < bs.size() {
-            SemaClassType b = bs.get(i)
-            if b.getClassKind() != SemaClassKind.STRUCT { n = n + 1 }
-            i = i + 1
-        }
-        return n
     }
 
     // refClassId — the reference codegen's class Id (`io.FileWriter`): LAST
@@ -741,25 +709,16 @@ public class CodeGenClass {
 
         // super calls dispatch DIRECT to the resolved base function — loading the
         // vtable would re-dispatch to the most-derived override (audit V4).
-        // Everything else loads the vtable pointer (slot 0) + the method slot:
-        // for a CLASS-typed receiver the slot comes from its vmethods position;
-        // for an INTERFACE-typed receiver from the module-global interface region
-        // (same index in every implementing class's vtable).
-        // Dispatch selection:
-        //   super / STRUCT / header CLASS  → DIRECT (no vtable, or the archive's
-        //     Itanium vtable whose class-slot indices differ from ours)
-        //   header INTERFACE → vtable dispatch with the REFERENCE per-base layout:
-        //     the receiver IS a base-subobject pointer (produced by archive code),
-        //     slot 0 = offset-to-top, methods at their interface order + 1 —
-        //     which is exactly methodSlot() over the interface itself
-        //   native INTERFACE → module-global interface slots (flat model)
-        //   native CLASS → own vmethods slot
+        // Everything else loads the vtable pointer (field 0 of the object):
+        //   super / STRUCT  → DIRECT call (a base's own body / no vtable)
+        //   CLASS receiver  → vtable[ its vmethods position + 1 ]
+        //   INTERFACE receiver → the itable the vtable's directory holds for that
+        //     interface, at the method's index within the interface (see
+        //     buildVTable). Header-origin or not makes no difference: the
+        //     archive behind a header was built by this compiler.
         bool direct = false
         if node.isSuper() { direct = true }
         if cls.getClassKind() == SemaClassKind.STRUCT { direct = true }
-        // (removed) header CLASS → direct workaround: the self-host vtable now
-        // includes constructors (reference numbering), so an archive-built class
-        // vtable is index-compatible → dispatch through it like a native class.
         pointer fnPtr
         if direct {
             fnPtr = fn.getLlvmFn()
@@ -774,12 +733,8 @@ public class CodeGenClass {
             pointer table = vt
             int slot = 0
             if cls.getClassKind() == SemaClassKind.INTERFACE {
-                if cls.isFromHeader() {
-                    slot = methodSlot(cls, fn)
-                } else {
-                    table = cgm.emitItableLookup(vt, ifaceId(cls))
-                    slot = ifaceMethodIndex(cls, fn)
-                }
+                table = cgm.emitItableLookup(vt, ifaceId(cls))
+                slot = ifaceMethodIndex(cls, fn)
             } else {
                 slot = methodSlot(cls, fn)
             }
@@ -1016,25 +971,10 @@ public class CodeGenClass {
     // ── name + index helpers ──────────────────────────────────────────────────
 
     // fieldIndex — slot index of a field.
-    //   native CLASS: 1 + position in the FLATTENED list (slot 0 = vtable);
-    //   STRUCT:       plain position (no vtable slot, reference ABI);
-    //   HEADER class: 1 + base-subobject count + position among OWN fields
-    //                 (reference Itanium layout; inherited fields would need a
-    //                 nested subobject GEP — unsupported for now).
+    //   CLASS:  1 + position in the FLATTENED list (slot 0 = vtable) — inherited
+    //           fields included, which the old header layout could not reach;
+    //   STRUCT: plain position (no vtable slot).
     public static int fieldIndex(const SemaClassType cls, const string name) {
-        if cls.isFromHeader() {
-            if cls.getClassKind() != SemaClassKind.STRUCT {
-                int hb = 1 + nonStructBaseCount(cls)
-                List<SemaClassAttribute> own = cls.getAttributeList()
-                int oi = 0
-                while oi < own.size() {
-                    SemaClassAttribute oa = own.get(oi)
-                    if str.equals(oa.getName(), name) { return oi + hb }
-                    oi = oi + 1
-                }
-                return hb
-            }
-        }
         int base = 1
         if cls.getClassKind() == SemaClassKind.STRUCT { base = 0 }
         List<SemaClassAttribute> attrs = allAttributes(cls)
