@@ -149,6 +149,8 @@ public class ResolverExpr {
                         string cn = "?"
                         ASTIdentifier cid = l.asIdentifier()
                         if cid != null { cn = cid.getName() }
+                        ASTMember cmem = l.asMember()
+                        if cmem != null { cn = cmem.getName() }
                         r.diagStr(node.getOpLocation(), DiagID.err_sema_const_assign, cn)
                     }
                 }
@@ -192,6 +194,8 @@ public class ResolverExpr {
                     string un = "?"
                     ASTIdentifier uid = e.asIdentifier()
                     if uid != null { un = uid.getName() }
+                    ASTMember umem = e.asMember()
+                    if umem != null { un = umem.getName() }
                     r.diagStr(node.getLoc(), DiagID.err_sema_const_assign, un)
                 }
             }
@@ -403,15 +407,7 @@ public class ResolverExpr {
         // but a field inherited into one may still name the template.
         if attr.getVisibility() == SemaVisibilityKind.PRIVATE {
             SemaClassType owner = attr.getClass()
-            SemaClassType here = r.getCurrentClass()
-            bool allowed = false
-            if here != null {
-                if owner != null {
-                    if here == owner { allowed = true }
-                    elsif str.equals(here.getName(), owner.getName()) { allowed = true }
-                }
-            }
-            if allowed == false {
+            if classMayAccess(r, owner) == false {
                 string on = "?"
                 if owner != null { on = owner.getName() }
                 r.diagStr2(node.getLoc(), DiagID.err_sema_symbol_not_accessible, node.getName(), on)
@@ -420,6 +416,21 @@ public class ResolverExpr {
             }
         }
         SemaMember mem = SemaBuilder.CreateMemberVar(node, attr, pe)
+        // A `const` field is written once, by a constructor of its own class;
+        // everywhere else the member expression is read-only. The flag rides on
+        // the expression (see SemaExpr.constVar), so the assignment and ++/--
+        // checks treat it exactly like a const local.
+        if attr.isConstant() {
+            bool inOwnCtor = false
+            SemaFunctionBase cfn = r.getCurrentFunction()
+            if cfn != null {
+                SemaClassMethod cm = cfn.asClassMethod()
+                if cm != null {
+                    if cm.isConstructor() { inOwnCtor = classMayAccess(r, attr.getClass()) }
+                }
+            }
+            if inOwnCtor == false { mem.setConstVar(true) }
+        }
         r.setCurrentExpr(mem)
     }
 
@@ -691,4 +702,17 @@ public void checkCondition(const Resolver r, const SourceLocation loc, const Sem
     if t.isError() { return }
     if t.getKind() == SemaKind.TYPE_PARAM { return }
     r.diagStr(loc, DiagID.err_sema_condition_not_bool, t.getName())
+}
+
+// classMayAccess — may the code being resolved touch a PRIVATE member of
+// `owner`? Only from inside `owner` itself (the reference rule:
+// CurrentClass != &Attr->getClass()). Compared by identity first and by name
+// second: a generic specialization resolves its methods against its own member
+// copies, but a member inherited into one may still name the template.
+public bool classMayAccess(const Resolver r, const SemaClassType owner) {
+    SemaClassType here = r.getCurrentClass()
+    if here == null { return false }
+    if owner == null { return false }
+    if here == owner { return true }
+    return str.equals(here.getName(), owner.getName())
 }

@@ -544,6 +544,26 @@ public class ResolverCall {
         if cls == null { return null }
         Registry reg = r.getReg()
         Symbol sym = ResolverCall.lookupMethodInHierarchy(reg, cls, node.getName(), argTypes)
+        // A PRIVATE method is callable only from its own class, like a private
+        // field. The call is still built after the diagnostic, so the caller
+        // does not pile a misleading "no function matches" on top of it.
+        if sym != null {
+            SemaNode pref = sym.getRef()
+            SemaFunctionBase pfn = pref.asFunctionBase()
+            if pfn != null {
+                SemaClassMethod pm = pfn.asClassMethod()
+                if pm != null {
+                    if pm.getVisibility() == SemaVisibilityKind.PRIVATE {
+                        SemaClassType pown = pm.getClass()
+                        if classMayAccess(r, pown) == false {
+                            string pon = "?"
+                            if pown != null { pon = pown.getName() }
+                            r.diagStr2(node.getLoc(), DiagID.err_sema_symbol_not_accessible, node.getName(), pon)
+                        }
+                    }
+                }
+            }
+        }
         return ResolverCall.makeCall(node, sym)
     }
 

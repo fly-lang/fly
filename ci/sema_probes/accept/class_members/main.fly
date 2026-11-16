@@ -1,0 +1,27 @@
+import fly.os.io
+import fly.str
+
+class Counter {
+    const int step
+    private int total
+
+    public Counter(const int step) {
+        this.step = step
+        this.total = 0
+    }
+
+    private void add() { this.total = this.total + this.step }
+
+    public int twice() {
+        this.add()
+        this.add()
+        return this.total
+    }
+}
+
+void main() {
+    Counter c = new Counter(3)
+    int n = c.twice()
+    if n != 6 { fail 1, "const field or private method misbehaved" }
+    io.printLn(str.convert(n))
+}
