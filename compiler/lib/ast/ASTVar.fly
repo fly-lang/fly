@@ -20,6 +20,11 @@ public class ASTVar : ASTNode {
         this.type = type
         this.name = name
         this.modifiers = modifiers
+        // `expr` is the parameter's DEFAULT value; "has a default" is decided by
+        // getExpr() != null (allParamsDefaulted), so the null is spelled out
+        // rather than left to the allocator. See ASTBuilder.CreateParam for the
+        // seed defect that once made it non-null.
+        this.expr = null
     }
 
     public ASTType getType() { return this.type }
