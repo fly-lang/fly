@@ -18,11 +18,13 @@ jobs:
     uses: ./.github/workflows/build-linux.yml
     with:
       debug_symbols: "0"
+      stage3: "1"        # bootstrap fixpoint check: release only
 
   build-windows:
     uses: ./.github/workflows/build-windows.yml
     with:
       debug_symbols: "0"
+      stage3: "1"        # bootstrap fixpoint check: release only
 
   release:
     needs: [build-linux, build-windows]

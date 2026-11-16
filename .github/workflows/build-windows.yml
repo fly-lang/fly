@@ -8,6 +8,11 @@ on:
         required: false
         type: string
         default: "1"
+      stage3:
+        description: '"1" runs the optional stage-3 fixpoint check (ci/windows/stage3.ps1); release.yml only.'
+        required: false
+        type: string
+        default: "0"
   push:
     paths-ignore:
       - '.github/workflows/**'
@@ -182,6 +187,18 @@ jobs:
           name: windows-crashdumps
           path: build/crashdumps
           if-no-files-found: ignore
+
+      # Release only (release.yml passes stage3="1"; push / dispatch skip it): the
+      # bootstrap fixpoint. The shipped stage2 compiler recompiles the compiler and
+      # the object must be byte-identical to the one stage1 produced — otherwise the
+      # self-host's codegen depends on which compiler built it. One more compiler
+      # build, hence not on every push. BLOCKING: a broken fixpoint stops the release
+      # (known divergence as of 2026-11-16: stage3 emits extra per-type _F helper
+      # symbols - see the fly-ci skill - so releases stay blocked until it is fixed).
+      - name: Stage 3 (fixpoint check, release only)
+        if: inputs.stage3 == '1'
+        shell: pwsh
+        run: .\ci\windows\stage3.ps1
 
       - name: Set artifact name
         id: artifact
