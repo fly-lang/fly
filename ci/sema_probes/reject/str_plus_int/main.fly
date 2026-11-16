@@ -1,0 +1,1 @@
+void main() { string s = "a" + 1 }

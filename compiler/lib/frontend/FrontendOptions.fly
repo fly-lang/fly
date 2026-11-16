@@ -63,69 +63,69 @@ public class FrontendOptions {
         this.logFormat = "txt"
     }
 
-    public string getOutputFile()   { out = this.outputFile }
+    public string getOutputFile()   { return this.outputFile }
     // setOutputFile — set the output path; isLib marks it as a library archive
     // (mirrors the C++ setOutputFile(StringRef, bool isLib)).
     public void setOutputFile(const string f, const bool isLib) {
         this.outputFile = f
         this.outputLib = isLib
     }
-    public bool isOutputLib()       { out = this.outputLib }
+    public bool isOutputLib()       { return this.outputLib }
     public void setOutputLib(const bool b) { this.outputLib = b }
 
-    public string getStdLibDir()    { out = this.stdLibDir }
+    public string getStdLibDir()    { return this.stdLibDir }
     public void setStdLibDir(const string d) { this.stdLibDir = d }
-    public string getOutDir()       { out = this.outDir }
+    public string getOutDir()       { return this.outDir }
     public void setOutDir(const string d) { this.outDir = d }
-    public bool getAutoDetectOutput() { out = this.autoDetectOutput }
+    public bool getAutoDetectOutput() { return this.autoDetectOutput }
     public void setAutoDetectOutput(const bool b) { this.autoDetectOutput = b }
 
-    public bool getCreateLibrary()  { out = this.createLibrary }
+    public bool getCreateLibrary()  { return this.createLibrary }
     public void setCreateLibrary(const bool b) { this.createLibrary = b }
-    public bool getCreateShared()   { out = this.createShared }
+    public bool getCreateShared()   { return this.createShared }
     public void setCreateShared(const bool b) { this.createShared = b }
-    public bool getCreateHeader()   { out = this.createHeader }
+    public bool getCreateHeader()   { return this.createHeader }
     public void setCreateHeader(const bool b) { this.createHeader = b }
-    public bool getVerbose()        { out = this.verbose }
+    public bool getVerbose()        { return this.verbose }
     public void setVerbose(const bool b) { this.verbose = b }
-    public bool getTestMode()       { out = this.testMode }
+    public bool getTestMode()       { return this.testMode }
     public void setTestMode(const bool b) { this.testMode = b }
-    public int getBackendAction()   { out = this.backendAction }
+    public int getBackendAction()   { return this.backendAction }
     public void setBackendAction(const int a) { this.backendAction = a }
 
-    public bool getShowVersion()    { out = this.showVersion }
+    public bool getShowVersion()    { return this.showVersion }
     public void setShowVersion(const bool b) { this.showVersion = b }
-    public bool getShowHelp()       { out = this.showHelp }
+    public bool getShowHelp()       { return this.showHelp }
     public void setShowHelp(const bool b) { this.showHelp = b }
-    public bool getShowStats()      { out = this.showStats }
+    public bool getShowStats()      { return this.showStats }
     public void setShowStats(const bool b) { this.showStats = b }
-    public bool getShowTimers()     { out = this.showTimers }
+    public bool getShowTimers()     { return this.showTimers }
     public void setShowTimers(const bool b) { this.showTimers = b }
-    public string getStatsFile()    { out = this.statsFile }
+    public string getStatsFile()    { return this.statsFile }
     public void setStatsFile(const string f) { this.statsFile = f }
-    public string getLogFile()      { out = this.logFile }
+    public string getLogFile()      { return this.logFile }
     public void setLogFile(const string f) { this.logFile = f }
-    public string getLogFormat()    { out = this.logFormat }
+    public string getLogFormat()    { return this.logFormat }
     public void setLogFormat(const string f) { this.logFormat = f }
 
     // ── LibDirs (-L) ──
     public void addLibDir(const string d) { this.libDirs = segAppend(this.libDirs, d) }
-    public string getLibDirs()      { out = this.libDirs }
-    public int libDirCount()        { out = segCount(this.libDirs) }
-    public string libDirAt(const int idx) { out = segAt(this.libDirs, idx) }
+    public string getLibDirs()      { return this.libDirs }
+    public int libDirCount()        { return segCount(this.libDirs) }
+    public string libDirAt(const int idx) { return segAt(this.libDirs, idx) }
 
     // ── SrcDirs (--src-dir) ──
     public void addSrcDir(const string d) { this.srcDirs = segAppend(this.srcDirs, d) }
-    public string getSrcDirs()      { out = this.srcDirs }
-    public int srcDirCount()        { out = segCount(this.srcDirs) }
-    public string srcDirAt(const int idx) { out = segAt(this.srcDirs, idx) }
+    public string getSrcDirs()      { return this.srcDirs }
+    public int srcDirCount()        { return segCount(this.srcDirs) }
+    public string srcDirAt(const int idx) { return segAt(this.srcDirs, idx) }
 
     public void addInputFile(const string f) {
         this.inputFiles = str.concat(this.inputFiles, str.concat(f, ";"))
     }
 
     // inputCount — number of input paths stored ("a;b;" boundaries → segments).
-    public int inputCount() { out = str.count(this.inputFiles, ";") - 1 }
+    public int inputCount() { return str.count(this.inputFiles, ";") - 1 }
 
     // inputAt — the idx-th input path. Uses only fresh substrings of the immutable
     // backing string (never `x = substring(x,…)`, which the self-host miscompiles).
@@ -151,6 +151,6 @@ public class FrontendOptions {
                 }
             }
         }
-        out = result
+        return result
     }
 }

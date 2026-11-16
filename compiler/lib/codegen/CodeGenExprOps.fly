@@ -126,18 +126,31 @@ public class CodeGenExprOps {
     // documented on SemaExpr.isVarExpr), so the kind + type + genAddr are the only
     // dispatch-free facts available here.
     public static bool assignStructOut(const CodeGenExpr cge, const SemaExpr left, const pointer rhs) {
-        if left == null { out = false  return }
-        if left.getKind() != SemaKind.PARAM_VAR { out = false  return }
+        if left == null { return false }
+        // An NRVO local takes the same path: its slot holds the CALLER's struct, so
+        // an assignment must copy through the pointer, never store over it. The
+        // local is recognised by its slot, not by asVar() — that mis-dispatches
+        // through a SemaExpr reference (the vtable-shift gotcha above).
+        bool nrvoLocal = false
+        if left.getKind() == SemaKind.LOCAL_VAR {
+            pointer nrvoCell = cge.getNrvoCell()
+            if nrvoCell != 0 {
+                if cge.genAddr(left) == nrvoCell { nrvoLocal = true }
+            }
+        }
+        if left.getKind() != SemaKind.PARAM_VAR {
+            if nrvoLocal == false { return false }
+        }
         SemaType lt = left.getType()
-        if lt == null { out = false  return }
+        if lt == null { return false }
         SemaClassType lc = lt.asClass()
-        if lc == null { out = false  return }
-        if lc.getClassKind() != SemaClassKind.STRUCT { out = false  return }
+        if lc == null { return false }
+        if lc.getClassKind() != SemaClassKind.STRUCT { return false }
         pointer sty = lc.getLlvmStructType()
-        if sty == 0 { out = false  return }
-        if rhs == 0 { out = false  return }
+        if sty == 0 { return false }
+        if rhs == 0 { return false }
         pointer slot = cge.genAddr(left)
-        if slot == 0 { out = false  return }
+        if slot == 0 { return false }
 
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
@@ -148,7 +161,30 @@ public class CodeGenExprOps {
         llvm.sizeOf(sty, szV)
         pointer mcv
         llvm.buildMemCpy(b, dest, rhs, szV, mcv)
-        out = true
+        return true
+    }
+
+    // copyStructThroughSlot — copy a struct value into the storage a pointer slot
+    // points at. Shared by the struct-parameter path and by an NRVO local, whose
+    // slot holds the caller's return storage: in both cases the bytes must land in
+    // the owner's memory rather than re-pointing the slot at the callee's frame.
+    public static void copyStructThroughSlot(const CodeGenExpr cge, const pointer slot, const pointer rhs, const SemaType ty) {
+        if slot == 0 { return }
+        if rhs == 0 { return }
+        if ty == null { return }
+        SemaClassType ct = ty.asClass()
+        if ct == null { return }
+        if ct.getClassKind() != SemaClassKind.STRUCT { return }
+        pointer sty = ct.getLlvmStructType()
+        if sty == 0 { return }
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        pointer dest
+        llvm.buildLoad2(b, cge.ptrType(), slot, "nrvodst", dest)
+        pointer szV
+        llvm.sizeOf(sty, szV)
+        pointer mcv
+        llvm.buildMemCpy(b, dest, rhs, szV, mcv)
     }
 
     // assignStructField — assigning a STRUCT to a class/struct FIELD (obj.f = v or
@@ -159,21 +195,21 @@ public class CodeGenExprOps {
     // later read of the field copied garbage (the Linux WrapperSuite failures).
     // False (nothing emitted) for every other assignee.
     public static bool assignStructField(const CodeGenExpr cge, const SemaExpr left, const pointer rhs) {
-        if left == null { out = false  return }
+        if left == null { return false }
         SemaKind k = left.getKind()
         if k != SemaKind.MEMBER {
-            if k != SemaKind.ATTRIBUTE { out = false  return }
+            if k != SemaKind.ATTRIBUTE { return false }
         }
         SemaType lt = left.getType()
-        if lt == null { out = false  return }
+        if lt == null { return false }
         SemaClassType lc = lt.asClass()
-        if lc == null { out = false  return }
-        if lc.getClassKind() != SemaClassKind.STRUCT { out = false  return }
+        if lc == null { return false }
+        if lc.getClassKind() != SemaClassKind.STRUCT { return false }
         pointer sty = lc.getLlvmStructType()
-        if sty == 0 { out = false  return }
-        if rhs == 0 { out = false  return }
+        if sty == 0 { return false }
+        if rhs == 0 { return false }
         pointer slot = cge.genAddr(left)
-        if slot == 0 { out = false  return }
+        if slot == 0 { return false }
 
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
@@ -181,7 +217,7 @@ public class CodeGenExprOps {
         llvm.sizeOf(sty, szV)
         pointer mcv
         llvm.buildMemCpy(b, slot, rhs, szV, mcv)
-        out = true
+        return true
     }
 
     // arith — +, -, *, /, %, &, |, ^, <<, >> (int or float by result type). Both
@@ -253,22 +289,22 @@ public class CodeGenExprOps {
         } else {
             if uns { llvm.buildLShr(b, l, r, "shr", v) } else { llvm.buildAShr(b, l, r, "shr", v) }
         }
-        out = v
+        return v
     }
 
     // toArithKind — the arithmetic kind a compound assignment lowers through
     // (`a += b` → OP_BINARY_ARITH_ADD), mirroring the reference toCompoundArith.
     public static ASTBinaryKind toArithKind(const ASTBinaryKind ck) {
-        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_ADD { out = ASTBinaryKind.OP_BINARY_ARITH_ADD  return }
-        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_SUB { out = ASTBinaryKind.OP_BINARY_ARITH_SUB  return }
-        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_MUL { out = ASTBinaryKind.OP_BINARY_ARITH_MUL  return }
-        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_DIV { out = ASTBinaryKind.OP_BINARY_ARITH_DIV  return }
-        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_MOD { out = ASTBinaryKind.OP_BINARY_ARITH_MOD  return }
-        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_AND { out = ASTBinaryKind.OP_BINARY_ARITH_AND  return }
-        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_OR  { out = ASTBinaryKind.OP_BINARY_ARITH_OR   return }
-        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_XOR { out = ASTBinaryKind.OP_BINARY_ARITH_XOR  return }
-        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_SHIFT_L { out = ASTBinaryKind.OP_BINARY_ARITH_SHIFT_L  return }
-        out = ASTBinaryKind.OP_BINARY_ARITH_SHIFT_R
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_ADD { return ASTBinaryKind.OP_BINARY_ARITH_ADD }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_SUB { return ASTBinaryKind.OP_BINARY_ARITH_SUB }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_MUL { return ASTBinaryKind.OP_BINARY_ARITH_MUL }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_DIV { return ASTBinaryKind.OP_BINARY_ARITH_DIV }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_MOD { return ASTBinaryKind.OP_BINARY_ARITH_MOD }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_AND { return ASTBinaryKind.OP_BINARY_ARITH_AND }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_OR  { return ASTBinaryKind.OP_BINARY_ARITH_OR }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_XOR { return ASTBinaryKind.OP_BINARY_ARITH_XOR }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_SHIFT_L { return ASTBinaryKind.OP_BINARY_ARITH_SHIFT_L }
+        return ASTBinaryKind.OP_BINARY_ARITH_SHIFT_R
     }
 
     // compoundAssign — `a <op>= b` (B015) lowered as `a = a <op> b`: load the
@@ -441,6 +477,36 @@ public class CodeGenExprOps {
     //     RHS struct, it is not a fresh buffer) so b's live buffer is never freed.
     // Call results in general wait for clone-on-store (a callee may retain the arg,
     // so freeing here would dangle). free(null) covers the empty {null,0} operand.
+    // markOwnedResult — a STRING returned by a Fly call is the caller's: the callee
+    // built it in the return slot (NRVO) or cloned it there, and keeps no claim on
+    // it. Flag it an owned temp so a decl/assign MOVES it instead of cloning (which
+    // leaked the original, one buffer per call) and a concat frees it after copying.
+    public static void markOwnedResult(const SemaExpr node, const SemaType t) {
+        if t == null { return }
+        if t.isString() { node.setOwnedStrTemp(true) }
+    }
+
+    // noteArgTemp / freeArgTemps — an owned string temp (a call result or a concat)
+    // passed to a CONST parameter is only borrowed by the callee: anything that
+    // keeps a string clones it. Remember its value while the args are gen'd, and
+    // free the buffer once the call returns. A non-const parameter is excluded:
+    // the callee may reassign it, which frees the buffer on its side.
+    public static void noteArgTemp(List<pointer> temps, const SemaExpr a, const pointer av) {
+        if a.isOwnedStrTemp() == false { return }
+        SemaType t = a.getType()
+        if t == null { return }
+        if t.isString() { temps.add(av) }
+    }
+    public static void freeArgTemps(const CodeGenExpr cge, const List<pointer> temps) {
+        int i = 0
+        while i < temps.size() {
+            pointer p
+            cge.getLLVM().buildExtractValue(cge.getBuilder(), temps.get(i), 0, "argtmpp", p)
+            cge.getCgm().freeHandle(p)
+            i = i + 1
+        }
+    }
+
     public static void freeOwnedConcatTemp(const CodeGenModule cgm, const SemaExpr e, const pointer bufPtr) {
         if e == null { return }
         if e.isOwnedStrTemp() == false { return }
@@ -713,27 +779,26 @@ public class CodeGenExprOps {
 // LLVM IntPredicate codes. EQ/NE are sign-agnostic; the relational predicates
 // pick the unsigned (34-37) or signed (38-41) family from the comparison type.
 public int icmpPred(const ASTBinaryKind k, const bool uns) {
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_EQ  { out = 32  return }
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_NE  { out = 33  return }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_EQ  { return 32 }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_NE  { return 33 }
     if uns {
-        if k == ASTBinaryKind.OP_BINARY_COMPARE_GT  { out = 34  return }   // UGT
-        if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { out = 35  return }   // UGE
-        if k == ASTBinaryKind.OP_BINARY_COMPARE_LT  { out = 36  return }   // ULT
-        out = 37   // ULE
-        return
+        if k == ASTBinaryKind.OP_BINARY_COMPARE_GT  { return 34 }   // UGT
+        if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { return 35 }   // UGE
+        if k == ASTBinaryKind.OP_BINARY_COMPARE_LT  { return 36 }   // ULT
+        return 37   // ULE
     }
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_GT  { out = 38  return }   // SGT
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { out = 39  return }   // SGE
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_LT  { out = 40  return }   // SLT
-    out = 41   // SLE
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_GT  { return 38 }   // SGT
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { return 39 }   // SGE
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_LT  { return 40 }   // SLT
+    return 41   // SLE
 }
 
 // LLVM RealPredicate codes (ordered comparisons).
 public int fcmpPred(const ASTBinaryKind k) {
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_EQ  { out = 1  return }
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_NE  { out = 6  return }
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_GT  { out = 2  return }
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { out = 3  return }
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_LT  { out = 4  return }
-    out = 5   // OLE
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_EQ  { return 1 }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_NE  { return 6 }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_GT  { return 2 }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { return 3 }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_LT  { return 4 }
+    return 5   // OLE
 }

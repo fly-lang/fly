@@ -11,10 +11,12 @@ import fly.assert
 // cannot be written inline; the whole point of the 4xx band is that http.fly
 // gets this right, so the suite must build it independently.
 string crlfStr() {
+    string res
     pointer b = mem.alloc(2)
     mem.writeByte(b, 0, 13)
     mem.writeByte(b, 1, 10)
-    str.fromBytes(b, 2, out)
+    res = str.fromBytes(b, 2)
+    return res
 }
 
 // mkHttp — expand a readable one-line template into a real HTTP message:
@@ -23,33 +25,33 @@ string crlfStr() {
 string mkHttp(const string tpl) {
     pointer q = mem.alloc(1)
     mem.writeByte(q, 0, 34)
-    string dq = ""
-    str.fromBytes(q, 1, dq)
+    string dq = str.fromBytes(q, 1)
     string s = str.replace(tpl, "~", crlfStr())
-    out = str.replace(s, "|", dq)
+    return str.replace(s, "|", dq)
 }
 
 // skipSockets — see NetSuite; gates every case that opens a socket.
 bool skipSockets() {
-    out = str.isEmpty(env.get("FLY_SKIP_NET_TESTS")) == false
+    return str.isEmpty(env.get("FLY_SKIP_NET_TESTS")) == false
 }
 
 // byteOfStr — the i-th byte of s as a masked int (byte widening differs per platform).
 int byteOfStr(const string s, const int i) {
-    byte b = 0
-    str.byteAt(s, i, b)
+    byte b = str.byteAt(s, i)
     int v = b
-    out = v & 255
+    return v & 255
 }
 
 // bytesOf — a 3-byte string from explicit byte values, for payloads a literal
 // cannot hold.
 string bytesOf(const int a, const int b, const int c) {
+    string res
     pointer p = mem.alloc(3)
     mem.writeByte(p, 0, (byte)a)
     mem.writeByte(p, 1, (byte)b)
     mem.writeByte(p, 2, (byte)c)
-    str.fromBytes(p, 3, out)
+    res = str.fromBytes(p, 3)
+    return res
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -198,8 +200,8 @@ suite HttpSuite {
             int e = str.len(str.concat("HTTP/1.1 200 OK", ""))
             byte b0 = 0
             byte b1 = 0
-            str.byteAt(r, e, b0)
-            str.byteAt(r, e + 1, b1)
+            b0 = str.byteAt(r, e)
+            b1 = str.byteAt(r, e + 1)
             assert.assertEqI(b0, 13, 408)
             assert.assertEqI(b1, 10, 409)
         }
@@ -593,8 +595,7 @@ suite HttpSuite {
                 mem.writeByte(b, 4, 26)      // 0x1A — a text-mode read stops
                 mem.writeByte(b, 5, 0)       // an embedded NUL
                 mem.writeByte(b, 6, 255)
-                string payload = ""
-                str.fromBytes(b, 7, payload)
+                string payload = str.fromBytes(b, 7)
                 string want = hash.sha256String(payload)
 
                 long srv = net.listenOn(net.loopback(), 0, 4)

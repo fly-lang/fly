@@ -17,8 +17,8 @@ public class ASTDeclStmt : ASTStmt {
         this.localVar = localVar
     }
 
-    public ASTLocalVar getLocalVar() { out = this.localVar }
-    public ASTExpr getExpr() { out = this.expr }
+    public ASTLocalVar getLocalVar() { return this.localVar }
+    public ASTExpr getExpr() { return this.expr }
     public void setExpr(const ASTExpr expr) { this.expr = expr }
 
     public void accept(const ASTVisitor v) { v.visit(this) }

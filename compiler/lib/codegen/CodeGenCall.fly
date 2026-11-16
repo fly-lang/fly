@@ -85,6 +85,7 @@ public class CodeGenCall {
         // is sext/trunc'd to the param type first, else the callee reads a wrong-sized
         // slot. Non-integer or exactly-matching args are stored as-is.
         List<SemaParam> calleeParams = fn.getParams()
+        List<pointer> argTemps = new List<pointer>()
         int i = 0
         while i < realCount {
             SemaExpr a = args.get(i)
@@ -115,23 +116,26 @@ public class CodeGenCall {
                     if cpt != null { pTy = cpt }
                     cpConst = cp2.isConstant()
                 }
-                // Reference ABI: a CONST CLASS/INTERFACE handle (a heap pointer) is passed
-                // BY VALUE — the handle itself in the register — NOT wrapped in a temp.
-                // Mirrors fly/ CodeGenExpr::addArgs, which pushes an already-pointer value
-                // directly and only allocas non-pointer values. Passing a handle by &temp
-                // made an archive callee store the temp's ADDRESS (a stack ptr) where the
-                // handle belongs → later virtual dispatch jumped to garbage. STRUCTs are
-                // value aggregates (they lower to ptr too, but are NOT heap handles) and
-                // stay on the by-pointer path, as do non-const params (so callee writes
-                // reach the caller). Mirrors the callee split in CodeGenModule.genBody.
+                // Reference ABI: a CONST CLASS/INTERFACE/STRUCT argument is passed BY
+                // VALUE — the object pointer itself in the register — NOT wrapped in a
+                // temp. Mirrors fly/ CodeGenExpr::addArgs, which pushes an already-pointer
+                // value directly and only allocas non-pointer values: the reference keys
+                // purely on "the value is already a pointer", so it makes NO class/struct
+                // distinction here. Passing a handle by &temp made an archive callee store
+                // the temp's ADDRESS (a stack ptr) where the handle belongs → later virtual
+                // dispatch jumped to garbage; keeping STRUCTs off the same rule was that
+                // defect one level down — a `const StructType` arg reached a SEED-built
+                // callee (the shipped std archive) as a pointer to a pointer and every
+                // field read came back garbage. Non-const params keep the by-pointer path,
+                // so callee writes reach the caller. Mirrors the callee split in
+                // CodeGenModule.genBody / CodeGenClass.genMethodBody.
                 SemaClassType pcls = null
                 if pTy != null { pcls = pTy.asClass() }
                 bool byValHandle = false
                 if cpConst {
-                    if pcls != null {
-                        if pcls.getClassKind() != SemaClassKind.STRUCT { byValHandle = true }
-                    }
+                    if pcls != null { byValHandle = true }
                 }
+                if cpConst { CodeGenExprOps.noteArgTemp(argTemps, a, av) }
                 if byValHandle {
                     argAddrs.add(av)
                 } else {
@@ -166,8 +170,19 @@ public class CodeGenCall {
                 pointer oty = cge.lowerType(ot)
                 pointer slot
                 llvm.buildAlloca(b, oty, "callout", slot)
+                // Zero the slot before the call. A callee that `fail`s returns
+                // without ever reaching a `return`, so the slot keeps whatever the
+                // stack held: the caller then read an uninitialised string and the
+                // first str call on it access-violated. Under the old out variable
+                // a fallible function assigned `out` before failing; there is no
+                // way to say that any more, so the default belongs here.
                 SemaClassType oc = null
                 if ot != null { oc = ot.asClass() }
+                if oc == null {
+                    pointer zeroOut
+                    llvm.constNull(oty, zeroOut)
+                    llvm.buildStore(b, zeroOut, slot)
+                }
                 if oc != null {
                     pointer sty = oc.getLlvmStructType()
                     if sty != 0 {
@@ -191,6 +206,7 @@ public class CodeGenCall {
         CodeGenLLVM cg = m.getCg()
         pointer callV
         cg.buildCallN(b, fnTy, fnVal, argAddrs, "", callV)
+        CodeGenExprOps.freeArgTemps(cge, argTemps)
 
         // the call's rvalue is the out slot reloaded (void calls produce nothing).
         if hasOut {
@@ -198,6 +214,7 @@ public class CodeGenCall {
             pointer loaded
             llvm.buildLoad2(b, oty2, outPtr, "callres", loaded)
             node.setLlvmValue(loaded)
+            CodeGenExprOps.markOwnedResult(node, outVar.getType())
         }
     }
 }

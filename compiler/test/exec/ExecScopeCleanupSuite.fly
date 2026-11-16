@@ -1,0 +1,200 @@
+import fly.assert
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ExecScopeCleanupSuite — EXECUTED ownership on every way out of a scope. The
+// locals a scope owns (string buffers, array references, `new` class handles)
+// are freed when it ends — on fall-through AND on return / fail / break /
+// continue, which used to skip the cleanup and leak one buffer per exit. Call
+// results are owned temporaries: a decl/assign moves them, a const argument
+// frees them after the call. Every case checks values survive the cleanup
+// (a premature free shows up as garbage or a crash, not as a leak).
+//
+// Assert codes: 1xx return, 2xx break/continue, 3xx fail, 4xx call results,
+// 5xx class handles.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class ExecScBox {
+    public int v
+    public ExecScBox(const int v) { this.v = v }
+    public string label() { return "box" + str.convert(this.v) }
+}
+
+string execScMake(const int n) {
+    string s = "v"
+    int i = 0
+    while i < n {
+        s = s + "x"
+        i = i + 1
+    }
+    return s
+}
+
+// early returns from nested scopes, each with string locals of its own
+string execScPick(const int k) {
+    string a = execScMake(1)
+    if k == 0 { return a }
+    string b = execScMake(2)
+    if k == 1 {
+        string inner = b + "!"
+        return inner
+    }
+    int i = 0
+    while i < 3 {
+        string t = execScMake(i)
+        if i == k - 2 { return t + a }
+        i = i + 1
+    }
+    return b
+}
+
+// a string local freed at the return while an int is returned
+int execScLenOf(const int n) {
+    string t = execScMake(n)
+    return str.len(t)
+}
+
+// break/continue leave the loop body's scope: its string must be freed there,
+// and a local declared AFTER the break must not be (it holds nothing yet)
+int execScLoop(const int stopAt) {
+    int total = 0
+    int i = 0
+    while i < 10 {
+        string head = execScMake(i)
+        i = i + 1
+        if i % 2 == 0 { continue }
+        if i > stopAt { break }
+        string tail = head + "y"
+        total = total + str.len(tail)
+    }
+    return total
+}
+
+int execScForIn(const int[] xs) {
+    int total = 0
+    for x in xs {
+        string s = execScMake(x)
+        if x == 2 { continue }
+        if x == 9 { break }
+        total = total + str.len(s)
+    }
+    return total
+}
+
+// fail frees the failing frame's locals; the error still reaches the caller
+void execScFail(const int n) {
+    string s = execScMake(n)
+    if str.len(s) > 2 { fail 42 }
+}
+
+// the returned handle survives; the other owned handle is freed
+ExecScBox execScPickBox(const int v) {
+    ExecScBox keep = new ExecScBox(v)
+    ExecScBox other = new ExecScBox(v + 1)
+    if v > 100 { return other }
+    int unused = other.v
+    return keep
+}
+
+suite ExecScopeCleanupSuite {
+
+    void returnTest() {
+        case "early return from the outer scope": {
+            assert.assertStr(execScPick(0), "vx", 101)
+        }
+        case "early return from a nested block": {
+            assert.assertStr(execScPick(1), "vxx!", 102)
+        }
+        case "early return from inside a loop body": {
+            assert.assertStr(execScPick(3), "vxvx", 103)
+        }
+        case "fall-through return after the loop": {
+            assert.assertStr(execScPick(9), "vxx", 104)
+        }
+        case "string local freed, int result kept": {
+            assert.assertEqI(execScLenOf(4), 5, 111)
+        }
+        case "many calls stay consistent": {
+            int i = 0
+            int sum = 0
+            while i < 1000 {
+                sum = sum + execScLenOf(3)
+                i = i + 1
+            }
+            assert.assertEqI(sum, 4000, 121)
+        }
+    }
+
+    void loopTest() {
+        case "continue and break with body locals": {
+            // i=1: head "v" -> tail len 2; i=3: len 4; i=5: len 6; i=7 > 6 breaks
+            assert.assertEqI(execScLoop(6), 12, 201)
+        }
+        case "break before the later local is declared": {
+            assert.assertEqI(execScLoop(0), 0, 202)
+        }
+        case "continue in for-in advances to the next element": {
+            int[] xs = {1, 2, 3, 9, 4}
+            // 1 -> 2, 2 skipped, 3 -> 4, 9 breaks
+            assert.assertEqI(execScForIn(xs), 6, 211)
+        }
+    }
+
+    void failTest() {
+        case "fail frees the locals and propagates": {
+            handle {
+                execScFail(5)
+            }
+            bool caught = error
+            assert.assertTrue(caught, 301)
+        }
+        case "no fail when the local is short": {
+            handle {
+                execScFail(1)
+            }
+            bool caught = error
+            assert.assertFalse(caught, 311)
+        }
+    }
+
+    void callResultTest() {
+        case "call result moved into a local": {
+            string s = execScMake(3)
+            assert.assertStr(s, "vxxx", 401)
+        }
+        case "call result reassigned over a live local": {
+            string s = execScMake(1)
+            s = execScMake(2)
+            assert.assertStr(s, "vxx", 402)
+        }
+        case "call result passed straight to a const param": {
+            assert.assertEqI(str.len(execScMake(6)), 7, 411)
+            assert.assertTrue(str.equals(execScMake(0), "v"), 412)
+        }
+        case "call results as concat operands": {
+            string s = execScMake(1) + "-" + execScMake(2)
+            assert.assertStr(s, "vx-vxx", 421)
+        }
+        case "discarded call result": {
+            execScMake(5)
+            assert.assertEqI(1, 1, 431)
+        }
+        case "method returning a string": {
+            ExecScBox b = new ExecScBox(7)
+            assert.assertStr(b.label(), "box7", 441)
+            string l = b.label()
+            assert.assertStr(l, "box7", 442)
+        }
+    }
+
+    void handleTest() {
+        case "returned handle survives the cleanup": {
+            ExecScBox b = execScPickBox(5)
+            assert.assertEqI(b.v, 5, 501)
+        }
+        case "the other handle is the one returned": {
+            ExecScBox b = execScPickBox(200)
+            assert.assertEqI(b.v, 201, 502)
+        }
+    }
+}

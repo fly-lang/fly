@@ -39,7 +39,7 @@ import fly.data.List
 string jsonOf(const pointer node) {
     string s = json.write(node)
     json.freeValue(node)
-    out = s
+    return s
 }
 
 // intAt / intAt2 — read a number out of a serialized node by key (or nested
@@ -56,7 +56,7 @@ int intAt(const string body, const string key) {
         if n != 0 { v = json.asInt(n) }
     }
     json.freeValue(o)
-    out = v
+    return v
 }
 
 int intAt2(const string body, const string outer, const string inner) {
@@ -71,7 +71,7 @@ int intAt2(const string body, const string outer, const string inner) {
         }
     }
     json.freeValue(o)
-    out = v
+    return v
 }
 
 int intAt3(const string body, const string a, const string b, const string c) {
@@ -89,7 +89,7 @@ int intAt3(const string body, const string a, const string b, const string c) {
         }
     }
     json.freeValue(o)
-    out = v
+    return v
 }
 
 // strAt — a string field by key, "" when absent.
@@ -102,7 +102,7 @@ string strAt(const string body, const string key) {
         if n != 0 { if json.isString(n) { v = json.asString(n) } }
     }
     json.freeValue(o)
-    out = v
+    return v
 }
 
 // hasKey — is `key` present at the top level?
@@ -112,7 +112,7 @@ bool hasKey(const string body, const string key) {
     bool h = false
     if e == 0 { h = json.has(o, key) }
     json.freeValue(o)
-    out = h
+    return h
 }
 
 suite LspProtocolSuite {
@@ -197,8 +197,7 @@ suite LspProtocolSuite {
             // compiler messages DO quote identifiers ("no function named 'x'").
             pointer qp = mem.alloc(1)
             mem.writeByte(qp, 0, 34)
-            string q = ""
-            str.fromBytes(qp, 1, q)
+            string q = str.fromBytes(qp, 1)
             string msg = str.concat("say ", str.concat(q, "hi"))
             string j = jsonOf(lsp.mkDiagnostic(new LspDiag(1, 1, 1, msg, "")))
             int e = 0
@@ -286,8 +285,7 @@ suite LspProtocolSuite {
         case "lfStr is one real newline byte": {
             string nl = lsp.lfStr()
             assert.assertEqI(str.len(nl), 1, 601)
-            byte b = 0
-            str.byteAt(nl, 0, b)
+            byte b = str.byteAt(nl, 0)
             int c = b
             c = c & 255
             assert.assertEqI(c, 10, 602)

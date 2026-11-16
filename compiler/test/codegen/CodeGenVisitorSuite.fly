@@ -19,8 +19,8 @@ public class Probe : SemaVisitor {
     bool declSeen
     bool intSeen
     public Probe() { this.declSeen = false  this.intSeen = false }
-    public bool getDeclSeen() { out = this.declSeen }
-    public bool getIntSeen() { out = this.intSeen }
+    public bool getDeclSeen() { return this.declSeen }
+    public bool getIntSeen() { return this.intSeen }
 
     public void visit(const SemaDeclStmt node) {
         this.declSeen = true
@@ -71,7 +71,7 @@ suite CodeGenVisitorSuite {
 
     void dispatchTest() {
         case "accept(SemaVisitor) reaches decl + int value": {
-            Parser p = new Parser("int f() { int x = 5 }")
+            Parser p = new Parser("int f() { int x = 5  return x }")
             ASTModule m = p.parseModule("t")
             List<ASTModule> mods = new List<ASTModule>()
             mods.add(m)

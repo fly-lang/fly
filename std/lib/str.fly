@@ -6,28 +6,36 @@ import fly.runtime
 // ── Query functions ────────────────────────────────────────────────────────
 
 public int len(const string src) {
-    fly.llvm.strSize(src, out)
+    int res
+    fly.llvm.strSize(src, res)
+    return res
 }
 
 // byteAt — the i-th byte of a string. Public wrapper over the LLVM intrinsic so
 // non-std code reads string bytes without calling fly.llvm directly.
-public void byteAt(const string s, const int i, byte out) {
-    fly.llvm.strByteAt(s, i, out)
+public byte byteAt(const string s, const int i) {
+    byte b = 0
+    fly.llvm.strByteAt(s, i, b)
+    return b
 }
 
 // fromBytes — build a string value from a raw buffer pointer + byte length.
-public void fromBytes(const pointer ptr, const int size, string out) {
-    fly.llvm.strMake(ptr, size, out)
+// strMake takes OWNERSHIP of the buffer; the result is built straight in the
+// caller's slot (NRVO), so handing it back costs nothing.
+public string fromBytes(const pointer ptr, const int size) {
+    string s = ""
+    fly.llvm.strMake(ptr, size, s)
+    return s
 }
 
 public bool isEmpty(const string src) {
     int s = 0
     fly.llvm.strSize(src, s)
-    out = s == 0
+    return s == 0
 }
 
 public bool equals(const string a, const string b) {
-    out = a == b
+    return a == b
 }
 
 public bool equalsIgnoreCase(const string a, const string b) {
@@ -36,8 +44,7 @@ public bool equalsIgnoreCase(const string a, const string b) {
     fly.llvm.strSize(a, sa)
     fly.llvm.strSize(b, sb)
     if sa != sb {
-        out = false
-        return
+        return false
     }
     bool eq = true
     int i = 0
@@ -56,7 +63,7 @@ public bool equalsIgnoreCase(const string a, const string b) {
         }
         i = i + 1
     }
-    out = eq
+    return eq
 }
 
 public bool startsWith(const string src, const string prefix) {
@@ -65,8 +72,7 @@ public bool startsWith(const string src, const string prefix) {
     fly.llvm.strSize(src, ss)
     fly.llvm.strSize(prefix, ps)
     if ps > ss {
-        out = false
-        return
+        return false
     }
     bool eq = true
     int i = 0
@@ -81,7 +87,7 @@ public bool startsWith(const string src, const string prefix) {
         }
         i = i + 1
     }
-    out = eq
+    return eq
 }
 
 public bool endsWith(const string src, const string suffix) {
@@ -90,8 +96,7 @@ public bool endsWith(const string src, const string suffix) {
     fly.llvm.strSize(src, ss)
     fly.llvm.strSize(suffix, sfs)
     if sfs > ss {
-        out = false
-        return
+        return false
     }
     int offset = ss - sfs
     bool eq = true
@@ -107,7 +112,7 @@ public bool endsWith(const string src, const string suffix) {
         }
         i = i + 1
     }
-    out = eq
+    return eq
 }
 
 public int indexOf(const string src, const string sub) {
@@ -116,12 +121,10 @@ public int indexOf(const string src, const string sub) {
     fly.llvm.strSize(src, ss)
     fly.llvm.strSize(sub, ns)
     if ns == 0 {
-        out = 0
-        return
+        return 0
     }
     if ns > ss {
-        out = 0 - 1
-        return
+        return 0 - 1
     }
     int limit = ss - ns
     int found = 0 - 1
@@ -146,7 +149,7 @@ public int indexOf(const string src, const string sub) {
         }
         i = i + 1
     }
-    out = found
+    return found
 }
 
 public int lastIndexOf(const string src, const string sub) {
@@ -155,8 +158,7 @@ public int lastIndexOf(const string src, const string sub) {
     fly.llvm.strSize(src, ss)
     fly.llvm.strSize(sub, ns)
     if ns == 0 || ns > ss {
-        out = 0 - 1
-        return
+        return 0 - 1
     }
     int limit = ss - ns
     int found = 0 - 1
@@ -178,7 +180,7 @@ public int lastIndexOf(const string src, const string sub) {
         if match { found = i }
         i = i + 1
     }
-    out = found
+    return found
 }
 
 public bool contains(const string src, const string sub) {
@@ -187,12 +189,10 @@ public bool contains(const string src, const string sub) {
     fly.llvm.strSize(src, ss)
     fly.llvm.strSize(sub, ns)
     if ns == 0 {
-        out = true
-        return
+        return true
     }
     if ns > ss {
-        out = false
-        return
+        return false
     }
     int limit = ss - ns
     bool found = false
@@ -217,7 +217,7 @@ public bool contains(const string src, const string sub) {
         }
         i = i + 1
     }
-    out = found
+    return found
 }
 
 public int count(const string src, const string sub) {
@@ -226,8 +226,7 @@ public int count(const string src, const string sub) {
     fly.llvm.strSize(src, ss)
     fly.llvm.strSize(sub, ns)
     if ns == 0 || ns > ss {
-        out = 0
-        return
+        return 0
     }
     int n = 0
     int i = 0
@@ -252,15 +251,16 @@ public int count(const string src, const string sub) {
             i = i + 1
         }
     }
-    out = n
+    return n
 }
 
 // ── Transform functions (allocate via fly.runtime.mem_alloc) ─────────────
 
 public string toUpper(const string src) {
+    string res = ""
     int size = 0
     fly.llvm.strSize(src, size)
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(size, buf)
     int i = 0
     while i < size {
@@ -271,13 +271,15 @@ public string toUpper(const string src) {
         fly.llvm.strPoke(buf, i, ib)
         i = i + 1
     }
-    fly.llvm.strMake(buf, size, out)
+    fly.llvm.strMake(buf, size, res)
+    return res
 }
 
 public string toLower(const string src) {
+    string res = ""
     int size = 0
     fly.llvm.strSize(src, size)
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(size, buf)
     int i = 0
     while i < size {
@@ -288,10 +290,12 @@ public string toLower(const string src) {
         fly.llvm.strPoke(buf, i, ib)
         i = i + 1
     }
-    fly.llvm.strMake(buf, size, out)
+    fly.llvm.strMake(buf, size, res)
+    return res
 }
 
 public string trim(const string src) {
+    string res = ""
     int size = 0
     fly.llvm.strSize(src, size)
     int lo = 0
@@ -312,7 +316,7 @@ public string trim(const string src) {
         }
     }
     int len = hi - lo
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(len, buf)
     int i = 0
     while i < len {
@@ -320,10 +324,12 @@ public string trim(const string src) {
         fly.llvm.strPoke(buf, i, b)
         i = i + 1
     }
-    fly.llvm.strMake(buf, len, out)
+    fly.llvm.strMake(buf, len, res)
+    return res
 }
 
 public string trimLeft(const string src) {
+    string res = ""
     int size = 0
     fly.llvm.strSize(src, size)
     int lo = 0
@@ -334,7 +340,7 @@ public string trimLeft(const string src) {
         if lo < size { fly.llvm.strByteAt(src, lo, b) }
     }
     int len = size - lo
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(len, buf)
     int i = 0
     while i < len {
@@ -342,10 +348,12 @@ public string trimLeft(const string src) {
         fly.llvm.strPoke(buf, i, b)
         i = i + 1
     }
-    fly.llvm.strMake(buf, len, out)
+    fly.llvm.strMake(buf, len, res)
+    return res
 }
 
 public string trimRight(const string src) {
+    string res = ""
     int size = 0
     fly.llvm.strSize(src, size)
     int hi = size
@@ -357,7 +365,7 @@ public string trimRight(const string src) {
             if hi > 0 { fly.llvm.strByteAt(src, hi - 1, b) }
         }
     }
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(hi, buf)
     int i = 0
     while i < hi {
@@ -365,10 +373,12 @@ public string trimRight(const string src) {
         fly.llvm.strPoke(buf, i, b)
         i = i + 1
     }
-    fly.llvm.strMake(buf, hi, out)
+    fly.llvm.strMake(buf, hi, res)
+    return res
 }
 
 public string substring(const string src, const int start, const int end) {
+    string res = ""
     int size = 0
     fly.llvm.strSize(src, size)
     int s = start
@@ -377,7 +387,7 @@ public string substring(const string src, const int start, const int end) {
     if e > size { e = size }
     if s > e { s = e }
     int len = e - s
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(len, buf)
     byte b = 0
     int i = 0
@@ -386,24 +396,31 @@ public string substring(const string src, const int start, const int end) {
         fly.llvm.strPoke(buf, i, b)
         i = i + 1
     }
-    fly.llvm.strMake(buf, len, out)
+    fly.llvm.strMake(buf, len, res)
+    return res
 }
 
 public string concat(const string a, const string b) {
-    out = a + b
+    return a + b
 }
 
 public string repeat(const string src, const int count) {
+    string res = ""
     int size = 0
     fly.llvm.strSize(src, size)
     if count <= 0 || size == 0 {
-        long empty = 0
+        pointer empty = 0
         fly.runtime.mem_alloc(1, empty)
-        fly.llvm.strMake(empty, 0, out)
-        return
+        fly.llvm.strMake(empty, 0, res)
+        return res
     }
-    int newSize = size * count
-    long buf = 0
+    // A string's size is an int: a product past that is not representable, and
+    // computed in int it wrapped to a small or negative size — a short buffer
+    // the copy loop below then overran. Empty is the answer, not a crash.
+    long total = (long)size * (long)count
+    if total > 2147483647 { return res }
+    int newSize = (int)total
+    pointer buf = 0
     fly.runtime.mem_alloc(newSize, buf)
     byte b = 0
     int ci = 0
@@ -416,10 +433,12 @@ public string repeat(const string src, const int count) {
         }
         ci = ci + 1
     }
-    fly.llvm.strMake(buf, newSize, out)
+    fly.llvm.strMake(buf, newSize, res)
+    return res
 }
 
 public string replace(const string src, const string from, const string to) {
+    string res = ""
     int ss = 0
     int fs = 0
     int ts = 0
@@ -427,8 +446,8 @@ public string replace(const string src, const string from, const string to) {
     fly.llvm.strSize(from, fs)
     fly.llvm.strSize(to, ts)
     if fs == 0 {
-        out = src
-        return
+        res = src
+        return res
     }
     // Count occurrences (inlined)
     int occ = 0
@@ -461,7 +480,7 @@ public string replace(const string src, const string from, const string to) {
         }
     }
     int newSize = ss + occ * (ts - fs)
-    long buf = 0
+    pointer buf = 0
     fly.runtime.mem_alloc(newSize, buf)
     int ri = 0
     int wi = 0
@@ -500,84 +519,79 @@ public string replace(const string src, const string from, const string to) {
             ri = ri + 1
         }
     }
-    fly.llvm.strMake(buf, newSize, out)
+    fly.llvm.strMake(buf, newSize, res)
+    return res
 }
 
 // ── Conversion ─────────────────────────────────────────────────────────────
 
 public string convert(const int src) {
+    string res = ""
+    // Digits come from a NEGATIVE accumulator. The magnitude of INT_MIN does not
+    // fit an int, so negating a negative input first left INT_MIN unchanged, the
+    // digit loop never ran and the result was a bare "-".
     int n = src
-    if n == 0 {
-        long buf = 0
-        fly.runtime.mem_alloc(1, buf)
-        fly.llvm.strPoke(buf, 0, 48)
-        fly.llvm.strMake(buf, 1, out)
-        return
-    }
-    bool neg = n < 0
-    if neg { n = 0 - n }
-    long tmp = 0
-    fly.runtime.mem_alloc(12, tmp)
+    if n > 0 { n = 0 - n }
+    // One buffer, filled back to front and handed to the string as it is: the old
+    // scratch-then-copy version leaked the scratch on every call.
+    pointer buf = 0
+    fly.runtime.mem_alloc(12, buf)                    // "-2147483648" is 11 bytes
     int len = 0
-    while n > 0 {
-        int digit = n - (n / 10) * 10
-        fly.llvm.strPoke(tmp, len, 48 + digit)
-        len = len + 1
-        n = n / 10
+    if n == 0 {
+        fly.llvm.strPoke(buf, 0, 48)
+        len = 1
     }
-    if neg {
-        fly.llvm.strPoke(tmp, len, 45)
+    while n < 0 {
+        int q = n / 10
+        int digit = q * 10 - n
+        fly.llvm.strPoke(buf, len, 48 + digit)
+        len = len + 1
+        n = q
+    }
+    if src < 0 {
+        fly.llvm.strPoke(buf, len, 45)
         len = len + 1
     }
-    // Reverse in-place using ptrByteAt to read from raw long pointer
     int lo = 0
     int hi = len - 1
     while lo < hi {
         byte bl = 0
         byte bh = 0
-        fly.llvm.ptrByteAt(tmp, lo, bl)
-        fly.llvm.ptrByteAt(tmp, hi, bh)
-        fly.llvm.strPoke(tmp, lo, bh)
-        fly.llvm.strPoke(tmp, hi, bl)
+        fly.llvm.ptrByteAt(buf, lo, bl)
+        fly.llvm.ptrByteAt(buf, hi, bh)
+        fly.llvm.strPoke(buf, lo, bh)
+        fly.llvm.strPoke(buf, hi, bl)
         lo = lo + 1
         hi = hi - 1
     }
-    long buf = 0
-    fly.runtime.mem_alloc(len, buf)
-    int i = 0
-    while i < len {
-        byte bb = 0
-        fly.llvm.ptrByteAt(tmp, i, bb)
-        fly.llvm.strPoke(buf, i, bb)
-        i = i + 1
-    }
-    fly.llvm.strMake(buf, len, out)
+    fly.llvm.strMake(buf, len, res)
+    return res
 }
 
 // convertL — decimal string of a 64-bit long (convert() is int-only; the assert
 // helpers need this for assertEqL). Same digits-then-reverse shape as convert.
 public string convertL(const long src) {
+    string res = ""
+    // Same scheme as convert: a negative accumulator (LONG_MIN has no positive
+    // counterpart) and a single buffer that becomes the string.
     long n = src
-    if n == 0 {
-        long zbuf = 0
-        fly.runtime.mem_alloc(1, zbuf)
-        fly.llvm.strPoke(zbuf, 0, 48)
-        fly.llvm.strMake(zbuf, 1, out)
-        return
-    }
-    bool neg = n < 0
-    if neg { n = 0 - n }
-    long tmp = 0
-    fly.runtime.mem_alloc(24, tmp)
+    if n > 0 { n = 0 - n }
+    pointer buf = 0
+    fly.runtime.mem_alloc(21, buf)                    // "-9223372036854775808" is 20 bytes
     int len = 0
-    while n > 0 {
-        int digit = (int)(n - (n / 10) * 10)
-        fly.llvm.strPoke(tmp, len, 48 + digit)
-        len = len + 1
-        n = n / 10
+    if n == 0 {
+        fly.llvm.strPoke(buf, 0, 48)
+        len = 1
     }
-    if neg {
-        fly.llvm.strPoke(tmp, len, 45)
+    while n < 0 {
+        long q = n / 10
+        int digit = (int)(q * 10 - n)
+        fly.llvm.strPoke(buf, len, 48 + digit)
+        len = len + 1
+        n = q
+    }
+    if src < 0 {
+        fly.llvm.strPoke(buf, len, 45)
         len = len + 1
     }
     int lo = 0
@@ -585,21 +599,13 @@ public string convertL(const long src) {
     while lo < hi {
         byte bl = 0
         byte bh = 0
-        fly.llvm.ptrByteAt(tmp, lo, bl)
-        fly.llvm.ptrByteAt(tmp, hi, bh)
-        fly.llvm.strPoke(tmp, lo, bh)
-        fly.llvm.strPoke(tmp, hi, bl)
+        fly.llvm.ptrByteAt(buf, lo, bl)
+        fly.llvm.ptrByteAt(buf, hi, bh)
+        fly.llvm.strPoke(buf, lo, bh)
+        fly.llvm.strPoke(buf, hi, bl)
         lo = lo + 1
         hi = hi - 1
     }
-    long buf = 0
-    fly.runtime.mem_alloc(len, buf)
-    int i = 0
-    while i < len {
-        byte bb = 0
-        fly.llvm.ptrByteAt(tmp, i, bb)
-        fly.llvm.strPoke(buf, i, bb)
-        i = i + 1
-    }
-    fly.llvm.strMake(buf, len, out)
+    fly.llvm.strMake(buf, len, res)
+    return res
 }

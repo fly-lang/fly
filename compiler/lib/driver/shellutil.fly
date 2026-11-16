@@ -36,7 +36,7 @@ public string tmpPath(const string tag) {
     if str.isEmpty(tmpdir) { tmpdir = env.get("TEMP") }
     if str.isEmpty(tmpdir) { tmpdir = "." }
     string d = fs.tempDir(tmpdir, tag)
-    out = str.concat(d, "/out")
+    return str.concat(d, "/out")
 }
 
 // captureArgs — run `prog` with the ArgList `h` and return its stdout. The exit
@@ -51,30 +51,28 @@ public string captureArgs(const string prog, const pointer h, int rcOut) {
         data = fs.readStr(tmp)
         fs.delete(tmp)
     }
-    out = data
+    return data
 }
 
 // runArgs — run `prog` with the ArgList `h`, output inherited; returns the exit
 // code, or -1 if the program could not be spawned.
 public int runArgs(const string prog, const pointer h) {
-    out = proc.exec(prog, h)
+    return proc.exec(prog, h)
 }
 
 // trimTrailingNewline — drop a single trailing '\n'/'\r\n' (command output tidy).
 public string trimTrailingNewline(const string s) {
     int n = str.len(s)
-    if n == 0 { out = s  return }
-    byte last = 0
-    str.byteAt(s, n - 1, last)
+    if n == 0 { return s }
+    byte last = str.byteAt(s, n - 1)
     if last == 10 {
         n = n - 1
         if n > 0 {
-            byte prev = 0
-            str.byteAt(s, n - 1, prev)
+            byte prev = str.byteAt(s, n - 1)
             if prev == 13 { n = n - 1 }
         }
     }
-    out = str.substring(s, 0, n)
+    return str.substring(s, 0, n)
 }
 
 
@@ -86,17 +84,17 @@ public string trimTrailingNewline(const string s) {
 
 // sha256String — "sha256:<hex>" of a string's bytes.
 public string sha256String(const string data) {
-    out = hash.sha256String(data)
+    return hash.sha256String(data)
 }
 
 // sha256File — "sha256:<hex>" of a file's contents ("" if the file is missing).
 public string sha256File(const string path) {
-    out = hash.sha256File(path)
+    return hash.sha256File(path)
 }
 
 // verifyChecksum — true if the file hashes to `expected` ("sha256:<hex>").
 public bool verifyChecksum(const string path, const string expected) {
-    out = hash.sha256Verify(path, expected)
+    return hash.sha256Verify(path, expected)
 }
 // dq — a one-byte string holding a double quote (34); string literals keep escapes
 // raw, so a bare `"` cannot be produced from a literal.
@@ -106,7 +104,7 @@ public string dq() {
     fly.llvm.strPoke(buf, 0, q)
     string s = ""
     fly.llvm.strMake(buf, 1, s)
-    out = s
+    return s
 }
 
 // tabStr — a one-byte string holding a tab (9); literals keep escapes raw, so
@@ -117,7 +115,7 @@ public string tabStr() {
     fly.llvm.strPoke(buf, 0, t)
     string s = ""
     fly.llvm.strMake(buf, 1, s)
-    out = s
+    return s
 }
 
 // nl — a one-byte string holding a newline (10); literals keep escapes raw.
@@ -127,6 +125,6 @@ public string nl() {
     fly.llvm.strPoke(buf, 0, n)
     string s = ""
     fly.llvm.strMake(buf, 1, s)
-    out = s
+    return s
 }
 

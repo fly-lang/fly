@@ -17,12 +17,12 @@ public class ASTArg : ASTBase {
         this.index = index
     }
 
-    public ASTNode getExpr() { out = this.expr }
-    public uint getIndex() { out = this.index }
+    public ASTNode getExpr() { return this.expr }
+    public uint getIndex() { return this.index }
 
     // str — extend the base rendering ("ARG@<loc>") with the arg index, calling the
     // base implementation non-virtually via super.str() (must not recurse into this).
     public string str() {
-        out = s.concat(super.str(), s.concat(" #", s.convert((int)this.index)))
+        return s.concat(super.str(), s.concat(" #", s.convert((int)this.index)))
     }
 }

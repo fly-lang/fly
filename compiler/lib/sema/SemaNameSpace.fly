@@ -16,6 +16,6 @@ public class SemaNameSpace : SemaNode {
         this.symbols = symbols
     }
 
-    public string getName() { out = this.nsName }
-    public SymbolTable getSymbols() { out = this.symbols }
+    public string getName() { return this.nsName }
+    public SymbolTable getSymbols() { return this.symbols }
 }

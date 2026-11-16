@@ -36,7 +36,7 @@ suite OsPathSuite {
         fly.llvm.strPoke(buf, 0, 92)
         string s = ""
         fly.llvm.strMake(buf, 1, s)
-        out = s
+        return s
     }
 
     // ── join / joinN ─────────────────────────────────────────────────────────
@@ -69,6 +69,15 @@ suite OsPathSuite {
         }
         case "join chains": {
             assert.assertStr(path.join(path.join("/a", "b"), "c"), "/a/b/c", 111)
+        }
+        case "joinN folds an array with join": {
+            fly.os.env.StringArray c = path.comp("a/b/c")
+            assert.assertStr(path.joinN(c), "a/b/c", 121)
+            // the array is only read: a second pass sees the same segments
+            // (joinN used to adopt the slots' buffers and free them)
+            assert.assertStr(path.joinN(c), "a/b/c", 122)
+            assert.assertStr(path.joinN(path.comp("solo")), "solo", 123)
+            assert.assertEmpty(path.joinN(path.comp("")), 124)
         }
     }
 
@@ -122,6 +131,12 @@ suite OsPathSuite {
             assert.assertStr(path.ext("/a/b/foo.tar.gz"), ".gz", 303)      // last one wins
             assert.assertStr(path.ext("a.b/c.d"), ".d", 304)               // dot in a dir
         }
+        case "a leading dot is a hidden file, not an extension": {
+            assert.assertEmpty(path.ext(".bashrc"), 318)
+            assert.assertEmpty(path.ext("a/.bashrc"), 319)
+            assert.assertStr(path.ext(".bashrc.bak"), ".bak", 320)
+            assert.assertStr(path.stem(".bashrc"), ".bashrc", 321)        // agrees with stem
+        }
         case "stem": {
             assert.assertStr(path.stem("foo.fly"), "foo", 305)
             assert.assertStr(path.stem("foo"), "foo", 306)
@@ -173,6 +188,15 @@ suite OsPathSuite {
         }
         case "the root normalises to itself": {
             assert.assertStr(path.normalize("/"), "/", 407)
+        }
+        case "a relative path keeps the .. it cannot resolve": {
+            // these used to be dropped: "../a" came out as "a"
+            assert.assertStr(path.normalize("../a"), "../a", 410)
+            assert.assertStr(path.normalize(".."), "..", 411)
+            assert.assertStr(path.normalize("a/../../b"), "../b", 412)
+            assert.assertStr(path.normalize("../../x/.."), "../..", 413)
+            assert.assertStr(path.normalize("a/.."), ".", 414)
+            assert.assertStr(path.normalize("/../a"), "/a", 415)           // root has no parent
         }
         case "normalize is idempotent": {
             assert.assertStr(path.normalize(path.normalize("/a//b/../c")),
@@ -250,6 +274,12 @@ suite OsPathSuite {
         }
         case "identical base and target": {
             assert.assertStr(path.rel("/a/b", "/a/b"), ".", 606)
+        }
+        case "a dot is the empty relative path": {
+            assert.assertStr(path.rel(".", "a"), "a", 607)                // was "../a"
+            assert.assertStr(path.rel(".", "a/b"), "a/b", 608)
+            assert.assertStr(path.rel("a", "."), "..", 609)
+            assert.assertStr(path.rel(".", "."), ".", 610)
         }
     }
 
@@ -339,6 +369,17 @@ suite OsPathSuite {
             assert.assertEqI(hits.count, path.globCount("./fly_path_glob_c*.txt"), 911)
             assert.assertGtI(hits.count, 0, 912)
             fs.delete("fly_path_glob_c.txt")
+        }
+        case "glob walks past a long entry name": {
+            // Same dirent trap as fs.dirRead: a 150-byte name has a record length
+            // whose low byte is >= 128, which looped forever on Linux.
+            fs.dirCreateAll("fly_path_glob_long", 493)
+            fs.writeStr(path.join("fly_path_glob_long", str.repeat("g", 150)), "g", 420)
+            fs.writeStr("fly_path_glob_long/z.txt", "z", 420)
+            assert.assertEqI(path.globCount("fly_path_glob_long/*"), 2, 913)
+            fly.os.env.StringArray all = path.glob("fly_path_glob_long/*")
+            assert.assertEqI(all.count, 2, 914)
+            fs.dirDeleteAll("fly_path_glob_long")
         }
     }
 }

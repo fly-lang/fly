@@ -1,0 +1,42 @@
+// The SELF-HOST side of the ABI probe: every call here crosses into the
+// seed-built archive under ../lib. A mismatch in the calling convention shows
+// as a garbage value, so each check `fail`s with its own code and main() exits
+// with it — the script prints the code and the message.
+import abi.probe
+import abi.probe.*
+
+void main() {
+    Rec r = probe.make(7, 500, "tag")
+
+    // 1) const STRUCT param — the defect this probe exists for: the self-host
+    // used to wrap the struct pointer in a temp and pass the TEMP's address, so
+    // the seed-built callee read one indirection too deep.
+    if probe.sum2(r) != 507 { fail 1, "const struct param: sum2(r) != 507" }
+
+    // 2) a non-first field through the same param (offset check)
+    if probe.tagOf(r) != "tag" { fail 2, "const struct param: tagOf(r) != tag" }
+
+    // 3) non-const STRUCT param — by pointer, the callee's write must land here
+    probe.bumpA(r)
+    if r.a != 8 { fail 3, "non-const struct param: writeback lost" }
+
+    // 4) const STRUCT param to a CONSTRUCTOR (genNew)
+    Box box = new Box(r)
+    if box.getTotal() != 508 { fail 4, "const struct ctor param: total != 508" }
+    if box.getLabel() != "tag" { fail 5, "const struct ctor param: label != tag" }
+
+    // 5) const STRUCT param to a METHOD (methodCall)
+    if box.weigh(r) != 1016 { fail 6, "const struct method param: weigh != 1016" }
+
+    // 6) const CLASS handle param — the sibling rule, guarded against a
+    // re-regression while the struct half moved onto the same path
+    if probe.sumVia(box) != 508 { fail 7, "const class handle param: sumVia != 508" }
+
+    // 7) a const STRUCT arg is not the last one: an argument that consumed the
+    // wrong number of slots shifts every parameter after it.
+    if probe.weighted(r, 5) != 513 { fail 8, "const struct param: weighted(r, 5) != 513" }
+
+    // 8) the arg is a CALL RESULT, not a named variable — the temp-bearing path
+    // (the seed-built callee must still see the object, not the temp's address).
+    if probe.sum2(probe.make(2, 3, "x")) != 5 { fail 9, "const struct param: call result as arg" }
+}

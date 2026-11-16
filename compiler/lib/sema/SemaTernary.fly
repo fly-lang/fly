@@ -24,9 +24,9 @@ public class SemaTernary : SemaExpr {
         this.falseExpr = falseExpr
     }
 
-    public ASTTernary getAST() { out = this.ternaryAst }
-    public SemaExpr getCond() { out = this.cond }
-    public SemaExpr getTrueExpr() { out = this.trueExpr }
-    public SemaExpr getFalseExpr() { out = this.falseExpr }
+    public ASTTernary getAST() { return this.ternaryAst }
+    public SemaExpr getCond() { return this.cond }
+    public SemaExpr getTrueExpr() { return this.trueExpr }
+    public SemaExpr getFalseExpr() { return this.falseExpr }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }

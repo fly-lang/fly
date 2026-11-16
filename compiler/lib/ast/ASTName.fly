@@ -13,5 +13,5 @@ public class ASTName : ASTBase {
         this.name = name
     }
 
-    public string getName() { out = this.name }
+    public string getName() { return this.name }
 }

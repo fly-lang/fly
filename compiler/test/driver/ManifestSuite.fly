@@ -30,23 +30,23 @@ import fly.assert
 // source root of every discovery build) and restore cwd BEFORE asserting.
 // ─────────────────────────────────────────────────────────────────────────────
 
-string qq(const string v) { out = str.concat(driver.dq(), str.concat(v, driver.dq())) }
-string nlc(const string s) { out = str.concat(s, driver.nl()) }
+string qq(const string v) { return str.concat(driver.dq(), str.concat(v, driver.dq())) }
+string nlc(const string s) { return str.concat(s, driver.nl()) }
 
 // qarg — append `, "<v>"` to a call-argument chain being built.
-string qarg(const string s, const string v) { out = str.concat(s, str.concat(", ", qq(v))) }
+string qarg(const string s, const string v) { return str.concat(s, str.concat(", ", qq(v))) }
 
 // manHead — the shared prologue of a synthetic Manifest.fly.
 string manHead() {
     string s = nlc("namespace app")
     s = str.concat(s, nlc("import fly.meta.*"))
-    out = str.concat(s, nlc("class AppManifest : fly.meta.Manifest {"))
+    return str.concat(s, nlc("class AppManifest : fly.meta.Manifest {"))
 }
 
 // fld — a `  <decl> = <rhs>` member line.
 string fld(const string decl, const string rhs) {
     string s = str.concat("  ", str.concat(decl, str.concat(" = ", rhs)))
-    out = nlc(s)
+    return nlc(s)
 }
 
 // dep8 — a full positional `new Dependency(name, version, registry, git, tag,
@@ -60,7 +60,7 @@ string dep8(const string n, const string v, const string reg, const string git, 
     s = qarg(s, br)
     s = qarg(s, rv)
     s = qarg(s, pt)
-    out = str.concat(s, ")")
+    return str.concat(s, ")")
 }
 
 // tmpBase — the OS temp dir (TMPDIR/TEMP, `/tmp` fallback) for scratch files.
@@ -68,7 +68,7 @@ string tmpBase() {
     string tmp = env.get("TMPDIR")
     if str.isEmpty(tmp) { tmp = env.get("TEMP") }
     if str.isEmpty(tmp) { tmp = "/tmp" }
-    out = tmp
+    return tmp
 }
 
 // depKindsSrc — a manifest whose dependencies cover every dep KIND the reader
@@ -92,7 +92,7 @@ string depKindsSrc() {
     d = str.concat(d, dep8("pwin", "", "", "https://g/w.git", "", "", "", "vendor/x"))
     string s = manHead()
     s = str.concat(s, fld("Dependency[] dependencies", str.concat("{ ", str.concat(d, " }"))))
-    out = str.concat(s, "}")
+    return str.concat(s, "}")
 }
 
 // fullManifestSrc — a Manifest.fly exercising every declarable field.
@@ -127,7 +127,7 @@ string fullManifestSrc() {
     string dp = str.concat("  Dependency[] dependencies = { ", str.concat(d1, " }"))
     s = str.concat(s, nlc(dp))
     s = str.concat(s, "}")
-    out = s
+    return s
 }
 
 suite ManifestSuite {

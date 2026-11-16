@@ -1,0 +1,1 @@
+The seed keeps both definitions; overload lookup returns the first. Self-host only.

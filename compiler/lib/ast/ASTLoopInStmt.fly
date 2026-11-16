@@ -19,9 +19,9 @@ public class ASTLoopInStmt : ASTStmt {
         this.stmt = stmt
     }
 
-    public ASTExpr getItem() { out = this.item }
-    public ASTExpr getList() { out = this.list }
-    public ASTStmt getStmt() { out = this.stmt }
+    public ASTExpr getItem() { return this.item }
+    public ASTExpr getList() { return this.list }
+    public ASTStmt getStmt() { return this.stmt }
     public void setStmt(const ASTStmt s) { this.stmt = s }
 
     public void accept(const ASTVisitor v) { v.visit(this) }

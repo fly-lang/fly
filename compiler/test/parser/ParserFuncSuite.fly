@@ -8,7 +8,7 @@ import fly.assert
 suite ParserFuncSuite {
     void functionTest() {
         case "int add(int a, int b)": {
-            Parser p = new Parser("int add(const int a, const int b) { out = a + b }")
+            Parser p = new Parser("int add(const int a, const int b) { return a + b }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
             List<ASTNode> nodes = m.getNodes()
@@ -20,7 +20,7 @@ suite ParserFuncSuite {
             assert.assertTrue(p.isSuccess(), 3)
         }
         case "default param value": {
-            Parser p = new Parser("int f(const int n = 3) { out = n }")
+            Parser p = new Parser("int f(const int n = 3) { return n }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 4)
         }

@@ -19,9 +19,9 @@ public class ASTSwitchStmt : ASTStmt {
         this.cases = new List<ASTCaseStmt>()
     }
 
-    public ASTExpr getExpr() { out = this.expr }
-    public List<ASTCaseStmt> getCases() { out = this.cases }
-    public ASTStmt getDefault() { out = this.defaultStmt }
+    public ASTExpr getExpr() { return this.expr }
+    public List<ASTCaseStmt> getCases() { return this.cases }
+    public ASTStmt getDefault() { return this.defaultStmt }
     public void setExpr(const ASTExpr expr) { this.expr = expr }
     public void addCase(const ASTCaseStmt c) { this.cases.add(c) }
     public void setDefault(const ASTStmt s) { this.defaultStmt = s }

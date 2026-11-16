@@ -123,13 +123,13 @@ public class LspServer {
     // extractPath — params.textDocument.uri → filesystem path, "" when absent.
     string extractPath(const pointer msg) {
         pointer params = json.get(msg, "params")
-        if params == 0 { out = ""  return }
+        if params == 0 { return "" }
         pointer td = json.get(params, "textDocument")
-        if td == 0 { out = ""  return }
+        if td == 0 { return "" }
         pointer uri = json.get(td, "uri")
-        if uri == 0 { out = ""  return }
-        if json.isString(uri) == false { out = ""  return }
-        out = fly.lsp.uriToPath(json.asString(uri))
+        if uri == 0 { return "" }
+        if json.isString(uri) == false { return "" }
+        return fly.lsp.uriToPath(json.asString(uri))
     }
 
     // extractRoot — the PROJECT root announced by `initialize`: rootUri, else the
@@ -142,10 +142,10 @@ public class LspServer {
     // this handshake (rust-analyzer, gopls) rather than guessing per file.
     string extractRoot(const pointer msg) {
         pointer params = json.get(msg, "params")
-        if params == 0 { out = ""  return }
+        if params == 0 { return "" }
         pointer ru = json.get(params, "rootUri")
         if ru != 0 {
-            if json.isString(ru) { out = fly.lsp.uriToPath(json.asString(ru))  return }
+            if json.isString(ru) { return fly.lsp.uriToPath(json.asString(ru)) }
         }
         pointer wf = json.get(params, "workspaceFolders")
         if wf != 0 {
@@ -154,16 +154,16 @@ public class LspServer {
                 if f0 != 0 {
                     pointer u0 = json.get(f0, "uri")
                     if u0 != 0 {
-                        if json.isString(u0) { out = fly.lsp.uriToPath(json.asString(u0))  return }
+                        if json.isString(u0) { return fly.lsp.uriToPath(json.asString(u0)) }
                     }
                 }
             }
         }
         pointer rp = json.get(params, "rootPath")
         if rp != 0 {
-            if json.isString(rp) { out = json.asString(rp)  return }
+            if json.isString(rp) { return json.asString(rp) }
         }
-        out = ""
+        return ""
     }
 
     // ── lifecycle ────────────────────────────────────────────────────────────
@@ -253,7 +253,7 @@ public class LspServer {
             if str.equals(this.openFiles.get(i), path) { found = true  i = (int)this.openFiles.size() }
             else { i = i + 1 }
         }
-        out = found
+        return found
     }
 
     void onDidOpen(const pointer msg) {
@@ -309,7 +309,7 @@ public class LspServer {
             if str.equals(xs.get(i), v) { found = true  i = (int)xs.size() }
             else { i = i + 1 }
         }
-        out = found
+        return found
     }
 
     // publishFor — one publishDiagnostics notification for `path`.
@@ -385,22 +385,22 @@ public class LspServer {
     // extractLine/extractCol — params.position, converted to 1-based.
     int extractLine(const pointer msg) {
         pointer params = json.get(msg, "params")
-        if params == 0 { out = 1  return }
+        if params == 0 { return 1 }
         pointer pos = json.get(params, "position")
-        if pos == 0 { out = 1  return }
+        if pos == 0 { return 1 }
         pointer l = json.get(pos, "line")
-        if l == 0 { out = 1  return }
-        out = json.asInt(l) + 1
+        if l == 0 { return 1 }
+        return json.asInt(l) + 1
     }
 
     int extractCol(const pointer msg) {
         pointer params = json.get(msg, "params")
-        if params == 0 { out = 1  return }
+        if params == 0 { return 1 }
         pointer pos = json.get(params, "position")
-        if pos == 0 { out = 1  return }
+        if pos == 0 { return 1 }
         pointer c = json.get(pos, "character")
-        if c == 0 { out = 1  return }
-        out = json.asInt(c) + 1
+        if c == 0 { return 1 }
+        return json.asInt(c) + 1
     }
 
     // mkLocation — {uri, range} for a 1-based site.
@@ -411,7 +411,7 @@ public class LspServer {
         json.put(r, "start", fly.lsp.mkPosition(line, col))
         json.put(r, "end", fly.lsp.mkPosition(line, col + len))
         json.put(o, "range", r)
-        out = o
+        return o
     }
 
     void onDefinition(const string idJson, const pointer msg) {

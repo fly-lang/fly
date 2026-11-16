@@ -34,7 +34,7 @@ suite CodeGenClassSuite {
                     public Point(int a, int b) { this.x = a
                         this.y = b
                     }
-                    public int sum() { out = this.x + this.y }
+                    public int sum() { return this.x + this.y }
                 }
                 void main() { Point p = new Point(40, 2)
                     int s = p.sum()
@@ -54,7 +54,7 @@ suite CodeGenClassSuite {
                     public Point(int a, int b) { this.x = a
                         this.y = b
                     }
-                    public int sum() { out = this.x + this.y }
+                    public int sum() { return this.x + this.y }
                 }
                 void main() { Point p = new Point(40, 2)
                     int s = p.sum()
@@ -75,7 +75,7 @@ suite CodeGenClassSuite {
                     public Point(int a, int b) { this.x = a
                         this.y = b
                     }
-                    public int sum() { out = this.x + this.y }
+                    public int sum() { return this.x + this.y }
                 }
                 void main() { Point p = new Point(40, 2)
                     int s = p.sum()
@@ -97,9 +97,9 @@ suite CodeGenClassSuite {
             string ir = cgIR("
                 public class Box { int v
                     public Box(int n) { this.v = n }
-                    public int get() { out = this.v }
+                    public int get() { return this.v }
                 }
-                public Box makeBox(int n) { out = new Box(n) }
+                public Box makeBox(int n) { return new Box(n) }
                 void main() { int r = makeBox(7).get()
                     fail r
                 }

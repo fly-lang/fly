@@ -18,7 +18,7 @@ public class SemaCaseStmt : SemaStmt {
         this.body = body
     }
 
-    public string getLabel() { out = this.label }
-    public SemaBlockStmt getBody() { out = this.body }
+    public string getLabel() { return this.label }
+    public SemaBlockStmt getBody() { return this.body }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }

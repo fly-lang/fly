@@ -8,7 +8,7 @@ public class Wrapper<T> {
     }
 
     public T get() {
-        out = this.value
+        return this.value
     }
 
     public void set(T v) {

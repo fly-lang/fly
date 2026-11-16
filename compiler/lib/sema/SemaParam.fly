@@ -8,8 +8,16 @@ import fly.compiler.ast.ASTParam
 
 // SemaParam — a resolved function/method parameter. 1:1 with C++.
 public class SemaParam : SemaVar {
+    // The hidden return slot(s) the Resolver appends for a non-void signature are
+    // parameters like any other at the ABI level, but they are not the user's:
+    // this flag is what tells them apart, rather than their name.
+    bool synthetic
+
     public SemaParam(const ASTParam paramAst, const SemaType type) {
         super(paramAst, SemaKind.PARAM_VAR, type)
+        this.synthetic = false
     }
+    public bool isSynthetic() { return this.synthetic }
+    public void setSynthetic(const bool s) { this.synthetic = s }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }

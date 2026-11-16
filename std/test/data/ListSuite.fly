@@ -345,4 +345,22 @@ suite ListSuite {
             assert.assertEqI(c.v, 99, 610)             // pointee outlives the list
         }
     }
+
+    // ── free() leaves an empty, reusable list ────────────────────────────────
+    void freeTest() {
+        case "free twice, then use the list again": {
+            // free() released the buffer but kept pointing at it: a second free
+            // was a double free and add() wrote into freed memory
+            List<string> l = new List<string>()
+            l.add("a")
+            l.add("b")
+            l.free()
+            assert.assertEqI(l.size(), 0, 701)
+            l.free()
+            l.add("c")
+            assert.assertEqI(l.size(), 1, 702)
+            assert.assertStr(l.get(0), "c", 703)
+            l.free()
+        }
+    }
 }

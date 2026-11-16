@@ -4,6 +4,7 @@ import fly.compiler.sema.*
 import fly.compiler.ast.*
 import fly.compiler.basic.*
 import fly.data.List
+import fly.data.Map
 import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -42,6 +43,18 @@ public class Resolver : ASTVisitor {
     SemaClassType currentClass
     SemaEnumType currentEnum
     SemaFunctionBase currentFunction
+
+    // NRVO: name of the struct local every `return` in the body being resolved
+    // hands back, or "" when the optimization does not apply. That local is bound
+    // to the caller's return slot, so building it field by field stays copy-free.
+    string nrvoName
+
+    // Every-path-returns analysis, computed during this very walk: each statement
+    // handler records whether control certainly leaves the function there, and a
+    // block inherits it from its contents. `sawBreak` tells an endless loop that
+    // it can be left after all.
+    bool stmtExits
+    bool sawBreak
     SemaNameSpace currentNameSpace
 
     // result of the most recent expression / type / var resolution (typed per
@@ -75,6 +88,20 @@ public class Resolver : ASTVisitor {
     // empty `{}` gets a type). Set around the RHS resolution and reset to null.
     SemaType currentExpectedType
 
+    // The most recent INTEGER LITERAL resolved, with its source digits. The
+    // narrowing check needs the literal's VALUE ("does 300 fit a byte?"), but an
+    // assignment site only holds a SemaExpr and Fly has no downcast to reach
+    // SemaIntValue.getValue(). So the literal visit records itself here and the
+    // check recognises its operand BY IDENTITY (litExpr == rhs). A negated
+    // literal (`-5`) re-records the enclosing unary with litNeg set.
+    SemaExpr litExpr
+    string litRaw
+    bool litNeg
+
+    // Signatures of the free functions DEFINED so far, keyed per source file
+    // (namespace | module | name | parameter types) — see noteSignature.
+    Map<string, int> seenSigs
+
     public Resolver(const Registry reg, const bool testMode) {
         this.reg = reg
         this.testMode = testMode
@@ -88,8 +115,15 @@ public class Resolver : ASTVisitor {
         this.switchDepth = 0
         this.handleDepth = 0
         this.outVarCounter = 0
+        this.nrvoName = ""
+        this.stmtExits = false
+        this.sawBreak = false
         this.forInCounter = 0
         this.currentExpectedType = null
+        this.litExpr = null
+        this.litRaw = ""
+        this.litNeg = false
+        this.seenSigs = new Map<string, int>()
     }
 
     // nextOutName — a fresh "__out_N" name for a call's synthetic return variable.
@@ -97,7 +131,7 @@ public class Resolver : ASTVisitor {
         string n = str.convert(this.outVarCounter)
         this.outVarCounter = this.outVarCounter + 1
         string t = str.concat("__out_", n)
-        out = t
+        return t
     }
 
     // nextForInName — synthetic name for the desugared for-in hoist/index locals
@@ -105,38 +139,38 @@ public class Resolver : ASTVisitor {
     public string nextForInName() {
         string n = str.convert(this.forInCounter)
         this.forInCounter = this.forInCounter + 1
-        out = str.concat("__forin_", n)
+        return str.concat("__forin_", n)
     }
 
     // ── control-flow nesting ──────────────────────────────────────────────────
-    public int getLoopDepth() { out = this.loopDepth }
+    public int getLoopDepth() { return this.loopDepth }
     public void enterLoop() { this.loopDepth = this.loopDepth + 1 }
     public void exitLoop() { this.loopDepth = this.loopDepth - 1 }
-    public int getSwitchDepth() { out = this.switchDepth }
+    public int getSwitchDepth() { return this.switchDepth }
     public void enterSwitch() { this.switchDepth = this.switchDepth + 1 }
     public void exitSwitch() { this.switchDepth = this.switchDepth - 1 }
-    public int getHandleDepth() { out = this.handleDepth }
+    public int getHandleDepth() { return this.handleDepth }
     public void enterHandle() { this.handleDepth = this.handleDepth + 1 }
     public void exitHandle() { this.handleDepth = this.handleDepth - 1 }
-    public SemaError getCurrentErrorHandler() { out = this.currentErrorHandler }
+    public SemaError getCurrentErrorHandler() { return this.currentErrorHandler }
     public void setCurrentErrorHandler(const SemaError h) { this.currentErrorHandler = h }
 
     // ── accessors for companions ────────────────────────────────────────────
-    public Registry getReg() { out = this.reg }
-    public int getRun() { out = this.run }
-    public bool isTestMode() { out = this.testMode }
-    public bool isCurrentModuleHeader() { out = this.currentModuleIsHeader }
+    public Registry getReg() { return this.reg }
+    public int getRun() { return this.run }
+    public bool isTestMode() { return this.testMode }
+    public bool isCurrentModuleHeader() { return this.currentModuleIsHeader }
 
     // currentNsFlat — the current module's namespace flattened with '_' (fly.os.io →
     // "fly_os_io"), for function mangling (matches the reference CodeGenHelper::FlattenNS
     // so std symbols resolve against fly_std_lib.a). Empty for the default namespace.
     public string currentNsFlat() {
         SemaModule m = this.currentModule
-        if m == null { out = ""  return }
+        if m == null { return "" }
         ASTModule am = m.getAST()
-        if am == null { out = ""  return }
+        if am == null { return "" }
         ASTNameSpace ns = am.getNameSpace()
-        if ns == null { out = ""  return }
+        if ns == null { return "" }
         List<ASTName> names = ns.getNames()
         string r = ""
         int i = 0
@@ -149,34 +183,40 @@ public class Resolver : ASTVisitor {
             }
             i = i + 1
         }
-        out = r
+        return r
     }
-    public SymbolTable getCurrentScope() { out = this.currentScope }
+    public SymbolTable getCurrentScope() { return this.currentScope }
     public void setCurrentScope(const SymbolTable s) { this.currentScope = s }
-    public SemaModule getCurrentModule() { out = this.currentModule }
+    public SemaModule getCurrentModule() { return this.currentModule }
     public void setCurrentModule(const SemaModule m) { this.currentModule = m }
-    public SemaNameSpace getCurrentNameSpace() { out = this.currentNameSpace }
-    public SemaClassType getCurrentClass() { out = this.currentClass }
+    public SemaNameSpace getCurrentNameSpace() { return this.currentNameSpace }
+    public SemaClassType getCurrentClass() { return this.currentClass }
     public void setCurrentClass(const SemaClassType c) { this.currentClass = c }
-    public SemaEnumType getCurrentEnum() { out = this.currentEnum }
+    public SemaEnumType getCurrentEnum() { return this.currentEnum }
     public void setCurrentEnum(const SemaEnumType e) { this.currentEnum = e }
-    public SemaFunctionBase getCurrentFunction() { out = this.currentFunction }
+    public SemaFunctionBase getCurrentFunction() { return this.currentFunction }
     public void setCurrentFunctionBase(const SemaFunctionBase f) { this.currentFunction = f }
-    public SemaExpr getCurrentExpr() { out = this.currentExpr }
+    public string getNrvoName() { return this.nrvoName }
+    public bool getStmtExits() { return this.stmtExits }
+    public void setStmtExits(const bool v) { this.stmtExits = v }
+    public bool getSawBreak() { return this.sawBreak }
+    public void setSawBreak(const bool v) { this.sawBreak = v }
+    public void setNrvoName(const string n) { this.nrvoName = n }
+    public SemaExpr getCurrentExpr() { return this.currentExpr }
     public void setCurrentExpr(const SemaExpr e) { this.currentExpr = e }
-    public SemaType getExpectedType() { out = this.currentExpectedType }
+    public SemaType getExpectedType() { return this.currentExpectedType }
     public void setExpectedType(const SemaType t) { this.currentExpectedType = t }
-    public SemaType getCurrentType() { out = this.currentType }
+    public SemaType getCurrentType() { return this.currentType }
     public void setCurrentType(const SemaType t) { this.currentType = t }
-    public SemaVar getCurrentVar() { out = this.currentVar }
+    public SemaVar getCurrentVar() { return this.currentVar }
     public void setCurrentVar(const SemaVar v) { this.currentVar = v }
-    public SemaParam getCurrentParam() { out = this.currentParam }
+    public SemaParam getCurrentParam() { return this.currentParam }
     public void setCurrentParam(const SemaParam p) { this.currentParam = p }
-    public SemaLocalVar getCurrentLocalVar() { out = this.currentLocalVar }
+    public SemaLocalVar getCurrentLocalVar() { return this.currentLocalVar }
     public void setCurrentLocalVar(const SemaLocalVar v) { this.currentLocalVar = v }
-    public SemaBlockStmt getCurrentSemaBlock() { out = this.currentSemaBlock }
+    public SemaBlockStmt getCurrentSemaBlock() { return this.currentSemaBlock }
     public void setCurrentSemaBlock(const SemaBlockStmt b) { this.currentSemaBlock = b }
-    public SemaBlockStmt getLastBlock() { out = this.lastBlock }
+    public SemaBlockStmt getLastBlock() { return this.lastBlock }
     public void setLastBlock(const SemaBlockStmt b) { this.lastBlock = b }
 
     // ── scope management ────────────────────────────────────────────────────
@@ -191,6 +231,56 @@ public class Resolver : ASTVisitor {
 
     public void addSymbol(const Symbol sym) {
         bool ok = this.currentScope.insert(sym)
+    }
+
+    // ── literal tracking (see the litExpr field) ──────────────────────────────
+    public void noteLiteral(const SemaExpr e, const string raw, const bool neg) {
+        this.litExpr = e
+        this.litRaw = raw
+        this.litNeg = neg
+    }
+    public SemaExpr getLitExpr() { return this.litExpr }
+    public string getLitRaw() { return this.litRaw }
+    public bool isLitNeg() { return this.litNeg }
+
+    // declareLocal — addSymbol for an EXPLICIT declaration: false when the name
+    // is already taken in the CURRENT scope (an outer scope may be shadowed).
+    public bool declareLocal(const Symbol sym) {
+        return this.currentScope.insert(sym)
+    }
+
+    // noteSignature — two functions of one file with the same name and the same
+    // parameter types are one definition written twice: no call can choose
+    // between them, and which body ran used to depend on declaration order.
+    // Scoped to a FILE on purpose: a header and the source it describes declare
+    // the same function legitimately, as do unrelated files that are compiled
+    // into one binary. Header declarations and generic templates are skipped.
+    public void noteSignature(const SemaFunctionBase fb) {
+        if fb.isFromHeader() { return }
+        ASTFunction af = fb.getAST()
+        if af == null { return }
+        List<ASTType> tps = af.getTypeParams()
+        if tps.size() > 0 { return }
+        SemaFunction ff = fb.asFunction()
+        if ff == null { return }
+        string key = str.concat(fb.getNamespaceName(), "|")
+        SemaModule fm = ff.getModule()
+        if fm != null { key = str.concat(key, fm.getName()) }
+        key = str.concat(key, "|")
+        key = str.concat(key, fb.getName())
+        List<SemaType> pts = fb.getParamTypes()
+        int i = 0
+        while i < pts.size() {
+            SemaType pt = pts.get(i)
+            key = str.concat(key, ",")
+            if pt != null { key = str.concat(key, pt.getName()) }
+            i = i + 1
+        }
+        if this.seenSigs.has(key) {
+            this.diagStr(af.getLoc(), DiagID.err_sema_duplicate_function, fb.getName())
+        } else {
+            this.seenSigs.put(key, 1)
+        }
     }
 
     // registerInNamespace — also publish a top-level symbol in the file's namespace
@@ -261,6 +351,7 @@ public class Resolver : ASTVisitor {
             SemaFunctionBase fb = sigFns.get(fi)
             if fb.getKind() != SemaKind.METHOD {
                 ResolverDecl.resolveSignature(this, fb)
+                this.noteSignature(fb)
             }
             fi = fi + 1
         }
@@ -437,7 +528,10 @@ public class Resolver : ASTVisitor {
     public void visit(const ASTTernary node) { ResolverExpr.ternary(this, node) }
     public void visit(const ASTCast node) { ResolverExpr.cast(this, node) }
     public void visit(const ASTBoolValue node) { this.currentExpr = SemaBuilder.CreateBoolValue(node) }
-    public void visit(const ASTNumberValue node) { this.currentExpr = SemaBuilder.CreateNumberValue(node) }
+    public void visit(const ASTNumberValue node) {
+        this.currentExpr = SemaBuilder.CreateNumberValue(node)
+        this.noteLiteral(this.currentExpr, node.getValue(), false)
+    }
     public void visit(const ASTStringValue node) { this.currentExpr = SemaBuilder.CreateStringValue(node) }
     // Array/struct literals resolve via ResolverExpr (kept one-liners: large
     // method bodies inside a visit trip a self-host codegen bug).

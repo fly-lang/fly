@@ -12,9 +12,9 @@ suite InputFileSuite {
 
     void bufferTest() {
         case "MemoryBuffer holds name + text": {
-            MemoryBuffer mb = new MemoryBuffer("a.fly", "int main(){out=0}")
+            MemoryBuffer mb = new MemoryBuffer("a.fly", "int main(){return 0}")
             assert.assertStr(mb.getBufferName(), "a.fly", 1)
-            assert.assertStr(mb.getBuffer(), "int main(){out=0}", 2)
+            assert.assertStr(mb.getBuffer(), "int main(){return 0}", 2)
             assert.assertFalse(mb.isEmpty(), 3)
         }
     }

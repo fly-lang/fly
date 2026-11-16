@@ -18,14 +18,14 @@ public string dq() {
     fly.llvm.strPoke(buf, 0, q)
     string s = ""
     fly.llvm.strMake(buf, 1, s)
-    out = s
+    return s
 }
 
 // mkToml — turn a `|`-placeholder template (real newlines, `|` where a `"` goes)
 // into valid TOML by replacing every `|` with a double quote. Lets a suite write
 // readable multi-line TOML without embedding quotes in the Fly source.
 public string mkToml(const string tpl) {
-    out = str.replace(tpl, "|", dq())
+    return str.replace(tpl, "|", dq())
 }
 
 // tagDep / branchDep — build a git GitDep (free functions returning a class with
@@ -34,11 +34,11 @@ public GitDep tagDep(const string url, const string tag) {
     GitDep d = new GitDep()
     d.setGitUrl(url)
     d.setRef(0, tag)
-    out = d
+    return d
 }
 public GitDep branchDep(const string url, const string branch) {
     GitDep d = new GitDep()
     d.setGitUrl(url)
     d.setRef(1, branch)
-    out = d
+    return d
 }

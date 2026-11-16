@@ -8,7 +8,7 @@ import fly.assert
 suite ParserStmtSuite {
     void stmtTest() {
         case "return in body": {
-            Parser p = new Parser("int f(const int a) { int x = a + 1  out = x }")
+            Parser p = new Parser("int f(const int a) { int x = a + 1  return x }")
             ASTModule m = p.parseModule("demo")
             assert.assertTrue(p.isSuccess(), 1)
             List<ASTNode> nodes = m.getNodes()

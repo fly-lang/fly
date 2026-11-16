@@ -75,6 +75,7 @@ public class CodeGenError {
             // fail inside the handle's own frame: skip the rest of the block
             cge.br(safe)
         } else {
+            cge.emitReturnCleanup()
             CodeGenTrace.emitExitFail(cge)
             pointer r
             llvm.buildRetVoid(b, r)
@@ -113,6 +114,7 @@ public class CodeGenError {
         if safe != 0 {
             cge.br(safe)
         } else {
+            cge.emitReturnCleanup()
             CodeGenTrace.emitExitFail(cge)
             pointer r
             llvm.buildRetVoid(b, r)
@@ -174,10 +176,10 @@ public class CodeGenError {
 
     // isCodeField — operand types that land in the i32 code slot.
     public static bool isCodeField(const SemaType t) {
-        if t.isInteger() { out = true  return }
-        if t.isBool() { out = true  return }
-        if t.getKind() == SemaKind.TYPE_ENUM { out = true  return }
-        out = false
+        if t.isInteger() { return true }
+        if t.isBool() { return true }
+        if t.getKind() == SemaKind.TYPE_ENUM { return true }
+        return false
     }
 
     // handle — run the guarded block and UPDATE the implicit `error` variable:

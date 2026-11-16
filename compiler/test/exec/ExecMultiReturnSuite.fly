@@ -12,14 +12,12 @@ import fly.assert
 // ─────────────────────────────────────────────────────────────────────────────
 
 int,int execMrDivmod(const int a, const int b) {
-    out[0] = a / b
-    out[1] = a % b
+    return a / b, a % b
 }
 
 int,int execMrChained(const int a) {
     int q = execMrDivmod(a, 3)
-    out[0] = q
-    out[1] = q + 1
+    return q, q + 1
 }
 
 suite ExecMultiReturnSuite {

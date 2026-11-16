@@ -29,10 +29,10 @@ public class Constraint {
         this.dep = d
         this.semver = sv
     }
-    public string getName()     { out = this.name }
-    public string getRequirer() { out = this.requirer }
-    public fly.driver.GitDep getDep() { out = this.dep }
-    public SemVer getSemver()   { out = this.semver }
+    public string getName()     { return this.name }
+    public string getRequirer() { return this.requirer }
+    public fly.driver.GitDep getDep() { return this.dep }
+    public SemVer getSemver()   { return this.semver }
 }
 
 // A resolved package (final selection).
@@ -50,11 +50,11 @@ public class ResolvedPackage {
         this.refKind = rk
         this.refValue = rv
     }
-    public string getName()    { out = this.name }
-    public string getVersion() { out = this.version }
-    public string getGitUrl()  { out = this.gitUrl }
-    public int getRefKind()    { out = this.refKind }
-    public string getRefValue() { out = this.refValue }
+    public string getName()    { return this.name }
+    public string getVersion() { return this.version }
+    public string getGitUrl()  { return this.gitUrl }
+    public int getRefKind()    { return this.refKind }
+    public string getRefValue() { return this.refValue }
 }
 
 // A resolution error. isConflict = E001 (conflicting URLs / refs).
@@ -66,8 +66,8 @@ public class ResolveError {
         this.isConflict = conflict
         this.package = pkg
     }
-    public bool getIsConflict() { out = this.isConflict }
-    public string getPackage()  { out = this.package }
+    public bool getIsConflict() { return this.isConflict }
+    public string getPackage()  { return this.package }
 }
 
 // One constraint group: all constraints recorded for a package name.
@@ -75,10 +75,10 @@ public class ConstraintGroup {
     string name
     List<Constraint> constraints
     public ConstraintGroup(const string n) { this.name = n  this.constraints = new List<Constraint>() }
-    public string getName() { out = this.name }
+    public string getName() { return this.name }
     public void add(const Constraint c) { this.constraints.add(c) }
-    public int count() { out = (int)this.constraints.size() }
-    public Constraint at(const int i) { out = this.constraints.get(i) }
+    public int count() { return (int)this.constraints.size() }
+    public Constraint at(const int i) { return this.constraints.get(i) }
 }
 
 // A BFS queue entry.
@@ -93,10 +93,10 @@ public class QueueEntry {
         this.requirer = req
         this.reqVer = rv
     }
-    public string getName() { out = this.name }
-    public fly.driver.GitDep getDep() { out = this.dep }
-    public string getRequirer() { out = this.requirer }
-    public string getReqVer() { out = this.reqVer }
+    public string getName() { return this.name }
+    public fly.driver.GitDep getDep() { return this.dep }
+    public string getRequirer() { return this.requirer }
+    public string getReqVer() { return this.reqVer }
 }
 
 // ── ManifestFetcher — the fetch callback as a virtual interface ───────────────
@@ -104,7 +104,7 @@ public class QueueEntry {
 public class ManifestFetcher {
     public ManifestFetcher() { }
     public fly.driver.Manifest fetch(const string name, const fly.driver.GitDep dep) {
-        out = null
+        return null
     }
 }
 
@@ -124,30 +124,30 @@ public class MVSResolver {
         this.queue = new List<QueueEntry>()
     }
 
-    public int errorCount()              { out = (int)this.errors.size() }
-    public bool errorsEmpty()            { out = this.errors.size() == 0 }
-    public ResolveError errorAt(const int i) { out = this.errors.get(i) }
+    public int errorCount()              { return (int)this.errors.size() }
+    public bool errorsEmpty()            { return this.errors.size() == 0 }
+    public ResolveError errorAt(const int i) { return this.errors.get(i) }
 
     // groupFor — find or create the constraint group for a package name.
     public ConstraintGroup groupFor(const string name) {
         int i = 0
         while i < this.groups.size() {
             ConstraintGroup g = this.groups.get(i)
-            if str.equals(g.getName(), name) { out = g  return }
+            if str.equals(g.getName(), name) { return g }
             i = i + 1
         }
         ConstraintGroup ng = new ConstraintGroup(name)
         this.groups.add(ng)
-        out = ng
+        return ng
     }
 
     public bool isVisited(const string name) {
         int i = 0
         while i < this.visited.size() {
-            if str.equals(this.visited.get(i), name) { out = true  return }
+            if str.equals(this.visited.get(i), name) { return true }
             i = i + 1
         }
-        out = false
+        return false
     }
 
     // enqueue — record a constraint + edge; queue the package if new.
@@ -169,15 +169,14 @@ public class MVSResolver {
     // tags; branch/rev must agree; differing URLs → E001). null on conflict.
     public Constraint select(const string name, const ConstraintGroup grp) {
         int n = grp.count()
-        if n == 0 { out = null  return }
+        if n == 0 { return null }
 
         string url = grp.at(0).getDep().getGitUrl()
         int i = 0
         while i < n {
             if str.equals(grp.at(i).getDep().getGitUrl(), url) == false {
                 this.errors.add(new ResolveError(true, name))
-                out = null
-                return
+                return null
             }
             i = i + 1
         }
@@ -196,15 +195,14 @@ public class MVSResolver {
                     bool sameVal = str.equals(best.getDep().getRefValue(), c.getDep().getRefValue())
                     if bestIsTag == false && sameVal == false {
                         this.errors.add(new ResolveError(true, name))
-                        out = null
-                        return
+                        return null
                     }
                 }
                 if best == null { best = c }
             }
             j = j + 1
         }
-        out = best
+        return best
     }
 
     // resolve — run MVS from a root manifest using `fetcher`. Returns the list of
@@ -243,7 +241,7 @@ public class MVSResolver {
         }
 
         List<ResolvedPackage> resolved = new List<ResolvedPackage>()
-        if this.errors.size() != 0 { out = resolved  return }
+        if this.errors.size() != 0 { return resolved }
 
         int gi = 0
         while gi < this.groups.size() {
@@ -258,10 +256,9 @@ public class MVSResolver {
         }
         if this.errors.size() != 0 {
             List<ResolvedPackage> empty = new List<ResolvedPackage>()
-            out = empty
-            return
+            return empty
         }
-        out = resolved
+        return resolved
     }
 
     // find a resolved package by name in a result list (test convenience).
@@ -269,9 +266,9 @@ public class MVSResolver {
         int i = 0
         while i < res.size() {
             ResolvedPackage r = res.get(i)
-            if str.equals(r.getName(), name) { out = r  return }
+            if str.equals(r.getName(), name) { return r }
             i = i + 1
         }
-        out = null
+        return null
     }
 }

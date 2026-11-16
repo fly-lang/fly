@@ -29,7 +29,7 @@ suite CodeGenAllocSuite {
             string ir = cgIR("
                 public class Box { int v
                     public Box(const int x) { this.v = x }
-                    public int get() { out = this.v }
+                    public int get() { return this.v }
                 }
                 void main() { Box b = new Box(42)
                     int r = b.get()

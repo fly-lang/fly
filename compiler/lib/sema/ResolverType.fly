@@ -82,10 +82,10 @@ public class ResolverType {
     // instantiate — build (or fetch) the specialization of generic `t` for `targs`;
     // null if `t` is not an instantiable generic class or a type arg fails to resolve.
     public static SemaClassType instantiate(const Resolver r, const SemaType t, const List<ASTType> targs) {
-        if t == null { out = null  return }
+        if t == null { return null }
         SemaClassType template = t.asClass()
-        if template == null { out = null  return }
-        if template.isGeneric() == false { out = null  return }
+        if template == null { return null }
+        if template.isGeneric() == false { return null }
 
         List<SemaType> typeArgs = new List<SemaType>()
         bool okAll = true
@@ -98,9 +98,9 @@ public class ResolverType {
             typeArgs.add(tas)
             i = i + 1
         }
-        if okAll == false { out = null  return }
+        if okAll == false { return null }
         List<SemaTypeParam> tparams = template.getTypeParams()
-        if typeArgs.size() != tparams.size() { out = null  return }
+        if typeArgs.size() != tparams.size() { return null }
 
         // A template whose methods have no bodies cannot be monomorphized: the
         // specialization re-walks the template's AST, so with nothing to walk it
@@ -111,12 +111,11 @@ public class ResolverType {
         // HeaderGen's `.fly` companion exists to prevent.
         if ResolverClass.templateHasNoBodies(template) {
             r.diagStr(template.getAST().getNameLoc(), DiagID.err_sema_generic_template_no_body, template.getName())
-            out = null
-            return
+            return null
         }
         SemaClassType spec = SemaBuilder.CreateSpecialization(template, typeArgs, r.getCurrentScope())
         ResolverClass.resolveClassTypeIsolated(r, spec)
-        out = spec
+        return spec
     }
 
     public static void array(const Resolver r, const ASTArrayType node) {

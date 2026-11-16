@@ -5,19 +5,20 @@ import fly.assert
 
 // byteAt — the i-th byte of s as a masked int (byte widening differs per platform).
 int byteAt(const string s, const int i) {
-    byte b = 0
-    str.byteAt(s, i, b)
+    byte b = str.byteAt(s, i)
     int v = b
-    out = v & 255
+    return v & 255
 }
 
 // bytesOf — a string from explicit byte values, for inputs a literal cannot hold.
 string bytesOf(const int a, const int b, const int c) {
+    string res
     pointer p = mem.alloc(3)
     mem.writeByte(p, 0, (byte)a)
     mem.writeByte(p, 1, (byte)b)
     mem.writeByte(p, 2, (byte)c)
-    str.fromBytes(p, 3, out)
+    res = str.fromBytes(p, 3)
+    return res
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -258,8 +259,7 @@ suite CodecSuite {
                 mem.writeByte(p, i, (byte)i)
                 i = i + 1
             }
-            string all = ""
-            str.fromBytes(p, 256, all)
+            string all = str.fromBytes(p, 256)
             assert.assertEqI(str.len(all), 256, 701)
 
             int e1 = 0
@@ -285,4 +285,25 @@ suite CodecSuite {
             assert.assertEqI(e, 0, 711)
         }
     }
+
+    // An early exit must still write the result. A caller that reuses one result
+    // slot across a loop got the PREVIOUS call's value back from an empty input —
+    // the seed zeroes that slot once per frame, not per call. This pins the
+    // behavior; the seed-built caller itself is exercised by TarGzSuite 611
+    // (extractTar writing an empty entry after a non-empty one).
+    void earlyReturnTest() {
+        case "one call site: an empty input after a non-empty one gives empty": {
+            string[] inputs = {"ab", "", "f", ""}
+            string[] hexes = {"6162", "", "66", ""}
+            string[] b64s = {"YWI=", "", "Zg==", ""}
+            int i = 0
+            for inp in inputs {
+                // the SAME call sites every iteration, so they share a result slot
+                assert.assertStr(codec.hexEncode(inp), hexes[i], 801)
+                assert.assertStr(codec.base64Encode(inp), b64s[i], 802)
+                i = i + 1
+            }
+        }
+    }
+
 }

@@ -18,18 +18,25 @@ public class SemaVar : SemaExpr {
     ASTVar varAst
     bool constant
     pointer llvmAlloca   // CodeGen back-pointer: the var's stack slot (null until codegen'd)
+    // NRVO: this local IS the caller's return slot and has no storage of its own,
+    // so building it field by field writes straight into the returned struct and
+    // `return name` copies nothing — the speed the old `out.field = …` had.
+    bool returnSlot
 
     public SemaVar(const ASTVar varAst, const SemaKind kind, const SemaType type) {
         super(kind, type)
         this.varAst = varAst
         this.constant = false
         this.llvmAlloca = 0
+        this.returnSlot = false
     }
 
-    public ASTVar getAST() { out = this.varAst }
-    public string getName() { out = this.varAst.getName() }
-    public bool isConstant() { out = this.constant }
+    public ASTVar getAST() { return this.varAst }
+    public string getName() { return this.varAst.getName() }
+    public bool isConstant() { return this.constant }
     public void setConstant(const bool constant) { this.constant = constant }
-    public pointer getLlvmAlloca() { out = this.llvmAlloca }
+    public bool isReturnSlot() { return this.returnSlot }
+    public void setReturnSlot(const bool v) { this.returnSlot = v }
+    public pointer getLlvmAlloca() { return this.llvmAlloca }
     public void setLlvmAlloca(const pointer a) { this.llvmAlloca = a }
 }

@@ -14,7 +14,7 @@ public class ASTTestStmt : ASTStmt {
         super(loc, ASTStmtKind.STMT_TEST)
     }
 
-    public ASTBlockStmt getBody() { out = this.body }
+    public ASTBlockStmt getBody() { return this.body }
     public void setBody(const ASTBlockStmt b) { this.body = b }
 
     public void accept(const ASTVisitor v) { v.visit(this) }

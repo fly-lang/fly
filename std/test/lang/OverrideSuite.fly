@@ -21,25 +21,25 @@ import fly.assert
 
 class Shape {
     public Shape() {}
-    public int sides() { out = 0 }
-    public int corners() { out = this.sides() }      // calls the overridable one
-    public int family() { out = 1 }                  // never overridden
+    public int sides() { return 0 }
+    public int corners() { return this.sides() }      // calls the overridable one
+    public int family() { return 1 }                  // never overridden
 }
 
 class Square : Shape {
     public Square() {}
-    public int sides() { out = 4 }
+    public int sides() { return 4 }
 }
 
 class Triangle : Shape {
     public Triangle() {}
-    public int sides() { out = 3 }
+    public int sides() { return 3 }
 }
 
 // Two levels: Middle overrides, Leaf does NOT (it must inherit Middle's).
 class Middle : Shape {
     public Middle() {}
-    public int sides() { out = 5 }
+    public int sides() { return 5 }
 }
 
 class Leaf : Middle {
@@ -49,18 +49,18 @@ class Leaf : Middle {
 // Two levels where both override.
 class Deep : Middle {
     public Deep() {}
-    public int sides() { out = 7 }
+    public int sides() { return 7 }
 }
 
-int sidesOf(const Shape s) { out = s.sides() }
+int sidesOf(const Shape s) { return s.sides() }
 
 Shape pick(const int which) {
     if which == 0 {
-        out = new Square()
+        return new Square()
     } elsif which == 1 {
-        out = new Triangle()
+        return new Triangle()
     } else {
-        out = new Shape()
+        return new Shape()
     }
 }
 

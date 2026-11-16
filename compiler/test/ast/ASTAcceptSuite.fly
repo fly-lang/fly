@@ -18,7 +18,7 @@ public class AcceptProbe : ASTVisitor {
 
     public AcceptProbe() { this.last = "" }
 
-    public string getLast() { out = this.last }
+    public string getLast() { return this.last }
 
     public void visit(const ASTModule node) { this.last = "module" }
     public void visit(const ASTNameSpace node) { this.last = "namespace" }

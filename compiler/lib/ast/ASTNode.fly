@@ -40,31 +40,31 @@ public class ASTNode : ASTBase {
         this.endLoc = loc
     }
 
-    public bool isVisited(const int run) { out = this.visitedRun == run }
+    public bool isVisited(const int run) { return this.visitedRun == run }
     public void setVisited(const int run) { this.visitedRun = run }
 
-    public SourceLocation getNameLoc() { out = this.nameLoc }
+    public SourceLocation getNameLoc() { return this.nameLoc }
     public void setNameLoc(const SourceLocation l) { this.nameLoc = l }
 
-    public SourceLocation getEndLoc() { out = this.endLoc }
+    public SourceLocation getEndLoc() { return this.endLoc }
     public void setEndLoc(const SourceLocation l) { this.endLoc = l }
 
     // as* — typed downcasts (Fly has no `(T)expr` value cast). The base returns null;
     // each concrete node overrides its own to `this`. Used by the header generator to
     // walk a `List<ASTNode>` (module/class/enum children) by kind. Mirrors SemaType.asClass().
-    public ASTClass asClass() { out = null }
-    public ASTEnum asEnum() { out = null }
-    public ASTFunction asFunction() { out = null }
-    public ASTVar asVar() { out = null }
-    public ASTEnumEntry asEnumEntry() { out = null }
+    public ASTClass asClass() { return null }
+    public ASTEnum asEnum() { return null }
+    public ASTFunction asFunction() { return null }
+    public ASTVar asVar() { return null }
+    public ASTEnumEntry asEnumEntry() { return null }
     // Appended (kept last so existing vtable slots don't shift): expression/value
     // downcasts used by declarative AST walkers (e.g. the fly.meta manifest reader).
-    public ASTStringValue asStringValue() { out = null }
-    public ASTArrayValue asArrayValue() { out = null }
-    public ASTCall asCall() { out = null }
+    public ASTStringValue asStringValue() { return null }
+    public ASTArrayValue asArrayValue() { return null }
+    public ASTCall asCall() { return null }
     // asNumberValue — the header generator needs it to print an array's SIZE
     // (`int[3]`) when that size is a literal. Appended last, same reason.
-    public ASTNumberValue asNumberValue() { out = null }
+    public ASTNumberValue asNumberValue() { return null }
 
     // accept — virtual visitor dispatch. Concrete leaf nodes override this with
     // `v.visit(this)`; this base no-op lets a base-typed node (ASTExpr/ASTStmt/

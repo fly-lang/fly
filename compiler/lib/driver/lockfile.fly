@@ -31,12 +31,12 @@ public class LockedPackage {
         this.checksum = ""
         this.deps = new List<string>()
     }
-    public string getName()     { out = this.name }
-    public string getVersion()  { out = this.version }
-    public string getSource()   { out = this.source }
-    public string getRev()      { out = this.rev }
-    public string getTag()      { out = this.tag }
-    public string getChecksum() { out = this.checksum }
+    public string getName()     { return this.name }
+    public string getVersion()  { return this.version }
+    public string getSource()   { return this.source }
+    public string getRev()      { return this.rev }
+    public string getTag()      { return this.tag }
+    public string getChecksum() { return this.checksum }
     public void setName(const string v)     { this.name = v }
     public void setVersion(const string v)  { this.version = v }
     public void setSource(const string v)   { this.source = v }
@@ -44,8 +44,8 @@ public class LockedPackage {
     public void setTag(const string v)      { this.tag = v }
     public void setChecksum(const string v) { this.checksum = v }
     public void addDep(const string d)      { this.deps.add(d) }
-    public int depCount()                   { out = (int)this.deps.size() }
-    public string depAt(const int i)        { out = this.deps.get(i) }
+    public int depCount()                   { return (int)this.deps.size() }
+    public string depAt(const int i)        { return this.deps.get(i) }
 }
 
 public class Lockfile {
@@ -61,29 +61,29 @@ public class Lockfile {
         this.packages = new List<LockedPackage>()
     }
 
-    public int getFormatVersion()    { out = this.formatVersion }
-    public string getTomlChecksum()  { out = this.tomlChecksum }
+    public int getFormatVersion()    { return this.formatVersion }
+    public string getTomlChecksum()  { return this.tomlChecksum }
     public void setTomlChecksum(const string v) { this.tomlChecksum = v }
     public void setFlyVersion(const string v)  { this.flyVersion = v }
 
     public void addPackage(const LockedPackage p) { this.packages.add(p) }
-    public int packageCount()                     { out = (int)this.packages.size() }
-    public LockedPackage packageAt(const int i)   { out = this.packages.get(i) }
+    public int packageCount()                     { return (int)this.packages.size() }
+    public LockedPackage packageAt(const int i)   { return this.packages.get(i) }
 
     public LockedPackage find(const string name) {
         int i = 0
         while i < this.packages.size() {
             LockedPackage p = this.packages.get(i)
-            if str.equals(p.getName(), name) { out = p  return }
+            if str.equals(p.getName(), name) { return p }
             i = i + 1
         }
-        out = null
+        return null
     }
 
     // isStale — the on-disk Manifest.fly no longer matches the recorded checksum.
     public bool isStale(const string tomlPath) {
-        if str.isEmpty(this.tomlChecksum) { out = true  return }
-        out = str.equals(fly.driver.sha256File(tomlPath), this.tomlChecksum) == false
+        if str.isEmpty(this.tomlChecksum) { return true }
+        return str.equals(fly.driver.sha256File(tomlPath), this.tomlChecksum) == false
     }
 
     // serialize — the Lock.fly source: a class extending fly.meta.Lockfile, read back
@@ -110,7 +110,7 @@ public class Lockfile {
         a = str.concat(a, " }")
         s = str.concat(s, str.concat(a, nl))
         s = str.concat(s, str.concat("}", nl))
-        out = s
+        return s
     }
 
     // pkgNew — new LockedPackage(name, version, source, rev, tag, checksum, dep...).
@@ -131,13 +131,13 @@ public class Lockfile {
             s = str.concat(s, str.concat(q, str.concat(args.get(i), q)))
             i = i + 1
         }
-        out = str.concat(s, ")")
+        return str.concat(s, ")")
     }
 
     // kv — `<prefix>"<value>"<nl>`
     public string kv(const string prefix, const string value, const string q, const string nl) {
         string body = str.concat(q, str.concat(value, q))
-        out = str.concat(prefix, str.concat(body, nl))
+        return str.concat(prefix, str.concat(body, nl))
     }
 
     // write — serialize to `path`.
@@ -156,13 +156,13 @@ public class FlyLockReader {
     public Lockfile read(const string src, int errOut) {
         Parser p = new Parser(src)
         ASTModule mod = p.parseModule("Lock")
-        if p.isSuccess() == false { errOut = 210  out = new Lockfile()  return }
+        if p.isSuccess() == false { errOut = 210  return new Lockfile() }
         ASTClass lc = this.findLockClass(mod)
-        if lc == null { errOut = 211  out = new Lockfile()  return }
+        if lc == null { errOut = 211  return new Lockfile() }
         Lockfile lf = new Lockfile()
         this.readLockClass(lc, lf)
         errOut = 0
-        out = lf
+        return lf
     }
 
     ASTClass findLockClass(const ASTModule mod) {
@@ -170,10 +170,10 @@ public class FlyLockReader {
         int i = 0
         while i < nodes.size() {
             ASTClass c = nodes.get(i).asClass()
-            if c != null { out = c  return }      // a Lock.fly holds exactly one class
+            if c != null { return c }      // a Lock.fly holds exactly one class
             i = i + 1
         }
-        out = null
+        return null
     }
 
     void readLockClass(const ASTClass c, const Lockfile lf) {
@@ -223,12 +223,12 @@ public class FlyLockReader {
 
     string strOf(const ASTExpr e) {
         ASTStringValue sv = e.asStringValue()
-        if sv != null { out = sv.getValue() } else { out = "" }
+        if sv != null { return sv.getValue() } else { return "" }
     }
     string argStr(const List<ASTArg> args, const int idx) {
         ASTNode e = args.get(idx).getExpr()
         ASTStringValue sv = e.asStringValue()
-        if sv != null { out = sv.getValue() } else { out = "" }
+        if sv != null { return sv.getValue() } else { return "" }
     }
 }
 
@@ -236,11 +236,11 @@ public class FlyLockReader {
 // if missing or on a parse error — a stale/absent lock just forces a re-lock).
 public Lockfile readLock(const string path, int errOut) {
     Lockfile lf = new Lockfile()
-    if fs.exists(path) == false { errOut = 0  out = lf  return }
+    if fs.exists(path) == false { errOut = 0  return lf }
     string src = fs.readStr(path)
     int e = 0
     FlyLockReader r = new FlyLockReader()
     Lockfile parsed = r.read(src, e)
     errOut = 0
-    out = parsed
+    return parsed
 }

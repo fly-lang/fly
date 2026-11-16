@@ -36,14 +36,14 @@ public class ASTCall : ASTExpr {
         this.multiRecvCount = 0
     }
 
-    public string getName() { out = this.name }
-    public List<ASTArg> getArgs() { out = this.args }
-    public List<ASTType> getTypeArgs() { out = this.typeArgs }
+    public string getName() { return this.name }
+    public List<ASTArg> getArgs() { return this.args }
+    public List<ASTType> getTypeArgs() { return this.typeArgs }
     public void addTypeArg(const ASTType ta) { this.typeArgs.add(ta) }
-    public ASTCallKind getCallKind() { out = this.callKind }
+    public ASTCallKind getCallKind() { return this.callKind }
     public void addArg(const ASTArg a) { this.args.add(a) }
-    public ASTCall asCall() { out = this }
-    public int getMultiRecvCount() { out = this.multiRecvCount }
+    public ASTCall asCall() { return this }
+    public int getMultiRecvCount() { return this.multiRecvCount }
     public void setMultiRecvCount(const int n) { this.multiRecvCount = n }
 
     public void accept(const ASTVisitor v) { v.visit(this) }

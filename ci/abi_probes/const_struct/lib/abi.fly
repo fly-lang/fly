@@ -1,0 +1,56 @@
+namespace abi.probe
+
+// The SEED-built side of the ABI probe (see ci/windows/test_abi.ps1). Every
+// function here is compiled by the pinned reference seed into an archive; the
+// program under prog/ is compiled by the self-host and links it. So each call
+// below is one clause of the calling convention the two compilers must agree on.
+//
+// Fields of three different widths plus a string: a wrong INDIRECTION garbles
+// every field at once, a wrong OFFSET garbles exactly one.
+public struct Rec {
+    int a
+    long b
+    string tag
+}
+
+// A class taking a const STRUCT in its CONSTRUCTOR (the genNew arg path) and
+// offering it as a const CLASS handle param further down (sumVia).
+public class Box {
+    long total
+    string label
+    public Box(const Rec r) {
+        this.total = (long)r.a + r.b
+        this.label = r.tag
+    }
+    public long getTotal() { return this.total }
+    public string getLabel() { return this.label }
+    // const STRUCT param on a METHOD (the CodeGenClass.methodCall arg path)
+    public long weigh(const Rec r) { return this.total + (long)r.a + r.b }
+}
+
+// make — the struct producer. A struct built field by field and handed back is
+// NRVO'd into the caller's slot, so this also pins the return convention.
+public Rec make(const int a, const long b, const string tag) {
+    Rec r = new Rec()
+    r.a = a
+    r.b = b
+    r.tag = tag
+    return r
+}
+
+// const STRUCT param: passed BY VALUE (the object pointer itself).
+public long sum2(const Rec r) { return (long)r.a + r.b }
+
+// ...and the same struct reached for a non-first field, so an offset slip shows.
+public string tagOf(const Rec r) { return r.tag }
+
+// NON-const STRUCT param: passed BY POINTER, so the write reaches the caller.
+public void bumpA(Rec r) { r.a = r.a + 1 }
+
+// const CLASS handle param: the by-value-handle rule the struct case shares a
+// code path with — here to catch a re-regression of either half.
+public long sumVia(const Box b) { return b.getTotal() }
+
+// A const STRUCT followed by a scalar: a by-value struct that consumed the wrong
+// number of argument slots would shift everything after it.
+public long weighted(const Rec r, const int extra) { return (long)r.a + r.b + (long)extra }

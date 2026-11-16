@@ -15,5 +15,5 @@ public class SemaComment {
         this.ast = ast
     }
 
-    public ASTComment getAST() { out = this.ast }
+    public ASTComment getAST() { return this.ast }
 }

@@ -70,21 +70,21 @@ public class SymbolTable {
             this.table.put(nm, lst)
             this.allSyms.add(sym)
         }
-        out = ok
+        return ok
     }
 
     // getAllSymbols — every symbol stored directly in THIS scope (insertion order).
-    public List<Symbol> getAllSymbols() { out = this.allSyms }
+    public List<Symbol> getAllSymbols() { return this.allSyms }
 
     public void addChild(const SymbolTable child) { this.children.add(child) }
 
-    public int size() { out = (int)this.table.size() }
+    public int size() { return (int)this.table.size() }
 
     // lookup — symbols for Name in THIS scope only (null if none).
     public List<Symbol> lookup(const string name) {
         List<Symbol> r = null
         if this.table.has(name) { r = this.table.get(name) }
-        out = r
+        return r
     }
 
     // lookupInParents — walk up the scope chain, return the first scope's symbols.
@@ -95,7 +95,7 @@ public class SymbolTable {
         } elsif this.parent != null {
             r = this.parent.lookupInParents(name)
         }
-        out = r
+        return r
     }
 
     // lookupTypeInParents — like lookupInParents but only stops at a scope that
@@ -120,7 +120,7 @@ public class SymbolTable {
         if r == null && this.parent != null {
             r = this.parent.lookupTypeInParents(name)
         }
-        out = r
+        return r
     }
 
     // lookupInChildren — search this scope then recurse into descendant scopes.
@@ -136,16 +136,16 @@ public class SymbolTable {
                 i = i + 1
             }
         }
-        out = r
+        return r
     }
 
     // pushScope — create and register a child scope, returning it.
     public SymbolTable pushScope() {
         SymbolTable child = new SymbolTable(this)
         this.children.add(child)
-        out = child
+        return child
     }
 
-    public SymbolTable getParent() { out = this.parent }
-    public List<SymbolTable> getChildren() { out = this.children }
+    public SymbolTable getParent() { return this.parent }
+    public List<SymbolTable> getChildren() { return this.children }
 }

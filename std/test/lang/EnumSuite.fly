@@ -26,11 +26,11 @@ class Tagged {
     Color c
     int n
     public Tagged(const Color c, const int n) { this.c = c  this.n = n }
-    public Color kind() { out = this.c }
-    public int nameLen() { out = str.len(this.c.name) }
+    public Color kind() { return this.c }
+    public int nameLen() { return str.len(this.c.name) }
 }
 
-int rank(const Status s) { out = s.value }
+int rank(const Status s) { return s.value }
 
 suite EnumSuite {
 

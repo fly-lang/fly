@@ -16,7 +16,9 @@ public void zero(const pointer dst, const pointer size) {
 }
 
 public pointer alloc(const pointer size) {
-    fly.runtime.mem_alloc(size, out)
+    pointer res
+    fly.runtime.mem_alloc(size, res)
+    return res
 }
 
 public void free(const pointer ptr, const pointer size) {
@@ -25,36 +27,48 @@ public void free(const pointer ptr, const pointer size) {
 
 // Null-address check: returns true when ptr is 0 (unset).
 public bool isNull(const pointer ptr) {
-    out = ptr == 0
+    return ptr == 0
 }
 
 // Resize a previous alloc; returns new address (may differ from ptr).
 public pointer realloc(const pointer ptr, const pointer newSize) {
-    fly.runtime.mem_realloc(ptr, newSize, out)
+    pointer res
+    fly.runtime.mem_realloc(ptr, newSize, res)
+    return res
 }
 
 // Raw memory comparison (C memcmp semantics).
 // Returns 0 if equal, <0 if a<b, >0 if a>b.
 public int compare(const pointer a, const pointer b, const pointer size) {
-    fly.llvm.memcmp(a, b, size, out)
+    int res
+    fly.llvm.memcmp(a, b, size, res)
+    return res
 }
 
 // Typed reads — addresses are pointer; offset is in bytes, `pointer`-typed
 // (the Fly usize) so it can address the whole buffer.
 public byte readByte(const pointer ptr, const pointer offset) {
-    fly.llvm.ptrByteAt(ptr, offset, out)
+    byte res
+    fly.llvm.ptrByteAt(ptr, offset, res)
+    return res
 }
 
 public short readShort(const pointer ptr, const pointer offset) {
-    fly.llvm.ptrReadShort(ptr, offset, out)
+    short res
+    fly.llvm.ptrReadShort(ptr, offset, res)
+    return res
 }
 
 public int readInt(const pointer ptr, const pointer offset) {
-    fly.llvm.ptrReadInt(ptr, offset, out)
+    int res
+    fly.llvm.ptrReadInt(ptr, offset, res)
+    return res
 }
 
 public long readLong(const pointer ptr, const pointer offset) {
-    fly.llvm.ptrReadLong(ptr, offset, out)
+    long res
+    fly.llvm.ptrReadLong(ptr, offset, res)
+    return res
 }
 
 // Typed writes — addresses are pointer; offset is in bytes, `pointer`-typed.
@@ -81,7 +95,7 @@ public void writeLong(const pointer ptr, const pointer offset, const long val) {
 public pointer readPtr(const pointer ptr, const pointer offset) {
     long v = 0
     fly.llvm.ptrReadLong(ptr, offset, v)
-    out = v
+    return v
 }
 
 public void writePtr(const pointer ptr, const pointer offset, const pointer val) {

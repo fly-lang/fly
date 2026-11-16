@@ -64,33 +64,35 @@ public class Queue<T> {
     }
 
     public T dequeue() {
+        T res
         if this.len == 0 {
             T def
-            out = def
-            return
+            return def
         }
-        fly.llvm.slotReadT(this.items, this.head * this.stride, out)
+        fly.llvm.slotReadT(this.items, this.head * this.stride, res)
         T probe
         fly.llvm.slotFreeT(this.items, this.head * this.stride, probe)
         this.head = (this.head + 1) & (this.cap - 1)
         this.len = this.len - 1
+        return res
     }
 
     public T peek() {
+        T res
         if this.len == 0 {
             T def
-            out = def
-            return
+            return def
         }
-        fly.llvm.slotReadT(this.items, this.head * this.stride, out)
+        fly.llvm.slotReadT(this.items, this.head * this.stride, res)
+        return res
     }
 
     public bool isEmpty() {
-        out = this.len == 0
+        return this.len == 0
     }
 
     public pointer size() {
-        out = this.len
+        return this.len
     }
 
     public void free() {
@@ -105,5 +107,13 @@ public class Queue<T> {
         if this.items != 0 {
             fly.runtime.mem_free(this.items, this.cap * this.stride)
         }
+        // Back to the empty state: the freed buffers must not stay reachable. A
+        // second free() released them again, and an add() after free() wrote
+        // into freed memory; now both work (every add re-allocates lazily).
+        this.items = 0
+        this.head = 0
+        this.tail = 0
+        this.len = 0
+        this.cap = 0
     }
 }

@@ -16,16 +16,16 @@ public class ASTBase {
     }
 
     // Kind — the node category (see ASTKind.fly).
-    public ASTKind getKind() { out = this.kind }
+    public ASTKind getKind() { return this.kind }
     public void setKind(const ASTKind kind) { this.kind = kind }
 
     // Source location. Expose line/col/offset through methods because chained
     // loc.* field access crashes across the library boundary (as in ASTNode/Token).
-    public SourceLocation getLoc() { out = this.loc }
+    public SourceLocation getLoc() { return this.loc }
 
     // str — "<kind name>@<loc id>", e.g. "CLASS@42". Kind via enum `.name`,
     // position via SourceLocation.str() (its raw id). No Logger for now.
     public string str() {
-        out = s.concat(this.kind.name, s.concat("@", this.loc.str()))
+        return s.concat(this.kind.name, s.concat("@", this.loc.str()))
     }
 }

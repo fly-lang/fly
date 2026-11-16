@@ -130,8 +130,7 @@ public class Set<T> {
 
     public bool has(const T key) {
         if this.keys == 0 {
-            out = false
-            return
+            return false
         }
         int hh = 0
         fly.llvm.slotHashT(key, hh)
@@ -159,7 +158,7 @@ public class Set<T> {
                 probed = probed + 1
             }
         }
-        out = found
+        return found
     }
 
     public void remove(const T key) {
@@ -195,7 +194,7 @@ public class Set<T> {
     }
 
     public pointer size() {
-        out = this.count
+        return this.count
     }
 
     public void free() {
@@ -213,5 +212,12 @@ public class Set<T> {
             fly.runtime.mem_free(this.keys, this.cap * this.stride)
             fly.runtime.mem_free(this.flags, this.cap)
         }
+        // Back to the empty state: the freed buffers must not stay reachable. A
+        // second free() released them again, and an add() after free() wrote
+        // into freed memory; now both work (every add re-allocates lazily).
+        this.keys = 0
+        this.flags = 0
+        this.count = 0
+        this.cap = 0
     }
 }

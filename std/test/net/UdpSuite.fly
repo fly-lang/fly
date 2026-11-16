@@ -7,18 +7,20 @@ import fly.llvm
 
 // skipSockets — see NetSuite; gates every case that opens a socket.
 bool skipSockets() {
-    out = str.isEmpty(env.get("FLY_SKIP_NET_TESTS")) == false
+    return str.isEmpty(env.get("FLY_SKIP_NET_TESTS")) == false
 }
 
 // blob — n bytes cycling 'a'..'z'.
 string blob(const int n) {
+    string res
     pointer buf = mem.alloc(n)
     int i = 0
     while i < n {
         mem.writeByte(buf, i, (byte)(97 + (i % 26)))
         i = i + 1
     }
-    str.fromBytes(buf, n, out)
+    res = str.fromBytes(buf, n)
+    return res
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -169,8 +171,7 @@ suite UdpSuite {
                 pointer buf = mem.alloc(512)
                 int i = 0
                 while i < 512 {
-                    byte b = 0
-                    str.byteAt(payload, i, b)
+                    byte b = str.byteAt(payload, i)
                     mem.writeByte(buf, i, b)
                     i = i + 1
                 }

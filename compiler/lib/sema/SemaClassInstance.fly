@@ -26,11 +26,11 @@ public class SemaClassInstance : SemaVar {
         this.baseInstances = new Map<long, SemaClassInstance>()
     }
 
-    public string getName() { out = "this" }
-    public SemaClassType getClass() { out = this.instClass }
-    public long getIndex() { out = this.index }
+    public string getName() { return "this" }
+    public SemaClassType getClass() { return this.instClass }
+    public long getIndex() { return this.index }
     public void setIndex(const long index) { this.index = index }
-    public Map<long, SemaClassInstance> getBaseInstances() { out = this.baseInstances }
+    public Map<long, SemaClassInstance> getBaseInstances() { return this.baseInstances }
     public void addBaseInstance(const long typeId, const SemaClassInstance inst) {
         this.baseInstances.put(typeId, inst)
     }
@@ -38,7 +38,7 @@ public class SemaClassInstance : SemaVar {
     public SemaClassInstance getBaseInstance(const long typeId) {
         SemaClassInstance r = null
         if this.baseInstances.has(typeId) { r = this.baseInstances.get(typeId) }
-        out = r
+        return r
     }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }

@@ -59,12 +59,12 @@ public class Frontend {
     // setModuleCache — reuse parsed modules across compiles (language server).
     public void setModuleCache(const ASTModuleCache c) { this.modCache = c }
 
-    public int getStatInputFiles()    { out = this.statInputFiles }
-    public int getStatDepModules()    { out = this.statDepModules }
-    public int getStatHeaderModules() { out = this.statHeaderModules }
-    public int getStatDirsScanned()   { out = this.statDirsScanned }
+    public int getStatInputFiles()    { return this.statInputFiles }
+    public int getStatDepModules()    { return this.statDepModules }
+    public int getStatHeaderModules() { return this.statHeaderModules }
+    public int getStatDirsScanned()   { return this.statDirsScanned }
 
-    public string getOutputFile() { out = this.outputFile }
+    public string getOutputFile() { return this.outputFile }
 
     // checkTestFilter — true when `--test=<tf>` selects at least one *Test
     // method among the suites this build runs (all of them, or only the
@@ -98,8 +98,8 @@ public class Frontend {
             }
             i = i + 1
         }
-        if anySuite == false { out = true  return }
-        out = anyMatch
+        if anySuite == false { return true }
+        return anyMatch
     }
 
     // trace — verbose phase log to stderr (only when FrontendOptions.verbose).
@@ -126,7 +126,7 @@ public class Frontend {
         this.flushLog(wfo)
         if wfo.getShowStats() { this.printStats() }
         if str.isEmpty(wfo.getStatsFile()) == false { this.writeStatsFile(wfo.getStatsFile()) }
-        out = rc
+        return rc
     }
 
     // printStats — the --print-stats block, on stderr (reference PrintStats shape,
@@ -150,7 +150,7 @@ public class Frontend {
         string p4 = str.concat(q, str.concat("dirs-scanned", str.concat(q, str.concat(":", str.convert(this.statDirsScanned)))))
         string body = str.concat(p1, str.concat(",", str.concat(p2,
                       str.concat(",", str.concat(p3, str.concat(",", p4))))))
-        out = str.concat("{", str.concat(body, "}"))
+        return str.concat("{", str.concat(body, "}"))
     }
 
     // writeStatsFile — write statsJson() to the --stats-file path; failure warns
@@ -173,8 +173,7 @@ public class Frontend {
         TargetInfo ti = targetInfoCreate(topts)
         if ti.isValid() == false {
             io.printErrLn(str.concat("error: unsupported target: ", topts.getTriple()))
-            out = 1
-            return
+            return 1
         }
 
         // 1) parse — each input file into its OWN module. Library mode (--lib) merges
@@ -188,8 +187,7 @@ public class Frontend {
             ASTModule m = p.parseModule(name)
             if p.isSuccess() == false {
                 this.printDiags(p.getSink())
-                out = 1
-                return
+                return 1
             }
             entryMods.add(m)
             this.statInputFiles = this.statInputFiles + 1
@@ -200,15 +198,13 @@ public class Frontend {
                 string isrc = fs.readStr(ipath)
                 if str.isEmpty(isrc) {
                     io.printErrLn(str.concat("error: cannot read input file: ", ipath))
-                    out = 1
-                    return
+                    return 1
                 }
                 Parser pk = new Parser(isrc)
                 ASTModule mk = pk.parseModule(ipath)
                 if pk.isSuccess() == false {
                     this.printDiags(pk.getSink())
-                    out = 1
-                    return
+                    return 1
                 }
                 entryMods.add(mk)
                 this.statInputFiles = this.statInputFiles + 1
@@ -258,14 +254,12 @@ public class Frontend {
         // imports are all served by lib headers (std-only) never scan.
         bool depsOk = this.resolveSourceDeps(fo, mods)
         if depsOk == false {
-            out = 1
-            return
+            return 1
         }
         SemaContext ctx = new SemaContext(diags)
         List<SemaModule> resModules = ctx.Resolve(mods, fo.getTestMode())
         if diags.hasErrorOccurred() {
-            out = 1
-            return
+            return 1
         }
         Registry reg = ctx.getReg()
 
@@ -279,8 +273,7 @@ public class Frontend {
             if str.isEmpty(tf0) == false {
                 if this.checkTestFilter(reg, cgo0.getSuiteName(), tf0) == false {
                     io.printErrLn(str.concat(str.concat("error: --test filter '", tf0), "' matches no test method in the selected suites"))
-                    out = 1
-                    return
+                    return 1
                 }
             }
         }
@@ -311,16 +304,14 @@ public class Frontend {
             // under the bootstrap — the trace() arg pattern is safe)
             bool ok2 = false
             io.printErrLn(cgm.verifyMsg(ok2))
-            out = 1
-            return
+            return 1
         }
 
         // 4) emit — for link mode (action 3) write an object to objPath and record it
         // as the output artifact; otherwise emit directly to FrontendOptions.output.
         if noOutput {
             this.outputFile = ""
-            out = 0
-            return
+            return 0
         }
         int action = fo.getBackendAction()
         if action == 3 {
@@ -329,8 +320,7 @@ public class Frontend {
             cgm.emitObjectOrAsm(ti, objPath, 1, eok)     // 1 = object
             if eok == false {
                 io.printErrLn("error: object emission failed")
-                out = 1
-                return
+                return 1
             }
             this.outputFile = objPath
         } else {
@@ -342,16 +332,14 @@ public class Frontend {
                 bool iok = cgm.emitIRChecked(outPath)
                 if iok == false {
                     io.printErrLn(str.concat("error: cannot write LLVM IR to ", outPath))
-                    out = 1
-                    return
+                    return 1
                 }
             } elsif action == 4 {
                 // real LLVM bitcode (--emit-bc), reference Backend_EmitBC
                 bool bok = cgm.emitBitcodeChecked(outPath)
                 if bok == false {
                     io.printErrLn(str.concat("error: cannot write LLVM bitcode to ", outPath))
-                    out = 1
-                    return
+                    return 1
                 }
             } else {
                 int fileType = 1                       // object
@@ -360,13 +348,12 @@ public class Frontend {
                 cgm.emitObjectOrAsm(ti, outPath, fileType, eok)
                 if eok == false {
                     io.printErrLn("error: object/assembly emission failed")
-                    out = 1
-                    return
+                    return 1
                 }
             }
             this.outputFile = outPath
         }
-        out = 0
+        return 0
     }
 
     // loadLibHeaders — parse every `.fly.h` under the stdlib dir (auto-discovered
@@ -411,8 +398,7 @@ public class Frontend {
             int off = i * 56
             pointer namePtr = mem.readPtr(items, off)
             int nameLen = mem.readInt(items, off + 8)
-            string name = ""
-            str.fromBytes(namePtr, nameLen, name)
+            string name = str.fromBytes(namePtr, nameLen)
 
             // `.fly.h` is the ONE textual shape a lib directory holds. It carries
             // declarations, and — for a module that declares generics — the source
@@ -555,8 +541,7 @@ public class Frontend {
                         doneNs.add(ns)
                         bool pok = this.pullNamespace(ns, mapNs, mapPath, known, mods)
                         if pok == false {
-                            out = false
-                            return
+                            return false
                         }
                     }
                     // ONLY when no file declares the exact namespace, pull its
@@ -578,8 +563,7 @@ public class Frontend {
                                         doneNs.add(cns)
                                         bool pok2 = this.pullNamespace(cns, mapNs, mapPath, known, mods)
                                         if pok2 == false {
-                                            out = false
-                                            return
+                                            return false
                                         }
                                     }
                                 }
@@ -592,7 +576,7 @@ public class Frontend {
             }
             bi = bi + 1
         }
-        out = true
+        return true
     }
 
     // pullNamespace — parse every mapped source file of `ns` and append it to mods.
@@ -616,8 +600,7 @@ public class Frontend {
                         dm = dp.parseModule(p)
                         if dp.isSuccess() == false {
                             this.printDiags(dp.getSink())
-                            out = false
-                            return
+                            return false
                         }
                         if this.modCache != null { this.modCache.store(p, dm) }
                     }
@@ -627,7 +610,7 @@ public class Frontend {
             }
             k = k + 1
         }
-        out = true
+        return true
     }
 
     // scanSrcDir — recursive walk: map every `*.fly` (never `*.fly.h`) under dir by
@@ -648,15 +631,13 @@ public class Frontend {
             int off = i * 56
             pointer namePtr = mem.readPtr(items, off)
             int nameLen = mem.readInt(items, off + 8)
-            string entry = ""
-            str.fromBytes(namePtr, nameLen, entry)
+            string entry = str.fromBytes(namePtr, nameLen)
             string full = path.join(dir, entry)
             if path.isDir(full) {
                 // B009: hidden dot-dirs and build/ are never sources (mirror
                 // of the driver discovery walk — fly.driver.discoverySkipsDir).
                 bool skipDir = false
-                byte b0 = 0
-                str.byteAt(entry, 0, b0)
+                byte b0 = str.byteAt(entry, 0)
                 if b0 == 46 { skipDir = true }
                 elsif str.equals(entry, "build") { skipDir = true }
                 if skipDir == false {
@@ -685,8 +666,7 @@ public class Frontend {
         while pos < n {
             int e = pos
             while e < n {
-                byte c = 0
-                str.byteAt(src, e, c)
+                byte c = str.byteAt(src, e)
                 if c == 10 { break }
                 e = e + 1
             }
@@ -699,17 +679,14 @@ public class Frontend {
                 string rest = str.trim(str.substring(line, 10, str.len(line)))
                 int sp = str.indexOf(rest, " ")
                 if sp >= 0 {
-                    out = str.substring(rest, 0, sp)
-                    return
+                    return str.substring(rest, 0, sp)
                 }
-                out = rest
-                return
+                return rest
             }
             // first significant line is not a namespace declaration → no namespace
-            out = ""
-            return
+            return ""
         }
-        out = ""
+        return ""
     }
 
     // joinNames — "fly.compiler.ast" from a name list (import or namespace).
@@ -726,17 +703,16 @@ public class Frontend {
             res = acc2
             i = i + 1
         }
-        out = res
+        return res
     }
 
     // dropLastSegment — "a.b.c" → "a.b"; "" when no dot remains.
     public string dropLastSegment(const string ns) {
         int dot = str.lastIndexOf(ns, ".")
         if dot < 0 {
-            out = ""
-            return
+            return ""
         }
-        out = str.substring(ns, 0, dot)
+        return str.substring(ns, 0, dot)
     }
 
     // hasDescendant — true when any list entry starts with `ns` + ".".
@@ -745,12 +721,11 @@ public class Frontend {
         int i = 0
         while i < xs.size() {
             if str.startsWith(xs.get(i), pfx) {
-                out = true
-                return
+                return true
             }
             i = i + 1
         }
-        out = false
+        return false
     }
 
     // listHas — linear membership test over a List<string>.
@@ -758,12 +733,11 @@ public class Frontend {
         int i = 0
         while i < xs.size() {
             if str.equals(xs.get(i), v) {
-                out = true
-                return
+                return true
             }
             i = i + 1
         }
-        out = false
+        return false
     }
 
     // printDiags — dump every stored parser message to stderr. When --log-file is
@@ -813,7 +787,7 @@ public class Frontend {
             res = acc
             i = i + 1
         }
-        out = res
+        return res
     }
 
     // flushLog — write the collected diagnostics to --log-file in the requested

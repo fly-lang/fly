@@ -21,26 +21,26 @@ suite DiagnosticsNegativeSuite {
 
     void callArityTest() {
         case "too many call arguments are reported": {
-            bool err = resolveSrc("int one(const int a) { out = a }  int f() { out = one(1, 2) }", 1)
+            bool err = resolveSrc("int one(const int a) { return a }  int f() { return one(1, 2) }", 1)
             assert.assertTrue(err, 2)
         }
         case "too few call arguments are reported": {
-            bool err = resolveSrc("int two(const int a, const int b) { out = a + b }  int f() { out = two(1) }", 3)
+            bool err = resolveSrc("int two(const int a, const int b) { return a + b }  int f() { return two(1) }", 3)
             assert.assertTrue(err, 4)
         }
         case "matching arity is clean (no false positive)": {
-            bool err = resolveSrc("int one(const int a) { out = a }  int f() { out = one(1) }", 5)
+            bool err = resolveSrc("int one(const int a) { return a }  int f() { return one(1) }", 5)
             assert.assertFalse(err, 6)
         }
     }
 
     void callTargetTest() {
         case "call to an undefined function is reported": {
-            bool err = resolveSrc("int f() { out = nosuchfn(1) }", 10)
+            bool err = resolveSrc("int f() { return nosuchfn(1) }", 10)
             assert.assertTrue(err, 11)
         }
         case "method call on a class without that method is reported": {
-            bool err = resolveSrc("public class C { public int x  public C() { } }  int f() { C c = new C()  out = c.nope() }", 12)
+            bool err = resolveSrc("public class C { public int x  public C() { } }  int f() { C c = new C()  return c.nope() }", 12)
             assert.assertTrue(err, 13)
         }
     }
@@ -64,6 +64,24 @@ suite DiagnosticsNegativeSuite {
         case "correct generic instantiation is clean": {
             bool err = resolveSrc("public class Box<T> { public T v  public Box() { } }  void f() { Box<int> b = new Box<int>() }", 34)
             assert.assertFalse(err, 35)
+        }
+    }
+
+    // A generic FUNCTION binds its type parameters from the call's arguments —
+    // Fly has no explicit type arguments on a call. A template whose parameter
+    // appears only in the RETURN type therefore has nothing to bind, and the
+    // arg-less shape is the trap: the overload lookup matched the TEMPLATE
+    // itself, so an unsubstituted TypeParam reached codegen and killed the
+    // compiler inside LLVM-C. The reference rejects it; this pins the same
+    // answer here.
+    void genericCallInferenceTest() {
+        case "a type parameter only in the return type is reported, not crashed": {
+            bool err = resolveSrc("T make<T>() { T t  return t }  void f() { int z = make() }", 36)
+            assert.assertTrue(err, 37)
+        }
+        case "inference from the argument stays clean": {
+            bool err = resolveSrc("T identity<T>(T v) { return v }  void f() { int i = identity(10) }", 38)
+            assert.assertFalse(err, 39)
         }
     }
 
@@ -98,6 +116,43 @@ suite DiagnosticsNegativeSuite {
             string src = "public class B { public abstract long z() }  public class I : B { }"
             bool err = resolveHeaderSrc(src, 44)
             assert.assertTrue(err, 45)
+        }
+    }
+
+    // A cast is not a reinterpret: the reference has always rejected the
+    // incompatible combinations in sema (err_sema_invalid_cast); the self-host
+    // used to wave them through and let the LLVM verifier fail the whole module
+    // with "SExt only operates on integer" — a backend message carrying no
+    // source location at all. `(pointer)classRef` is the shape that exposed it.
+    // NOTE: class-to-class casts are NOT covered here. `(Base)d` never reaches
+    // the cast resolution in the self-host — the parser reads a parenthesised
+    // CLASS name as an expression, so it comes back as err_sema_type_not_a_value
+    // (a separate, pre-existing gap). checkCastTypes still carries the
+    // derivation rule for the day that parse gap closes.
+    void castCompatibilityTest() {
+        case "a class cast to pointer is reported, not left to the backend": {
+            bool err = resolveSrc("public class C { public int v  public C() { } }  void f() { C c = new C()  pointer p = (pointer)c }", 50)
+            assert.assertTrue(err, 51)
+        }
+        case "a string cast to an integer is reported": {
+            bool err = resolveSrc("void f(const string s) { int i = (int)s }", 52)
+            assert.assertTrue(err, 53)
+        }
+        case "an enum cast to an integer is reported": {
+            bool err = resolveSrc("enum E { A, B }  void f(const E e) { int i = (int)e }", 54)
+            assert.assertTrue(err, 55)
+        }
+        case "an integer cast to pointer stays clean (pointer IS an integer kind)": {
+            bool err = resolveSrc("void f() { int i = 1  pointer p = (pointer)i }", 56)
+            assert.assertFalse(err, 57)
+        }
+        case "a narrowing numeric cast stays clean (no lossy error)": {
+            bool err = resolveSrc("void f() { double d = 1.5  int i = (int)d }", 58)
+            assert.assertFalse(err, 59)
+        }
+        case "a bool cast to an integer stays clean (one numeric group)": {
+            bool err = resolveSrc("void f(const bool b) { int i = (int)b }", 60)
+            assert.assertFalse(err, 61)
         }
     }
 }

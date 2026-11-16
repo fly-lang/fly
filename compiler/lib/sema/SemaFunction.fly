@@ -31,13 +31,13 @@ public class SemaFunction : SemaFunctionBase {
         this.mangledName = ""
     }
 
-    public SemaModule getModule() { out = this.module }
+    public SemaModule getModule() { return this.module }
     public void setModule(const SemaModule module) { this.module = module }
-    public SemaComment getComment() { out = this.comment }
+    public SemaComment getComment() { return this.comment }
     public void setComment(const SemaComment comment) { this.comment = comment }
-    public SemaVisibilityKind getVisibility() { out = this.visibility }
+    public SemaVisibilityKind getVisibility() { return this.visibility }
     public void setVisibility(const SemaVisibilityKind visibility) { this.visibility = visibility }
-    public List<SemaTypeParam> getTypeParams() { out = this.typeParams }
+    public List<SemaTypeParam> getTypeParams() { return this.typeParams }
     public void addTypeParam(const SemaTypeParam tp) { this.typeParams.add(tp) }
 
     // isGeneric — a template (has type params and is not itself a specialization).
@@ -46,13 +46,13 @@ public class SemaFunction : SemaFunctionBase {
         if this.typeParams.size() > 0 {
             r = this.genericTemplate == null
         }
-        out = r
+        return r
     }
 
-    public SemaFunction getGenericTemplate() { out = this.genericTemplate }
+    public SemaFunction getGenericTemplate() { return this.genericTemplate }
     public void setGenericTemplate(const SemaFunction t) { this.genericTemplate = t }
-    public SemaFunction asFunction() { out = this }
-    public Map<string, SemaFunction> getSpecializations() { out = this.specializations }
-    public string getMangledName() { out = this.mangledName }
+    public SemaFunction asFunction() { return this }
+    public Map<string, SemaFunction> getSpecializations() { return this.specializations }
+    public string getMangledName() { return this.mangledName }
     public void setMangledName(const string mangledName) { this.mangledName = mangledName }
 }

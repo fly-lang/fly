@@ -33,12 +33,12 @@ import fly.os.fs
 // PLATFORM-DEPENDENT (sign-extends on Linux, zero-extends on Windows), so every
 // byte read is masked `& 255` before it enters a 32-bit word.
 
-uint sha256Rotr(const uint x, const uint n) { out = (x >> n) | (x << (32 - n)) }
+uint sha256Rotr(const uint x, const uint n) { return (x >> n) | (x << (32 - n)) }
 
 uint sha256LoadU(const pointer p, const int off) {
     int v = 0
     fly.llvm.ptrReadInt(p, off, v)
-    out = (uint)v
+    return (uint)v
 }
 void sha256StoreU(const pointer p, const int off, const uint v) {
     fly.llvm.ptrPokeInt(p, off, (int)v)
@@ -80,7 +80,7 @@ string sha256HexU(const uint v) {
     }
     string s = ""
     fly.llvm.strMake(buf, 8, s)
-    out = s
+    return s
 }
 
 // sha256Digest — the 64-char lowercase hex digest of `data` (no "sha256:" prefix).
@@ -93,8 +93,7 @@ string sha256Digest(const string data) {
     pointer m = mem.alloc(totalLen)
     int i = 0
     while i < msgLen {
-        byte b = 0
-        str.byteAt(data, i, b)
+        byte b = str.byteAt(data, i)
         fly.llvm.ptrPokeByte(m, i, b)
         i = i + 1
     }
@@ -200,6 +199,11 @@ string sha256Digest(const string data) {
         h7 = h7 + hh
         blk = blk + 1
     }
+    // the padded copy of the input (as large as the input), the round constants
+    // and the schedule: all three used to be left behind on every digest
+    mem.free(m, totalLen)
+    mem.free(K, 256)
+    mem.free(W, 256)
 
     string r = sha256HexU(h0)
     r = str.concat(r, sha256HexU(h1))
@@ -209,7 +213,7 @@ string sha256Digest(const string data) {
     r = str.concat(r, sha256HexU(h5))
     r = str.concat(r, sha256HexU(h6))
     r = str.concat(r, sha256HexU(h7))
-    out = r
+    return r
 }
 
 
@@ -217,13 +221,13 @@ string sha256Digest(const string data) {
 
 // sha256Hex — the bare 64-character lowercase hex digest of a string's bytes.
 public string sha256Hex(const string data) {
-    out = sha256Digest(data)
+    return sha256Digest(data)
 }
 
 // sha256String — "sha256:<hex>", the prefixed form the lockfile and the registry
 // protocol use.
 public string sha256String(const string data) {
-    out = str.concat("sha256:", sha256Digest(data))
+    return str.concat("sha256:", sha256Digest(data))
 }
 
 // sha256File — "sha256:<hex>" of a file's contents; "" when the file is missing.
@@ -234,15 +238,15 @@ public string sha256String(const string data) {
 // which is precisely the case that matters, since the callers hash downloaded
 // package tarballs to decide whether to trust them.
 public string sha256File(const string path) {
-    if fs.exists(path) == false { out = ""  return }
+    if fs.exists(path) == false { return "" }
     string data = fs.readBytes(path)
-    out = str.concat("sha256:", sha256Digest(data))
+    return str.concat("sha256:", sha256Digest(data))
 }
 
 // sha256Verify — true when the file hashes to `expected` ("sha256:<hex>"). A
 // missing file hashes to "" and therefore never matches.
 public bool sha256Verify(const string path, const string expected) {
-    out = str.equals(sha256File(path), expected)
+    return str.equals(sha256File(path), expected)
 }
 
 // ── CRC-32 ────────────────────────────────────────────────────────────────────
@@ -264,8 +268,7 @@ public uint crc32(const string data) {
     uint c = (uint)4294967295
     int i = 0
     while i < n {
-        byte b = 0
-        str.byteAt(data, i, b)
+        byte b = str.byteAt(data, i)
         int bi = b
         uint bu = (uint)(bi & 255)          // mask: byte widening differs per platform
         c = c ^ bu
@@ -282,10 +285,10 @@ public uint crc32(const string data) {
         }
         i = i + 1
     }
-    out = c ^ (uint)4294967295
+    return c ^ (uint)4294967295
 }
 
 // crc32Hex — the CRC-32 as 8 lowercase hex characters.
 public string crc32Hex(const string data) {
-    out = sha256HexU(crc32(data))
+    return sha256HexU(crc32(data))
 }

@@ -44,34 +44,36 @@ public class Stack<T> {
     }
 
     public T pop() {
+        T res
         if this.len == 0 {
             T def
-            out = def
-            return
+            return def
         }
         pointer newlen = this.len - 1
-        fly.llvm.slotReadT(this.items, newlen * this.stride, out)
+        fly.llvm.slotReadT(this.items, newlen * this.stride, res)
         T probe
         fly.llvm.slotFreeT(this.items, newlen * this.stride, probe)
         this.len = newlen
+        return res
     }
 
     public T peek() {
+        T res
         if this.len == 0 {
             T def
-            out = def
-            return
+            return def
         }
         pointer top = this.len - 1
-        fly.llvm.slotReadT(this.items, top * this.stride, out)
+        fly.llvm.slotReadT(this.items, top * this.stride, res)
+        return res
     }
 
     public bool isEmpty() {
-        out = this.len == 0
+        return this.len == 0
     }
 
     public pointer size() {
-        out = this.len
+        return this.len
     }
 
     public void free() {
@@ -85,5 +87,11 @@ public class Stack<T> {
         if this.items != 0 {
             fly.runtime.mem_free(this.items, this.cap * this.stride)
         }
+        // Back to the empty state: the freed buffers must not stay reachable. A
+        // second free() released them again, and an add() after free() wrote
+        // into freed memory; now both work (every add re-allocates lazily).
+        this.items = 0
+        this.len = 0
+        this.cap = 0
     }
 }

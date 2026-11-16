@@ -35,7 +35,7 @@ cat > "$D/navfix.fly" << 'EOF'
 import fly.str
 
 int square(const int n) {
-    out = n * n
+    return n * n
 }
 
 void main() {
@@ -50,7 +50,7 @@ void main() {
 class Point {
     int x
     public Point() { this.x = 0 }
-    public int getX() { out = this.x }
+    public int getX() { return this.x }
 }
 EOF
 

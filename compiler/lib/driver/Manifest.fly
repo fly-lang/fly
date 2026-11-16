@@ -35,13 +35,13 @@ public class GitDep {
         this.versionReq = ""
     }
 
-    public string getGitUrl()     { out = this.gitUrl }
-    public int getRefKind()       { out = this.refKind }
-    public string getRefValue()   { out = this.refValue }
-    public string getPath()       { out = this.path }
-    public string getRegistryName() { out = this.registryName }
-    public string getPkgName()    { out = this.pkgName }
-    public string getVersionReq() { out = this.versionReq }
+    public string getGitUrl()     { return this.gitUrl }
+    public int getRefKind()       { return this.refKind }
+    public string getRefValue()   { return this.refValue }
+    public string getPath()       { return this.path }
+    public string getRegistryName() { return this.registryName }
+    public string getPkgName()    { return this.pkgName }
+    public string getVersionReq() { return this.versionReq }
 
     public void setGitUrl(const string v)     { this.gitUrl = v }
     public void setRef(const int k, const string v) { this.refKind = k  this.refValue = v }
@@ -52,9 +52,9 @@ public class GitDep {
         this.versionReq = ver
     }
 
-    public bool isPathDep()     { out = str.isEmpty(this.path) == false }
-    public bool isRegistryDep() { out = str.isEmpty(this.registryName) == false }
-    public bool isGitDep()      { out = str.isEmpty(this.gitUrl) == false }
+    public bool isPathDep()     { return str.isEmpty(this.path) == false }
+    public bool isRegistryDep() { return str.isEmpty(this.registryName) == false }
+    public bool isGitDep()      { return str.isEmpty(this.gitUrl) == false }
 }
 
 // A build profile (opt-level etc.).
@@ -73,11 +73,11 @@ public class BuildProfile {
         this.strip = false
     }
 
-    public int getOptLevel()   { out = this.optLevel }
-    public bool getDebugInfo() { out = this.debugInfo }
-    public bool getAssertions() { out = this.assertions }
-    public bool getLto()       { out = this.lto }
-    public bool getStrip()     { out = this.strip }
+    public int getOptLevel()   { return this.optLevel }
+    public bool getDebugInfo() { return this.debugInfo }
+    public bool getAssertions() { return this.assertions }
+    public bool getLto()       { return this.lto }
+    public bool getStrip()     { return this.strip }
     public void setOptLevel(const int v)   { this.optLevel = v }
     public void setDebugInfo(const bool v) { this.debugInfo = v }
     public void setAssertions(const bool v) { this.assertions = v }
@@ -99,12 +99,12 @@ public class Target {
         this.lib = lb
     }
 
-    public string getKey()  { out = this.key }
-    public string getName() { out = this.name }
-    public string getPath() { out = this.path }
-    public string getLib()  { out = this.lib }
-    public bool isLib()     { out = str.isEmpty(this.lib) == false }
-    public bool isBin()     { out = str.isEmpty(this.lib) }
+    public string getKey()  { return this.key }
+    public string getName() { return this.name }
+    public string getPath() { return this.path }
+    public string getLib()  { return this.lib }
+    public bool isLib()     { return str.isEmpty(this.lib) == false }
+    public bool isBin()     { return str.isEmpty(this.lib) }
 }
 
 // [test] — suite-based test configuration.
@@ -120,10 +120,10 @@ public class TestConfig {
     }
 
     public void addSuite(const string s)  { this.suites.add(s) }
-    public int suiteCount()               { out = (int)this.suites.size() }
-    public string suiteAt(const int idx)  { out = this.suites.get(idx) }
-    public bool getParallel()             { out = this.parallel }
-    public bool getFailFast()             { out = this.failFast }
+    public int suiteCount()               { return (int)this.suites.size() }
+    public string suiteAt(const int idx)  { return this.suites.get(idx) }
+    public bool getParallel()             { return this.parallel }
+    public bool getFailFast()             { return this.failFast }
     public void setParallel(const bool v) { this.parallel = v }
     public void setFailFast(const bool v) { this.failFast = v }
 }
@@ -133,8 +133,8 @@ public class DepEntry {
     string name
     GitDep dep
     public DepEntry(const string n, const GitDep d) { this.name = n  this.dep = d }
-    public string getName() { out = this.name }
-    public GitDep getDep()  { out = this.dep }
+    public string getName() { return this.name }
+    public GitDep getDep()  { return this.dep }
 }
 
 // Ordered name→string entry (repo aliases).
@@ -142,8 +142,8 @@ public class StrEntry {
     string name
     string value
     public StrEntry(const string n, const string v) { this.name = n  this.value = v }
-    public string getName()  { out = this.name }
-    public string getValue() { out = this.value }
+    public string getName()  { return this.name }
+    public string getValue() { return this.value }
 }
 
 // Ordered name→BuildProfile entry.
@@ -151,8 +151,8 @@ public class ProfileEntry {
     string name
     BuildProfile prof
     public ProfileEntry(const string n, const BuildProfile p) { this.name = n  this.prof = p }
-    public string getName()      { out = this.name }
-    public BuildProfile getProf() { out = this.prof }
+    public string getName()      { return this.name }
+    public BuildProfile getProf() { return this.prof }
 }
 
 // The parsed manifest.
@@ -201,14 +201,14 @@ public class Manifest {
         this.postBuild = ""
     }
 
-    public string getName()        { out = this.name }
-    public string getVersion()     { out = this.version }
-    public string getDescription() { out = this.description }
-    public string getLicense()     { out = this.license }
-    public string getFlyVersion()  { out = this.flyVersion }
-    public string getHomepage()    { out = this.homepage }
-    public string getRepository()  { out = this.repository }
-    public string getDefaultRegistry() { out = this.defaultRegistry }
+    public string getName()        { return this.name }
+    public string getVersion()     { return this.version }
+    public string getDescription() { return this.description }
+    public string getLicense()     { return this.license }
+    public string getFlyVersion()  { return this.flyVersion }
+    public string getHomepage()    { return this.homepage }
+    public string getRepository()  { return this.repository }
+    public string getDefaultRegistry() { return this.defaultRegistry }
     public void setName(const string v)        { this.name = v }
     public void setVersion(const string v)     { this.version = v }
     public void setDescription(const string v) { this.description = v }
@@ -219,90 +219,90 @@ public class Manifest {
     public void setDefaultRegistry(const string v) { this.defaultRegistry = v }
 
     public void addAuthor(const string a)   { this.authors.add(a) }
-    public int authorCount()                { out = (int)this.authors.size() }
-    public string authorAt(const int idx)   { out = this.authors.get(idx) }
+    public int authorCount()                { return (int)this.authors.size() }
+    public string authorAt(const int idx)   { return this.authors.get(idx) }
 
     public void addTarget(const Target t)   { this.targets.add(t) }
-    public int targetCount()                { out = (int)this.targets.size() }
-    public Target targetAt(const int idx)   { out = this.targets.get(idx) }
+    public int targetCount()                { return (int)this.targets.size() }
+    public Target targetAt(const int idx)   { return this.targets.get(idx) }
 
-    public TestConfig getTest()             { out = this.tst }
+    public TestConfig getTest()             { return this.tst }
 
     public void addLinkLib(const string l)  { this.linkLibs.add(l) }
-    public int linkLibCount()               { out = (int)this.linkLibs.size() }
-    public string linkLibAt(const int idx)  { out = this.linkLibs.get(idx) }
+    public int linkLibCount()               { return (int)this.linkLibs.size() }
+    public string linkLibAt(const int idx)  { return this.linkLibs.get(idx) }
 
-    public bool isWorkspaceRoot()           { out = this.isWorkspace }
+    public bool isWorkspaceRoot()           { return this.isWorkspace }
     public void addMember(const string m)   { this.wsMembers.add(m)  this.isWorkspace = true }
-    public int memberCount()                { out = (int)this.wsMembers.size() }
-    public string memberAt(const int idx)   { out = this.wsMembers.get(idx) }
+    public int memberCount()                { return (int)this.wsMembers.size() }
+    public string memberAt(const int idx)   { return this.wsMembers.get(idx) }
 
     public void setHooks(const string pre, const string post) { this.preBuild = pre  this.postBuild = post }
-    public string getPreBuild()  { out = this.preBuild }
-    public string getPostBuild() { out = this.postBuild }
+    public string getPreBuild()  { return this.preBuild }
+    public string getPostBuild() { return this.postBuild }
 
     // dependency access (ordered, linear lookup)
     public void addDep(const string n, const GitDep d)    { this.deps.add(new DepEntry(n, d)) }
     public void addDevDep(const string n, const GitDep d) { this.devDeps.add(new DepEntry(n, d)) }
-    public int depCount()                { out = (int)this.deps.size() }
-    public DepEntry depAt(const int idx) { out = this.deps.get(idx) }
-    public int devDepCount()                { out = (int)this.devDeps.size() }
-    public DepEntry devDepAt(const int idx) { out = this.devDeps.get(idx) }
+    public int depCount()                { return (int)this.deps.size() }
+    public DepEntry depAt(const int idx) { return this.deps.get(idx) }
+    public int devDepCount()                { return (int)this.devDeps.size() }
+    public DepEntry devDepAt(const int idx) { return this.devDeps.get(idx) }
 
     public bool hasDep(const string n) {
         int i = 0
         while i < this.deps.size() {
             DepEntry e = this.deps.get(i)
-            if str.equals(e.getName(), n) { out = true  return }
+            if str.equals(e.getName(), n) { return true }
             i = i + 1
         }
-        out = false
+        return false
     }
     public GitDep getDep(const string n) {
         int i = 0
         while i < this.deps.size() {
             DepEntry e = this.deps.get(i)
-            if str.equals(e.getName(), n) { out = e.getDep()  return }
+            if str.equals(e.getName(), n) { return e.getDep() }
             i = i + 1
         }
-        out = null
+        return null
     }
 
     // repo aliases
     public void addRepo(const string n, const string url) { this.repos.add(new StrEntry(n, url)) }
-    public int repoCount()                 { out = (int)this.repos.size() }
-    public StrEntry repoAt(const int idx)  { out = this.repos.get(idx) }
+    public int repoCount()                 { return (int)this.repos.size() }
+    public StrEntry repoAt(const int idx)  { return this.repos.get(idx) }
     public string getRepo(const string n) {
         int i = 0
         while i < this.repos.size() {
             StrEntry e = this.repos.get(i)
-            if str.equals(e.getName(), n) { out = e.getValue()  return }
+            if str.equals(e.getName(), n) { return e.getValue() }
             i = i + 1
         }
-        out = ""
+        return ""
     }
 
     // profiles
     public void addProfile(const string n, const BuildProfile p) { this.profiles.add(new ProfileEntry(n, p)) }
-    public int profileCount()                   { out = (int)this.profiles.size() }
-    public ProfileEntry profileAt(const int idx) { out = this.profiles.get(idx) }
+    public int profileCount()                   { return (int)this.profiles.size() }
+    public ProfileEntry profileAt(const int idx) { return this.profiles.get(idx) }
     public bool hasProfile(const string n) {
         int i = 0
         while i < this.profiles.size() {
             ProfileEntry e = this.profiles.get(i)
-            if str.equals(e.getName(), n) { out = true  return }
+            if str.equals(e.getName(), n) { return true }
             i = i + 1
         }
-        out = false
+        return false
     }
     public BuildProfile getProfile(const string n) {
         int i = 0
         while i < this.profiles.size() {
             ProfileEntry e = this.profiles.get(i)
-            if str.equals(e.getName(), n) { out = e.getProf()  return }
+            if str.equals(e.getName(), n) { return e.getProf() }
             i = i + 1
         }
-        out = null
+        return null
     }
 
     // removeDep — drop a dependency (and dev-dependency) by name.
@@ -324,7 +324,7 @@ public class Manifest {
             j = j + 1
         }
         this.devDeps = keepDev
-        out = found
+        return found
     }
 
 
@@ -353,12 +353,12 @@ public class Manifest {
         if this.devDeps.size() > 0   { s = str.concat(s, this.depArray("devDependencies", this.devDeps, q, nl)) }
         if this.targets.size() > 0   { s = str.concat(s, this.targetArray(this.targets, q, nl)) }
         s = str.concat(s, str.concat("}", nl))
-        out = s
+        return s
     }
 
     // scalarField — `  string <name> = "<val>"`.
     string scalarField(const string name, const string val, const string q, const string nl) {
-        out = str.concat("  string ", str.concat(name, str.concat(" = ", str.concat(q, str.concat(val, str.concat(q, nl))))))
+        return str.concat("  string ", str.concat(name, str.concat(" = ", str.concat(q, str.concat(val, str.concat(q, nl))))))
     }
 
     // strArray — `  <decl> = { "a", "b" }`.
@@ -370,7 +370,7 @@ public class Manifest {
             a = str.concat(a, str.concat(q, str.concat(items.get(i), q)))
             i = i + 1
         }
-        out = str.concat(a, str.concat(" }", nl))
+        return str.concat(a, str.concat(" }", nl))
     }
 
     // depArray — `  Dependency[] <field> = { new Dependency(...), ... }`.
@@ -383,7 +383,7 @@ public class Manifest {
             a = str.concat(a, this.depNew(e.getName(), e.getDep(), q))
             i = i + 1
         }
-        out = str.concat(a, str.concat(" }", nl))
+        return str.concat(a, str.concat(" }", nl))
     }
 
     // depNew — new Dependency(name, version, registry, git, tag, branch, rev, path).
@@ -404,7 +404,7 @@ public class Manifest {
         s = str.concat(s, this.qc(br, q))
         s = str.concat(s, this.qc(rev, q))
         s = str.concat(s, str.concat(q, str.concat(g.getPath(), q)))
-        out = str.concat(s, ")")
+        return str.concat(s, ")")
     }
 
     // targetArray — `  Target[] targets = { new Target("name", "path", "lib"), ... }`.
@@ -420,12 +420,12 @@ public class Manifest {
             a = str.concat(a, tn)
             i = i + 1
         }
-        out = str.concat(a, str.concat(" }", nl))
+        return str.concat(a, str.concat(" }", nl))
     }
 
     // qc — a quoted value followed by ", " (a comma-separated arg).
     string qc(const string v, const string q) {
-        out = str.concat(q, str.concat(v, str.concat(q, ", ")))
+        return str.concat(q, str.concat(v, str.concat(q, ", ")))
     }
 
     // save — write serialize() to Manifest.fly in the current directory.
@@ -439,19 +439,18 @@ public class Manifest {
 // nameValid — non-empty, all chars in [a-z0-9_-].
 public bool nameValid(const string s) {
     int n = str.len(s)
-    if n == 0 { out = false  return }
+    if n == 0 { return false }
     int i = 0
     while i < n {
-        byte bb = 0
-        str.byteAt(s, i, bb)
+        byte bb = str.byteAt(s, i)
         int c = bb
         bool lower = c >= 97 && c <= 122
         bool digit = c >= 48 && c <= 57
         bool other = c == 45 || c == 95
-        if lower == false && digit == false && other == false { out = false  return }
+        if lower == false && digit == false && other == false { return false }
         i = i + 1
     }
-    out = true
+    return true
 }
 
 // versionValid — exactly digits '.' digits '.' digits (MAJOR.MINOR.PATCH).
@@ -461,22 +460,20 @@ public bool versionValid(const string s) {
     int dots = 0
     int digitsInGroup = 0
     while i < n {
-        byte bb = 0
-        str.byteAt(s, i, bb)
+        byte bb = str.byteAt(s, i)
         int c = bb
         if c >= 48 && c <= 57 {
             digitsInGroup = digitsInGroup + 1
         } elsif c == 46 {
-            if digitsInGroup == 0 { out = false  return }
+            if digitsInGroup == 0 { return false }
             dots = dots + 1
             digitsInGroup = 0
         } else {
-            out = false
-            return
+            return false
         }
         i = i + 1
     }
-    out = dots == 2 && digitsInGroup > 0
+    return dots == 2 && digitsInGroup > 0
 }
 
 // ── parse ─────────────────────────────────────────────────────────────────────
@@ -490,5 +487,5 @@ public BuildProfile defaultProfile(const string name) {
         p.setDebugInfo(false)
         p.setAssertions(false)
     }
-    out = p
+    return p
 }

@@ -33,7 +33,7 @@ import fly.lsp
 //   1  import fly.str
 //   2
 //   3  int square(const int n) {
-//   4      out = n * n
+//   4      return n * n
 //   5  }
 //   6
 //   7  void main() {
@@ -47,7 +47,7 @@ import fly.lsp
 //  15  class Point {
 //  16      int x
 //  17      public Point() { this.x = 0 }
-//  18      public int getX() { out = this.x }
+//  18      public int getX() { return this.x }
 //  19  }
 //
 // Assert codes: 1xx before-compile, 2xx compile/diagnostics, 3xx findTargetAt,
@@ -60,8 +60,8 @@ import fly.lsp
 // the root the whole repository — hundreds of unrelated modules pulled into the
 // compile, and hundreds of unrelated diagnostics. A real editor always sends an
 // absolute path, so a directory per fixture is the faithful shape too.
-string navFixtureDir() { out = "lsp_suite_fx_nav" }
-string navFixturePath() { out = "lsp_suite_fx_nav/nav.fly" }
+string navFixtureDir() { return "lsp_suite_fx_nav" }
+string navFixturePath() { return "lsp_suite_fx_nav/nav.fly" }
 
 // writeNavFixture — the file above, written to CWD. Kept as one string so the
 // line numbers in the assertions are readable against the header comment.
@@ -69,7 +69,7 @@ void writeNavFixture() {
     string s = "import fly.str\n"
     s = str.concat(s, "\n")
     s = str.concat(s, "int square(const int n) {\n")
-    s = str.concat(s, "    out = n * n\n")
+    s = str.concat(s, "    return n * n\n")
     s = str.concat(s, "}\n")
     s = str.concat(s, "\n")
     s = str.concat(s, "void main() {\n")
@@ -83,7 +83,7 @@ void writeNavFixture() {
     s = str.concat(s, "class Point {\n")
     s = str.concat(s, "    int x\n")
     s = str.concat(s, "    public Point() { this.x = 0 }\n")
-    s = str.concat(s, "    public int getX() { out = this.x }\n")
+    s = str.concat(s, "    public int getX() { return this.x }\n")
     s = str.concat(s, "}\n")
     fs.dirCreateAll(navFixtureDir(), 493)
     // The literal "\n" above is TWO characters in this dialect (escapes are
@@ -100,7 +100,7 @@ void writeNavFixture() {
 //
 // main.fly's import resolves ONLY when the compile root is the manifest
 // directory: app/ alone cannot see lib/.
-string rootFixtureDir() { out = "lsp_suite_fx_root" }
+string rootFixtureDir() { return "lsp_suite_fx_root" }
 
 // enumFixtureDir — its OWN directory, and its own file, so the line numbers the
 // other fixtures assert never move:
@@ -113,12 +113,12 @@ string rootFixtureDir() { out = "lsp_suite_fx_root" }
 //   6  }
 //   7
 //   8  Color pick() {
-//   9      out = Color.RED
+//   9      return Color.RED
 //  10  }
 //
 // Line 8 column 1 is the enum used AS A TYPE; line 3 column 13 is its name.
-string enumFixtureDir()  { out = "lsp_suite_fx_enum" }
-string enumFixturePath() { out = "lsp_suite_fx_enum/e.fly" }
+string enumFixtureDir()  { return "lsp_suite_fx_enum" }
+string enumFixturePath() { return "lsp_suite_fx_enum/e.fly" }
 
 void writeEnumFixture() {
     string s = "namespace fxenum.e\n"
@@ -129,7 +129,7 @@ void writeEnumFixture() {
     s = str.concat(s, "}\n")
     s = str.concat(s, "\n")
     s = str.concat(s, "Color pick() {\n")
-    s = str.concat(s, "    out = Color.RED\n")
+    s = str.concat(s, "    return Color.RED\n")
     s = str.concat(s, "}\n")
     fs.dirCreateAll(enumFixtureDir(), 493)
     fs.writeStr(enumFixturePath(), str.replace(s, "\n", lsp.lfStr()), 420)
@@ -149,7 +149,7 @@ void writeEnumFixture() {
 //                                7  }
 //
 // `hello` is at column 15 of header line 3, and at column 22 of main line 6.
-string hdrFixtureDir() { out = "lsp_suite_fx_hdr" }
+string hdrFixtureDir() { return "lsp_suite_fx_hdr" }
 
 void writeHdrFixture() {
     fs.dirCreateAll("lsp_suite_fx_hdr/lib", 493)
@@ -169,7 +169,7 @@ void writeRootFixture() {
     // so it must be valid Fly.
     string mf = "namespace fxroot.manifest\n\nclass Manifest : fly.meta.Manifest {\n}\n"
     fs.writeStr("lsp_suite_fx_root/Manifest.fly", str.replace(mf, "\n", lsp.lfStr()), 420)
-    string u = "namespace fxroot.util\n\npublic int seven() {\n    out = 7\n}\n"
+    string u = "namespace fxroot.util\n\npublic int seven() {\n    return 7\n}\n"
     fs.writeStr("lsp_suite_fx_root/lib/util.fly", str.replace(u, "\n", lsp.lfStr()), 420)
     string m = "namespace fxroot.app\n\nimport fxroot.util\n\nvoid main() {\n    int x = util.seven()\n}\n"
     fs.writeStr("lsp_suite_fx_root/app/main.fly", str.replace(m, "\n", lsp.lfStr()), 420)
@@ -180,7 +180,7 @@ LspAnalyzer compiled() {
     writeNavFixture()
     LspAnalyzer a = new LspAnalyzer()
     List<LspDiag> d = a.compileFile(navFixturePath())
-    out = a
+    return a
 }
 
 // symNamed — is `name` among the symbols, and with `kind`? -1 kind = any.
@@ -189,12 +189,12 @@ bool symNamed(const List<LspSym> xs, const string name, const int kind) {
     while i < xs.size() {
         LspSym s = xs.get(i)
         if str.equals(s.name, name) {
-            if kind < 0 { out = true  return }
-            if s.kind == kind { out = true  return }
+            if kind < 0 { return true }
+            if s.kind == kind { return true }
         }
         i = i + 1
     }
-    out = false
+    return false
 }
 
 suite LspAnalyzerSuite {
@@ -322,8 +322,8 @@ suite LspAnalyzerSuite {
         }
         case "a parameter jumps to the parameter list": {
             LspAnalyzer a = compiled()
-            // line 4, "    out = n * n" — the first 'n' is at col 11
-            LspTarget t = a.findTargetAt(4, 11)
+            // line 4, "    return n * n" — the first 'n' is at col 12
+            LspTarget t = a.findTargetAt(4, 12)
             assert.assertEqI(t.kind, 2, 406)
             LspLoc loc = a.declLocationOf(t)
             assert.assertTrue(loc.ok, 407)
@@ -442,6 +442,19 @@ suite LspAnalyzerSuite {
             assert.assertTrue(symNamed(items, "square", 3), 902)     // Function
             fs.dirDeleteAll(navFixtureDir())
         }
+        case "completion hides the compiler's own names": {
+            // The return value travels through a hidden parameter (`__ret`), calls
+            // land in `__out_N` locals and a handle binds `__error`. None of those
+            // are names the user wrote, so none may be offered.
+            LspAnalyzer a = compiled()
+            List<LspSym> items = a.completionsAt(9, 5)
+            int i = 0
+            while i < items.size() {
+                assert.assertFalse(str.startsWith(items.get(i).name, "__"), 908)
+                i = i + 1
+            }
+            fs.dirDeleteAll(navFixtureDir())
+        }
         case "signatureHelp inside a call reports the signature and parameter": {
             LspAnalyzer a = compiled()
             // inside square(...) on line 9; the argument starts at col 25
@@ -522,7 +535,7 @@ suite LspAnalyzerSuite {
             LspLoc loc = a.declLocationOf(t)
             assert.assertTrue(loc.ok, 1003)
             assert.assertEqI(loc.line, 18, 1004)
-            // "    public int getX() { out = this.x }" — the METHOD NAME is at
+            // "    public int getX() { return this.x }" — the METHOD NAME is at
             // column 16, its declaration starts at `public` (column 5).
             assert.assertEqI(loc.col, 16, 1020)
             assert.assertTrue(str.contains(a.hoverOf(t), "getX"), 1005)
@@ -771,7 +784,7 @@ suite LspAnalyzerSuite {
             // text is deliberately a DIFFERENT LENGTH: same-size content would
             // leave the check leaning on mtime alone, and a filesystem with
             // coarse timestamp granularity could then make this test flaky.
-            string broken = "namespace fxroot.util\n\npublic int eightyEight() {\n    out = 88\n}\n"
+            string broken = "namespace fxroot.util\n\npublic int eightyEight() {\n    return 88\n}\n"
             fs.writeStr("lsp_suite_fx_root/lib/util.fly",
                         str.replace(broken, "\n", lsp.lfStr()), 420)
             List<LspDiag> after = a.compileFile("lsp_suite_fx_root/app/main.fly")

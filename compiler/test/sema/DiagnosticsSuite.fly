@@ -19,7 +19,7 @@ suite DiagnosticsSuite {
 
     void unresolvedIdentifierTest() {
         case "use of an undefined variable is reported": {
-            Parser p = new Parser("int f() { out = nope }")
+            Parser p = new Parser("int f() { return nope }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
 
@@ -49,7 +49,7 @@ suite DiagnosticsSuite {
 
     void unknownMemberTest() {
         case "access to a non-existent field is reported": {
-            Parser p = new Parser("public class C { public int x }  int f(const C c) { out = c.nope }")
+            Parser p = new Parser("public class C { public int x }  int f(const C c) { return c.nope }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 20)
 
@@ -78,7 +78,7 @@ suite DiagnosticsSuite {
             assert.assertTrue(str.contains(sink.getMessage(0), "'h'"), 32)
         }
         case "a namespace name used as a bare value is rejected (not a silent null)": {
-            Parser p = new Parser("namespace demo  void g() { }  int f() { int x = demo  out = x }")
+            Parser p = new Parser("namespace demo  void g() { }  int f() { int x = demo  return x }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 33)
 
@@ -92,7 +92,7 @@ suite DiagnosticsSuite {
             assert.assertTrue(str.contains(sink.getMessage(0), "namespace"), 35)
         }
         case "a type/class name used as a bare value is rejected": {
-            Parser p = new Parser("public class C { public int x }  int f() { int y = C  out = y }")
+            Parser p = new Parser("public class C { public int x }  int f() { int y = C  return y }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 36)
 
@@ -106,7 +106,7 @@ suite DiagnosticsSuite {
             assert.assertTrue(str.contains(sink.getMessage(0), "type name"), 38)
         }
         case "a function name used as a bare value is rejected": {
-            Parser p = new Parser("int g() { out = 1 }  int f() { int y = g  out = y }")
+            Parser p = new Parser("int g() { return 1 }  int f() { int y = g  return y }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 39)
 
@@ -138,7 +138,7 @@ suite DiagnosticsSuite {
 
     void implementedAbstractOkTest() {
         case "concrete class implementing the interface method is clean": {
-            Parser p = new Parser("public interface Shape { int area() }  public class Good : Shape { public int area() { out = 4 } }")
+            Parser p = new Parser("public interface Shape { int area() }  public class Good : Shape { public int area() { return 4 } }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 50)
 
@@ -155,9 +155,9 @@ suite DiagnosticsSuite {
         case "a well-formed program reports no errors": {
             Parser p = new Parser("
                 public class P { public int x
-                    public int get() { out = this.x }
+                    public int get() { return this.x }
                 }
-                int use(const P p) { out = p.get() }
+                int use(const P p) { return p.get() }
             ")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 30)
@@ -174,8 +174,8 @@ suite DiagnosticsSuite {
     void diamondAmbiguityTest() {
         case "ambiguous inherited default method is reported": {
             Parser p = new Parser("
-                public interface A { int foo() { out = 1 } }
-                public interface B { int foo() { out = 2 } }
+                public interface A { int foo() { return 1 } }
+                public interface B { int foo() { return 2 } }
                 public class D : A, B { }
             ")
             ASTModule m = p.parseModule("t")
@@ -193,9 +193,9 @@ suite DiagnosticsSuite {
     void diamondResolvedTest() {
         case "overriding the conflicting method resolves the diamond": {
             Parser p = new Parser("
-                public interface A { int foo() { out = 1 } }
-                public interface B { int foo() { out = 2 } }
-                public class D : A, B { public int foo() { out = 3 } }
+                public interface A { int foo() { return 1 } }
+                public interface B { int foo() { return 2 } }
+                public class D : A, B { public int foo() { return 3 } }
             ")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 80)

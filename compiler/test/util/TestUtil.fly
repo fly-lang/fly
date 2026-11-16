@@ -23,6 +23,7 @@ import fly.str
 // cgIR — parse + resolve + codegen `src`, assert the module verifies (printing
 // the verifier message on failure), and return the emitted LLVM IR text.
 public string cgIR(const string src) {
+    string res
     Parser p = new Parser(src)
     ASTModule m = p.parseModule("t")
     assert.assertTrue(p.isSuccess(), 91)
@@ -37,14 +38,14 @@ public string cgIR(const string src) {
     List<ASTModule> mods = new List<ASTModule>()
     mods.add(m)
     SemaContext ctx = new SemaContext(diags)
-    List<SemaModule> res = ctx.Resolve(mods, false)
+    List<SemaModule> mres = ctx.Resolve(mods, false)
     if diags.hasErrorOccurred() {
-        // Assign `out` BEFORE failing. `fail` does not unwind — the caller resumes
-        // and reads the out slot — so leaving it unset hands back an uninitialised
-        // string and the first fly.str call on it access-violates. That is how one
-        // invalid source used to take down the entire suite binary (every other
-        // case reported as "run aborted") instead of failing this one case.
-        out = ""
+        // The old body assigned the out slot before failing, because `fail` does
+        // not unwind and the caller resumed on an uninitialised string — the first
+        // fly.str call on it access-violated and took the whole suite binary down.
+        // A returned value can no longer be set on the way out, so the call site
+        // zeroes the slot instead (CodeGenCall): failing hands back an empty
+        // string, and this case fails alone.
         fail 92, "cgIR: source did not resolve"
     }
     CodeGenModule cgm = new CodeGenModule("t")
@@ -53,7 +54,7 @@ public string cgIR(const string src) {
     string vmsg = cgm.verifyMsg(ok)
     assert.assertStr(vmsg, "", 93)
     cgm.emitIR("/tmp/cg/suite.ll")
-    out = fs.readStr("/tmp/cg/suite.ll")
+    return fs.readStr("/tmp/cg/suite.ll")
 }
 
 // resolveSrc — parse + resolve, returning whether any sema error was recorded.
@@ -67,7 +68,7 @@ public bool resolveSrc(const string src, const int tag) {
     modules.add(m)
     SemaContext ctx = new SemaContext(diags)
     List<SemaModule> resolved = ctx.Resolve(modules, false)
-    out = diags.hasErrorOccurred()
+    return diags.hasErrorOccurred()
 }
 
 // resolveHeaderSrc — resolveSrc, but with the module marked as a preloaded
@@ -85,7 +86,7 @@ public bool resolveHeaderSrc(const string src, const int tag) {
     modules.add(m)
     SemaContext ctx = new SemaContext(diags)
     List<SemaModule> resolved = ctx.Resolve(modules, false)
-    out = diags.hasErrorOccurred()
+    return diags.hasErrorOccurred()
 }
 
 // dquote — a one-character string containing a double quote (byte 34); string
@@ -96,5 +97,5 @@ public string dquote() {
     fly.llvm.strPoke(buf, 0, q)
     string s = ""
     fly.llvm.strMake(buf, 1, s)
-    out = s
+    return s
 }

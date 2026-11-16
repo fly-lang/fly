@@ -38,19 +38,19 @@ public class SemaEnumType : SemaType {
         this.entries = new Map<string, SemaEnumEntry>()
     }
 
-    public SemaEnumType asEnum() { out = this }
-    public ASTEnum getAST() { out = this.enumAst }
-    public SemaModule getModule() { out = this.module }
-    public SymbolTable getSymbols() { out = this.symbols }
-    public List<SemaNode> getNodes() { out = this.nodes }
-    public List<SemaEnumType> getBaseEnums() { out = this.superEnums }
+    public SemaEnumType asEnum() { return this }
+    public ASTEnum getAST() { return this.enumAst }
+    public SemaModule getModule() { return this.module }
+    public SymbolTable getSymbols() { return this.symbols }
+    public List<SemaNode> getNodes() { return this.nodes }
+    public List<SemaEnumType> getBaseEnums() { return this.superEnums }
     public void addBaseEnum(const SemaEnumType base) { this.superEnums.add(base) }
-    public SemaVisibilityKind getVisibility() { out = this.visibility }
+    public SemaVisibilityKind getVisibility() { return this.visibility }
     public void setVisibility(const SemaVisibilityKind visibility) { this.visibility = visibility }
-    public bool isConstant() { out = this.constantFlag }
+    public bool isConstant() { return this.constantFlag }
     public void setConstant(const bool constantFlag) { this.constantFlag = constantFlag }
-    public Map<string, SemaEnumEntry> getEntries() { out = this.entries }
-    public SemaComment getComment() { out = this.comment }
+    public Map<string, SemaEnumEntry> getEntries() { return this.entries }
+    public SemaComment getComment() { return this.comment }
     public void setComment(const SemaComment comment) { this.comment = comment }
 
     public void addEntry(const SemaEnumEntry entry) {
@@ -61,7 +61,7 @@ public class SemaEnumType : SemaType {
     public SemaEnumEntry LookupEntry(const string name) {
         SemaEnumEntry r = null
         if this.entries.has(name) { r = this.entries.get(name) }
-        out = r
+        return r
     }
 
     public bool isDerivedOrEquals(const SemaEnumType base) {
@@ -76,7 +76,7 @@ public class SemaEnumType : SemaType {
                 i = i + 1
             }
         }
-        out = r
+        return r
     }
 
     public bool isDerived(const SemaEnumType base) {
@@ -87,6 +87,6 @@ public class SemaEnumType : SemaType {
             r = b.isDerivedOrEquals(base)
             i = i + 1
         }
-        out = r
+        return r
     }
 }

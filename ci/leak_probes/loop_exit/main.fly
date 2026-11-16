@@ -1,0 +1,28 @@
+// Locals of a loop body left through continue/break, and an early return from
+// inside a loop: each exit frees the scopes it leaves.
+string mk(const int i) {
+    string s = "abcdefghij" + "k"
+    return s
+}
+int scan(const int n) {
+    int i = 0
+    while true {
+        string head = mk(i)
+        i = i + 1
+        if i % 2 == 0 { continue }
+        if i > n { break }
+        string tail = head + "!"
+        if tail == "" { return -1 }
+        if i == 3 { return 3 }
+    }
+    return 0
+}
+void main() {
+    int i = 0
+    long acc = 0
+    while i < 500000 {
+        acc = acc + scan(4)
+        acc = acc + scan(0)
+        i = i + 1
+    }
+}

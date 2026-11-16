@@ -18,7 +18,7 @@ int execArraySumOf(const int[] xs) {
     for x in xs {
         sum = sum + x
     }
-    out = sum
+    return sum
 }
 
 // The buffer built here must outlive this frame. `out = xs` takes a reference on
@@ -26,7 +26,7 @@ int execArraySumOf(const int[] xs) {
 // one, so the caller receives a live buffer it alone owns.
 int[] execArrayMake(const int n) {
     int[] xs = {n, n + 1, n + 2}
-    out = xs
+    return xs
 }
 
 // Takes a BORROW and hands back a fresh array. Chaining the two exercises the
@@ -40,7 +40,7 @@ int[] execArrayDouble(const int[] xs) {
         }
         i = i + 1
     }
-    out = out2
+    return out2
 }
 
 suite ExecArraySuite {

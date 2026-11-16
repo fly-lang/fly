@@ -20,7 +20,7 @@ string tmpBase() {
     string tmp = env.get("TMPDIR")
     if str.isEmpty(tmp) { tmp = env.get("TEMP") }
     if str.isEmpty(tmp) { tmp = "/tmp" }
-    out = tmp
+    return tmp
 }
 
 // genPath — write `src` as <dir>/m.fly, generate its lib artifact into <dir>,
@@ -38,7 +38,7 @@ string genPath(const string name, const string src) {
     fs.writeStr(mpath, str.replace(src, "\n", nl()), 420)
     Parser p = new Parser(fs.readStr(mpath))
     ASTModule m = p.parseModule(mpath)
-    out = HeaderGen.generate(m, dir, null)
+    return HeaderGen.generate(m, dir, null)
 }
 
 // genInto — write `src` as <base>/src/m.fly and generate into <base>/out, a
@@ -63,29 +63,28 @@ string genInto(const string name, const string src) {
     Parser p = new Parser(fs.readStr(mpath))
     ASTModule m = p.parseModule(mpath)
     string written = HeaderGen.generate(m, odir, null)
-    out = odir
+    return odir
 }
 
 // genHeader — genPath plus the file's text, for the declaration-shape cases.
 string genHeader(const string dir, const string src) {
     string pth = genPath(dir, src)
-    out = fs.readStr(pth)
+    return fs.readStr(pth)
 }
 
 // nl — one real newline byte (string literals keep escapes raw).
 string nl() {
     pointer buf = fly.mem.alloc(1)
     fly.mem.writeByte(buf, 0, 10)
-    string s = ""
-    str.fromBytes(buf, 1, s)
-    out = s
+    string s = str.fromBytes(buf, 1)
+    return s
 }
 
 // ts — parse `src` as a type and render it.
 string ts(const string src) {
     Parser p = new Parser(src)
     ASTType t = p.parseType()
-    out = HeaderGen.typeStr(t)
+    return HeaderGen.typeStr(t)
 }
 
 suite HeaderGenTypeSuite {
@@ -138,7 +137,7 @@ suite HeaderGenTypeSuite {
     // caught `abstract` being dropped.
     void shippedShapeTest() {
         case "a plain module emits declarations with NO bodies": {
-            string src = "namespace hg.plain\n\npublic class Box {\n    int v\n    public int get() { out = this.v }\n}\n"
+            string src = "namespace hg.plain\n\npublic class Box {\n    int v\n    public int get() { return this.v }\n}\n"
             string h = genHeader("hg_fx_plain", src)
             assert.assertTrue(str.contains(h, "public int get()"), 201)
             // The empty stub is gone: no `{}` anywhere in a declaration file.
@@ -168,7 +167,7 @@ suite HeaderGenTypeSuite {
     // template keeps its body, and a non-generic implementation never travels —
     // and that no name is emitted twice, which nothing in the compiler reports.
     void splitTest() {
-        string mixed = "namespace hg.mix\n\npublic class Box<T> {\n    T v\n    public void set(T x) { this.v = x }\n}\n\npublic class Secret {\n    int key\n    public int reveal() { out = this.key * 7 }\n}\n"
+        string mixed = "namespace hg.mix\n\npublic class Box<T> {\n    T v\n    public void set(T x) { this.v = x }\n}\n\npublic class Secret {\n    int key\n    public int reveal() { return this.key * 7 }\n}\n"
 
         case "the template keeps its body": {
             string odir = genInto("hg_fx_split", mixed)
@@ -199,12 +198,12 @@ suite HeaderGenTypeSuite {
             // It used to be missed: only classes were checked, so a module like
             // this shipped as a bodiless declaration and every specialization of
             // it came out as an empty function.
-            string src = "namespace hg.fn\n\npublic T pick<T>(const T a) { out = a }\n"
+            string src = "namespace hg.fn\n\npublic T pick<T>(const T a) { return a }\n"
             string odir = genInto("hg_fx_fn", src)
-            assert.assertTrue(str.contains(fs.readStr(str.concat(odir, "/m.fly.h")), "out = a"), 310)
+            assert.assertTrue(str.contains(fs.readStr(str.concat(odir, "/m.fly.h")), "return a"), 310)
         }
         case "a private helper the template calls travels with it": {
-            string src = "namespace hg.priv\n\nint scramble(const int x) { out = x * 3 }\n\nint unused(const int x) { out = x }\n\npublic class Cache<T> {\n    int tag\n    public Cache() { this.tag = scramble(7) }\n}\n"
+            string src = "namespace hg.priv\n\nint scramble(const int x) { return x * 3 }\n\nint unused(const int x) { return x }\n\npublic class Cache<T> {\n    int tag\n    public Cache() { this.tag = scramble(7) }\n}\n"
             string odir = genInto("hg_fx_priv", src)
             string hdr = fs.readStr(str.concat(odir, "/m.fly.h"))
             assert.assertTrue(str.contains(hdr, "scramble"), 312)

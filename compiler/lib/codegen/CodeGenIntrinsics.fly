@@ -325,7 +325,7 @@ public class CodeGenIntrinsics {
 
     // nameIn — membership in a ";a;b;c;" list.
     public static bool nameIn(const string name, const string list) {
-        out = str.contains(list, str.concat(";", str.concat(name, ";")))
+        return str.contains(list, str.concat(";", str.concat(name, ";")))
     }
 
     // floatMath — `fly.llvm.<name>(a[, b[, c]], out)` → `out = llvm.<llvmName>.f64(a…)`.
@@ -469,7 +469,7 @@ public class CodeGenIntrinsics {
         pointer b = cge.getBuilder()
         int w = 64
         if t != null { w = cge.numWidth(t) }
-        if w >= 64 { out = val  return }
+        if w >= 64 { return val }
         pointer i64t
         llvm.int64TypeInContext(cge.getCgm().getCtx(), i64t)
         pointer r
@@ -478,7 +478,7 @@ public class CodeGenIntrinsics {
         } else {
             llvm.buildSExt(b, val, i64t, "soffs", r)
         }
-        out = r
+        return r
     }
 
     // slotAddr — `intToPtr(buf) + byteOff` as an i8 GEP: the element address
@@ -501,7 +501,7 @@ public class CodeGenIntrinsics {
         CodeGenLLVM cg = cgm.getCg()
         pointer addr
         cg.buildGEP2N(b, i8t, rp, gidx, "slot", addr)
-        out = addr
+        return addr
     }
 
     // hashValue — i32 hash of a value: FNV-1a over the bytes for strings (alloca
@@ -525,8 +525,7 @@ public class CodeGenIntrinsics {
                     elsif w < 32 { llvm.buildZExt(b, val, i32t, "hshZ", r) }
                 }
             }
-            out = r
-            return
+            return r
         }
 
         // FNV-1a over the string bytes
@@ -597,7 +596,7 @@ public class CodeGenIntrinsics {
         cge.position(exitBB)
         pointer hres
         llvm.buildLoad2(b, i32t, hSlot, "hrs", hres)
-        out = hres
+        return hres
     }
 
     // valueCmp — i32 3-way compare (-1/0/+1, 0 = equal) of stored vs key, the
@@ -644,8 +643,7 @@ public class CodeGenIntrinsics {
             llvm.buildICmp(b, 33, mc, zero, "cne", cNe)        // NE
             pointer r
             llvm.buildSelect(b, cNe, mc, lenDiff, "c3w", r)
-            out = r
-            return
+            return r
         }
 
         // integers / pointer-sized / enums: signed -1/0/1
@@ -657,7 +655,7 @@ public class CodeGenIntrinsics {
         llvm.buildSelect(b, gt, one, zero, "cgi", inner)
         pointer r2
         llvm.buildSelect(b, lt, negOne, inner, "c3i", r2)
-        out = r2
+        return r2
     }
 
     // emitMemcmp — `call i32 @memcmp(ptr, ptr, i64)` (libc), declared on first use.
@@ -688,7 +686,7 @@ public class CodeGenIntrinsics {
         as2.add(len)
         pointer cv
         cg.buildCallN(b, fty, fn, as2, "cmc", cv)
-        out = cv
+        return cv
     }
 
     // valueEq — i1 equality of two values of type `t`: strings by size + bytes
@@ -703,8 +701,7 @@ public class CodeGenIntrinsics {
         if t != null { isStr = t.isString() }
         if isStr == false {
             llvm.buildICmp(b, 32, a, b2, "veq", i1res)   // EQ
-            out = i1res
-            return
+            return i1res
         }
 
         pointer i64t
@@ -784,7 +781,7 @@ public class CodeGenIntrinsics {
         cge.position(exitBB)
         pointer rf
         llvm.buildLoad2(b, i1t, resSlot, "vrf", rf)
-        out = rf
+        return rf
     }
 
     // cloneIfStruct — copy a STRUCT value into fresh stack storage so the
@@ -796,13 +793,13 @@ public class CodeGenIntrinsics {
     // memcpy. No-op for every other type — including CLASS handles, which are
     // reference types and must keep aliasing.
     public static pointer cloneIfStruct(const CodeGenExpr cge, const pointer val, const SemaType t) {
-        if t == null { out = val  return }
+        if t == null { return val }
         SemaClassType ct = t.asClass()
-        if ct == null { out = val  return }
-        if ct.getClassKind() != SemaClassKind.STRUCT { out = val  return }
+        if ct == null { return val }
+        if ct.getClassKind() != SemaClassKind.STRUCT { return val }
         pointer sty = ct.getLlvmStructType()
-        if sty == 0 { out = val  return }
-        if val == 0 { out = val  return }
+        if sty == 0 { return val }
+        if val == 0 { return val }
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         pointer slot
@@ -811,14 +808,14 @@ public class CodeGenIntrinsics {
         llvm.sizeOf(sty, szV)
         pointer mcv
         llvm.buildMemCpy(b, slot, val, szV, mcv)
-        out = slot
+        return slot
     }
 
     // cloneIfString — deep-clone a %string value into a fresh malloc'd buffer so
     // each owner frees independently (no aliasing). No-op for other types.
     public static pointer cloneIfString(const CodeGenExpr cge, const pointer val, const SemaType t) {
-        if t == null { out = val  return }
-        if t.isString() == false { out = val  return }
+        if t == null { return val }
+        if t.isString() == false { return val }
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         CodeGenModule cgm = cge.getCgm()
@@ -879,7 +876,7 @@ public class CodeGenIntrinsics {
         cge.position(mergeBB)
         pointer res
         llvm.buildLoad2(b, strTy, slot, "cres", res)
-        out = res
+        return res
     }
 
     // storeIntOut — store an integer value through an out-param expr's address,

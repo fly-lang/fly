@@ -41,24 +41,23 @@ public class HeaderGen {
     // qualified `A.B.C` name preserving generic args `<X, Y>`. Empty for void/complex/
     // error (callers emit an explicit `void` where a return type is required).
     public static string typeStr(const ASTType t) {
-        if t == null { out = ""  return }
+        if t == null { return "" }
         if t.getTypeKind() == ASTTypeKind.TYPE_BUILTIN {
             ASTBuiltinType bt = t.asBuiltinType()
             ASTBuiltinTypeKind k = bt.getBuiltinKind()
-            if k == ASTBuiltinTypeKind.TYPE_BOOL    { out = "bool"    return }
-            if k == ASTBuiltinTypeKind.TYPE_BYTE    { out = "byte"    return }
-            if k == ASTBuiltinTypeKind.TYPE_SHORT   { out = "short"   return }
-            if k == ASTBuiltinTypeKind.TYPE_INT     { out = "int"     return }
-            if k == ASTBuiltinTypeKind.TYPE_LONG    { out = "long"    return }
-            if k == ASTBuiltinTypeKind.TYPE_USHORT  { out = "ushort"  return }
-            if k == ASTBuiltinTypeKind.TYPE_UINT    { out = "uint"    return }
-            if k == ASTBuiltinTypeKind.TYPE_ULONG   { out = "ulong"   return }
-            if k == ASTBuiltinTypeKind.TYPE_POINTER { out = "pointer" return }
-            if k == ASTBuiltinTypeKind.TYPE_FLOAT   { out = "float"   return }
-            if k == ASTBuiltinTypeKind.TYPE_DOUBLE  { out = "double"  return }
-            if k == ASTBuiltinTypeKind.TYPE_STRING  { out = "string"  return }
-            out = ""
-            return
+            if k == ASTBuiltinTypeKind.TYPE_BOOL    { return "bool" }
+            if k == ASTBuiltinTypeKind.TYPE_BYTE    { return "byte" }
+            if k == ASTBuiltinTypeKind.TYPE_SHORT   { return "short" }
+            if k == ASTBuiltinTypeKind.TYPE_INT     { return "int" }
+            if k == ASTBuiltinTypeKind.TYPE_LONG    { return "long" }
+            if k == ASTBuiltinTypeKind.TYPE_USHORT  { return "ushort" }
+            if k == ASTBuiltinTypeKind.TYPE_UINT    { return "uint" }
+            if k == ASTBuiltinTypeKind.TYPE_ULONG   { return "ulong" }
+            if k == ASTBuiltinTypeKind.TYPE_POINTER { return "pointer" }
+            if k == ASTBuiltinTypeKind.TYPE_FLOAT   { return "float" }
+            if k == ASTBuiltinTypeKind.TYPE_DOUBLE  { return "double" }
+            if k == ASTBuiltinTypeKind.TYPE_STRING  { return "string" }
+            return ""
         }
         // An ARRAY renders as `element[size]`, or `element[]` when the size is not
         // a literal. Without this case an array-typed parameter, field or return
@@ -67,17 +66,16 @@ public class HeaderGen {
         // TYPE_ARRAY case. The recursion covers `int[][]`.
         if t.getTypeKind() == ASTTypeKind.TYPE_ARRAY {
             ASTArrayType at = t.asArrayType()
-            if at == null { out = ""  return }
+            if at == null { return "" }
             string elem = HeaderGen.typeStr(at.getElementType())
-            if str.len(elem) == 0 { out = ""  return }
+            if str.len(elem) == 0 { return "" }
             string sz = ""
             ASTExpr se = at.getSizeExpr()
             if se != null {
                 ASTNumberValue nv = se.asNumberValue()
                 if nv != null { sz = nv.getValue() }
             }
-            out = str.concat(elem, str.concat("[", str.concat(sz, "]")))
-            return
+            return str.concat(elem, str.concat("[", str.concat(sz, "]")))
         }
         if t.getTypeKind() == ASTTypeKind.TYPE_NAMED {
             ASTNamedType nt = t.asNamedType()
@@ -107,10 +105,9 @@ public class HeaderGen {
                 if str.endsWith(name, ">") { name = str.concat(name, " ") }
                 name = str.concat(name, ">")
             }
-            out = name
-            return
+            return name
         }
-        out = ""
+        return ""
     }
 
     // paramStr — `[const ]<type> <name>`.
@@ -122,14 +119,14 @@ public class HeaderGen {
         s = str.concat(s, HeaderGen.typeStr(p.getType()))
         s = str.concat(s, " ")
         s = str.concat(s, p.getName())
-        out = s
+        return s
     }
 
     // paramListStr — `p0, p1, …` for a function/method signature.
     // returnTypeListStr — `A, B, C` for a multi-return declaration; "" when the
     // function has no extra return types (the ordinary single/void case).
     public static string returnTypeListStr(const List<ASTType> rts) {
-        if rts == null { out = ""  return }
+        if rts == null { return "" }
         string s = ""
         int i = 0
         while i < rts.size() {
@@ -137,7 +134,7 @@ public class HeaderGen {
             s = str.concat(s, HeaderGen.typeStr(rts.get(i)))
             i = i + 1
         }
-        out = s
+        return s
     }
 
     public static string paramListStr(const List<ASTParam> params) {
@@ -148,31 +145,30 @@ public class HeaderGen {
             s = str.concat(s, HeaderGen.paramStr(params.get(i)))
             i = i + 1
         }
-        out = s
+        return s
     }
 
     // hasModifier — true if the list carries the given modifier (public / const).
     public static bool hasModifier(const List<ASTModifier> mods, const ASTModifierKind want) {
         int i = 0
         while i < mods.size() {
-            if mods.get(i).getModifierKind() == want { out = true  return }
+            if mods.get(i).getModifierKind() == want { return true }
             i = i + 1
         }
-        out = false
+        return false
     }
 
     // stripFlySuffix — `foo/bar.fly` → `foo/bar` (the module stem).
     public static string stripFlySuffix(const string name) {
         if str.endsWith(name, ".fly") {
-            out = str.substring(name, 0, str.len(name) - 4)
-            return
+            return str.substring(name, 0, str.len(name) - 4)
         }
-        out = name
+        return name
     }
 
     // headerPath — where the `.fly.h` lands: flat in outDir (--lib), else next to source.
     public static string headerPath(const string stem, const string outDir) {
-        out = HeaderGen.libPath(stem, outDir, ".fly.h")
+        return HeaderGen.libPath(stem, outDir, ".fly.h")
     }
 
     // libPath — where a shipped artifact for `stem` goes. The extension is a
@@ -180,11 +176,10 @@ public class HeaderGen {
     // `.fly.h` is the ONLY textual artifact a lib directory ever holds.
     public static string libPath(const string stem, const string outDir, const string ext) {
         if str.isEmpty(outDir) {
-            out = str.concat(stem, ext)
-            return
+            return str.concat(stem, ext)
         }
         string base = path.basename(stem)
-        out = path.join(outDir, str.concat(base, ext))
+        return path.join(outDir, str.concat(base, ext))
     }
 
     // generate — write THE artifact for `m` into `outDir`: one `<stem>.fly.h`
@@ -292,7 +287,7 @@ public class HeaderGen {
         }
 
         fs.writeStr(hpath, h, 420)
-        out = hpath
+        return hpath
     }
 
     // emitPrelude — `namespace …` + the module's imports. The header opens with it:
@@ -344,7 +339,7 @@ public class HeaderGen {
         }
         if alwaysPad { h = str.concat(h, lf) }
         elsif imps.size() > 0 { h = str.concat(h, lf) }
-        out = h
+        return h
     }
 
     // templatesText — the template half of the header: every generic declaration
@@ -358,7 +353,7 @@ public class HeaderGen {
     // which leaves the header a pure declaration file.
     public static string templatesText(const ASTModule m, const string srcPath, const string outPath, const string lf, const DiagnosticsEngine diags) {
         string src = fs.readStr(srcPath)
-        if str.isEmpty(src) { out = ""  return }
+        if str.isEmpty(src) { return "" }
         string body = ""
         List<ASTNode> nodes = m.getNodes()
         int i = 0
@@ -369,8 +364,8 @@ public class HeaderGen {
             }
             i = i + 1
         }
-        if str.isEmpty(body) { out = ""  return }
-        out = HeaderGen.appendPrivateDeps(m, src, body, outPath, lf, diags)
+        if str.isEmpty(body) { return "" }
+        return HeaderGen.appendPrivateDeps(m, src, body, outPath, lf, diags)
     }
 
     // appendPrivateDeps — a template body may call a NON-public declaration of its
@@ -419,40 +414,40 @@ public class HeaderGen {
                 i = i + 1
             }
         }
-        out = acc
+        return acc
     }
 
     // declName / isPublicDecl — the two facts appendPrivateDeps needs from a node,
     // without caring which kind it is.
     public static string declName(const ASTNode nd) {
         ASTClass c = nd.asClass()
-        if c != null { out = c.getName()  return }
+        if c != null { return c.getName() }
         ASTEnum e = nd.asEnum()
-        if e != null { out = e.getName()  return }
+        if e != null { return e.getName() }
         ASTFunction f = nd.asFunction()
         if f != null {
-            if f.getFunctionKind() == ASTFunctionKind.F_FUNCTION { out = f.getName()  return }
+            if f.getFunctionKind() == ASTFunctionKind.F_FUNCTION { return f.getName() }
         }
-        out = ""
+        return ""
     }
 
     public static bool isPublicDecl(const ASTNode nd) {
         ASTClass c = nd.asClass()
-        if c != null { out = HeaderGen.hasModifier(c.getModifiers(), ASTModifierKind.MOD_PUBLIC)  return }
+        if c != null { return HeaderGen.hasModifier(c.getModifiers(), ASTModifierKind.MOD_PUBLIC) }
         ASTEnum e = nd.asEnum()
-        if e != null { out = HeaderGen.hasModifier(e.getModifiers(), ASTModifierKind.MOD_PUBLIC)  return }
+        if e != null { return HeaderGen.hasModifier(e.getModifiers(), ASTModifierKind.MOD_PUBLIC) }
         ASTFunction f = nd.asFunction()
-        if f != null { out = HeaderGen.hasModifier(f.getModifiers(), ASTModifierKind.MOD_PUBLIC)  return }
-        out = false
+        if f != null { return HeaderGen.hasModifier(f.getModifiers(), ASTModifierKind.MOD_PUBLIC) }
+        return false
     }
 
     public static bool listHasStr(const List<string> l, const string s) {
         int i = 0
         while i < l.size() {
-            if str.equals(l.get(i), s) { out = true  return }
+            if str.equals(l.get(i), s) { return true }
             i = i + 1
         }
-        out = false
+        return false
     }
 
     // containsWord — `needle` present in `hay` bounded by non-identifier characters,
@@ -460,7 +455,7 @@ public class HeaderGen {
     // for a reference.
     public static bool containsWord(const string hay, const string needle) {
         int nl = str.len(needle)
-        if nl == 0 { out = false  return }
+        if nl == 0 { return false }
         int hl = str.len(hay)
         int from = 0
         bool go = true
@@ -475,21 +470,20 @@ public class HeaderGen {
                 bool okR = true
                 int after = p + nl
                 if after < hl { okR = isIdentifierBody(HeaderGen.charAt(hay, after)) == false }
-                if okL && okR { out = true  return }
+                if okL && okR { return true }
                 from = p + 1
                 if from >= hl { go = false }
             }
         }
-        out = false
+        return false
     }
 
     // charAt — one byte of `s` as an int (byte→int widening sign-extends, so the
     // high bit has to be masked off before it is compared as a character).
     public static int charAt(const string s, const int i) {
-        byte b = 0
-        str.byteAt(s, i, b)
+        byte b = str.byteAt(s, i)
         int c = b
-        out = c & 255
+        return c & 255
     }
 
     // sliceDecl — one declaration's own text, with its modifiers put back in front.
@@ -502,8 +496,8 @@ public class HeaderGen {
         // An end that never advanced past the start means the parser site did not
         // record one (a bodiless declaration); emitting a truncated slice would be
         // worse than emitting nothing.
-        if e <= b { out = ""  return }
-        if e >= str.len(src) { out = ""  return }
+        if e <= b { return "" }
+        if e >= str.len(src) { return "" }
 
         // Prefer widening the slice to the declaration's own line and the comment
         // block above it: that keeps the modifiers AND the documentation, which is
@@ -515,15 +509,15 @@ public class HeaderGen {
         string text = ""
         if start < 0 { text = str.concat(HeaderGen.modifierPrefix(nd), str.substring(src, b, e + 1)) }
         else { text = str.substring(src, start, e + 1) }   // +1: take the closing brace
-        out = str.concat(text, str.concat(lf, lf))
+        return str.concat(text, str.concat(lf, lf))
     }
 
     // lineStartOf — the index just past the newline that precedes `i`, i.e. the
     // start of the line `i` sits on (0 when it is the first line).
     public static int lineStartOf(const string src, const int i) {
-        if i <= 0 { out = 0  return }
+        if i <= 0 { return 0 }
         int nl = str.lastIndexOf(str.substring(src, 0, i), lineFeed())
-        out = nl + 1
+        return nl + 1
     }
 
     // declStart — see sliceDecl. Walks back over the modifiers on the declaration's
@@ -531,7 +525,7 @@ public class HeaderGen {
     // block, which is the usual reading: a detached comment belongs to nothing).
     public static int declStart(const string src, const int b) {
         int ls = HeaderGen.lineStartOf(src, b)
-        if HeaderGen.isModifierWords(str.trim(str.substring(src, ls, b))) == false { out = -1  return }
+        if HeaderGen.isModifierWords(str.trim(str.substring(src, ls, b))) == false { return -1 }
         int start = ls
         bool go = true
         while go {
@@ -543,13 +537,13 @@ public class HeaderGen {
                 else { go = false }
             }
         }
-        out = start
+        return start
     }
 
     // isModifierWords — is `s` empty or nothing but declaration modifiers? Used to
     // prove that widening a slice to the start of the line cannot drag in code.
     public static bool isModifierWords(const string s) {
-        if str.isEmpty(s) { out = true  return }
+        if str.isEmpty(s) { return true }
         string rest = s
         bool ok = true
         bool go = true
@@ -564,18 +558,18 @@ public class HeaderGen {
                 if HeaderGen.isModifierWord(w) == false { ok = false  go = false }
             }
         }
-        out = ok
+        return ok
     }
 
     public static bool isModifierWord(const string w) {
-        if str.equals(w, "public")    { out = true  return }
-        if str.equals(w, "private")   { out = true  return }
-        if str.equals(w, "protected") { out = true  return }
-        if str.equals(w, "const")     { out = true  return }
-        if str.equals(w, "static")    { out = true  return }
-        if str.equals(w, "final")     { out = true  return }
-        if str.equals(w, "abstract")  { out = true  return }
-        out = false
+        if str.equals(w, "public")    { return true }
+        if str.equals(w, "private")   { return true }
+        if str.equals(w, "protected") { return true }
+        if str.equals(w, "const")     { return true }
+        if str.equals(w, "static")    { return true }
+        if str.equals(w, "final")     { return true }
+        if str.equals(w, "abstract")  { return true }
+        return false
     }
 
     // modifierPrefix — the modifiers of a class or free function, re-rendered in a
@@ -588,7 +582,7 @@ public class HeaderGen {
             ASTFunction f = nd.asFunction()
             if f != null { mods = f.getModifiers() }
         }
-        if mods == null { out = ""  return }
+        if mods == null { return "" }
         string s = ""
         if HeaderGen.hasModifier(mods, ASTModifierKind.MOD_PUBLIC)   { s = str.concat(s, "public ") }
         if HeaderGen.hasModifier(mods, ASTModifierKind.MOD_PRIVATE)  { s = str.concat(s, "private ") }
@@ -596,22 +590,21 @@ public class HeaderGen {
         if HeaderGen.hasModifier(mods, ASTModifierKind.MOD_STATIC)   { s = str.concat(s, "static ") }
         if HeaderGen.hasModifier(mods, ASTModifierKind.MOD_FINAL)    { s = str.concat(s, "final ") }
         if HeaderGen.hasModifier(mods, ASTModifierKind.MOD_ABSTRACT) { s = str.concat(s, "abstract ") }
-        out = s
+        return s
     }
 
     // isGenericDecl — a top-level declaration carrying type params: a generic class
     // OR a generic free function. Both are templates and both need their bodies.
     public static bool isGenericDecl(const ASTNode nd) {
         ASTClass c = nd.asClass()
-        if c != null { out = c.getTypeParams().size() > 0  return }
+        if c != null { return c.getTypeParams().size() > 0 }
         ASTFunction f = nd.asFunction()
         if f != null {
             if f.getFunctionKind() == ASTFunctionKind.F_FUNCTION {
-                out = f.getTypeParams().size() > 0
-                return
+                return f.getTypeParams().size() > 0
             }
         }
-        out = false
+        return false
     }
 
     // hasGenericDecl — does the module hold any template at all?
@@ -619,10 +612,10 @@ public class HeaderGen {
         List<ASTNode> nodes = m.getNodes()
         int i = 0
         while i < nodes.size() {
-            if HeaderGen.isGenericDecl(nodes.get(i)) { out = true  return }
+            if HeaderGen.isGenericDecl(nodes.get(i)) { return true }
             i = i + 1
         }
-        out = false
+        return false
     }
 
     // emitClasses — all public classes of one kind (STRUCT / INTERFACE / CLASS),
@@ -666,7 +659,7 @@ public class HeaderGen {
             }
             i = i + 1
         }
-        out = h
+        return h
     }
 
     // emitMembers — a class/interface/struct body. STRUCT: fields only. INTERFACE:
@@ -732,7 +725,7 @@ public class HeaderGen {
             }
             i = i + 1
         }
-        out = h
+        return h
     }
 
     // funcSig — `public [<ret>|<A,B,…>|void] <name>(<params>)` for a free function.
@@ -753,7 +746,7 @@ public class HeaderGen {
         s = str.concat(s, "(")
         s = str.concat(s, HeaderGen.paramListStr(f.getParams()))
         s = str.concat(s, ")")
-        out = s
+        return s
     }
 
 }

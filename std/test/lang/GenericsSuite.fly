@@ -27,7 +27,7 @@ import fly.data.Wrapper
 
 // The simplest generic: returns its argument unchanged.
 T identity<T>(T v) {
-    out = v
+    return v
 }
 
 // A generic function with a LOCAL and a NESTED block.
@@ -36,7 +36,7 @@ T pickMax<T>(const T a, const T b) {
     if b > a {
         r = b
     }
-    out = r
+    return r
 }
 
 // Two independent type parameters.
@@ -47,8 +47,8 @@ public class Pair<A, B> {
         this.a = x
         this.b = y
     }
-    public A first() { out = this.a }
-    public B second() { out = this.b }
+    public A first() { return this.a }
+    public B second() { return this.b }
     public void setFirst(const A x) { this.a = x }
     public void setSecond(const B y) { this.b = y }
 }

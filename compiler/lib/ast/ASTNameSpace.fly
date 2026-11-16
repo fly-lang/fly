@@ -16,7 +16,7 @@ public class ASTNameSpace : ASTNode {
         this.names = names
     }
 
-    public List<ASTName> getNames() { out = this.names }
+    public List<ASTName> getNames() { return this.names }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

@@ -1,0 +1,8 @@
+import probe.util
+
+// The error is NOT in this file: it is in util/Util.fly, a module pulled in
+// through the import. The diagnostic must name that file and its own line and
+// column; it used to be decoded against this entry file instead.
+void main() {
+    int n = util.half(10)
+}

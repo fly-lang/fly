@@ -15,7 +15,7 @@ public class ASTDeleteStmt : ASTStmt {
         this.expr = expr
     }
 
-    public ASTExpr getExpr() { out = this.expr }
+    public ASTExpr getExpr() { return this.expr }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

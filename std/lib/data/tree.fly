@@ -93,6 +93,7 @@ public class Tree<K, V> {
     }
 
     public V get(const K key) {
+        V res
         pointer valOff = this.kstride
         pointer leftOff = this.kstride + this.vstride
         pointer rightOff = leftOff + 8
@@ -105,8 +106,8 @@ public class Tree<K, V> {
                 int c = 0
                 fly.llvm.slotCmpT(cur, 0, key, c)
                 if c == 0 {
-                    fly.llvm.slotReadT(cur, valOff, out)
-                    return
+                    fly.llvm.slotReadT(cur, valOff, res)
+                    return res
                 } elsif c > 0 {
                     fly.llvm.ptrReadLong(cur, leftOff, cur)
                 } else {
@@ -115,7 +116,7 @@ public class Tree<K, V> {
             }
         }
         V def
-        out = def
+        return def
     }
 
     public bool has(const K key) {
@@ -140,7 +141,7 @@ public class Tree<K, V> {
                 }
             }
         }
-        out = found
+        return found
     }
 
     public void remove(const K key) {
@@ -247,7 +248,7 @@ public class Tree<K, V> {
     }
 
     public pointer size() {
-        out = this.count
+        return this.count
     }
 
     public void free() {
@@ -286,5 +287,10 @@ public class Tree<K, V> {
             }
             fly.runtime.mem_free(stk, stkCap * 8)
         }
+        // Back to the empty state: the freed buffers must not stay reachable. A
+        // second free() released them again, and an add() after free() wrote
+        // into freed memory; now both work (every add re-allocates lazily).
+        this.root = 0
+        this.count = 0
     }
 }

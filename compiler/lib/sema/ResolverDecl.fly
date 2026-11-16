@@ -135,15 +135,17 @@ public class ResolverDecl {
                 fb.setReturnType(SemaBuiltin.getVoidType())
             } elsif isVoidRet == false {
                 List<ASTModifier> noMods = new List<ASTModifier>()
-                ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rt, "out", noMods, null)
+                ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rt, "__ret", noMods, null)
                 outAst.accept(r)
-                fb.addParam(r.getCurrentParam())
+                SemaParam retParam = r.getCurrentParam()
+                retParam.setSynthetic(true)
+                fb.addParam(retParam)
                 fb.setOutParamCount(1)
             }
         } else {
-            // Multi-return: one synthetic `__out_i` param per declared return type (the
-            // function stays void at the ABI level; `out[i] = …` — rewritten by the parser
-            // to `__out_i = …` — stores through each out pointer). Mirrors the reference.
+            // Multi-return: one synthetic `__ret_i` param per declared return type (the
+            // function stays void at the ABI level; `return a, b` assigns them in order,
+            // storing through each out pointer). Mirrors the reference.
             List<ASTType> rts = node.getReturnTypes()
             // Same rule for the multi-return form — doubly wrong here, since
             // emitMainWrapper only ever looks at getReturnType(): the __out_i slots
@@ -161,10 +163,12 @@ public class ResolverDecl {
                     ASTType rti = rts.get(ri)
                     rti.accept(r)
                     List<ASTModifier> noMods = new List<ASTModifier>()
-                    string on = str.concat("__out_", str.convert(ri))
+                    string on = str.concat("__ret_", str.convert(ri))
                     ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rti, on, noMods, null)
                     outAst.accept(r)
-                    fb.addParam(r.getCurrentParam())
+                    SemaParam retParam = r.getCurrentParam()
+                    retParam.setSynthetic(true)
+                    fb.addParam(retParam)
                     ri = ri + 1
                 }
                 // Record ALL of them: getParamTypes() must drop every synthetic slot,
@@ -175,6 +179,63 @@ public class ResolverDecl {
 
         Symbol sym = fb.getDeclSymbol()
         if sym != null { sym.setParamTypes(fb.getParamTypes()) }
+    }
+
+    // ── NRVO ─────────────────────────────────────────────────────────────────
+    // `Stat s  s.size = …  return s` should cost what `out.size = …` cost:
+    // nothing. When every return in a body hands back the same struct local, that
+    // local is bound to the caller's return slot and the return emits no copy.
+    // Eligibility is syntactic and reads the lists the parser collected, so no
+    // second walk over the tree is needed; the name must be declared exactly once,
+    // so no shadowed declaration can be mistaken for it.
+    public static string findNrvoName(const SemaFunctionBase fb) {
+        if fb.getOutParamCount() != 1 { return "" }
+        SemaType rt = fb.getReturnType()
+        if rt == null { return "" }
+        // STRUCT and STRING are the two shapes a callee fills in place. A class
+        // return travels as a handle the caller allocates, an array carries a
+        // reference count, and a primitive gains nothing from the binding.
+        bool eligible = rt.isString()
+        if eligible == false {
+            SemaClassType ct = rt.asClass()
+            if ct != null {
+                if ct.getClassKind() == SemaClassKind.STRUCT { eligible = true }
+            }
+        }
+        if eligible == false { return "" }
+
+        ASTFunction af = fb.getAST()
+        if af == null { return "" }
+        List<ASTReturnStmt> returns = af.getReturnStmts()
+        if returns.size() == 0 { return "" }
+
+        string name = ""
+        int i = 0
+        while i < returns.size() {
+            List<ASTExpr> values = returns.get(i).getExprs()
+            if values.size() != 1 { return "" }
+            ASTIdentifier id = values.get(0).asIdentifier()
+            if id == null { return "" }
+            if id.getParent() != null { return "" }
+            if str.equals(name, "") {
+                name = id.getName()
+            } elsif str.equals(name, id.getName()) == false {
+                return ""
+            }
+            i = i + 1
+        }
+
+        // Declared exactly once: a second declaration of the same name in a nested
+        // scope would make "which local" ambiguous here.
+        List<string> locals = af.getLocalNames()
+        int seen = 0
+        int j = 0
+        while j < locals.size() {
+            if str.equals(locals.get(j), name) { seen = seen + 1 }
+            j = j + 1
+        }
+        if seen != 1 { return "" }
+        return name
     }
 
     // resolveBody — resolve a function/method body against its own scope. The
@@ -206,8 +267,23 @@ public class ResolverDecl {
         ASTFunction af = fb.getAST()
         ASTBlockStmt body = af.getBody()
         if body != null {
+            r.setNrvoName(ResolverDecl.findNrvoName(fb))
             body.accept(r)
+            r.setNrvoName("")
             fb.setBody(r.getLastBlock())
+
+            // Every declared return value must be produced on every path. The walk
+            // itself answered that: ResolverStmt marks each statement it resolves
+            // as exiting or not, and a block inherits the answer. An empty body is
+            // an extern stub — its C implementation provides the value — so it is
+            // exempt, as is a function that declares no value at all.
+            if fb.getOutParamCount() > 0 {
+                if body.getContent().size() > 0 {
+                    if r.getStmtExits() == false {
+                        r.diagStr(af.getLoc(), DiagID.err_sema_missing_return, af.getName())
+                    }
+                }
+            }
         }
     }
 

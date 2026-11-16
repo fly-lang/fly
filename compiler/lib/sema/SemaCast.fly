@@ -21,8 +21,8 @@ public class SemaCast : SemaExpr {
         this.toType = toType
     }
 
-    public ASTCast getAST() { out = this.castAst }
-    public SemaExpr getExpr() { out = this.expr }
-    public SemaType getToType() { out = this.toType }
+    public ASTCast getAST() { return this.castAst }
+    public SemaExpr getExpr() { return this.expr }
+    public SemaType getToType() { return this.toType }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }

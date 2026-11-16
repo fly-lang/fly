@@ -51,7 +51,7 @@ public bool buildAddVerifies() {
     llvm.buildRet(b, sum, ret)
     bool ok = false
     llvm.verifyModule(mod, ok)
-    out = ok
+    return ok
 }
 
 suite CodeGenLLVMSuite {

@@ -1,0 +1,2 @@
+void main() { int a = 3
+ if a { a = 1 } }

@@ -8,6 +8,11 @@ on:
         required: false
         type: string
         default: "1"
+      stage3:
+        description: '"1" runs the optional stage-3 fixpoint check (ci/windows/stage3.ps1); release.yml only.'
+        required: false
+        type: string
+        default: "0"
   push:
     paths-ignore:
       - '.github/workflows/**'
@@ -15,16 +20,13 @@ on:
       - release/*
   workflow_dispatch:
 
-env:
-  # stage0 bootstrap release (compiles the stage-1 world; see the stage map
-  # below). Cut from the current fly/ reference; the version pin is THIS variable.
-  # 0.13.13 brought the array subscript, `C[N]` declarations and refcounted
-  # arrays; 0.13.14 is the first STD-LESS seed (bin/fly.exe + llvm.fly.h +
-  # runtime.fly.h + the C runtime archive only) and carries the
-  # inherited-interface-impl sema fix and the __out_N StringRef-dangle fix;
-  # 0.13.15 drops the CLI test runner (--test/--suite) and makes a lone `suite`
-  # the structural test entry — the first seed that never runs what it builds.
-  FLY_VERSION: "0.13.15"
+# The stage0 seed version is NOT set here. Its single source of truth is the
+# $FLY_VERSION default in ci/windows/stage0.ps1 (and ci/linux/stage0.sh), which
+# also documents why each pin was needed. A workflow-level FLY_VERSION overrides
+# that default — the script honours the environment — so a copy here silently
+# drifts: this file once pinned 0.13.15 while the scripts had moved to 0.13.18,
+# and CI bootstrapped from a seed that could not parse the tree. To test another
+# seed, set FLY_VERSION on a one-off workflow_dispatch run, never as a default.
 
 jobs:
 
@@ -82,13 +84,11 @@ jobs:
       #         and driver FROM IN-TREE SOURCES and links the first fly.exe, all
       #         into build\stage1 (build-only). The std ships from this stage
       #         (reference class ABI).
-      # stage2  ci/windows/stage2.ps1: build\stage1\bin\fly.exe rebuilds the
-      #         driver into the SHIPPED build\stage2 (the self-hosting fixpoint
-      #         check). The compiler lib stays stage0-built, like Rust's
-      #         beta-built rustc. While the self-host Windows link path is being
-      #         validated in CI, a stage-2 failure falls back to shipping the
-      #         stage1 artifacts (warning in the log) — the artifact layout is
-      #         always complete.
+      # stage2  ci/windows/stage2.ps1: build\stage1\bin\fly.exe recompiles the
+      #         compiler + driver (one monolithic object) into the SHIPPED
+      #         build\stage2. A stage-2 failure is FATAL, as on Linux: there is
+      #         no fallback to the stage1 artifacts, so what gets uploaded is
+      #         always the self-host-built compiler.
       # FLY_BUNDLE_LLVM=1 ships a self-contained toolchain next to fly.exe:
       # LLVM-C.dll (loaded at runtime), ld.lld.exe (the linker fly forks) and the
       # mingw/UCRT sysroot (mingw\ — import libs + CRT + builtins fly links against).
@@ -104,11 +104,9 @@ jobs:
       # stage1.ps1). The seed no longer runs anything: the reference dropped its
       # CLI test runner (--test/--suite) in 0.13.15, which also retired the 3
       # residual reference-side defects this step used to work around.
-      # FLY_STAGE1_TESTS=0 keeps stage1's own test steps off here: the "Test
-      # stage 1" step below runs the same three suites, but continue-on-error,
-      # so a stage-1 failure does not abort the pipeline before stage2 is built
-      # and uploaded. Inside stage1.ps1 they are fatal, which is what a local
-      # bootstrap wants. Every stage links the SAME fork LLVM.
+      # FLY_STAGE1_TESTS=0 keeps stage1's own test steps off here only so that
+      # the "Test stage 1" step below reports them under its own name; they are
+      # fatal in both places. Every stage links the SAME fork LLVM.
       - name: Stage 1 (bootstrap builds the self-host)
         shell: pwsh
         env:
@@ -117,18 +115,22 @@ jobs:
         run: .\ci\windows\stage1.ps1
 
       # ── Stage-1 pass: the suites under the self-host stage1 just built WITH the
-      #    reference. A failure here indicts the self-host codegen — stage 2 then
-      #    shows whether the fixpoint rebuild fixes or keeps it. Non-blocking for
-      #    now: a known set still fails.
+      #    reference. A failure here indicts the self-host as the SEED compiles
+      #    it. BLOCKING since 0.14.7: the set that used to fail is gone, and a
+      #    stage-1 compiler that fails its own suites must not go on to build the
+      #    stage that ships.
       - name: Test stage 1 (self-host built by the reference)
-        continue-on-error: true
         shell: pwsh
         env:
           STAGE: '1'
+        # The exit code is tested after EACH script: a pwsh `run` block only
+        # reports the LAST command, so a red test_runtime followed by a green
+        # test_compiler would pass the step.
         run: |
-          .\ci\windows\test_runtime.ps1
-          .\ci\windows\test_std.ps1
-          .\ci\windows\test_compiler.ps1
+          foreach ($t in 'test_runtime', 'test_std', 'test_compiler') {
+            & ".\ci\windows\$t.ps1"
+            if ($LASTEXITCODE -ne 0) { Write-Host "error: $t.ps1 failed (exit $LASTEXITCODE)"; exit 1 }
+          }
 
       - name: Stage 2 (self-host rebuilds the shipped artifacts)
         shell: pwsh
@@ -185,6 +187,18 @@ jobs:
           name: windows-crashdumps
           path: build/crashdumps
           if-no-files-found: ignore
+
+      # Release only (release.yml passes stage3="1"; push / dispatch skip it): the
+      # bootstrap fixpoint. The shipped stage2 compiler recompiles the compiler and
+      # the object must be byte-identical to the one stage1 produced — otherwise the
+      # self-host's codegen depends on which compiler built it. One more compiler
+      # build, hence not on every push. BLOCKING: a broken fixpoint stops the release
+      # (known divergence as of 2026-11-16: stage3 emits extra per-type _F helper
+      # symbols - see the fly-ci skill - so releases stay blocked until it is fixed).
+      - name: Stage 3 (fixpoint check, release only)
+        if: inputs.stage3 == '1'
+        shell: pwsh
+        run: .\ci\windows\stage3.ps1
 
       - name: Set artifact name
         id: artifact

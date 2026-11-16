@@ -23,14 +23,14 @@ public class DiagnosticOptions {
         this.errorLimit = 0
     }
 
-    public bool isWarningsAsErrors() { out = this.warningsAsErrors }
+    public bool isWarningsAsErrors() { return this.warningsAsErrors }
     public void setWarningsAsErrors(const bool v) { this.warningsAsErrors = v }
-    public bool isIgnoreWarnings() { out = this.ignoreWarnings }
+    public bool isIgnoreWarnings() { return this.ignoreWarnings }
     public void setIgnoreWarnings(const bool v) { this.ignoreWarnings = v }
-    public bool isPedantic() { out = this.pedantic }
+    public bool isPedantic() { return this.pedantic }
     public void setPedantic(const bool v) { this.pedantic = v }
-    public int getTabStop() { out = this.tabStop }
+    public int getTabStop() { return this.tabStop }
     public void setTabStop(const int v) { this.tabStop = v }
-    public int getErrorLimit() { out = this.errorLimit }
+    public int getErrorLimit() { return this.errorLimit }
     public void setErrorLimit(const int v) { this.errorLimit = v }
 }

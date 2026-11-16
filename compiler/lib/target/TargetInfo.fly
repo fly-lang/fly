@@ -51,19 +51,19 @@ public class TargetInfo {
         this.doubleWidth = 0
     }
 
-    public bool isValid()        { out = this.valid }
-    public bool isBigEndian()    { out = this.bigEndian }
-    public Triple getTriple()    { out = this.triple }
-    public string getTripleStr() { out = this.triple.getTriple() }
-    public string getDataLayout(){ out = this.dataLayout }
+    public bool isValid()        { return this.valid }
+    public bool isBigEndian()    { return this.bigEndian }
+    public Triple getTriple()    { return this.triple }
+    public string getTripleStr() { return this.triple.getTriple() }
+    public string getDataLayout(){ return this.dataLayout }
 
-    public int getPointerWidth()  { out = this.pointerWidth }
-    public int getBoolWidth()     { out = this.boolWidth }
-    public int getIntWidth()      { out = this.intWidth }
-    public int getLongWidth()     { out = this.longWidth }
-    public int getLongLongWidth() { out = this.longLongWidth }
-    public int getFloatWidth()    { out = this.floatWidth }
-    public int getDoubleWidth()   { out = this.doubleWidth }
+    public int getPointerWidth()  { return this.pointerWidth }
+    public int getBoolWidth()     { return this.boolWidth }
+    public int getIntWidth()      { return this.intWidth }
+    public int getLongWidth()     { return this.longWidth }
+    public int getLongLongWidth() { return this.longLongWidth }
+    public int getFloatWidth()    { return this.floatWidth }
+    public int getDoubleWidth()   { return this.doubleWidth }
 
     // applyData — populate from a family's machine description. Sets the data
     // layout, pointer width, endianness and int/long widths; the remaining
@@ -130,5 +130,5 @@ public TargetInfo targetInfoCreate(const TargetOptions opts) {
     elsif a == Arch.TCELE       { tcelePopulate(ti) }
     elsif a == Arch.VE          { vePopulate(ti) }
 
-    out = ti
+    return ti
 }

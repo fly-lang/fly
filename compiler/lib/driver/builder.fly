@@ -43,7 +43,7 @@ public class Builder {
     // getFlyBinary — resolve lazily (a constructor cannot call a method here).
     public string getFlyBinary() {
         if str.isEmpty(this.flyBinary) { this.flyBinary = this.resolveFly() }
-        out = this.flyBinary
+        return this.flyBinary
     }
 
     // resolveFly — FLYLANG_BIN (the DIRECTORY holding the fly binary) → <dir>/fly[.exe];
@@ -55,12 +55,11 @@ public class Builder {
         if str.isEmpty(binDir) == false {
             string exe = "fly"
             if str.equals(env.osname(), "windows") { exe = "fly.exe" }
-            out = path.join(binDir, exe)
-            return
+            return path.join(binDir, exe)
         }
         string self = env.exePath()
-        if str.isEmpty(self) == false { out = self  return }
-        out = "fly"
+        if str.isEmpty(self) == false { return self }
+        return "fly"
     }
 
     // outDir — ABSOLUTE target/<profile>[/<triple>] or target/test. Absolute so
@@ -75,7 +74,7 @@ public class Builder {
                 rel = path.join(rel, this.targetTriple)
             }
         }
-        out = path.absolute(rel)
+        return path.absolute(rel)
     }
 
     // activeProfile — the profile driving this build: a profile declared in the
@@ -84,10 +83,9 @@ public class Builder {
     // no [profiles] at all (it used to fall back to the debug defaults).
     public BuildProfile activeProfile() {
         if this.manifest.hasProfile(this.profile) {
-            out = this.manifest.getProfile(this.profile)
-            return
+            return this.manifest.getProfile(this.profile)
         }
-        out = fly.driver.defaultProfile(this.profile)
+        return fly.driver.defaultProfile(this.profile)
     }
 
     // profileFlags — "-O<n> [--debug-symbols]" from the active profile.
@@ -95,7 +93,7 @@ public class Builder {
         BuildProfile bp = this.activeProfile()
         string f = str.concat("-O", str.convert(bp.getOptLevel()))
         if bp.getDebugInfo() { f = str.concat(f, " --debug-symbols") }
-        out = f
+        return f
     }
 
     // linkFlags — "--link-lib=<name>" for each [link] lib.
@@ -111,7 +109,7 @@ public class Builder {
             f = str.concat(f, one)
             i = i + 1
         }
-        out = f
+        return f
     }
 
     // invokeFly — run: fly <profile-flags> <link-flags> [--runtime-lib-dir <dir>]
@@ -156,7 +154,7 @@ public class Builder {
         io.printLn(str.concat("  fly ", source))
         int rc = proc.exec(this.getFlyBinary(), h)
         proc.argsFree(h)
-        out = rc == 0
+        return rc == 0
     }
 
     // ── Incremental fingerprint cache ────────────────────────────────────────
@@ -168,10 +166,10 @@ public class Builder {
     // The leading dot is what keeps them out of the way: discoverySkipsDir
     // refuses to descend into ANY dot-directory, so nothing here can ever be
     // mistaken for a project source.
-    public string fpDir() { out = path.join(this.outDir(), ".fly") }
+    public string fpDir() { return path.join(this.outDir(), ".fly") }
 
     public string fpPath(const string key) {
-        out = path.join(this.fpDir(), str.concat(key, ".fp"))
+        return path.join(this.fpDir(), str.concat(key, ".fp"))
     }
 
     // fpHeader — the non-source fingerprint fields (see fingerprint.fly for the
@@ -210,14 +208,14 @@ public class Builder {
         if str.isEmpty(lock) { lock = "none" }
         h = str.concat(h, str.concat("lock ", lock))
         h = str.concat(h, fly.driver.nl())
-        out = h
+        return h
     }
 
     // computeFpForDir — full fingerprint text for one source dir. Also used by
     // cmdTest, which has suite files instead of Targets.
     public string computeFpForDir(const string srcDir, const string kind, const string name) {
         Fingerprint f = new Fingerprint()
-        out = f.compute(srcDir, this.fpHeader(kind, name))
+        return f.compute(srcDir, this.fpHeader(kind, name))
     }
 
     // computeFpFor — fingerprint of a [targets] entry. The hashed dir is exactly
@@ -235,13 +233,14 @@ public class Builder {
             }
         }
         string srcDir = path.dirname(path.absolute(t.getPath()))
-        out = this.computeFpForDir(srcDir, kind, t.getName())
+        return this.computeFpForDir(srcDir, kind, t.getName())
     }
 
     // artifactsExist — every output the target produces is still on disk (a
     // deleted artifact must rebuild even with a matching fingerprint). Mirrors
     // buildTarget's outputs, including the deliberate lib<name>.so naming.
     public bool artifactsExist(const Target t) {
+        bool res
         string od = this.outDir()
         if t.isLib() {
             string lib = t.getLib()
@@ -254,22 +253,23 @@ public class Builder {
                 string ar = str.concat(od, str.concat("/lib", str.concat(t.getName(), ".a")))
                 if fs.exists(ar) == false { ok = false }
             }
-            out = ok
+            res = ok
         } else {
             string bin = str.concat(od, str.concat("/", t.getName()))
             bool have = fs.exists(bin)
             if have == false { have = fs.exists(str.concat(bin, ".exe")) }
-            out = have
+            return have
         }
+        return res
     }
 
     // isUpToDate — stored fingerprint matches the computed one. A missing,
     // unreadable or corrupted .fp reads as ""/garbage → mismatch → rebuild
     // (never deleted; the next successful build overwrites it).
     public bool isUpToDate(const string fpFile, const string computed) {
-        if fs.exists(fpFile) == false { out = false  return }
+        if fs.exists(fpFile) == false { return false }
         string stored = fs.readStr(fpFile)
-        out = str.equals(stored, computed)
+        return str.equals(stored, computed)
     }
 
     // saveFp — persist the fingerprint. Called ONLY after a successful build,
@@ -286,8 +286,8 @@ public class Builder {
     // from the driver and would now be a hard unknown-option error. Extracted so
     // BuilderSuite can pin the contract.
     public string libShapeFlag(const bool dynamicPass) {
-        if dynamicPass { out = "--lib-dyn"  return }
-        out = "--lib"
+        if dynamicPass { return "--lib-dyn" }
+        return "--lib"
     }
 
     public bool buildTarget(const string key) {
@@ -300,16 +300,14 @@ public class Builder {
         }
         if t == null {
             io.printErrLn(str.concat("error: no [targets] entry named ", key))
-            out = false
-            return
+            return false
         }
         string computed = this.computeFpFor(t)
         string fpFile = this.fpPath(t.getKey())
         if this.force == false {
             if this.isUpToDate(fpFile, computed) && this.artifactsExist(t) {
                 io.printLn(str.concat("  up-to-date ", key))
-                out = true
-                return
+                return true
             }
         }
         string src = path.absolute(t.getPath())
@@ -329,7 +327,7 @@ public class Builder {
             ok = this.invokeFly(src, o, "")
         }
         if ok { this.saveFp(fpFile, computed) }
-        out = ok
+        return ok
     }
 
     // buildAll — build every target sequentially; false if any fails.
@@ -341,13 +339,13 @@ public class Builder {
             if this.buildTarget(t.getKey()) == false { allOk = false }
             i = i + 1
         }
-        out = allOk
+        return allOk
     }
 
     // runTarget — build a bin target then execute it. Returns the child exit code
     // (or a negative build-failure marker mapped to 1).
     public int runTarget(const string key) {
-        if this.buildTarget(key) == false { out = 1  return }
+        if this.buildTarget(key) == false { return 1 }
         int idx = 0
         Target t = null
         while idx < this.manifest.targetCount() {
@@ -355,10 +353,10 @@ public class Builder {
             if str.equals(cand.getKey(), key) { t = cand }
             idx = idx + 1
         }
-        if t == null { out = 1  return }
+        if t == null { return 1 }
         string bin = str.concat(this.outDir(), str.concat("/", t.getName()))
         // Direct spawn, not `sh -c`: the shell form is dead on Windows, and there
         // is nothing here a shell was needed for.
-        out = proc.run(bin)
+        return proc.run(bin)
     }
 }

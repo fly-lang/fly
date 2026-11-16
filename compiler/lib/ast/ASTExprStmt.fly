@@ -14,7 +14,7 @@ public class ASTExprStmt : ASTStmt {
         super(loc, ASTStmtKind.STMT_EXPR)
     }
 
-    public ASTExpr getExpr() { out = this.expr }
+    public ASTExpr getExpr() { return this.expr }
     public void setExpr(const ASTExpr expr) { this.expr = expr }
 
     public void accept(const ASTVisitor v) { v.visit(this) }

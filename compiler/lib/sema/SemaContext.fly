@@ -24,7 +24,7 @@ public class SemaContext {
         this.reg = new Registry(diags)
     }
 
-    public Registry getReg() { out = this.reg }
+    public Registry getReg() { return this.reg }
 
     public List<SemaModule> Resolve(const List<ASTModule> modules, const bool testMode) {
         Resolver r = new Resolver(this.reg, testMode)
@@ -35,6 +35,6 @@ public class SemaContext {
             i = i + 1
         }
         r.Resolve()
-        out = this.reg.getModules()
+        return this.reg.getModules()
     }
 }

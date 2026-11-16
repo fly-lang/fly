@@ -17,8 +17,8 @@ public class ASTIfStmt : ASTRuleStmt {
         this.elseIfList = new List<ASTRuleStmt>()
     }
 
-    public List<ASTRuleStmt> getElsif() { out = this.elseIfList }
-    public ASTStmt getElse() { out = this.elseStmt }
+    public List<ASTRuleStmt> getElsif() { return this.elseIfList }
+    public ASTStmt getElse() { return this.elseStmt }
     public void addElsif(const ASTRuleStmt r) { this.elseIfList.add(r) }
     public void setElse(const ASTStmt s) { this.elseStmt = s }
 

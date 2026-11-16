@@ -9,7 +9,7 @@ import fly.str
 // which the self-host miscompiles).
 
 // segCount — number of elements in the ";"-delimited list.
-public int segCount(const string s) { out = str.count(s, ";") - 1 }
+public int segCount(const string s) { return str.count(s, ";") - 1 }
 
 // segAt — the element at index `idx`.
 public string segAt(const string s, const int idx) {
@@ -33,10 +33,10 @@ public string segAt(const string s, const int idx) {
             }
         }
     }
-    out = result
+    return result
 }
 
 // segAppend — append `v` to a ";"-delimited list.
 public string segAppend(const string s, const string v) {
-    out = str.concat(s, str.concat(v, ";"))
+    return str.concat(s, str.concat(v, ";"))
 }

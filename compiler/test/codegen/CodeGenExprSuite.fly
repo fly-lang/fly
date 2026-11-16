@@ -33,11 +33,11 @@ suite CodeGenExprSuite {
     void arithTest() {
         case "integer add / sub / mul / sdiv / srem": {
             string ir = cgIR("
-                int f(const int a, const int b) { out = a + b }
-                int g(const int a, const int b) { out = a - b }
-                int h(const int a, const int b) { out = a * b }
-                int d(const int a, const int b) { out = a / b }
-                int r(const int a, const int b) { out = a % b }
+                int f(const int a, const int b) { return a + b }
+                int g(const int a, const int b) { return a - b }
+                int h(const int a, const int b) { return a * b }
+                int d(const int a, const int b) { return a / b }
+                int r(const int a, const int b) { return a % b }
             ")
             assert.assertTrue(str.contains(ir, "add i32"), 11)
             assert.assertTrue(str.contains(ir, "sub i32"), 12)
@@ -46,7 +46,7 @@ suite CodeGenExprSuite {
             assert.assertTrue(str.contains(ir, "srem i32"), 15)
         }
         case "float add lowers to fadd": {
-            string ir = cgIR("double f(const double a, const double b) { out = a + b }")
+            string ir = cgIR("double f(const double a, const double b) { return a + b }")
             assert.assertTrue(str.contains(ir, "fadd double"), 16)
         }
     }
@@ -54,9 +54,9 @@ suite CodeGenExprSuite {
     void compareTest() {
         case "signed comparisons → icmp": {
             string ir = cgIR("
-                bool gt(const int a, const int b) { out = a > b }
-                bool eq(const int a, const int b) { out = a == b }
-                bool le(const int a, const int b) { out = a <= b }
+                bool gt(const int a, const int b) { return a > b }
+                bool eq(const int a, const int b) { return a == b }
+                bool le(const int a, const int b) { return a <= b }
             ")
             assert.assertTrue(str.contains(ir, "icmp sgt i32"), 21)
             assert.assertTrue(str.contains(ir, "icmp eq i32"), 22)
@@ -66,14 +66,14 @@ suite CodeGenExprSuite {
 
     void castTest() {
         case "int → long widening is sext": {
-            string ir = cgIR("long widen(const int n) { out = (long) n }")
+            string ir = cgIR("long widen(const int n) { return (long) n }")
             assert.assertTrue(str.contains(ir, "sext i32"), 31)
         }
     }
 
     void ternaryTest() {
         case "ternary lowers to branch + slot blocks": {
-            string ir = cgIR("int maxOf(const int a, const int b) { out = a > b ? a : b }")
+            string ir = cgIR("int maxOf(const int a, const int b) { return a > b ? a : b }")
             assert.assertTrue(str.contains(ir, "tern.then"), 41)
             assert.assertTrue(str.contains(ir, "tern.end"), 42)
         }

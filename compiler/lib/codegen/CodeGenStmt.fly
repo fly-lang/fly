@@ -7,6 +7,8 @@ import fly.compiler.codegen.CodeGenIntrinsics
 import fly.compiler.codegen.CodeGenTrace
 import llvm.api.*
 import fly.mem
+import fly.os.io
+import fly.str
 import fly.data.List
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -59,32 +61,138 @@ public class CodeGenStmt {
             }
         }
 
-        pointer alloca
-        llvm.buildAlloca(b, ty, "lv", alloca)
-        v.setLlvmAlloca(alloca)
-        SemaExpr init = node.getExpr()
-        if init != null {
-            pointer iv = cge.gen(init)
-            iv = cge.coerce(iv, init.getType(), v.getType())
-            // clone-on-store: a borrowed string RHS is deep-copied so this local owns
-            // an independent buffer (the invariant that lets each owner free exactly
-            // once); an owned temp (concat, flagged ownedStrTemp) is MOVED as-is —
-            // cloning it would double-allocate. cloneIfString no-ops for non-strings.
-            if init.isOwnedStrTemp() == false {
-                iv = CodeGenIntrinsics.cloneIfString(cge, iv, v.getType())
+        // NRVO: this local is the value every return hands back, so it gets no
+        // storage of its own — its pointer slot points at the CALLER's struct,
+        // read from the hidden return argument. Field writes then land in the
+        // returned object and `return name` emits nothing at all.
+        //
+        // Deliberately an if/else, so exactly ONE alloca is emitted per
+        // declaration: written as an early return instead, the seed emitted the
+        // binding AND the default-init that follows it, and that null store
+        // clobbered the slot the binding had just installed.
+        bool useNrvo = false
+        pointer slotArg = cge.getReturnSlotArg()
+        if v.isReturnSlot() {
+            if slotArg != 0 {
+                useNrvo = true
+            } else {
+                // Sema decided NRVO and dropped the assignment at `return name`,
+                // so a body emitted without its slot bound would hand back
+                // nothing. Say so instead of miscompiling in silence.
+                io.printErrLn(str.concat("error: internal: return slot not bound for NRVO local '", str.concat(v.getName(), "'")))
             }
-            // Same clone-on-store rule for STRUCTs: they are value types, so the
-            // local must get its own aggregate rather than a pointer into the
-            // initializer's storage. cloneIfStruct no-ops for everything else.
-            iv = CodeGenIntrinsics.cloneIfStruct(cge, iv, v.getType())
-            llvm.buildStore(b, iv, alloca)
+        }
+        if useNrvo {
+            // Two shapes. A STRUCT variable is a pointer cell, so it gets a cell of
+            // its own pointing at the caller's object. A STRING variable IS its
+            // {ptr,size} aggregate, so the caller's storage backs it directly and
+            // every write lands there — which is what the old out parameter did.
+            bool nrvoStruct = false
+            SemaClassType nct = null
+            if vt != null { nct = vt.asClass() }
+            if nct != null {
+                if nct.getClassKind() == SemaClassKind.STRUCT { nrvoStruct = true }
+            }
+            if nrvoStruct {
+                pointer nrvoCell
+                llvm.buildAlloca(b, ty, "nrvo", nrvoCell)
+                pointer callerData
+                llvm.buildLoad2(b, cge.ptrType(), slotArg, "nrvodst", callerData)
+                llvm.buildStore(b, callerData, nrvoCell)
+                v.setLlvmAlloca(nrvoCell)
+                cge.setNrvoCell(nrvoCell)
+                SemaExpr nrvoInit = node.getExpr()
+                if nrvoInit != null {
+                    pointer niv = cge.gen(nrvoInit)
+                    // Copy THROUGH the slot, exactly as assigning to a struct param:
+                    // storing the pointer would re-point the cell at callee memory
+                    // and the caller would never see the value.
+                    CodeGenExprOps.copyStructThroughSlot(cge, nrvoCell, niv, v.getType())
+                }
+            } else {
+                v.setLlvmAlloca(slotArg)
+                SemaExpr sInit = node.getExpr()
+                if sInit != null {
+                    pointer siv = cge.gen(sInit)
+                    siv = cge.coerce(siv, sInit.getType(), v.getType())
+                    if sInit.isOwnedStrTemp() == false {
+                        siv = CodeGenIntrinsics.cloneIfString(cge, siv, v.getType())
+                    }
+                    llvm.buildStore(b, siv, slotArg)
+                } else {
+                    // Start from "" rather than from whatever the slot holds. The
+                    // self-host caller zeroes it before every call, but a seed-built
+                    // caller zeroes it once per frame: in a loop an early `return s`
+                    // would hand back the previous call's string. Nothing is freed —
+                    // that stale buffer belongs to the caller.
+                    pointer zs
+                    llvm.constNull(ty, zs)
+                    llvm.buildStore(b, zs, slotArg)
+                }
+            }
         } else {
-            // no initializer → DEFAULT-initialize (0 / null / empty struct):
-            // `T def  out = def` in the std templates relies on it, and an
-            // uninitialized alloca is stack garbage (audit V4)
-            pointer zv
-            llvm.constNull(ty, zv)
-            llvm.buildStore(b, zv, alloca)
+
+            pointer alloca
+            llvm.buildAlloca(b, ty, "lv", alloca)
+            v.setLlvmAlloca(alloca)
+            SemaExpr init = node.getExpr()
+            if init != null {
+                pointer iv = cge.gen(init)
+                iv = cge.coerce(iv, init.getType(), v.getType())
+                // clone-on-store: a borrowed string RHS is deep-copied so this local owns
+                // an independent buffer (the invariant that lets each owner free exactly
+                // once); an owned temp (concat, flagged ownedStrTemp) is MOVED as-is —
+                // cloning it would double-allocate. cloneIfString no-ops for non-strings.
+                if init.isOwnedStrTemp() == false {
+                    iv = CodeGenIntrinsics.cloneIfString(cge, iv, v.getType())
+                }
+                // Same clone-on-store rule for STRUCTs: they are value types, so the
+                // local must get its own aggregate rather than a pointer into the
+                // initializer's storage. cloneIfStruct no-ops for everything else.
+                iv = CodeGenIntrinsics.cloneIfStruct(cge, iv, v.getType())
+                llvm.buildStore(b, iv, alloca)
+            } else {
+                // A STRUCT variable is a POINTER CELL, so it needs STORAGE to point
+                // at: a second alloca of the struct body, zeroed, installed in the
+                // cell. Nulling the cell instead (what every other type wants, see
+                // below) left `P p  p.x = 3` writing through null. This mirrors the
+                // reference CodeGenVar::Alloca(), where the T->isStructTy() branch
+                // adds the data alloca for STRUCT-kind class types only — CLASS and
+                // INTERFACE are heap handles and keep the null store, both because a
+                // declared-but-unassigned handle must read as null and because the
+                // scope-exit cleanup would otherwise free a garbage pointer. Struct
+                // locals are never registered for cleanup (ResolverStmt skips them:
+                // free() on a stack pointer), so a stack address in the cell is safe.
+                // The NRVO branch above does the analogous thing with the caller's
+                // storage, and cloneIfStruct covers the with-initializer case.
+                pointer sdataTy = 0
+                SemaClassType dct = null
+                if vt != null { dct = vt.asClass() }
+                if dct != null {
+                    if dct.getClassKind() == SemaClassKind.STRUCT {
+                        if dct.getLlvmStructType() == 0 { CodeGenClass.declareStruct(cge.getCgm(), dct) }
+                        sdataTy = dct.getLlvmStructType()
+                    }
+                }
+                if sdataTy != 0 {
+                    pointer sdata
+                    llvm.buildAlloca(b, sdataTy, "sdata", sdata)
+                    pointer sz
+                    llvm.constNull(sdataTy, sz)
+                    llvm.buildStore(b, sz, sdata)
+                    llvm.buildStore(b, sdata, alloca)
+                } else {
+                    // no initializer → DEFAULT-initialize (0 / null / empty struct):
+                    // `T def  out = def` in the std templates relies on it, and an
+                    // uninitialized alloca is stack garbage (audit V4). Strings and
+                    // arrays share this branch and NEED the null store: their
+                    // scope-exit cleanup loads the slot even when control flow never
+                    // reached the declaration, and {null,0} makes free/release no-ops.
+                    pointer zv
+                    llvm.constNull(ty, zv)
+                    llvm.buildStore(b, zv, alloca)
+                }
+            }
         }
     }
 
@@ -94,6 +202,9 @@ public class CodeGenStmt {
         if cge.isTerminated() { return }
         SemaExpr e = node.getExpr()
         if e != null { pointer ignore = cge.gen(e) }
+        // The value is already in the return slot (strings cloned, arrays
+        // retained, the returned handle spared), so every scope's locals can go.
+        cge.emitReturnCleanup()
         CodeGenTrace.emitExit(cge)
         LLVM llvm = cge.getLLVM()
         pointer r
@@ -174,14 +285,20 @@ public class CodeGenStmt {
         // body (save/restore enclosing break/continue targets)
         pointer savedBreak = cge.getBreakTarget()
         pointer savedCont = cge.getContinueTarget()
+        pointer savedBreakDepth = cge.getBreakDepth()
+        pointer savedContDepth = cge.getContinueDepth()
         cge.setBreakTarget(exitBB)
         cge.setContinueTarget(postBB)
+        cge.setBreakDepth(cge.getFrameDepth())
+        cge.setContinueDepth(cge.getFrameDepth())
         cge.position(bodyBB)
         SemaStmt body = node.getBody()
         if body != null { body.accept(cge) }
         cge.br(postBB)
         cge.setBreakTarget(savedBreak)
         cge.setContinueTarget(savedCont)
+        cge.setBreakDepth(savedBreakDepth)
+        cge.setContinueDepth(savedContDepth)
 
         // post
         cge.position(postBB)
@@ -222,7 +339,9 @@ public class CodeGenStmt {
         cge.setTerminated(true)
 
         pointer savedBreak = cge.getBreakTarget()
+        pointer savedBreakDepth = cge.getBreakDepth()
         cge.setBreakTarget(exitBB)
+        cge.setBreakDepth(cge.getFrameDepth())
 
         // pre-create every case block and register the labels
         SemaExpr selE = node.getExpr()
@@ -264,14 +383,21 @@ public class CodeGenStmt {
         }
 
         cge.setBreakTarget(savedBreak)
+        cge.setBreakDepth(savedBreakDepth)
         cge.position(exitBB)
     }
 
-    // breakStmt / continueStmt — branch to the innermost exit / post block.
+    // breakStmt / continueStmt — free the locals of the scopes being left (those
+    // opened since the loop/switch began), then branch to the innermost exit /
+    // post block.
     public static void breakStmt(const CodeGenExpr cge, const SemaBreakStmt node) {
+        if cge.isTerminated() { return }
+        cge.emitCleanup(cge.getFrameDepth() - cge.getBreakDepth())
         cge.br(cge.getBreakTarget())
     }
     public static void continueStmt(const CodeGenExpr cge, const SemaContinueStmt node) {
+        if cge.isTerminated() { return }
+        cge.emitCleanup(cge.getFrameDepth() - cge.getContinueDepth())
         cge.br(cge.getContinueTarget())
     }
 }

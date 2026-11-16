@@ -17,18 +17,18 @@ public class ASTBuilderStmt {
         ASTBuilderStmt b = new ASTBuilderStmt()
         b.stmt = new ASTReturnStmt(loc)
         parent.addContent(b.stmt)
-        out = b
+        return b
     }
     public static ASTBuilderStmt CreateFail(const ASTBlockStmt parent, const SourceLocation loc) {
         ASTBuilderStmt b = new ASTBuilderStmt()
         b.stmt = new ASTFailStmt(loc)
         parent.addContent(b.stmt)
-        out = b
+        return b
     }
     public static ASTBuilderStmt CreateExpr(const ASTBlockStmt parent, const SourceLocation loc) {
         ASTBuilderStmt b = new ASTBuilderStmt()
         b.stmt = new ASTExprStmt(loc)
         parent.addContent(b.stmt)
-        out = b
+        return b
     }
 }

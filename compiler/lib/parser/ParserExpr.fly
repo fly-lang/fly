@@ -19,7 +19,7 @@ public class ParserExpr {
     public ParserExpr() { }
 
     // parse — entry point: an assignment expression.
-    public static ASTExpr parse(const Parser p) { out = ParserExpr.parseAssign(p) }
+    public static ASTExpr parse(const Parser p) { return ParserExpr.parseAssign(p) }
 
     public static ASTExpr parseAssign(const Parser p) {
         ASTExpr left = ParserExpr.parseTernary(p)
@@ -27,8 +27,7 @@ public class ParserExpr {
             SourceLocation oploc = p.curLoc()
             p.bump()
             ASTExpr right = ParserExpr.parseAssign(p)
-            out = ASTBuilder.CreateBinary(oploc, ASTBinaryKind.OP_BINARY_ASSIGN, left, right)
-            return
+            return ASTBuilder.CreateBinary(oploc, ASTBinaryKind.OP_BINARY_ASSIGN, left, right)
         }
         // compound assignment `a += b` … `a >>= b` (B015, doc 8.4): right-
         // associative like `=`; lowered as `a = a op b` in codegen.
@@ -51,11 +50,10 @@ public class ParserExpr {
                 SourceLocation oploc = p.curLoc()
                 p.bump()
                 ASTExpr right = ParserExpr.parseAssign(p)
-                out = ASTBuilder.CreateBinary(oploc, ck, left, right)
-                return
+                return ASTBuilder.CreateBinary(oploc, ck, left, right)
             }
         }
-        out = left
+        return left
     }
 
     // parseTernary — `cond ? then : else` (binds tighter than '=', looser than binary).
@@ -69,10 +67,9 @@ public class ParserExpr {
             if p.curIsPunct(":") { p.bump() }
             else { p.reportErr(DiagID.err_parser_ternary_expr) }
             ASTExpr f = ParserExpr.parseTernary(p)
-            out = ASTBuilder.CreateTernary(cond, tloc, t, floc, f)
-            return
+            return ASTBuilder.CreateTernary(cond, tloc, t, floc, f)
         }
-        out = cond
+        return cond
     }
 
     public static ASTExpr parseBin(const Parser p, const int minPrec) {
@@ -92,7 +89,7 @@ public class ParserExpr {
                 go = false
             }
         }
-        out = left
+        return left
     }
 
     public static ASTExpr parseUnary(const Parser p) {
@@ -100,22 +97,19 @@ public class ParserExpr {
             SourceLocation loc = p.curLoc()
             p.bump()
             ASTExpr operand = ParserExpr.parseUnary(p)
-            out = ASTBuilder.CreateUnary(loc, ASTUnaryKind.OP_UNARY_NOT_LOG, operand)
-            return
+            return ASTBuilder.CreateUnary(loc, ASTUnaryKind.OP_UNARY_NOT_LOG, operand)
         }
         if p.curIsPunct("++") {
             SourceLocation loc = p.curLoc()
             p.bump()
             ASTExpr operand = ParserExpr.parseUnary(p)
-            out = ASTBuilder.CreateUnary(loc, ASTUnaryKind.OP_UNARY_PRE_INCR, operand)
-            return
+            return ASTBuilder.CreateUnary(loc, ASTUnaryKind.OP_UNARY_PRE_INCR, operand)
         }
         if p.curIsPunct("--") {
             SourceLocation loc = p.curLoc()
             p.bump()
             ASTExpr operand = ParserExpr.parseUnary(p)
-            out = ASTBuilder.CreateUnary(loc, ASTUnaryKind.OP_UNARY_PRE_DECR, operand)
-            return
+            return ASTBuilder.CreateUnary(loc, ASTUnaryKind.OP_UNARY_PRE_DECR, operand)
         }
         // unary minus (B007, doc Appendix B): `-x` in operand position only —
         // binary `a - b` never reaches here (parseBin consumes it after a left
@@ -124,10 +118,9 @@ public class ParserExpr {
             SourceLocation loc = p.curLoc()
             p.bump()
             ASTExpr operand = ParserExpr.parseUnary(p)
-            out = ASTBuilder.CreateUnary(loc, ASTUnaryKind.OP_UNARY_NEG, operand)
-            return
+            return ASTBuilder.CreateUnary(loc, ASTUnaryKind.OP_UNARY_NEG, operand)
         }
-        out = ParserExpr.parsePostfix(p)
+        return ParserExpr.parsePostfix(p)
     }
 
     public static ASTExpr parsePostfix(const Parser p) {
@@ -178,7 +171,7 @@ public class ParserExpr {
                 e = ASTBuilder.CreateUnary(ploc, ASTUnaryKind.OP_UNARY_POST_DECR, e)
             }
         }
-        out = e
+        return e
     }
 
     // parseCallTail — parse '(' args ')' for a call named `nm` with parent `parent`.
@@ -197,7 +190,7 @@ public class ParserExpr {
             else { go = false }
         }
         p.expectPunct(")")
-        out = call
+        return call
     }
 
     // parseLiteral — a value literal (number/string/bool/null), or null if the current
@@ -208,38 +201,33 @@ public class ParserExpr {
         if p.curIsNumber() {
             ASTNumberValue n = ASTBuilder.CreateNumberValue(loc, p.curText())
             p.bump()
-            out = n
-            return
+            return n
         }
         if p.curIsStringLit() {
             ASTStringValue s = ASTBuilder.CreateStringValue(loc, p.curText())
             p.bump()
-            out = s
-            return
+            return s
         }
-        if p.curIsKw("true")  { p.bump()  out = ASTBuilder.CreateBoolValue(loc, true)   return }
-        if p.curIsKw("false") { p.bump()  out = ASTBuilder.CreateBoolValue(loc, false)  return }
-        if p.curIsKw("null")  { p.bump()  out = ASTBuilder.CreateNullValue(loc)         return }
-        out = null
+        if p.curIsKw("true")  { p.bump()  return ASTBuilder.CreateBoolValue(loc, true) }
+        if p.curIsKw("false") { p.bump()  return ASTBuilder.CreateBoolValue(loc, false) }
+        if p.curIsKw("null")  { p.bump()  return ASTBuilder.CreateNullValue(loc) }
+        return null
     }
 
     public static ASTExpr parsePrimary(const Parser p) {
         SourceLocation loc = p.curLoc()
         if p.curIsKw("new") {
-            out = ParserExpr.parseNew(p)
-            return
+            return ParserExpr.parseNew(p)
         }
         if p.curIsNumber() || p.curIsStringLit() || p.curIsKw("true") || p.curIsKw("false") || p.curIsKw("null") {
-            out = ParserExpr.parseLiteral(p)
-            return
+            return ParserExpr.parseLiteral(p)
         }
         // `error` in an EXPRESSION is the implicit error variable of the current
         // function ("was the last handle block's code non-zero?") — `if error {`.
         // As a TYPE it only appears in declarations, which never reach parsePrimary.
         if p.curIsKw("error") {
             p.bump()
-            out = ASTBuilder.CreateIdentifier(loc, "error", null)
-            return
+            return ASTBuilder.CreateIdentifier(loc, "error", null)
         }
         if p.curIsPunct("(") {
             p.bump()
@@ -252,34 +240,29 @@ public class ParserExpr {
                 ASTType castTy = p.parseBuiltinType()
                 p.expectPunct(")")
                 ASTExpr operand = ParserExpr.parseUnary(p)
-                out = ASTBuilder.CreateCast(operand, castTy)
-                return
+                return ASTBuilder.CreateCast(operand, castTy)
             }
             ASTExpr e = ParserExpr.parse(p)
             p.expectPunct(")")
-            out = e
-            return
+            return e
         }
         // array literal: `{ e0, e1, ... }` (elements are any expression, so
         // `{ new Dep(...), ... }` works too). Unambiguous in expression position —
         // a block `{` is only a statement, never a primary.
         if p.curIsPunct("{") {
-            out = ParserExpr.parseArrayLiteral(p)
-            return
+            return ParserExpr.parseArrayLiteral(p)
         }
         // identifier, or call `name(...)`
         if p.curIsNamePart() {
             string nm = p.curText()
             p.bump()
             if p.curIsPunct("(") {
-                out = ParserExpr.parseCallTail(p, loc, nm, ASTCallKind.CALL_DIRECT, null)
-                return
+                return ParserExpr.parseCallTail(p, loc, nm, ASTCallKind.CALL_DIRECT, null)
             }
-            out = ASTBuilder.CreateIdentifier(loc, nm, null)
-            return
+            return ASTBuilder.CreateIdentifier(loc, nm, null)
         }
         p.reportErr(DiagID.err_parser_expr_expected_primary)
-        out = ASTBuilder.CreateNullValue(loc)
+        return ASTBuilder.CreateNullValue(loc)
     }
 
     // parseArrayLiteral — `{ expr (, expr)* }` → ASTArrayValue. A trailing comma and
@@ -290,8 +273,7 @@ public class ParserExpr {
         SourceLocation loc = p.curLoc()
         p.expectPunct("{")
         if p.curIsIdent() && p.nxtIsPunct("=") {
-            out = ParserExpr.parseStructLiteral(p, loc)
-            return
+            return ParserExpr.parseStructLiteral(p, loc)
         }
         List<ASTExpr> elems = new List<ASTExpr>()
         bool go = p.curIsPunct("}") == false && p.hadErr() == false
@@ -305,7 +287,7 @@ public class ParserExpr {
             if p.hadErr() { go = false }
         }
         p.expectPunct("}")
-        out = ASTBuilder.CreateArrayValue(loc, elems)
+        return ASTBuilder.CreateArrayValue(loc, elems)
     }
 
     // parseStructLiteral — `name = expr (, name = expr)*` up to `}` (the opening
@@ -329,7 +311,7 @@ public class ParserExpr {
             if p.hadErr() { go = false }
         }
         p.expectPunct("}")
-        out = st
+        return st
     }
 
     public static ASTExpr parseNew(const Parser p) {
@@ -362,6 +344,6 @@ public class ParserExpr {
             call.addTypeArg(targs.get(i))
             i = i + 1
         }
-        out = call
+        return call
     }
 }

@@ -1,0 +1,7 @@
+namespace probe.util
+
+public int half(const int n) {
+    long wide = n
+    int narrow = wide
+    return narrow / 2
+}

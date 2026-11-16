@@ -40,10 +40,10 @@ public class CompilerInstance {
         this.sourceMgr = new SourceManager(fileName, buffer)
     }
 
-    public DiagnosticsEngine getDiagnostics()    { out = this.diags }
-    public FileManager getFileManager()          { out = this.fileMgr }
-    public SourceManager getSourceManager()      { out = this.sourceMgr }
-    public FrontendOptions getFrontendOptions()  { out = this.frontendOpts }
-    public CodeGenOptions getCodeGenOptions()    { out = this.codeGenOpts }
-    public TargetOptions getTargetOptions()      { out = this.targetOpts }
+    public DiagnosticsEngine getDiagnostics()    { return this.diags }
+    public FileManager getFileManager()          { return this.fileMgr }
+    public SourceManager getSourceManager()      { return this.sourceMgr }
+    public FrontendOptions getFrontendOptions()  { return this.frontendOpts }
+    public CodeGenOptions getCodeGenOptions()    { return this.codeGenOpts }
+    public TargetOptions getTargetOptions()      { return this.targetOpts }
 }

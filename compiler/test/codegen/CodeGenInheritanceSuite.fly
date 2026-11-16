@@ -31,13 +31,13 @@ suite CodeGenInheritanceSuite {
             string ir = cgIR("
                 public class Animal { int legs
                     public Animal() { this.legs = 4 }
-                    public int sound() { out = 0 }
-                    public int getLegs() { out = this.legs }
+                    public int sound() { return 0 }
+                    public int getLegs() { return this.legs }
                 }
                 public class Dog : Animal { public Dog() { this.legs = 4 }
-                    public int sound() { out = 7 }
+                    public int sound() { return 7 }
                 }
-                int poke(Animal a) { out = a.sound() }
+                int poke(Animal a) { return a.sound() }
                 void main() { Dog d = new Dog()
                     int s = poke(d)
                     int l = d.getLegs()
@@ -54,12 +54,12 @@ suite CodeGenInheritanceSuite {
             string ir = cgIR("
                 public class Animal { int legs
                     public Animal() { this.legs = 4 }
-                    public int sound() { out = 0 }
+                    public int sound() { return 0 }
                 }
                 public class Dog : Animal { public Dog() { this.legs = 4 }
-                    public int sound() { out = 7 }
+                    public int sound() { return 7 }
                 }
-                int poke(Animal a) { out = a.sound() }
+                int poke(Animal a) { return a.sound() }
                 void main() { Dog d = new Dog()
                     fail poke(d)
                 }
@@ -90,7 +90,7 @@ suite CodeGenInheritanceSuite {
                 }
                 public class Derived : Base { int c
                     public Derived() { this.a = 10  this.c = 30 }
-                    public int total() { out = this.a + this.b + this.c }
+                    public int total() { return this.a + this.b + this.c }
                 }
                 void main() { Derived d = new Derived()  fail d.total() }
             ")
@@ -109,7 +109,7 @@ suite CodeGenInheritanceSuite {
                 }
                 public class Derived : Base { int c
                     public Derived() { this.a = 10  this.c = 30 }
-                    public int total() { out = this.a + this.b + this.c }
+                    public int total() { return this.a + this.b + this.c }
                 }
                 void main() { Derived d = new Derived()  fail d.total() }
             ")

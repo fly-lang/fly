@@ -16,7 +16,7 @@ import fly.str
 // ─────────────────────────────────────────────────────────────────────────────
 
 public ToolChain tcFor(const string triple) {
-    out = new ToolChain(null, tripleParse(triple), new CodeGenOptions())
+    return new ToolChain(null, tripleParse(triple), new CodeGenOptions())
 }
 
 suite ToolChainSuite {

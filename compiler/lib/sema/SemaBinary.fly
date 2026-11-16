@@ -22,8 +22,8 @@ public class SemaBinary : SemaExpr {
         this.right = right
     }
 
-    public ASTBinary getAST() { out = this.binaryAst }
-    public SemaExpr getLeft() { out = this.left }
-    public SemaExpr getRight() { out = this.right }
+    public ASTBinary getAST() { return this.binaryAst }
+    public SemaExpr getLeft() { return this.left }
+    public SemaExpr getRight() { return this.right }
     public void accept(const SemaVisitor v) { v.visit(this) }
 }

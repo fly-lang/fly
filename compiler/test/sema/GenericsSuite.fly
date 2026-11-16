@@ -20,9 +20,9 @@ suite GenericsSuite {
         case "generic class instantiates with T bound to a concrete type": {
             Parser p = new Parser("
                 public class Wrapper<T> { T value
-                    public T get() { out = this.value }
+                    public T get() { return this.value }
                 }
-                int useW(const Wrapper<int> w) { out = w.get() }
+                int useW(const Wrapper<int> w) { return w.get() }
             ")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)

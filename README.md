@@ -11,7 +11,7 @@
   <h3 align="center">Fly Programming Language</h3>
 
   <p align="center">
-    Simple - Fast - Powerfull
+    Simple - Reliable - Safe - Powerful
     <br />
     <br />
     <a href="https://flylang.org">View Website</a>
@@ -23,136 +23,125 @@
 </p>
 
 ## About the Project
-Fly Project want to build a new programming language: compiled, high-level, general purpose,
-with particular attention to simplicity, readability, multi-paradigms with optional Garbage Collector.
+Fly is a compiled, high-level, general-purpose programming language built on LLVM, with
+particular attention to simplicity, reliability, safety and power.
 
-### Build with
-This project is a fork of Clang so it is based on LLVM:
-- [Clang](https://clang.llvm.org/)
-- [LLVM](https://llvm.org/)
+Fly is **self-hosted**: the compiler, the runtime and the standard library in this branch
+are written in Fly.
+
+| Directory | Contents |
+|---|---|
+| `compiler/` | the compiler and the `fly` driver (`lib/`) and their suites (`test/`) |
+| `runtime/` | the per-platform runtime layer (`fly.runtime`) |
+| `std/` | the standard library (`fly.*`) and its suites |
+| `tools/` | `fly-lsp` (language server) and `fly-registry` (package registry) |
+| `ci/` | the staged bootstrap and every test script, for Linux and Windows |
+
+There is no garbage collector: structs live on the stack, strings are released
+automatically, class instances are released explicitly.
+
+### Built with
+- [LLVM](https://llvm.org/) 20.1.8, from the project's own fork
+  ([fly-lang/llvm-project](https://github.com/fly-lang/llvm-project)), downloaded by the
+  bootstrap — no system LLVM, no package manager.
+- A **seed compiler**: the C++ implementation of Fly kept on the `release/0.13.X` branch.
+  It is downloaded as a pinned binary and used once, to compile this tree for the first
+  time.
 
 ## Getting Started
-Fly is written in C++ and it is a fork of Clang.
 
-### Prerequisites
-In order to build this project you need:
-- [CMake (min version 3.24.0)](https://cmake.org)
-- C++ 17
-- [LLVM 20.1.8](https://github.com/llvm/llvm-project)
+### Install a release
+Download the archive for your platform from the
+[releases page](https://github.com/fly-lang/fly/releases) and unpack it anywhere. It is
+self-contained: `bin/` holds `fly`, `fly-lsp`, `fly-registry`, the linker and `lldb`;
+`lib/` holds the runtime, the standard library and its headers. Put `bin/` on your `PATH`.
 
-## Usage
+```bash
+mkdir hello && cd hello
+cat > main.fly <<'EOF'
+import fly.os.io
 
-### Linux
+void main() {
+    io.printLn("Hello, World!")
+}
+EOF
+fly -o hello
+./hello
+```
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/fly-lang/fly.git
-   ```
+`fly` compiles a **directory**, not a file: it discovers the source that declares `main()`
+and pulls the rest in through the imports.
 
-2. Install build dependencies for your distribution:
+### Build from source
 
-   **Debian / Ubuntu**
-   ```bash
-   sudo apt install build-essential libxml2-dev zlib1g-dev libtinfo-dev
-   # stacktrace support (debug purpose)
-   sudo apt install binutils-dev libdw-dev libdwarf-dev
-   ```
+Fly builds itself in three stages:
 
-   **Fedora**
-   ```bash
-   sudo dnf install gcc gcc-c++ make libxml2-devel zlib-devel ncurses-devel
-   # stacktrace support (debug purpose)
-   sudo dnf install binutils-devel elfutils-devel libdwarf-devel
-   ```
+| Stage | What happens |
+|---|---|
+| 0 | downloads the pinned seed compiler and the fork LLVM into `build/` |
+| 1 | the seed compiles runtime, std and compiler from this tree and links the first `fly`; the suites then run under it |
+| 2 | that `fly` recompiles the runtime and the compiler, builds the tools and runs every guard; `build/stage2` is what a release ships |
 
-   **RHEL / CentOS Stream**
-   ```bash
-   sudo dnf install gcc gcc-c++ make libxml2-devel zlib-devel ncurses-devel
-   # stacktrace support (debug purpose)
-   sudo dnf install binutils-devel elfutils-devel libdwarf-devel
-   ```
+The seed version is pinned in `ci/linux/stage0.sh` and `ci/windows/stage0.ps1`.
 
-   **openSUSE**
-   ```bash
-   sudo zypper install gcc gcc-c++ make libxml2-devel zlib-devel ncurses-devel
-   # stacktrace support (debug purpose)
-   sudo zypper install binutils-devel libdw-devel libdwarf-devel
-   ```
+#### Linux
 
-   **Arch Linux**
-   ```bash
-   sudo pacman -S base-devel libxml2 zlib ncurses
-   # stacktrace support (debug purpose)
-   sudo pacman -S libdwarf elfutils
-   ```
+Requires `gcc` and `libc6-dev` (for the C start-up objects), `ar` and `objcopy`.
 
-3. Configure and build:
-   ```bash
-   cd fly
-   mkdir build && cd build
-   cmake ..
-   cmake --build .
-   ```
+```bash
+git clone --branch release/0.14.X https://github.com/fly-lang/fly.git
+cd fly
+. ./ci/linux/stage0.sh        # sourced: it exports PATH and the library paths
+./ci/linux/stage1.sh
+./ci/linux/stage2.sh
+```
 
-4. Run tests (must be run from the build directory):
-   ```bash
-   ctest
-   ```
+On a host without LLVM 20, stage 0 creates the symlink `/usr/lib/llvm-20` with `sudo`.
 
-### macOS
+#### Windows
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/fly-lang/fly.git
-   ```
+Requires **PowerShell 7** (`pwsh`) — the scripts do not run under Windows PowerShell 5.1.
+No Visual Studio is needed, to build Fly or to use it: programs link against a bundled
+llvm-mingw / UCRT sysroot.
 
-2. Install Xcode Command Line Tools:
-   ```bash
-   xcode-select --install
-   ```
+```powershell
+git clone --branch release/0.14.X --config core.autocrlf=false https://github.com/fly-lang/fly.git
+cd fly
+. .\ci\windows\stage0.ps1
+.\ci\windows\stage1.ps1
+.\ci\windows\stage2.ps1
+```
 
-3. Install build dependencies via [Homebrew](https://brew.sh):
-   ```bash
-   brew install cmake libxml2 zlib
-   ```
+The result is `build/stage2/bin/fly` (`fly.exe` on Windows).
 
-4. Configure and build:
-   ```bash
-   cd fly
-   mkdir build && cd build
-   cmake ..
-   cmake --build .
-   ```
+#### Useful switches
 
-5. Run tests:
-   ```bash
-   ctest
-   ```
+| Environment variable | Effect |
+|---|---|
+| `FLY_BUNDLE_LLVM=1` | make each stage self-contained: LLVM, the linker and `lldb` next to `fly` (what CI and releases use) |
+| `FLY_STAGE1_TESTS=0` | skip the stage 1 suites for a faster local build |
+| `FLY_DEBUG_SYMBOLS=1` | DWARF in the stage 1 build |
+| `STAGE=1` / `STAGE=2` | select the stage for a single `ci/*/build_*` or `ci/*/test_*` script |
 
-### Windows
+### Run the tests
 
-1. Clone the repository:
-   ```bash
-   git clone --config core.autocrlf=false https://github.com/fly-lang/fly.git
-   ```
+Every script takes the compiler of the stage named by `STAGE` (default: the one it belongs to).
 
-2. Install dependencies via vcpkg:
-   ```bash
-   vcpkg install zstd:x64-windows
-   ```
+```bash
+STAGE=2 ./ci/linux/test_runtime.sh     # the runtime layer
+STAGE=2 ./ci/linux/test_std.sh         # the standard library
+STAGE=2 ./ci/linux/test_compiler.sh    # the compiler and the driver
+./ci/linux/test_sema.sh                # programs the compiler must reject
+./ci/linux/test_abi.sh                 # seed / self-host calling convention
+./ci/linux/test_leaks.sh               # ownership and scope clean-up
+```
 
-3. Configure and build:
-   ```bash
-   cd fly
-   mkdir build && cd build
-   cmake .. -DCMAKE_TOOLCHAIN_FILE="%VCPKG_INSTALLATION_ROOT%\scripts\buildsystems\vcpkg.cmake"
-   cmake --build . --config Release
-   ```
+The Windows scripts have the same names under `ci\windows\` with a `.ps1` extension.
 
-4. Run tests:
-   ```bash
-   ctest -C Release
-   ```
+## Documentation
+The reference documentation is published at [flylang.org](https://flylang.org): tutorial,
+language reference, standard library API, command line, testing, how Fly builds itself,
+what the compiler enforces today, and the roadmap.
 
 ## Additional Info
 - For how to contribute see `CONTRIBUTING.md`

@@ -14,24 +14,24 @@ public class ExecCounter {
     int value
     public ExecCounter(const int start) { this.value = start }
     public void bump() { this.value = this.value + 1 }
-    public int read() { out = this.value }
+    public int read() { return this.value }
 }
 
 public class ExecAnimal {
     public ExecAnimal() { }
-    public int speak() { out = 1 }
-    public int legs() { out = 4 }
+    public int speak() { return 1 }
+    public int legs() { return 4 }
 }
 
 public class ExecDog : ExecAnimal {
     public ExecDog() { }
-    public int speak() { out = 2 }
+    public int speak() { return 2 }
 }
 
 public class ExecHolder {
     ExecCounter inner
     public ExecHolder(const ExecCounter c) { this.inner = c }
-    public int peek() { out = this.inner.read() }
+    public int peek() { return this.inner.read() }
 }
 
 struct ExecPt { int x  int y }
@@ -51,7 +51,7 @@ public class ExecShape {
         p.y = 4
         this.origin = p
     }
-    public int span() { out = this.origin.x * 10 + this.origin.y }
+    public int span() { return this.origin.x * 10 + this.origin.y }
 }
 
 suite ExecClassSuite {

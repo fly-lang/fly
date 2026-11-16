@@ -1,0 +1,13 @@
+// A string call result bound to a local: the decl must MOVE the callee's
+// buffer (it used to clone it and drop the original — one buffer per call).
+string mk(const int i) {
+    string s = "abcdefghij" + "k"
+    return s
+}
+void main() {
+    int i = 0
+    while i < 2000000 {
+        string s = mk(i)
+        i = i + 1
+    }
+}

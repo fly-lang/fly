@@ -20,9 +20,9 @@ public class ASTImport : ASTNode {
         this.wildcard = wildcard
     }
 
-    public List<ASTName> getNames() { out = this.names }
-    public List<ASTName> getAlias() { out = this.alias }
-    public bool isWildcard() { out = this.wildcard }
+    public List<ASTName> getNames() { return this.names }
+    public List<ASTName> getAlias() { return this.alias }
+    public bool isWildcard() { return this.wildcard }
 
     public void accept(const ASTVisitor v) { v.visit(this) }
 }

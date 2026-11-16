@@ -60,7 +60,7 @@ private pointer sbNew(const int cap) {
     mem.writePtr(sb, 0, data)
     mem.writeInt(sb, 8, 0)
     mem.writeInt(sb, 12, want)
-    out = sb
+    return sb
 }
 
 // sbRoom — make sure at least `need` more bytes fit, doubling until they do.
@@ -97,8 +97,7 @@ private void sbStr(const pointer sb, const string s) {
     int len = mem.readInt(sb, 8)
     int i = 0
     while i < n {
-        byte b = 0
-        str.byteAt(s, i, b)
+        byte b = str.byteAt(s, i)
         fly.llvm.strPoke(data, len + i, b)
         i = i + 1
     }
@@ -108,16 +107,17 @@ private void sbStr(const pointer sb, const string s) {
 // sbTake — turn the buffer into a string and release the header. The StrBuf
 // handle is dead afterwards.
 private string sbTake(const pointer sb) {
+    string res = ""
     pointer data = mem.readPtr(sb, 0)
     int len = mem.readInt(sb, 8)
     int cap = mem.readInt(sb, 12)
     mem.free(sb, 16)
     if len == 0 {
         mem.free(data, cap)
-        out = ""
-        return
+        return res
     }
-    fly.llvm.strMake(data, len, out)
+    fly.llvm.strMake(data, len, res)
+    return res
 }
 
 // ── Node helpers ─────────────────────────────────────────────────────────────
@@ -126,7 +126,7 @@ private pointer nodeNew(const int k) {
     pointer v = mem.alloc(48)
     mem.zero(v, 48)
     mem.writeInt(v, 0, k)
-    out = v
+    return v
 }
 
 // nodeSetStr — store a copy of s in the node's owned byte buffer.
@@ -142,8 +142,7 @@ private void nodeSetStr(const pointer v, const string s) {
     pointer buf = mem.alloc(n)
     int i = 0
     while i < n {
-        byte b = 0
-        str.byteAt(s, i, b)
+        byte b = str.byteAt(s, i)
         fly.llvm.strPoke(buf, i, b)
         i = i + 1
     }
@@ -155,12 +154,14 @@ private void nodeSetStr(const pointer v, const string s) {
 // ownership of the buffer it is handed, so returning the node's own buffer would
 // hand the same allocation to both the string and freeValue (a double free).
 private string nodeGetStr(const pointer v) {
+    string res = ""
     pointer buf = mem.readPtr(v, 8)
     int n = mem.readInt(v, 16)
-    if buf == 0 || n <= 0 { out = ""  return }
+    if buf == 0 || n <= 0 { return res }
     pointer copy = mem.alloc(n)
     mem.copy(copy, buf, n)
-    fly.llvm.strMake(copy, n, out)
+    fly.llvm.strMake(copy, n, res)
+    return res
 }
 
 // nodeRoom — make sure one more child slot fits. withKeys grows the parallel
@@ -189,98 +190,96 @@ private void nodeRoom(const pointer v, const bool withKeys) {
 // kind — the value's kind (0=null 1=bool 2=number 3=string 4=array 5=object),
 // or -1 for a null handle.
 public int kind(const pointer v) {
-    if v == 0 { out = 0 - 1  return }
-    out = mem.readInt(v, 0)
+    if v == 0 { return 0 - 1 }
+    return mem.readInt(v, 0)
 }
 
-public bool isNull(const pointer v)   { out = kind(v) == 0 }
-public bool isBool(const pointer v)   { out = kind(v) == 1 }
-public bool isNumber(const pointer v) { out = kind(v) == 2 }
-public bool isString(const pointer v) { out = kind(v) == 3 }
-public bool isArray(const pointer v)  { out = kind(v) == 4 }
-public bool isObject(const pointer v) { out = kind(v) == 5 }
+public bool isNull(const pointer v)   { return kind(v) == 0 }
+public bool isBool(const pointer v)   { return kind(v) == 1 }
+public bool isNumber(const pointer v) { return kind(v) == 2 }
+public bool isString(const pointer v) { return kind(v) == 3 }
+public bool isArray(const pointer v)  { return kind(v) == 4 }
+public bool isObject(const pointer v) { return kind(v) == 5 }
 
 // asBool — the boolean; false for any other kind.
 public bool asBool(const pointer v) {
-    if kind(v) != 1 { out = false  return }
-    out = mem.readInt(v, 4) != 0
+    if kind(v) != 1 { return false }
+    return mem.readInt(v, 4) != 0
 }
 
 // asString — a string value, or a NUMBER's raw literal text. Empty for any
 // other kind.
 public string asString(const pointer v) {
     int k = kind(v)
-    if k != 3 && k != 2 { out = ""  return }
-    out = nodeGetStr(v)
+    if k != 3 && k != 2 { return "" }
+    return nodeGetStr(v)
 }
 
 // asNumber — always 0.0: std has no string→double yet. Use asInt() or
 // asString() instead.
 public double asNumber(const pointer v) {
-    out = 0.0
+    return 0.0
 }
 
 // asInt — the integral part of a number's literal (a leading '-' is honoured,
 // a fraction or exponent is ignored). 0 for any other kind or unparseable text.
 public int asInt(const pointer v) {
-    if kind(v) != 2 { out = 0  return }
+    if kind(v) != 2 { return 0 }
     string s = nodeGetStr(v)
     int n = str.len(s)
-    if n == 0 { out = 0  return }
+    if n == 0 { return 0 }
     int i = 0
     bool neg = false
-    byte b0 = 0
-    str.byteAt(s, 0, b0)
+    byte b0 = str.byteAt(s, 0)
     if b0 == 45 { neg = true  i = 1 }
     int acc = 0
     bool go = true
     while go && i < n {
-        byte b = 0
-        str.byteAt(s, i, b)
+        byte b = str.byteAt(s, i)
         int c = b & 255
         if c >= 48 && c <= 57 {
             acc = acc * 10 + (c - 48)
             i = i + 1
         } else { go = false }
     }
-    if neg { out = 0 - acc } else { out = acc }
+    if neg { return 0 - acc } else { return acc }
 }
 
 // size — array length; 0 for anything else.
 public int size(const pointer v) {
-    if kind(v) != 4 { out = 0  return }
-    out = mem.readInt(v, 20)
+    if kind(v) != 4 { return 0 }
+    return mem.readInt(v, 20)
 }
 
 // at — array element i, or 0 when v is not an array or i is out of range.
 public pointer at(const pointer v, const int i) {
-    if kind(v) != 4 { out = 0  return }
+    if kind(v) != 4 { return 0 }
     int count = mem.readInt(v, 20)
-    if i < 0 || i >= count { out = 0  return }
+    if i < 0 || i >= count { return 0 }
     pointer items = mem.readPtr(v, 24)
-    out = mem.readPtr(items, i * 8)
+    return mem.readPtr(items, i * 8)
 }
 
 // keyCount — object member count, in insertion order; 0 for anything else.
 public int keyCount(const pointer v) {
-    if kind(v) != 5 { out = 0  return }
-    out = mem.readInt(v, 20)
+    if kind(v) != 5 { return 0 }
+    return mem.readInt(v, 20)
 }
 
 // keyAt — the i-th object key in insertion order; "" when out of range.
 public string keyAt(const pointer v, const int i) {
-    if kind(v) != 5 { out = ""  return }
+    if kind(v) != 5 { return "" }
     int count = mem.readInt(v, 20)
-    if i < 0 || i >= count { out = ""  return }
+    if i < 0 || i >= count { return "" }
     pointer keys = mem.readPtr(v, 32)
     pointer kn = mem.readPtr(keys, i * 8)
-    if kn == 0 { out = ""  return }
-    out = nodeGetStr(kn)
+    if kn == 0 { return "" }
+    return nodeGetStr(kn)
 }
 
 // keyIndex — position of `key` in an object, or -1 when absent.
 private int keyIndex(const pointer v, const string key) {
-    if kind(v) != 5 { out = 0 - 1  return }
+    if kind(v) != 5 { return 0 - 1 }
     int count = mem.readInt(v, 20)
     pointer keys = mem.readPtr(v, 32)
     int i = 0
@@ -288,24 +287,24 @@ private int keyIndex(const pointer v, const string key) {
         pointer kn = mem.readPtr(keys, i * 8)
         if kn != 0 {
             string ks = nodeGetStr(kn)
-            if str.equals(ks, key) { out = i  return }
+            if str.equals(ks, key) { return i }
         }
         i = i + 1
     }
-    out = 0 - 1
+    return 0 - 1
 }
 
 // has — true when the object carries `key`.
 public bool has(const pointer v, const string key) {
-    out = keyIndex(v, key) >= 0
+    return keyIndex(v, key) >= 0
 }
 
 // get — the value stored under `key`, or 0 when absent / not an object.
 public pointer get(const pointer v, const string key) {
     int idx = keyIndex(v, key)
-    if idx < 0 { out = 0  return }
+    if idx < 0 { return 0 }
     pointer items = mem.readPtr(v, 24)
-    out = mem.readPtr(items, idx * 8)
+    return mem.readPtr(items, idx * 8)
 }
 
 // freeValue — release a value and everything below it. Safe on a null handle.
@@ -337,20 +336,20 @@ public void freeValue(const pointer v) {
 
 // ── Writing ──────────────────────────────────────────────────────────────────
 
-public pointer newNull()   { out = nodeNew(0) }
-public pointer newArray()  { out = nodeNew(4) }
-public pointer newObject() { out = nodeNew(5) }
+public pointer newNull()   { return nodeNew(0) }
+public pointer newArray()  { return nodeNew(4) }
+public pointer newObject() { return nodeNew(5) }
 
 public pointer newBool(const bool b) {
     pointer v = nodeNew(1)
     if b { mem.writeInt(v, 4, 1) } else { mem.writeInt(v, 4, 0) }
-    out = v
+    return v
 }
 
 public pointer newInt(const int n) {
     pointer v = nodeNew(2)
     nodeSetStr(v, str.convert(n))
-    out = v
+    return v
 }
 
 // newNumber — a number whose literal text the caller supplies verbatim (std has
@@ -358,14 +357,14 @@ public pointer newInt(const int n) {
 public pointer newNumber(const string literal) {
     pointer v = nodeNew(2)
     nodeSetStr(v, literal)
-    out = v
+    return v
 }
 
 // newString — stored RAW; escaping happens at write() time.
 public pointer newString(const string s) {
     pointer v = nodeNew(3)
     nodeSetStr(v, s)
-    out = v
+    return v
 }
 
 // add — append `child` to an array. The array ADOPTS the child. No-op when
@@ -403,8 +402,8 @@ public void put(const pointer obj, const string key, const pointer child) {
 // hexDigit — lowercase hex character for 0..15.
 private int hexDigit(const int n) {
     int d = n & 15
-    if d < 10 { out = 48 + d  return }
-    out = 87 + d
+    if d < 10 { return 48 + d }
+    return 87 + d
 }
 
 // sbEscaped — append s to sb with JSON string escaping applied (no surrounding
@@ -413,8 +412,7 @@ private void sbEscaped(const pointer sb, const string s) {
     int n = str.len(s)
     int i = 0
     while i < n {
-        byte b = 0
-        str.byteAt(s, i, b)
+        byte b = str.byteAt(s, i)
         int c = b & 255
         if c == 34 { sbByte(sb, 92)  sbByte(sb, 34) }
         elsif c == 92 { sbByte(sb, 92)  sbByte(sb, 92) }
@@ -441,7 +439,7 @@ private void sbEscaped(const pointer sb, const string s) {
 public string escape(const string s) {
     pointer sb = sbNew(str.len(s) + 16)
     sbEscaped(sb, s)
-    out = sbTake(sb)
+    return sbTake(sb)
 }
 
 // sbIndent — newline + `indent * depth` spaces, for the pretty writer.
@@ -516,7 +514,7 @@ private void sbValue(const pointer sb, const pointer v, const int indent, const 
 public string write(const pointer v) {
     pointer sb = sbNew(64)
     sbValue(sb, v, 0, 0)
-    out = sbTake(sb)
+    return sbTake(sb)
 }
 
 // writePretty — `indent` spaces per nesting level, newline-separated.
@@ -524,23 +522,22 @@ public string write(const pointer v) {
 public string writePretty(const pointer v, const int indent) {
     pointer sb = sbNew(128)
     sbValue(sb, v, indent, 0)
-    out = sbTake(sb)
+    return sbTake(sb)
 }
 
 // ── Parsing ──────────────────────────────────────────────────────────────────
 //
 // Parser state handle (16 bytes): [0..3] int pos, [4..7] int n, [8..11] int err.
 
-private int psErr(const pointer ps) { out = mem.readInt(ps, 8) }
+private int psErr(const pointer ps) { return mem.readInt(ps, 8) }
 
 // psCur — the byte at the cursor, or the EOF sentinel 256.
 private int psCur(const string src, const pointer ps) {
     int pos = mem.readInt(ps, 0)
     int n = mem.readInt(ps, 4)
-    if pos >= n { out = 256  return }
-    byte b = 0
-    str.byteAt(src, pos, b)
-    out = b & 255
+    if pos >= n { return 256 }
+    byte b = str.byteAt(src, pos)
+    return b & 255
 }
 
 private void psSkipWs(const string src, const pointer ps) {
@@ -557,17 +554,17 @@ private bool psMatch(const string src, const pointer ps, const string w) {
     int pos = mem.readInt(ps, 0)
     int n = mem.readInt(ps, 4)
     int wl = str.len(w)
-    if pos + wl > n { out = false  return }
+    if pos + wl > n { return false }
     string sub = str.substring(src, pos, pos + wl)
-    out = str.equals(sub, w)
+    return str.equals(sub, w)
 }
 
 // hexVal — 0..15 for a hex byte, -1 otherwise.
 private int hexVal(const int c) {
-    if c >= 48 && c <= 57 { out = c - 48  return }
-    if c >= 97 && c <= 102 { out = c - 87  return }
-    if c >= 65 && c <= 70 { out = c - 55  return }
-    out = 0 - 1
+    if c >= 48 && c <= 57 { return c - 48 }
+    if c >= 97 && c <= 102 { return c - 87 }
+    if c >= 65 && c <= 70 { return c - 55 }
+    return 0 - 1
 }
 
 // sbUtf8 — append a code point to sb as UTF-8 (1..4 bytes).
@@ -591,18 +588,17 @@ private void sbUtf8(const pointer sb, const int cp) {
 
 // hex4 — the 4 hex digits at raw[i..i+4) as a code unit, or -1 if malformed.
 private int hex4(const string raw, const int m, const int i) {
-    if i + 4 > m { out = 0 - 1  return }
+    if i + 4 > m { return 0 - 1 }
     int acc = 0
     int j = 0
     while j < 4 {
-        byte hb = 0
-        str.byteAt(raw, i + j, hb)
+        byte hb = str.byteAt(raw, i + j)
         int hv = hexVal(hb & 255)
-        if hv < 0 { out = 0 - 1  return }
+        if hv < 0 { return 0 - 1 }
         acc = (acc << 4) | hv
         j = j + 1
     }
-    out = acc
+    return acc
 }
 
 // unescBody — decode the escapes in `raw` into sb, reporting through errSlot
@@ -612,8 +608,7 @@ private void unescBody(const pointer sb, const string raw, const pointer errSlot
     int i = 0
     bool go = true
     while go && i < m {
-        byte bb = 0
-        str.byteAt(raw, i, bb)
+        byte bb = str.byteAt(raw, i)
         int c = bb & 255
         if c != 92 {
             sbByte(sb, bb)
@@ -621,8 +616,7 @@ private void unescBody(const pointer sb, const string raw, const pointer errSlot
         } else {
             int e = 256
             if i + 1 < m {
-                byte nb = 0
-                str.byteAt(raw, i + 1, nb)
+                byte nb = str.byteAt(raw, i + 1)
                 e = nb & 255
             }
             if e == 34 { sbByte(sb, 34)  i = i + 2 }
@@ -648,8 +642,8 @@ private void unescBody(const pointer sb, const string raw, const pointer errSlot
                         if i + 1 < m {
                             byte s0 = 0
                             byte s1 = 0
-                            str.byteAt(raw, i, s0)
-                            str.byteAt(raw, i + 1, s1)
+                            s0 = str.byteAt(raw, i)
+                            s1 = str.byteAt(raw, i + 1)
                             if s0 == 92 && s1 == 117 { paired = true }
                         }
                         if paired == false { mem.writeInt(errSlot, 0, 310)  go = false }
@@ -682,7 +676,7 @@ public string unescape(const string s, int errOut) {
     unescBody(sb, s, errSlot)
     errOut = mem.readInt(errSlot, 0)
     mem.free(errSlot, 4)
-    out = sbTake(sb)
+    return sbTake(sb)
 }
 
 // pRawString — consume a "..." token and return the DECODED contents.
@@ -698,15 +692,17 @@ private string pRawString(const string src, const pointer ps) {
         elsif c == 34 { scan = false }
         else { mem.writeInt(ps, 0, mem.readInt(ps, 0) + 1) }
     }
-    if psErr(ps) != 0 { out = ""  return }
+    string raw = ""
+    if psErr(ps) != 0 { return raw }
     int stop = mem.readInt(ps, 0)
-    string raw = str.substring(src, start, stop)
+    raw = str.substring(src, start, stop)
     mem.writeInt(ps, 0, stop + 1)                         // closing quote
-    if hasEsc == false { out = raw  return }
-    int e = 0
-    string dec = unescape(raw, e)
-    if e != 0 { mem.writeInt(ps, 8, e) }
-    out = dec
+    if hasEsc {
+        int e = 0
+        raw = unescape(raw, e)
+        if e != 0 { mem.writeInt(ps, 8, e) }
+    }
+    return raw
 }
 
 // pNumber — a JSON number; the raw literal text is kept (no string→double).
@@ -740,7 +736,7 @@ private pointer pNumber(const string src, const pointer ps) {
     int stop = mem.readInt(ps, 0)
     pointer v = nodeNew(2)
     nodeSetStr(v, str.substring(src, start, stop))
-    out = v
+    return v
 }
 
 private pointer pArray(const string src, const pointer ps) {
@@ -749,8 +745,7 @@ private pointer pArray(const string src, const pointer ps) {
     psSkipWs(src, ps)
     if psCur(src, ps) == 93 {
         mem.writeInt(ps, 0, mem.readInt(ps, 0) + 1)
-        out = arr
-        return
+        return arr
     }
     bool go = true
     while go {
@@ -764,7 +759,7 @@ private pointer pArray(const string src, const pointer ps) {
             else { mem.writeInt(ps, 8, 305)  go = false }
         }
     }
-    out = arr
+    return arr
 }
 
 private pointer pObject(const string src, const pointer ps) {
@@ -773,8 +768,7 @@ private pointer pObject(const string src, const pointer ps) {
     psSkipWs(src, ps)
     if psCur(src, ps) == 125 {
         mem.writeInt(ps, 0, mem.readInt(ps, 0) + 1)
-        out = o
-        return
+        return o
     }
     bool go = true
     while go {
@@ -799,21 +793,20 @@ private pointer pObject(const string src, const pointer ps) {
             }
         }
     }
-    out = o
+    return o
 }
 
 // pValue — dispatch on the first non-whitespace byte.
 private pointer pValue(const string src, const pointer ps) {
     psSkipWs(src, ps)
     int c = psCur(src, ps)
-    if c == 123 { out = pObject(src, ps)  return }
-    if c == 91 { out = pArray(src, ps)  return }
+    if c == 123 { return pObject(src, ps) }
+    if c == 91 { return pArray(src, ps) }
     if c == 34 {
         string s = pRawString(src, ps)
         pointer v = nodeNew(3)
         nodeSetStr(v, s)
-        out = v
-        return
+        return v
     }
     if c == 116 {
         pointer v = nodeNew(1)
@@ -821,31 +814,28 @@ private pointer pValue(const string src, const pointer ps) {
             mem.writeInt(v, 4, 1)
             mem.writeInt(ps, 0, mem.readInt(ps, 0) + 4)
         } else { mem.writeInt(ps, 8, 301) }
-        out = v
-        return
+        return v
     }
     if c == 102 {
         pointer v = nodeNew(1)
         if psMatch(src, ps, "false") {
             mem.writeInt(ps, 0, mem.readInt(ps, 0) + 5)
         } else { mem.writeInt(ps, 8, 301) }
-        out = v
-        return
+        return v
     }
     if c == 110 {
         pointer v = nodeNew(0)
         if psMatch(src, ps, "null") {
             mem.writeInt(ps, 0, mem.readInt(ps, 0) + 4)
         } else { mem.writeInt(ps, 8, 301) }
-        out = v
-        return
+        return v
     }
     // NOTE: a condition must not START with '(' (the seed parser rejects it), and
     // || and && share ONE precedence level, so mixing them needs a named bool.
     bool isDigit = c >= 48 && c <= 57
-    if isDigit || c == 45 { out = pNumber(src, ps)  return }
+    if isDigit || c == 45 { return pNumber(src, ps) }
     mem.writeInt(ps, 8, 302)
-    out = nodeNew(0)
+    return nodeNew(0)
 }
 
 // parse — JSON text → the root value. errOut is 0 on success, else a 30x code
@@ -859,5 +849,5 @@ public pointer parse(const string src, int errOut) {
     pointer v = pValue(src, ps)
     errOut = mem.readInt(ps, 8)
     mem.free(ps, 16)
-    out = v
+    return v
 }

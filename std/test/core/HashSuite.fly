@@ -6,13 +6,15 @@ import fly.assert
 
 // bytesUpTo — a string holding the byte values 0..n-1.
 string bytesUpTo(const int n) {
+    string res
     pointer p = mem.alloc(n)
     int i = 0
     while i < n {
         mem.writeByte(p, i, (byte)(i % 256))
         i = i + 1
     }
-    str.fromBytes(p, n, out)
+    res = str.fromBytes(p, n)
+    return res
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -115,8 +117,7 @@ suite HashSuite {
             mem.writeByte(buf, 3, 26)      // 0x1A — text-mode EOF
             mem.writeByte(buf, 4, 255)
             mem.writeByte(buf, 5, 122)
-            string payload = ""
-            str.fromBytes(buf, 6, payload)
+            string payload = str.fromBytes(buf, 6)
 
             fs.writeBytes(p, payload, 420)
             assert.assertStr(hash.sha256File(p), hash.sha256String(payload), 209)

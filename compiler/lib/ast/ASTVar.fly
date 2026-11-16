@@ -22,10 +22,10 @@ public class ASTVar : ASTNode {
         this.modifiers = modifiers
     }
 
-    public ASTType getType() { out = this.type }
-    public string getName() { out = this.name }
-    public List<ASTModifier> getModifiers() { out = this.modifiers }
-    public ASTVar asVar() { out = this }
-    public ASTExpr getExpr() { out = this.expr }
+    public ASTType getType() { return this.type }
+    public string getName() { return this.name }
+    public List<ASTModifier> getModifiers() { return this.modifiers }
+    public ASTVar asVar() { return this }
+    public ASTExpr getExpr() { return this.expr }
     public void setExpr(const ASTExpr expr) { this.expr = expr }
 }

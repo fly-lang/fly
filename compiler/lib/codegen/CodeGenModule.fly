@@ -107,7 +107,7 @@ public class CodeGenModule {
     }
 
     public void setCodeGenOpts(const CodeGenOptions o) { this.codeGenOpts = o }
-    public CodeGenOptions getCodeGenOpts() { out = this.codeGenOpts }
+    public CodeGenOptions getCodeGenOpts() { return this.codeGenOpts }
     // addLinkerOption — register a `-l` flag for the ToolChain link (deduplicated
     // by the ";flag;" segment check). No-op when no options sink is wired.
     public void addLinkerOption(const string flag) {
@@ -120,9 +120,9 @@ public class CodeGenModule {
         }
     }
 
-    public pointer getErrorTy() { out = this.errorTy }
-    public pointer getStringTy() { out = this.stringTy }
-    public pointer getArrayTy() { out = this.arrayTy }
+    public pointer getErrorTy() { return this.errorTy }
+    public pointer getStringTy() { return this.stringTy }
+    public pointer getArrayTy() { return this.arrayTy }
 
     // setWeakComdat — attach a COMDAT (selection Any, name = `name`) to a weak
     // (LinkOnceODR) definition. COFF has no weak definitions: lld-link dedups
@@ -162,11 +162,11 @@ public class CodeGenModule {
         this.cg.buildCallN(this.builder, this.freeFnTy, this.freeFn, args, "", cv)
     }
 
-    public CodeGenLLVM getCg() { out = this.cg }
-    public CodeGenType getTypes() { out = this.types }
-    public pointer getCtx() { out = this.ctx }
-    public pointer getModule() { out = this.module }
-    public pointer getBuilder() { out = this.builder }
+    public CodeGenLLVM getCg() { return this.cg }
+    public CodeGenType getTypes() { return this.types }
+    public pointer getCtx() { return this.ctx }
+    public pointer getModule() { return this.module }
+    public pointer getBuilder() { return this.builder }
 
     // generate — declarations first (class structs, free-function + method
     // signatures, vtables) so any reference resolves, then all bodies. Methods come
@@ -319,7 +319,7 @@ public class CodeGenModule {
             }
             i = i + 1
         }
-        out = result
+        return result
     }
 
     // getTestCtxPtr — the thread-local `__fly_test_ctx_ptr` gate that inline
@@ -332,7 +332,7 @@ public class CodeGenModule {
         LLVM llvm = this.cg.getLLVM()
         pointer existing
         llvm.getNamedGlobal(this.module, "__fly_test_ctx_ptr", existing)
-        if existing != 0 { out = existing  return }
+        if existing != 0 { return existing }
         pointer pty = this.types.ptrType()
         pointer g
         llvm.addGlobal(this.module, pty, "__fly_test_ctx_ptr", g)
@@ -342,7 +342,7 @@ public class CodeGenModule {
         llvm.setInitializer(g, nullP)
         llvm.setLinkage(g, 3)
         this.setWeakComdat(g, "__fly_test_ctx_ptr")
-        out = g
+        return g
     }
 
     // testCtxSentinel — the non-null `inttoptr(i64 1)` stored into the TLS gate
@@ -356,7 +356,7 @@ public class CodeGenModule {
         pointer pty = this.types.ptrType()
         pointer s
         llvm.constIntToPtr(one, pty, s)
-        out = s
+        return s
     }
 
     // ── fail-based suite reporting (reference EmitSuite + Suite.c) ────────────
@@ -370,7 +370,7 @@ public class CodeGenModule {
         LLVM llvm = this.cg.getLLVM()
         pointer existing
         llvm.getNamedGlobal(this.module, name, existing)
-        if existing != 0 { out = existing  return }
+        if existing != 0 { return existing }
         pointer i32
         llvm.int32TypeInContext(this.ctx, i32)
         pointer g
@@ -380,7 +380,7 @@ public class CodeGenModule {
         llvm.setInitializer(g, zero)
         llvm.setLinkage(g, 3)                    // LinkOnceODR
         this.setWeakComdat(g, name)
-        out = g
+        return g
     }
 
     // storeSuiteCounter — set the counter to a constant (reset to 0 per suite).
@@ -414,7 +414,7 @@ public class CodeGenModule {
         llvm.int32TypeInContext(this.ctx, i32)
         pointer v
         llvm.buildLoad2(this.builder, i32, g, "cload", v)
-        out = v
+        return v
     }
 
     // callVoidRt — declare (get-or-add) and call a void C-ABI runtime function by
@@ -436,7 +436,7 @@ public class CodeGenModule {
 
     // cstr — a private `[N x i8]` constant for a runtime helper's `const char*`.
     public pointer cstr(const string text) {
-        out = this.cg.globalString(this.module, this.ctx, text)
+        return this.cg.globalString(this.module, this.ctx, text)
     }
 
     // errField — address of field `idx` of an %error slot (0=code, 1=str, 2=obj).
@@ -444,7 +444,7 @@ public class CodeGenModule {
         LLVM llvm = this.cg.getLLVM()
         pointer p
         llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, idx, name, p)
-        out = p
+        return p
     }
 
     // zeroErrSlot — reset an %error slot to { 0, null, null }.
@@ -770,7 +770,7 @@ public class CodeGenModule {
     // isMethod — a body whose kind is METHOD (handled via its class, not as a free
     // function). Avoids a SemaFunctionBase → SemaClassMethod downcast.
     public bool isMethod(const SemaFunctionBase fn) {
-        out = fn.getKind() == SemaKind.METHOD
+        return fn.getKind() == SemaKind.METHOD
     }
 
     // hasTypeParamSignature — true for a generic TEMPLATE: some param or the
@@ -783,15 +783,15 @@ public class CodeGenModule {
             SemaParam p = ps.get(i)
             SemaType t = p.getType()
             if t != null {
-                if t.getKind() == SemaKind.TYPE_PARAM { out = true  return }
+                if t.getKind() == SemaKind.TYPE_PARAM { return true }
             }
             i = i + 1
         }
         SemaType rt = fn.getReturnType()
         if rt != null {
-            if rt.getKind() == SemaKind.TYPE_PARAM { out = true  return }
+            if rt.getKind() == SemaKind.TYPE_PARAM { return true }
         }
-        out = false
+        return false
     }
 
     // concreteClasses — the classes to codegen: a generic TEMPLATE (Wrapper<T>) emits
@@ -816,7 +816,7 @@ public class CodeGenModule {
             }
             i = i + 1
         }
-        out = result
+        return result
     }
 
     // findMain — the (first) top-level function named `main`.
@@ -824,10 +824,10 @@ public class CodeGenModule {
         int i = 0
         while i < bodies.size() {
             SemaFunctionBase fn = bodies.get(i)
-            if str.equals(fn.getName(), "main") { out = fn  return }
+            if str.equals(fn.getName(), "main") { return fn }
             i = i + 1
         }
-        out = null
+        return null
     }
 
     // emitMainWrapper — `i32 @main(i32 argc, ptr argv)` C entry: forwards
@@ -1045,20 +1045,21 @@ public class CodeGenModule {
             SemaParam pm = params.get(i)
             pointer arg
             llvm.getParam(f, i + 1, arg)
-            // A CONST CLASS/INTERFACE handle param is passed BY VALUE — `arg` IS the
-            // handle, not a pointer to it (reference ABI; see CodeGenCall). Bind it via a
-            // fresh local slot holding the handle (exactly how `this` is bound) so body
-            // loads read the handle, not *handle. STRUCTs (value aggregates) and every
-            // other param (non-pointer, or non-const by-reference) keep the incoming
-            // pointer as their storage — a load through it yields the value.
+            // A CONST CLASS/INTERFACE/STRUCT param is passed BY VALUE — `arg` IS the
+            // object pointer, not a pointer to it (reference ABI; see CodeGenCall). Bind
+            // it via a fresh local slot holding that pointer (exactly how `this` is bound)
+            // so body loads read the object, not *object. Every other param (non-pointer,
+            // or non-const by-reference) keeps the incoming pointer as its storage — a
+            // load through it yields the value. STRUCTs belong on the by-value side like
+            // the rest: the reference's CodeGenVar::getValue() returns the raw argument
+            // for ANY const struct-typed param, so excluding them here made a self-host
+            // callee read one indirection too deep from a seed-built caller.
             SemaType pty = pm.getType()
             bool byValueHandle = false
             if pm.isConstant() {
                 SemaClassType pcls = null
                 if pty != null { pcls = pty.asClass() }
-                if pcls != null {
-                    if pcls.getClassKind() != SemaClassKind.STRUCT { byValueHandle = true }
-                }
+                if pcls != null { byValueHandle = true }
             }
             if byValueHandle {
                 pointer pslot
@@ -1073,6 +1074,13 @@ public class CodeGenModule {
 
         CodeGenExpr cge = new CodeGenExpr(this)
         cge.bindOutSlot(params)
+        // NRVO needs the return slot itself: the argument carrying the caller's
+        // storage, so a local bound to it writes into the returned object.
+        int ri = 0
+        while ri < params.size() {
+            if params.get(ri).isSynthetic() { cge.setReturnSlotArg(params.get(ri).getLlvmAlloca()) }
+            ri = ri + 1
+        }
         pointer errParam
         llvm.getParam(f, 0, errParam)
         cge.setErrPtr(errParam)
@@ -1104,10 +1112,10 @@ public class CodeGenModule {
     // FFI extern). These need an unmangled C-ABI entry emitted alongside the mangled
     // impl (see emitRuntimeCABIWrapper); empty-body externs lower to `call @name`.
     public bool isRuntimeCABIDef(const SemaFunctionBase fn) {
-        if str.equals(fn.getNamespaceName(), "fly_runtime") == false { out = false  return }
+        if str.equals(fn.getNamespaceName(), "fly_runtime") == false { return false }
         SemaBlockStmt body = fn.getBody()
-        if body == null { out = false  return }
-        out = body.isEmpty() == false
+        if body == null { return false }
+        return body.isEmpty() == false
     }
 
     // emitRuntimeCABIWrapper — the self-host emits every function with the mangled,
@@ -1237,7 +1245,7 @@ public class CodeGenModule {
             r = c
             i = i + 1
         }
-        out = r
+        return r
     }
 
     // mangleMethod — like mangle but EXCLUDES the trailing synthetic out param:
@@ -1263,42 +1271,41 @@ public class CodeGenModule {
             r = c
             i = i + 1
         }
-        out = r
+        return r
     }
 
     // mangleType — parameter type code, 1:1 with the reference CodeGenHelper::Mangle
     // (each code carries its own leading '_'): builtins map by name; a class is
     // `_C<Name>`, an enum `_E<Name>`, an array `_A<elem>`.
     public string mangleType(const SemaType t) {
-        if t == null { out = ""  return }
+        if t == null { return "" }
         SemaKind k = t.getKind()
         if k == SemaKind.TYPE_ARRAY {
             SemaArrayType at = t.asArray()
-            out = str.concat("_A", this.mangleType(at.getElementType()))
-            return
+            return str.concat("_A", this.mangleType(at.getElementType()))
         }
-        if k == SemaKind.TYPE_ENUM  { out = str.concat("_E", t.getName())  return }
-        if k == SemaKind.TYPE_CLASS { out = str.concat("_C", t.getName())  return }
-        out = this.builtinCode(t.getName())
+        if k == SemaKind.TYPE_ENUM  { return str.concat("_E", t.getName()) }
+        if k == SemaKind.TYPE_CLASS { return str.concat("_C", t.getName()) }
+        return this.builtinCode(t.getName())
     }
 
     // builtinCode — the reference's MangleTypeMap (name → code, with leading '_').
     public string builtinCode(const string n) {
-        if str.equals(n, "bool")    { out = "_b"   return }
-        if str.equals(n, "byte")    { out = "_y"   return }
-        if str.equals(n, "short")   { out = "_s"   return }
-        if str.equals(n, "ushort")  { out = "_us"  return }
-        if str.equals(n, "int")     { out = "_i"   return }
-        if str.equals(n, "uint")    { out = "_ui"  return }
-        if str.equals(n, "long")    { out = "_l"   return }
-        if str.equals(n, "ulong")   { out = "_ul"  return }
-        if str.equals(n, "pointer") { out = "_pz"  return }
-        if str.equals(n, "float")   { out = "_f"   return }
-        if str.equals(n, "double")  { out = "_d"   return }
-        if str.equals(n, "void")    { out = "_v"   return }
-        if str.equals(n, "string")  { out = "_Ss"  return }
-        if str.equals(n, "error")   { out = "_e"   return }
-        out = ""
+        if str.equals(n, "bool")    { return "_b" }
+        if str.equals(n, "byte")    { return "_y" }
+        if str.equals(n, "short")   { return "_s" }
+        if str.equals(n, "ushort")  { return "_us" }
+        if str.equals(n, "int")     { return "_i" }
+        if str.equals(n, "uint")    { return "_ui" }
+        if str.equals(n, "long")    { return "_l" }
+        if str.equals(n, "ulong")   { return "_ul" }
+        if str.equals(n, "pointer") { return "_pz" }
+        if str.equals(n, "float")   { return "_f" }
+        if str.equals(n, "double")  { return "_d" }
+        if str.equals(n, "void")    { return "_v" }
+        if str.equals(n, "string")  { return "_Ss" }
+        if str.equals(n, "error")   { return "_e" }
+        return ""
     }
 
     // ifaceSlot — the module-global vtable slot of interface method `fn`:
@@ -1311,13 +1318,13 @@ public class CodeGenModule {
         // slot 0 of the region
         int idx = CodeGenClass.indexOfMethodSig(ims, fn)
         if idx < 0 { idx = 0 }
-        out = base + idx
+        return base + idx
     }
 
     // ifaceBase — the slot base for an interface name (0 = unknown).
     public int ifaceBase(const string name) {
-        if this.ifaceBases.has(name) { out = this.ifaceBases.get(name)  return }
-        out = 0
+        if this.ifaceBases.has(name) { return this.ifaceBases.get(name) }
+        return 0
     }
 
     // emitMalloc — `call ptr @malloc(i64 size)` with a RUNTIME size value
@@ -1340,7 +1347,7 @@ public class CodeGenModule {
         margs.add(sizeV)
         pointer r
         this.cg.buildCallN(this.builder, mty, mfn, margs, "hmal", r)
-        out = r
+        return r
     }
 
     // emitRCBufferAlloc — a REFERENCE-COUNTED heap block, `[i64 refcount | data]`,
@@ -1384,7 +1391,7 @@ public class CodeGenModule {
         gi.add(hdr)
         pointer data
         this.cg.buildGEP2N(this.builder, i8t, raw, gi, "rcbuf.data", data)
-        out = data
+        return data
     }
 
     // emitMemcmp — `call i32 @memcmp(ptr, ptr, i64 size)`; declares memcmp on first
@@ -1413,7 +1420,7 @@ public class CodeGenModule {
         margs.add(sizeV)
         pointer r
         this.cg.buildCallN(this.builder, mty, mfn, margs, "memcmp", r)
-        out = r
+        return r
     }
 
     // enumNamesTable — lazily create (or fetch) the per-enum constant global
@@ -1426,7 +1433,7 @@ public class CodeGenModule {
         string tname = str.concat("enum.names.", en.getName())
         pointer existing
         llvm.getNamedGlobal(this.module, tname, existing)
-        if existing != 0 { out = existing  return }
+        if existing != 0 { return existing }
 
         pointer i32len
         llvm.int32TypeInContext(this.ctx, i32len)
@@ -1477,7 +1484,7 @@ public class CodeGenModule {
         llvm.addGlobal(this.module, arrTy, tname, g2)
         llvm.setInitializer(g2, init)
         llvm.setGlobalConstant(g2, true)
-        out = g2
+        return g2
     }
 
     public void verify(bool ok) {
@@ -1493,7 +1500,7 @@ public class CodeGenModule {
     public string verifyMsg(bool ok) {
         LLVM llvm = this.cg.getLLVM()
         string m = llvm.verifyModuleMsg(this.module, ok)
-        out = m
+        return m
     }
 
     public void emitIR(const string filename) {
@@ -1506,7 +1513,7 @@ public class CodeGenModule {
         LLVM llvm = this.cg.getLLVM()
         bool ok = false
         llvm.printModuleToFileChecked(this.module, filename, ok)
-        out = ok
+        return ok
     }
 
     // emitBitcodeChecked — write the module as LLVM bitcode (.bc); false when the
@@ -1515,7 +1522,7 @@ public class CodeGenModule {
         LLVM llvm = this.cg.getLLVM()
         bool ok = false
         llvm.writeBitcodeToFileChecked(this.module, filename, ok)
-        out = ok
+        return ok
     }
 
     // configureTarget — stamp the LLVM module with the target triple + data layout

@@ -102,6 +102,26 @@ suite ExecLoopSuite {
             }
             assert.assertEqI(sum, 21, 331)
         }
+        case "continue in for-in moves to the next element": {
+            // continue used to jump to the test without the increment: the same
+            // element forever
+            int[] xs = {1, 2, 3, 4, 5}
+            int sum = 0
+            for x in xs {
+                if x % 2 == 0 { continue }
+                sum = sum + x
+            }
+            assert.assertEqI(sum, 9, 341)
+        }
+        case "break in for-in leaves the loop": {
+            int[] xs = {1, 2, 3, 4, 5}
+            int sum = 0
+            for x in xs {
+                if x == 4 { break }
+                sum = sum + x
+            }
+            assert.assertEqI(sum, 6, 351)
+        }
     }
 
     void forInListTest() {

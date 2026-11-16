@@ -52,7 +52,7 @@ int intField(const string body, const string key) {
         if n != 0 { v = json.asInt(n) }
     }
     json.freeValue(o)
-    out = v
+    return v
 }
 
 string strField(const string body, const string key) {
@@ -64,7 +64,7 @@ string strField(const string body, const string key) {
         if n != 0 { if json.isString(n) { v = json.asString(n) } }
     }
     json.freeValue(o)
-    out = v
+    return v
 }
 
 int intField2(const string body, const string outer, const string inner) {
@@ -79,7 +79,7 @@ int intField2(const string body, const string outer, const string inner) {
         }
     }
     json.freeValue(o)
-    out = v
+    return v
 }
 
 string strField2(const string body, const string outer, const string inner) {
@@ -94,7 +94,7 @@ string strField2(const string body, const string outer, const string inner) {
         }
     }
     json.freeValue(o)
-    out = v
+    return v
 }
 
 bool hasField(const string body, const string key) {
@@ -103,7 +103,7 @@ bool hasField(const string body, const string key) {
     bool h = false
     if e == 0 { h = json.has(o, key) }
     json.freeValue(o)
-    out = h
+    return h
 }
 
 bool isNullField(const string body, const string key) {
@@ -115,7 +115,7 @@ bool isNullField(const string body, const string key) {
         if f != 0 { n = json.isNull(f) }
     }
     json.freeValue(o)
-    out = n
+    return n
 }
 
 suite LspTransportSuite {
@@ -134,10 +134,10 @@ suite LspTransportSuite {
             byte b1 = 0
             byte b2 = 0
             byte b3 = 0
-            str.byteAt(f, n - 6, b0)
-            str.byteAt(f, n - 5, b1)
-            str.byteAt(f, n - 4, b2)
-            str.byteAt(f, n - 3, b3)
+            b0 = str.byteAt(f, n - 6)
+            b1 = str.byteAt(f, n - 5)
+            b2 = str.byteAt(f, n - 4)
+            b3 = str.byteAt(f, n - 3)
             int c0 = b0
             int c1 = b1
             int c2 = b2
@@ -152,8 +152,7 @@ suite LspTransportSuite {
             // desync every following message permanently.
             pointer bq = mem.alloc(1)
             mem.writeByte(bq, 0, 34)
-            string bqs = ""
-            str.fromBytes(bq, 1, bqs)
+            string bqs = str.fromBytes(bq, 1)
             string body = str.concat("{", str.concat(bqs, str.concat("k", bqs)))
             string f = lsp.frameFor(body)
             assert.assertTrue(str.contains(f,
@@ -222,8 +221,7 @@ suite LspTransportSuite {
             // makes this work without the transport knowing which it was.
             pointer qp = mem.alloc(1)
             mem.writeByte(qp, 0, 34)
-            string q = ""
-            str.fromBytes(qp, 1, q)
+            string q = str.fromBytes(qp, 1)
             string idJson = str.concat(q, str.concat("abc", q))
             string s = lsp.resultJson(idJson, json.newNull())
             assert.assertStr(strField(s, "id"), "abc", 402)

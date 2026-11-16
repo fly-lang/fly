@@ -40,6 +40,6 @@ public class TextDiagnosticPrinter : DiagnosticConsumer {
         elsif level == DiagLevel.Warning { this.warnings = this.warnings + 1 }
     }
 
-    public int errorCount()   { out = this.errors }
-    public int warningCount() { out = this.warnings }
+    public int errorCount()   { return this.errors }
+    public int warningCount() { return this.warnings }
 }

@@ -23,7 +23,7 @@ suite SemaContextSuite {
     // declaration initialized from the param.
     void resolveFunctionTest() {
         case "function signature + local decl resolve end-to-end": {
-            Parser p = new Parser("int f(const int a) { int x = a }")
+            Parser p = new Parser("int f(const int a) { int x = a  return x }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
 
@@ -55,11 +55,14 @@ suite SemaContextSuite {
             SemaType pat = pa.getType()
             assert.assertTrue(pat.isInteger(), 9)
 
-            // body: one decl statement `int x = a`
+            // body: the decl `int x = a`, then the two statements `return x`
+            // lowers to — the assignment into the hidden return slot, and the
+            // return itself. That lowering is the whole point: the emitted code is
+            // what the old explicit out-variable produced.
             SemaBlockStmt body = fn.getBody()
             assert.assertTrue(body != null, 10)
             List<SemaStmt> content = body.getContent()
-            assert.assertEqI(content.size(), 1, 11)
+            assert.assertEqI(content.size(), 3, 11)
         }
     }
 
@@ -69,7 +72,7 @@ suite SemaContextSuite {
     // "current" fields; resolveFunctionTest covers type resolution.)
     void resolveLocalDeclTest() {
         case "literal-initialized local resolves to a decl statement": {
-            Parser p = new Parser("int g() { int y = 5 }")
+            Parser p = new Parser("int g() { int y = 5  return y }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 20)
 
@@ -84,8 +87,9 @@ suite SemaContextSuite {
             List<SemaFunctionBase> bodies = reg.getBodies()
             SemaFunctionBase fn = bodies.get(0)
             SemaBlockStmt body = fn.getBody()
+            // decl + the slot assignment `return y` lowers to + the return
             List<SemaStmt> content = body.getContent()
-            assert.assertEqI(content.size(), 1, 21)
+            assert.assertEqI(content.size(), 3, 21)
 
             SemaStmt s = content.get(0)
             assert.assertTrue(s.getKind() == SemaKind.STMT_DECL, 22)
@@ -157,7 +161,7 @@ suite SemaContextSuite {
     // Class method: signature (return → synthetic out) + body resolve.
     void resolveMethodTest() {
         case "class method resolves signature + body": {
-            Parser p = new Parser("public class Box { public int get() { out = 5 } }")
+            Parser p = new Parser("public class Box { public int get() { return 5 } }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 50)
 
@@ -181,8 +185,9 @@ suite SemaContextSuite {
             assert.assertEqI(ps.size(), 1, 53)
             SemaBlockStmt body = gm.getBody()
             assert.assertTrue(body != null, 54)
+            // `return 5` lowers to the slot assignment plus the return
             List<SemaStmt> content = body.getContent()
-            assert.assertEqI(content.size(), 1, 55)
+            assert.assertEqI(content.size(), 2, 55)
         }
     }
 
@@ -190,7 +195,7 @@ suite SemaContextSuite {
     // base method it overrides.
     void resolveInheritanceTest() {
         case "subclass links base class + override": {
-            Parser p = new Parser("public class A { public int who() { out = 1 } }  public class B : A { public int who() { out = 2 } }")
+            Parser p = new Parser("public class A { public int who() { return 1 } }  public class B : A { public int who() { return 2 } }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 60)
 
@@ -247,7 +252,7 @@ suite SemaContextSuite {
     // on the caller (out-param return convention).
     void resolveFunctionCallTest() {
         case "function call resolves + synthesizes out-var": {
-            Parser p = new Parser("int dbl(const int n) { out = n + n }  int use() { int r = dbl(3) }")
+            Parser p = new Parser("int dbl(const int n) { return n + n }  int use() { int r = dbl(3)  return r }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 80)
 
@@ -272,10 +277,11 @@ suite SemaContextSuite {
         case "new + method call + member access resolve": {
             Parser p = new Parser("
                 public class Box { public int x
-                    public int get() { out = this.x }
+                    public int get() { return this.x }
                 }
                 int useBox() { Box b = new Box()
                     int v = b.get()
+                    return v
                 }
             ")
             ASTModule m = p.parseModule("t")
@@ -296,7 +302,8 @@ suite SemaContextSuite {
             List<SemaLocalVar> locals = useBox.getLocalVars()
             assert.assertEqI(locals.size(), 1, 92)
 
-            // the method body resolved this.x into a member access (1 statement)
+            // the method body resolved this.x into a member access, assigned into
+            // the return slot, then returned (2 statements)
             List<SemaClassType> classes = reg.getClasses()
             SemaClassType box = classes.get(0)
             SemaClassMethod get = box.LookupMethod("get")
@@ -304,7 +311,7 @@ suite SemaContextSuite {
             SemaBlockStmt gb = get.getBody()
             assert.assertTrue(gb != null, 94)
             List<SemaStmt> gc = gb.getContent()
-            assert.assertEqI(gc.size(), 1, 95)
+            assert.assertEqI(gc.size(), 2, 95)
         }
     }
 }

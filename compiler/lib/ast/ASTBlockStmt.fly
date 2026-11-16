@@ -15,7 +15,7 @@ public class ASTBlockStmt : ASTStmt {
         this.content = new List<ASTStmt>()
     }
 
-    public List<ASTStmt> getContent() { out = this.content }
+    public List<ASTStmt> getContent() { return this.content }
     public void addContent(const ASTStmt stmt) { this.content.add(stmt) }
 
     public void accept(const ASTVisitor v) { v.visit(this) }

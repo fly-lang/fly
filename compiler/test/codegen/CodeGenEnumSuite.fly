@@ -29,7 +29,7 @@ suite CodeGenEnumSuite {
                 public enum Color { RED, GREEN, BLUE }
                 int classify(const Color c) { int r = 11
                     if c == Color.GREEN { r = 22 } elsif c == Color.BLUE { r = 33 }
-                    out = r
+                    return r
                 }
                 void main() { Color c = Color.BLUE
                     fail classify(c)

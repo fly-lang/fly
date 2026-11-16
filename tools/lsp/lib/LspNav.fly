@@ -91,10 +91,10 @@ public class LspCallInfo {
 }
 
 // Walk modes.
-public int navModeFind()     { out = 1 }   // name at (targetLine, targetCol)
-public int navModeCollect()  { out = 2 }   // every use of wantName ("" = all)
-public int navModeCallAt()   { out = 3 }   // innermost call at/before the cursor
-public int navModeCalls()    { out = 4 }   // every call site with arg positions
+public int navModeFind()     { return 1 }   // name at (targetLine, targetCol)
+public int navModeCollect()  { return 2 }   // every use of wantName ("" = all)
+public int navModeCallAt()   { return 3 }   // innermost call at/before the cursor
+public int navModeCalls()    { return 4 }   // every call site with arg positions
 
 public class LspNavVisitor : ASTVisitor {
     public SourceManager sm
@@ -141,9 +141,9 @@ public class LspNavVisitor : ASTVisitor {
 
     // hit — does (targetLine, targetCol) fall inside [col, col+len) on `line`?
     bool hit(const int line, const int col, const int len) {
-        if line != this.targetLine { out = false  return }
-        if this.targetCol < col { out = false  return }
-        out = this.targetCol < col + len
+        if line != this.targetLine { return false }
+        if this.targetCol < col { return false }
+        return this.targetCol < col + len
     }
 
     // nameUse — the shared per-name-site work for every mode.
@@ -332,9 +332,8 @@ public class LspNavVisitor : ASTVisitor {
         int cur = 1
         int i = 0
         while cur < line {
-            if i >= n { out = fromCol  return }
-            byte b = 0
-            str.byteAt(src, i, b)
+            if i >= n { return fromCol }
+            byte b = str.byteAt(src, i)
             int c = b
             c = c & 255
             if c == 10 { cur = cur + 1 }
@@ -346,8 +345,7 @@ public class LspNavVisitor : ASTVisitor {
         bool go = true
         while go {
             if j >= n { go = false } else {
-                byte b2 = 0
-                str.byteAt(src, j, b2)
+                byte b2 = str.byteAt(src, j)
                 int c2 = b2
                 c2 = c2 & 255
                 if c2 == 10 { go = false } else { j = j + 1 }
@@ -363,29 +361,28 @@ public class LspNavVisitor : ASTVisitor {
         while from < tailLen {
             string rest = str.substring(tail, from, tailLen)
             int rel = str.indexOf(rest, name)
-            if rel < 0 { out = fromCol  return }
+            if rel < 0 { return fromCol }
             int at = from + rel
             bool leftOk = at == 0
             if leftOk == false { leftOk = this.isBoundary(tail, at - 1) }
             bool rightOk = at + nameLen >= tailLen
             if rightOk == false { rightOk = this.isBoundary(tail, at + nameLen) }
-            if leftOk { if rightOk { out = fromCol + at  return } }
+            if leftOk { if rightOk { return fromCol + at } }
             from = at + 1
         }
-        out = fromCol
+        return fromCol
     }
 
     // isBoundary — is the byte at i NOT an identifier character?
     bool isBoundary(const string s, const int i) {
-        byte b = 0
-        str.byteAt(s, i, b)
+        byte b = str.byteAt(s, i)
         int c = b
         c = c & 255
         bool ident = c >= 97 && c <= 122
         if ident == false { ident = c >= 65 && c <= 90 }
         if ident == false { ident = c >= 48 && c <= 57 }
         if ident == false { ident = c == 95 }
-        out = ident == false
+        return ident == false
     }
 
     // namedUseAt — nameUse with an explicit position (already decoded).
@@ -502,7 +499,16 @@ public class LspNavVisitor : ASTVisitor {
         if b != null { b.accept(this) }
     }
 
-    public void visit(const ASTReturnStmt node) { }      // return carries no value in Fly
+    // A returned value is ordinary expression territory — every name in it is
+    // navigable, so walk it exactly like an expression statement's.
+    public void visit(const ASTReturnStmt node) {
+        List<ASTExpr> values = node.getExprs()
+        int i = 0
+        while i < values.size() {
+            values.get(i).accept(this)
+            i = i + 1
+        }
+    }
     public void visit(const ASTBreakStmt node) { }
     public void visit(const ASTContinueStmt node) { }
     public void visit(const ASTDeleteStmt node) { }
