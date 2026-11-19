@@ -96,6 +96,7 @@ NEED_STATIC=0
 llvm_sha256() {
     case "$1/$2" in
         20.1.8/linux-x86_64) echo "ce7a10e2365a4343ae073133e33bdcc3d1ba0d4dc7904f0ec22365c0e6677231" ;;
+        20.1.8/macos-arm64)  echo "b01dbfc9c1163c07c86d04b88cbc2169575b5479ac3d9bfe68c0148950e697ec" ;;
         *)                   echo "" ;;
     esac
 }
