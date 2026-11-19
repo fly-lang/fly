@@ -47,7 +47,8 @@ jobs:
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
         run: |
           cmake .. -G Ninja -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_VERBOSE_MAKEFILE=ON
-          cmake --build . --config ${{env.BUILD_TYPE}}
+          # -k 0: report every compile error of a run, not just the first one.
+          cmake --build . --config ${{env.BUILD_TYPE}} -- -k 0
 
       - name: Test
         working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
