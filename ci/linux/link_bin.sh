@@ -68,7 +68,19 @@ fi
 LLVM_ARGS=()
 if [ "$WITH_LLVM" = "1" ]; then
     [ -f "$FORK_LLVM/lib/libLLVM.so" ] || { echo "error: $FORK_LLVM/lib/libLLVM.so not found." >&2; exit 1; }
-    LLVM_ARGS=(-lLLVM -rpath "${FLY_LINK_RPATH:-$(cd "$FORK_LLVM/lib" && pwd)}")
+    # Where the executable finds libLLVM at run time. In a bundle (what ships)
+    # it is the lib/ next to bin/, i.e. $ORIGIN/../lib — for EVERY executable,
+    # not only fly: fly-lsp used to get the absolute build/llvm/lib of the
+    # machine that built it, so the released fly-lsp found no libLLVM on any
+    # other machine (and the release was not path-independent).
+    if [ -n "${FLY_LINK_RPATH:-}" ]; then
+        RUNPATH="$FLY_LINK_RPATH"
+    elif [ "${FLY_BUNDLE_LLVM:-0}" = "1" ]; then
+        RUNPATH='$ORIGIN/../lib'
+    else
+        RUNPATH="$(cd "$FORK_LLVM/lib" && pwd)"
+    fi
+    LLVM_ARGS=(-lLLVM -rpath "$RUNPATH")
 fi
 
 "$LLD" -pie --hash-style=gnu --eh-frame-hdr -m elf_x86_64 \
