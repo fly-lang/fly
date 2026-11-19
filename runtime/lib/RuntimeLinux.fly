@@ -39,6 +39,7 @@ public void nanosleep(const pointer req, const pointer rem, int out) {}
 public void getcwd(const pointer buf, const ulong size, pointer out) {}
 public void chdir(const pointer path, int out) {}
 public void getenv(const pointer name, pointer out) {}
+public void dlsym(const pointer lib, const pointer name, pointer out) {}
 public void setenv(const pointer name, const pointer val, const int overwrite, int out) {}
 public void unsetenv(const pointer name, int out) {}
 public void uname(const pointer buf, int out) {}
@@ -572,8 +573,41 @@ public void env_args_fill(const pointer arr_base, const int count) {
     fly.runtime.free(cp)
 }
 
-// env_all_count / env_all_fill — from /proc/self/environ (KEY=VAL\0KEY=VAL\0…).
+// liveEnviron — libc's `environ` (char**, NULL-terminated): the LIVE environment,
+// which setenv/unsetenv update. /proc/self/environ is only the snapshot the
+// kernel took at exec, so listing from it missed every variable set since (the
+// C runtime this replaced read `environ`; OsEnvSuite 604 caught the difference).
+// Fly cannot name a data symbol, so the address comes from
+// dlsym(RTLD_DEFAULT = 0, "environ") — libc exports dlsym since glibc 2.34.
+// 0 when that fails (e.g. a static link); callers then fall back to /proc.
+private void liveEnviron(pointer out) {
+    pointer cp = 0
+    toCStr("environ", cp)
+    pointer addr = 0
+    fly.runtime.dlsym(0, cp, addr)
+    fly.runtime.free(cp)
+    pointer env = 0
+    if addr != 0 { fly.llvm.ptrReadLong(addr, 0, env) }
+    out = env
+}
+
+// env_all_count / env_all_fill — the live `environ` (see liveEnviron), or
+// /proc/self/environ (KEY=VAL\0KEY=VAL\0…) when it is unavailable.
 public void env_all_count(int out) {
+    pointer env = 0
+    liveEnviron(env)
+    if env != 0 {
+        int n = 0
+        pointer ent = 0
+        fly.llvm.ptrReadLong(env, 0, ent)
+        while ent != 0 {
+            n = n + 1
+            pointer off = n * 8
+            fly.llvm.ptrReadLong(env, off, ent)
+        }
+        out = n
+        return
+    }
     pointer cp = 0
     toCStr("/proc/self/environ", cp)
     pointer buf = 0
@@ -586,6 +620,33 @@ public void env_all_count(int out) {
 }
 
 public void env_all_fill(const pointer arr_base, const int count) {
+    pointer env = 0
+    liveEnviron(env)
+    if env != 0 {
+        int k = 0
+        bool more = true
+        while more {
+            if k >= count { more = false }
+            else {
+                pointer koff = k * 8
+                pointer ent = 0
+                fly.llvm.ptrReadLong(env, koff, ent)
+                if ent == 0 { more = false }
+                else {
+                    ulong ulen = 0
+                    fly.runtime.strlen(ent, ulen)
+                    pointer plen = ulen
+                    pointer dst = 0
+                    fly.runtime.malloc(plen + 1, dst)
+                    fly.llvm.memcpy(dst, ent, plen + 1)
+                    int ilen = (int)ulen
+                    fly.runtime.str_slot_set(arr_base, k, dst, ilen)
+                    k = k + 1
+                }
+            }
+        }
+        return
+    }
     pointer cp = 0
     toCStr("/proc/self/environ", cp)
     pointer buf = 0
