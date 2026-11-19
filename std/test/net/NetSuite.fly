@@ -4,6 +4,7 @@ import fly.mem
 import fly.os.env
 import fly.os.time
 import fly.os.time.Time
+import fly.os.time.Duration
 import fly.assert
 
 // elapsedMs — milliseconds between two monotonic readings.
@@ -347,12 +348,23 @@ suite NetSuite {
                     net.close(acc)
                 }
                 net.close(srv)
-                // The first send may still be accepted into the local buffer; the
-                // RST arrives before the second. Neither may kill us.
-                net.sendStr(cli, blob(256))
-                net.sendStr(cli, blob(256))
-                bool third = net.sendStr(cli, blob(256))
-                assert.assertFalse(third, 503)
+                // The first sends may still be accepted into the local buffer
+                // until the peer's RST is processed: on Linux before the third,
+                // on macOS a little later. So keep sending (10 ms apart, 2 s at
+                // most) until one fails. None may kill us.
+                bool failed = false
+                int tries = 0
+                Duration pause = new Duration()
+                pause.nsec = 10000000
+                while failed == false && tries < 200 {
+                    if net.sendStr(cli, blob(256)) == false {
+                        failed = true
+                    } else {
+                        time.sleep(pause)
+                    }
+                    tries = tries + 1
+                }
+                assert.assertTrue(failed, 503)
 
                 net.close(cli)
             }
