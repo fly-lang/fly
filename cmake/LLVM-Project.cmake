@@ -14,7 +14,7 @@ elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     # Apple Silicon only: the fork publishes no x86_64 macOS build of LLVM 20.
     set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v${FLY_LLVM_VERSION}-macos-aarch64/llvm-${FLY_LLVM_VERSION}-aarch64-apple-darwin.tar.gz")
     set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.tar.gz")
-    set(LLVM_HASH 0000000000000000000000000000000000000000000000000000000000000000)
+    set(LLVM_HASH b01dbfc9c1163c07c86d04b88cbc2169575b5479ac3d9bfe68c0148950e697ec)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v${FLY_LLVM_VERSION}-linux-x86_64/llvm-${FLY_LLVM_VERSION}-x86_64-linux-gnu.tar.gz")
     set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.tar.gz")
