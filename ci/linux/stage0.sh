@@ -140,13 +140,12 @@ if [ ! -f "$RT_BUILTINS" ]; then
     [ "$SOURCED" -eq 0 ] && exit 1 || return 1
 fi
 
-# Both ToolChains (self-host compiler/lib/driver/ToolChain.fly and the bootstrap's C++ one)
-# probe /usr/lib/llvm-20 for libclang_rt.builtins. On a host without an LLVM 20
-# install, point that path at the fork tree (this replaces the old apt install).
-if [ ! -e "/usr/lib/llvm-${LLVM_VERSION%%.*}" ]; then
-    echo "linking /usr/lib/llvm-${LLVM_VERSION%%.*} -> $FORK_LLVM (compiler-rt builtins for the ToolChain probes)"
-    sudo ln -sfn "$FORK_LLVM" "/usr/lib/llvm-${LLVM_VERSION%%.*}"
-fi
+# No system LLVM, and no `sudo`: the self-host ToolChain finds the compiler-rt
+# builtins next to its own binary (link_fly.sh copies them into
+# build/stage<N>/lib/clang/…, the layout the release ships) or in build/llvm.
+# This used to `sudo ln -s build/llvm /usr/lib/llvm-20` so the ToolChain's
+# system-path probe would hit — which also hid that a release without the
+# builtins could link nothing on a host without LLVM 20.
 
 # --- Download the bootstrap fly (stage 0) --------------------------------------
 # Reuse an existing seed only when it is EXACTLY the pinned version (local

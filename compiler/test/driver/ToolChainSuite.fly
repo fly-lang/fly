@@ -107,6 +107,12 @@ suite ToolChainSuite {
             string lst = tc.llvmLibDirCandidates("/opt/fly/bin")
             assert.assertStr(lst, "/opt/fly/bin/llvm/lib;/opt/fly/llvm/lib;/opt/llvm/lib", 60)
         }
+        case "builtinsCandidates: the bundle's lib/clang first, then build/llvm": {
+            ToolChain tc = tcFor("x86_64-unknown-linux-gnu")
+            string lst = tc.builtinsCandidates("/opt/fly/bin", "20", "x86_64-unknown-linux-gnu")
+            string want = "/opt/fly/lib/clang/20/lib/x86_64-unknown-linux-gnu/libclang_rt.builtins.a;/opt/llvm/lib/clang/20/lib/x86_64-unknown-linux-gnu/libclang_rt.builtins.a"
+            assert.assertStr(lst, want, 61)
+        }
     }
 
     void artifactExtTest() {
