@@ -196,6 +196,27 @@ struct Ptr4IntArgs : Args {
     int n
 }
 
+// LLVMBuildAtomicCmpXchg(B, Ptr, Cmp, New, SuccessOrdering, FailureOrdering, SingleThread)
+struct Ptr4Int3Args : Args {
+    pointer a
+    pointer b
+    pointer c
+    pointer d
+    int n
+    int m
+    int k
+}
+
+// LLVMBuildAtomicRMW(B, Op, Ptr, Val, Ordering, SingleThread)
+struct PtrIntPtr2Int2Args : Args {
+    pointer a
+    int op
+    pointer b
+    pointer c
+    int n
+    int m
+}
+
 struct StrArgs : Args {
     string s
 }
@@ -1361,6 +1382,41 @@ public class LLVM {
         a.s = name
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMBuildBitCast", a, v)
+    }
+
+    // ── Atomics (orderings: 2 monotonic, 4 acquire, 5 release, 7 seq_cst) ─────
+    public void setOrdering(const pointer inst, const int ordering) {
+        PtrIntArgs a = new PtrIntArgs()
+        a.a = inst
+        a.n = ordering
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMSetOrdering", a)
+    }
+
+    public void buildAtomicCmpXchg(const pointer b, const pointer ptr, const pointer cmp, const pointer newV, const int ordering, pointer v) {
+        Ptr4Int3Args a = new Ptr4Int3Args()
+        a.a = b
+        a.b = ptr
+        a.c = cmp
+        a.d = newV
+        a.n = ordering        // success
+        a.m = ordering        // failure
+        a.k = 0               // not single-thread
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildAtomicCmpXchg", a, v)
+    }
+
+    // op: 1 = add (LLVMAtomicRMWBinOpAdd)
+    public void buildAtomicRMW(const pointer b, const int op, const pointer ptr, const pointer val, const int ordering, pointer v) {
+        PtrIntPtr2Int2Args a = new PtrIntPtr2Int2Args()
+        a.a = b
+        a.op = op
+        a.b = ptr
+        a.c = val
+        a.n = ordering
+        a.m = 0               // not single-thread
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMBuildAtomicRMW", a, v)
     }
 
     public void buildExtractValue(const pointer b, const pointer agg, const int index, const string name, pointer v) {
