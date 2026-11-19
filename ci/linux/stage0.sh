@@ -61,6 +61,16 @@ BUILD_DIR="$ROOT/build"
 STAGE0_DIR="$BUILD_DIR/stage0"
 FLY_BIN="$STAGE0_DIR/bin/fly"
 
+# --- Host platform -------------------------------------------------------------
+# Linux x86_64 or macOS arm64 (platform.sh): which archives to fetch, how to hash
+# them, the shared-library suffix and the loader's search variable.
+. "$SCRIPT_DIR/platform.sh"
+if is_macos; then
+    LLVM_ASSET="v@V@-macos-aarch64/llvm-@V@-aarch64-apple-darwin.tar.gz"
+else
+    LLVM_ASSET="v@V@-linux-x86_64/llvm-@V@-x86_64-linux-gnu.tar.gz"
+fi
+
 # --- LLVM 20 (fly-lang/llvm-project fork, downloaded — NO package manager) ------
 # Everything comes from the project's OWN LLVM build (LLVM_BUILD_LLVM_DYLIB=ON +
 # LLVM_ENABLE_LIBXML2=OFF + compiler-rt): a libLLVM.so with no external deps, the
@@ -70,21 +80,28 @@ FLY_BIN="$STAGE0_DIR/bin/fly"
 # the lld static archives + LLVM/lld headers.
 LLVM_VERSION="${LLVM_VERSION:-20.1.8}"
 FORK_LLVM="$BUILD_DIR/llvm"
-RT_BUILTINS="$FORK_LLVM/lib/clang/${LLVM_VERSION%%.*}/lib/x86_64-unknown-linux-gnu/libclang_rt.builtins.a"
+# On macOS the builtins are the `osx` flavour and libSystem re-exports them, so
+# fly links none — but the archive must still carry them (a release asset that
+# lost compiler-rt is a broken asset).
+if [ "$HOST_PLATFORM" = "macos-arm64" ]; then
+    RT_BUILTINS="$FORK_LLVM/lib/clang/${LLVM_VERSION%%.*}/lib/darwin/libclang_rt.osx.a"
+else
+    RT_BUILTINS="$FORK_LLVM/lib/clang/${LLVM_VERSION%%.*}/lib/x86_64-unknown-linux-gnu/libclang_rt.builtins.a"
+fi
 NEED_STATIC=0
-[ "${FLY_BUNDLE_LLVM:-0}" = "1" ] && [ ! -f "$FORK_LLVM/lib/liblldELF.a" ] && NEED_STATIC=1
-# llvm_sha256 VERSION — the pinned SHA-256 of the fork LLVM Linux archive. Taken
-# from the release asset (GitHub records the same digest). When bumping
-# LLVM_VERSION, pin the new hash here AND in ci/windows/stage0.ps1.
+[ "${FLY_BUNDLE_LLVM:-0}" = "1" ] && [ ! -f "$FORK_LLVM/lib/liblldELF.a" ] && [ "$HOST_PLATFORM" = "linux-x86_64" ] && NEED_STATIC=1
+# llvm_sha256 VERSION PLATFORM — the pinned SHA-256 of the fork LLVM archive for
+# that platform. Taken from the release asset (GitHub records the same digest).
+# When bumping LLVM_VERSION, pin the new hashes here AND in ci/windows/stage0.ps1.
 llvm_sha256() {
-    case "$1" in
-        20.1.8) echo "ce7a10e2365a4343ae073133e33bdcc3d1ba0d4dc7904f0ec22365c0e6677231" ;;
-        *)      echo "" ;;
+    case "$1/$2" in
+        20.1.8/linux-x86_64) echo "ce7a10e2365a4343ae073133e33bdcc3d1ba0d4dc7904f0ec22365c0e6677231" ;;
+        *)                   echo "" ;;
     esac
 }
-LLVM_SHA256="${FLY_LLVM_SHA256:-$(llvm_sha256 "$LLVM_VERSION")}"
-if [ ! -f "$FORK_LLVM/lib/libLLVM.so" ] || [ ! -f "$RT_BUILTINS" ] || [ ! -x "$FORK_LLVM/bin/lldb" ] || [ "$NEED_STATIC" = "1" ]; then
-    url="https://github.com/fly-lang/llvm-project/releases/download/v${LLVM_VERSION}-linux-x86_64/llvm-${LLVM_VERSION}-x86_64-linux-gnu.tar.gz"
+LLVM_SHA256="${FLY_LLVM_SHA256:-$(llvm_sha256 "$LLVM_VERSION" "$HOST_PLATFORM")}"
+if [ ! -f "$FORK_LLVM/lib/libLLVM.$DYLIB_EXT" ] || [ ! -f "$RT_BUILTINS" ] || [ ! -x "$FORK_LLVM/bin/lldb" ] || [ "$NEED_STATIC" = "1" ]; then
+    url="https://github.com/fly-lang/llvm-project/releases/download/${LLVM_ASSET//@V@/$LLVM_VERSION}"
     mkdir -p "$BUILD_DIR"
     tarball="$BUILD_DIR/fork-llvm.tar.gz"
     # Atomic download (.part + mv, with retries): an interrupted curl must never
@@ -104,7 +121,7 @@ if [ ! -f "$FORK_LLVM/lib/libLLVM.so" ] || [ ! -f "$RT_BUILTINS" ] || [ ! -x "$F
         echo "       (or set FLY_LLVM_SHA256; FLY_LLVM_SHA256=none skips the check, for testing only)." >&2
         [ "$SOURCED" -eq 0 ] && exit 1 || return 1
     else
-        got="$(sha256sum "$tarball" | cut -d' ' -f1)"
+        got="$(sha256_of "$tarball")"
         if [ "$got" != "$LLVM_SHA256" ]; then
             rm -f "$tarball"
             echo "error: the LLVM $LLVM_VERSION archive does not match its pinned SHA-256 ($url)" >&2
@@ -124,13 +141,20 @@ if [ ! -f "$FORK_LLVM/lib/libLLVM.so" ] || [ ! -f "$RT_BUILTINS" ] || [ ! -x "$F
     paths="llvm/lib/libLLVM.so* llvm/bin/ld.lld llvm/bin/lld llvm/bin/llvm-config llvm/lib/clang"
     paths="$paths llvm/bin/lldb llvm/bin/lldb-server llvm/bin/lldb-dap llvm/bin/lldb-argdumper llvm/lib/liblldb.so*"
     [ "${FLY_BUNDLE_LLVM:-0}" = "1" ] && paths="$paths llvm/lib/liblld*.a llvm/include"
-    # shellcheck disable=SC2086
-    tar -xzf "$tarball" -C "$BUILD_DIR" --wildcards $paths   # → $BUILD_DIR/llvm/
+    if [ "$HOST_PLATFORM" = "macos-arm64" ]; then
+        # bsdtar has no --wildcards and the macOS lldb layout differs (no
+        # lldb-server: local processes go through debugserver), so take the
+        # whole archive.
+        tar -xzf "$tarball" -C "$BUILD_DIR"
+    else
+        # shellcheck disable=SC2086
+        tar -xzf "$tarball" -C "$BUILD_DIR" --wildcards $paths   # → $BUILD_DIR/llvm/
+    fi
     rm -f "$tarball"
 fi
 # The codegen bridge emits `-lLLVM-20` (see compiler/lib/codegen/LLVMApi.fly); the fork
-# ships the shared lib as `libLLVM.so`, so alias it to the `libLLVM-20.so` link name.
-[ -e "$FORK_LLVM/lib/libLLVM-20.so" ] || ln -sf libLLVM.so "$FORK_LLVM/lib/libLLVM-20.so"
+# ships the shared lib as `libLLVM.so` / `libLLVM.dylib`, so alias it to that link name.
+[ -e "$FORK_LLVM/lib/libLLVM-20.$DYLIB_EXT" ] || ln -sf "libLLVM.$DYLIB_EXT" "$FORK_LLVM/lib/libLLVM-20.$DYLIB_EXT"
 
 # compiler-rt builtins are a hard link-time requirement (GetCompilerRTBuiltinsPath
 # errors out without them) — fail loudly here rather than at the first test link.
@@ -169,15 +193,18 @@ fi
 # Taken from the published release asset (GitHub records the same digest):
 #   0.13.18  fly-0.13.18-linux-x86_64.tar.gz, released 2026-09-20 from the
 #            `bootstrap` branch at 32528a0bf (sources = release/0.13.X df0b20f0c)
+#   0.13.18  fly-0.13.18-macos-arm64.tar.gz: the same sources (release/0.13.X =
+#            the v0.13.18 tag + a CI-only commit) built on macos-latest and
+#            attached to the existing release by build-macos.yml
 seed_sha256() {
-    case "$1" in
-        0.13.18) echo "f328c4d081de52140e3e704c6f73d71792f21b34b7039be8dc4470b7fb1bbf50" ;;
-        *)       echo "" ;;
+    case "$1/$2" in
+        0.13.18/linux-x86_64) echo "f328c4d081de52140e3e704c6f73d71792f21b34b7039be8dc4470b7fb1bbf50" ;;
+        *)                    echo "" ;;
     esac
 }
 # FLY_SEED_SHA256 overrides the table: the hash of a candidate seed under test,
 # or `none` to skip verification (testing only — never set it in CI).
-SEED_SHA256="${FLY_SEED_SHA256:-$(seed_sha256 "$FLY_VERSION")}"
+SEED_SHA256="${FLY_SEED_SHA256:-$(seed_sha256 "$FLY_VERSION" "$HOST_PLATFORM")}"
 
 have=""
 if [ -x "$FLY_BIN" ]; then
@@ -192,7 +219,7 @@ if [ "$have" != "$FLY_VERSION" ]; then
         echo "       (FLY_SEED_SHA256=none skips the check — for testing a candidate seed only)." >&2
         [ "$SOURCED" -eq 0 ] && exit 1 || return 1
     fi
-    url="https://github.com/fly-lang/fly/releases/download/v${FLY_VERSION}/fly-${FLY_VERSION}-linux-x86_64.tar.gz"
+    url="https://github.com/fly-lang/fly/releases/download/v${FLY_VERSION}/fly-${FLY_VERSION}-${HOST_PLATFORM}.tar.gz"
     # Staged swap: an existing seed is replaced only AFTER the new one is in
     # hand. Deleting first would strand a machine whose pinned release is not
     # published yet — which is a real state during a seed re-cut.
@@ -202,7 +229,7 @@ if [ "$have" != "$FLY_VERSION" ]; then
         if [ "$SEED_SHA256" = "none" ]; then
             echo "warning: FLY_SEED_SHA256=none — the seed archive is NOT verified." >&2
         else
-            got="$(sha256sum "$BUILD_DIR/fly.tar.gz" | cut -d' ' -f1)"
+            got="$(sha256_of "$BUILD_DIR/fly.tar.gz")"
             if [ "$got" != "$SEED_SHA256" ]; then
                 rm -rf "$STAGE0_DIR.new" "$BUILD_DIR/fly.tar.gz"
                 echo "error: seed v$FLY_VERSION failed verification: the archive is not the pinned one." >&2
@@ -239,12 +266,12 @@ fi
 if [ -n "${GITHUB_ENV:-}" ]; then
     echo "$FORK_LLVM/bin"                              >> "$GITHUB_PATH"
     echo "LIBRARY_PATH=$FORK_LLVM/lib:${LIBRARY_PATH:-}"       >> "$GITHUB_ENV"
-    echo "LD_LIBRARY_PATH=$FORK_LLVM/lib:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
+    echo "$LOADER_PATH_VAR=$FORK_LLVM/lib:${!LOADER_PATH_VAR:-}" >> "$GITHUB_ENV"
 else
     export PATH="$FORK_LLVM/bin:$PATH"
     export LIBRARY_PATH="$FORK_LLVM/lib:${LIBRARY_PATH:-}"
-    export LD_LIBRARY_PATH="$FORK_LLVM/lib:${LD_LIBRARY_PATH:-}"
+    export "$LOADER_PATH_VAR=$FORK_LLVM/lib:${!LOADER_PATH_VAR:-}"
     echo "stage0 ready:"
     echo "  fly $FLY_VERSION  -> $FLY_BIN"
-    echo "  LLVM $LLVM_VERSION (fork) -> PATH += $FORK_LLVM/bin ; LIBRARY_PATH/LD_LIBRARY_PATH += $FORK_LLVM/lib"
+    echo "  LLVM $LLVM_VERSION (fork) -> PATH += $FORK_LLVM/bin ; LIBRARY_PATH/$LOADER_PATH_VAR += $FORK_LLVM/lib"
 fi

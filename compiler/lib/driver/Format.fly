@@ -1,0 +1,359 @@
+namespace fly.driver
+
+import fly.compiler.parser.Parser
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.data.List
+import fly.os.fs
+import fly.os.path
+import fly.os.io
+import fly.mem
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Format — `fly fmt`: lay Fly source out in the house style (the fly-code-style
+// skill). What it changes is the layout the parser can vouch for:
+//
+//   * every statement of a block starts on a line of its own, and the closing
+//     `}` stands alone — so one-line bodies (`{ return x }`, `if c { a  b }`)
+//     are expanded, each statement indented one level deeper than the line of
+//     the block's `{`;
+//   * a parameter list on a line longer than 120 columns is broken after a
+//     comma, continuation indented 8 more (one parameter per line when two
+//     lines are not enough);
+//   * no trailing whitespace, never two blank lines in a row, no blank lines at
+//     the end, exactly one final newline.
+//
+// Statement boundaries come from the PARSER, never from guessing: Fly needs no
+// separator between two statements, so `a()  b = 1` on one line is two
+// statements only the grammar can tell apart. A file that does not parse is left
+// untouched and reported. The line ending of the file (LF or CRLF) is kept.
+//
+// The rewrite is a pure layout change by construction — it only moves the
+// whitespace between statements — and that is checked where it matters: the
+// compiler built from reformatted sources must produce the same object, byte for
+// byte, as before (debug info off, since it records line numbers).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// cmdFmt — format every .fly file under the given paths (files or directories,
+// ";"-separated). With `check` nothing is written: the files that would change
+// are listed and the result is 1 if there is any. Returns 2 if a file does not
+// parse.
+public int cmdFmt(const string pathsSemi, const bool check) {
+    List<string> files = new List<string>()
+    int np = segCount(pathsSemi)
+    if np == 0 {
+        io.printErrLn("usage: fly fmt [--check] <file-or-directory>...")
+        return 2
+    }
+    int i = 0
+    while i < np {
+        collectFlyFiles(segAt(pathsSemi, i), files)
+        i = i + 1
+    }
+    int changed = 0
+    int broken = 0
+    int fi = 0
+    while fi < files.size() {
+        string f = files.get(fi)
+        string src = fs.readBytes(f)
+        Formatter fm = new Formatter()
+        string out = fm.format(src)
+        if fm.isOk() == false {
+            io.printErrLn(str.concat("fmt: does not parse, left as is: ", f))
+            broken = broken + 1
+        } elsif str.equals(out, src) == false {
+            changed = changed + 1
+            if check {
+                io.printLn(f)
+            } else {
+                fs.writeBytes(f, out, 420)
+            }
+        }
+        fi = fi + 1
+    }
+    if check == false {
+        io.printLn(str.concat(str.concat("fmt: ", str.convert(changed)), " file(s) reformatted"))
+    }
+    if broken > 0 {
+        return 2
+    }
+    if check && changed > 0 {
+        return 1
+    }
+    return 0
+}
+
+// collectFlyFiles — `p` itself when it is a .fly file, else every .fly file
+// below it (never a .fly.h: generated headers are not sources).
+public void collectFlyFiles(const string p, const List<string> out) {
+    if path.isDir(p) == false {
+        if str.endsWith(p, ".fly") {
+            out.add(p)
+        }
+        return
+    }
+    fly.os.fs.DirEntries de = fs.dirRead(p)
+    pointer items = de.items
+    if items == 0 {
+        return
+    }
+    long lenL = (long)de.len
+    int n = 0
+    fly.llvm.longToInt(lenL, n)
+    int i = 0
+    while i < n {
+        int off = i * 56
+        pointer namePtr = mem.readPtr(items, off)
+        int nameLen = mem.readInt(items, off + 8)
+        string entry = str.fromBytes(namePtr, nameLen)
+        collectFlyFiles(path.join(p, entry), out)
+        i = i + 1
+    }
+}
+
+
+// wrapParamList — the breaks for the parameters starts[from..to) (see wrapPass).
+public void wrapParamList(const string src, const List<int> starts, const int from, const int to,
+        const List<int> offs, const List<string> indents) {
+    if to - from < 2 {
+        return
+    }
+    int first = starts.get(from)
+    int ls = lineStartOf(src, first)
+    int le = lineEndOf(src, first)
+    if le - ls <= 120 {
+        return
+    }
+    if starts.get(to - 1) > le {
+        return
+    }
+    string indent = str.concat(lineIndent(src, first), "        ")
+    int ind = str.len(indent)
+    // greedy fill: a parameter goes to a new line when the current one would
+    // pass column 120 with it (its comma included; the last one carries the
+    // rest of the line, `) {` and all)
+    List<int> brk = new List<int>()
+    int lineBegin = ls
+    int colBase = 0
+    int k = from + 1
+    while k < to {
+        int endK = le
+        if k + 1 < to {
+            endK = starts.get(k + 1) - 1
+        }
+        if colBase + (endK - lineBegin) > 120 {
+            brk.add(starts.get(k))
+            lineBegin = starts.get(k)
+            colBase = ind
+        }
+        k = k + 1
+    }
+    if brk.size() == 0 {
+        return
+    }
+    if brk.size() > 1 {
+        // more than two lines: one parameter per line
+        int m = from + 1
+        while m < to {
+            offs.add(starts.get(m))
+            indents.add(indent)
+            m = m + 1
+        }
+        return
+    }
+    offs.add(brk.get(0))
+    indents.add(indent)
+}
+
+// lineStartOf / lineEndOf — the offsets where the line holding `off` begins and
+// where its line ending (or the text) begins.
+public int lineStartOf(const string src, const int off) {
+    int s = off
+    while s > 0 && (str.byteAt(src, s - 1) & 255) != 10 {
+        s = s - 1
+    }
+    return s
+}
+
+public int lineEndOf(const string src, const int off) {
+    int e = off
+    int n = str.len(src)
+    while e < n && (str.byteAt(src, e) & 255) != 10 {
+        e = e + 1
+    }
+    return e
+}
+
+// blockNeedsLayout — one of the block's statements (their first tokens are in
+// `starts`, owned per `owners`) or its closing `}` shares its line with
+// something before it. An empty block (`{}`: an extern body) is never touched.
+public bool blockNeedsLayout(const string src, const ASTBlockStmt b, const List<int> starts,
+        const List<ASTBlockStmt> owners) {
+    bool any = false
+    int i = 0
+    while i < starts.size() {
+        if owners.get(i) == b {
+            any = true
+            if isFirstOnLine(src, starts.get(i)) == false {
+                return true
+            }
+        }
+        i = i + 1
+    }
+    if any == false {
+        return false
+    }
+    return isFirstOnLine(src, b.getEndLoc().getOffset()) == false
+}
+
+// isNestedIn — `b` lies strictly inside another block of `list`.
+public bool isNestedIn(const ASTBlockStmt b, const List<ASTBlockStmt> list) {
+    int l = b.getLoc().getOffset()
+    int r = b.getEndLoc().getOffset()
+    int i = 0
+    while i < list.size() {
+        ASTBlockStmt o = list.get(i)
+        int ol = o.getLoc().getOffset()
+        int orr = o.getEndLoc().getOffset()
+        if ol < l && r < orr {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+// isFirstOnLine — only blanks between the start of the line and `off`.
+public bool isFirstOnLine(const string src, const int off) {
+    int i = off - 1
+    while i >= 0 {
+        int c = str.byteAt(src, i) & 255
+        if c == 10 {
+            return true
+        }
+        if c != 32 && c != 9 && c != 13 {
+            return false
+        }
+        i = i - 1
+    }
+    return true
+}
+
+// lineIndent — the leading blanks of the line holding `off`.
+public string lineIndent(const string src, const int off) {
+    int start = off
+    while start > 0 && (str.byteAt(src, start - 1) & 255) != 10 {
+        start = start - 1
+    }
+    int end = start
+    int n = str.len(src)
+    while end < n && isBlankAt(src, end, false) {
+        end = end + 1
+    }
+    return str.substring(src, start, end)
+}
+
+// lineEnding — CRLF when the file uses it, else LF. Fly string literals keep
+// escapes raw (a backslash and an n are two bytes), so both are built.
+public string lineEnding(const string src) {
+    string lf = nl()
+    int at = str.indexOf(src, lf)
+    if at > 0 && (str.byteAt(src, at - 1) & 255) == 13 {
+        return crlfStr()
+    }
+    return lf
+}
+
+// crlfStr — the two bytes CR LF.
+public string crlfStr() {
+    pointer buf = mem.alloc(2)
+    byte cr = 13
+    byte lf = 10
+    fly.llvm.strPoke(buf, 0, cr)
+    fly.llvm.strPoke(buf, 1, lf)
+    string s = ""
+    fly.llvm.strMake(buf, 2, s)
+    return s
+}
+
+// applyBreaks — insert `eol` + indent at every offset (any order in), each
+// replacing the blanks that precede it, so no line is left with trailing ones.
+public string applyBreaks(const string src, const List<int> offs, const List<string> indents, const string eol) {
+    // selection order, highest offset first: later edits never shift earlier ones
+    int n = (int)offs.size()
+    List<bool> done = new List<bool>()
+    int k = 0
+    while k < n {
+        done.add(false)
+        k = k + 1
+    }
+    string out = src
+    int step = 0
+    while step < n {
+        int best = 0 - 1
+        int bestOff = 0 - 1
+        int j = 0
+        while j < n {
+            if done.get(j) == false && offs.get(j) > bestOff {
+                best = j
+                bestOff = offs.get(j)
+            }
+            j = j + 1
+        }
+        done.set(best, true)
+        int ws = bestOff
+        while ws > 0 && isBlankAt(out, ws - 1, false) {
+            ws = ws - 1
+        }
+        string head = str.substring(out, 0, ws)
+        string tail = str.substring(out, bestOff, str.len(out))
+        out = str.concat(str.concat(head, str.concat(eol, indents.get(best))), tail)
+        step = step + 1
+    }
+    return out
+}
+
+// tidyLines — strip trailing blanks, keep at most one blank line in a row,
+// drop blank lines at the end, end with exactly one line ending.
+public string tidyLines(const string src) {
+    string eol = lineEnding(src)
+    string out = ""
+    int n = str.len(src)
+    int start = 0
+    int blanks = 0
+    bool any = false
+    while start < n {
+        int end = start
+        while end < n && (str.byteAt(src, end) & 255) != 10 {
+            end = end + 1
+        }
+        // the line without its terminator (and a CR before it) or trailing blanks
+        int e = end
+        while e > start && isBlankAt(src, e - 1, true) {
+            e = e - 1
+        }
+        string line = str.substring(src, start, e)
+        if str.isEmpty(line) {
+            blanks = blanks + 1
+        } else {
+            if any && blanks > 0 {
+                out = str.concat(out, eol)
+            }
+            out = str.concat(out, str.concat(line, eol))
+            blanks = 0
+            any = true
+        }
+        start = end + 1
+    }
+    return out
+}
+
+// isBlankAt — the byte at `i` is a space or a tab (or a CR, with `orCr`).
+public bool isBlankAt(const string s, const int i, const bool orCr) {
+    int c = str.byteAt(s, i) & 255
+    if c == 32 || c == 9 {
+        return true
+    }
+    return orCr && c == 13
+}

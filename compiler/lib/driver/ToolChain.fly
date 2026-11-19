@@ -84,6 +84,56 @@ public string archToCompilerRTSuffix(const Arch a) {
     return ""
 }
 
+// darwinArchName — the `-arch` value ld64 expects (Apple spells aarch64 "arm64").
+public string darwinArchName(const Arch a) {
+    if a == Arch.X86_64 {
+        return "x86_64"
+    }
+    return "arm64"
+}
+
+// darwinMinVersion — the minimum macOS version from the triple's OS component
+// ("macosx13.0.0" → "13.0.0"). A bare "darwin"/"macosx" carries none: 13.0,
+// the floor the release is built for.
+public string darwinMinVersion(const string os) {
+    int n = str.len(os)
+    int i = 0
+    while i < n {
+        int b = str.byteAt(os, i) & 255
+        if b >= 48 && b <= 57 {
+            break
+        }
+        i = i + 1
+    }
+    if i >= n || str.startsWith(os, "darwin") {
+        return "13.0"
+    }
+    return str.substring(os, i, n)
+}
+
+// darwinSdkPath — the macOS SDK root (holds libSystem's .tbd stubs): what
+// `xcrun --show-sdk-path` reports, else the Command Line Tools' default SDK.
+// "" when neither exists (no developer tools installed).
+public string darwinSdkPath() {
+    string xcrun = "/usr/bin/xcrun"
+    if fs.exists(xcrun) {
+        pointer h = proc.argsNew()
+        proc.argsAdd(h, "--show-sdk-path")
+        int rc = 0
+        string out = captureArgs(xcrun, h, rc)
+        proc.argsFree(h)
+        string p = str.trim(out)
+        if rc == 0 && str.isEmpty(p) == false && fs.exists(p) {
+            return p
+        }
+    }
+    string clt = "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"
+    if fs.exists(clt) {
+        return clt
+    }
+    return ""
+}
+
 public class ToolChain {
 
     DiagnosticsEngine diags
@@ -169,6 +219,34 @@ public class ToolChain {
         }
         int rc = proc.exec(p, h)
         return rc == 0
+    }
+
+    // runDsymutil — collect a Mach-O program's DWARF into <out>.dSYM: the
+    // dsymutil shipped next to fly, else the one on PATH. Failing only warns —
+    // the program itself is linked and runs.
+    public void runDsymutil(const string outFile) {
+        string p = ""
+        string exe = env.exePath()
+        if str.isEmpty(exe) == false {
+            string bundled = path.join(path.dirname(exe), "dsymutil")
+            if fs.exists(bundled) {
+                p = bundled
+            }
+        }
+        if str.isEmpty(p) {
+            p = this.resolveProg("dsymutil")
+        }
+        if str.isEmpty(p) {
+            io.printErrLn("warning: dsymutil not found: the program has no debug information")
+            return
+        }
+        pointer h = proc.argsNew()
+        proc.argsAdd(h, outFile)
+        int rc = proc.exec(p, h)
+        proc.argsFree(h)
+        if rc != 0 {
+            io.printErrLn("warning: dsymutil failed: the program has no debug information")
+        }
     }
 
     // ── BuildOutput — top-level dispatcher (cpp:72-108) ───────────────────────
@@ -412,8 +490,28 @@ public class ToolChain {
     }
 
     // ── LinkDarwin (cpp:749-791) ──────────────────────────────────────────────
+    //
+    // ld64.lld needs what Apple's `ld` gets from clang: the architecture, the
+    // platform with its minimum and SDK versions, and the SDK root where
+    // libSystem's .tbd stubs live. libSystem is the C library, libm, pthreads AND
+    // the compiler-rt builtins on macOS, so no libclang_rt is linked. On arm64
+    // every binary must carry a signature: ld64.lld adds an ad-hoc one itself.
     public bool LinkDarwin(const string inFilesSemi, const string outFile) {
         pointer h = proc.argsNew()
+        proc.argsAdd(h, "-arch")
+        proc.argsAdd(h, darwinArchName(this.t.getArch()))
+        string minOs = darwinMinVersion(this.t.getOSName())
+        proc.argsAdd(h, "-platform_version")
+        proc.argsAdd(h, "macos")
+        proc.argsAdd(h, minOs)
+        proc.argsAdd(h, minOs)
+        string sdk = darwinSdkPath()
+        if str.isEmpty(sdk) == false {
+            proc.argsAdd(h, "-syslibroot")
+            proc.argsAdd(h, sdk)
+        } else {
+            io.printErrLn("warning: no macOS SDK found (xcode-select --install); linking without -syslibroot")
+        }
         proc.argsAdd(h, "-e")
         proc.argsAdd(h, "_main")
         proc.argsAdd(h, "-o")
@@ -439,10 +537,17 @@ public class ToolChain {
         int nl = segCount(lo)
         int li = 0
         while li < nl { proc.argsAdd(h, segAt(lo, li))  li = li + 1 }
+        proc.argsAdd(h, "-lSystem")
 
         bool ok = false
         if this.t.isOSBinFormatMachO() {
             ok = this.runLinker("ld64.lld", "ld", h)
+            // Mach-O keeps no DWARF in the executable: it points at the objects,
+            // which the driver deletes. dsymutil gathers it into <out>.dSYM next
+            // to the program, where lldb looks for it.
+            if ok && this.codeGenOpts.getDebugSymbols() {
+                this.runDsymutil(outFile)
+            }
         } else {
             io.printErrLn(str.concat("error: unsupported object format for target ", this.t.getTriple()))
         }

@@ -45,10 +45,12 @@ public class CodeGenModule {
     pointer itableFnTy     // its function type
     CodeGenOptions codeGenOpts    // linker flags sink (CLang bridge); null in unit tests
     CodeGenDebug dbg              // DWARF line tables (--debug-symbols); null otherwise
+    bool machO                    // the target emits Mach-O (set by configureTarget)
     string name
 
     public CodeGenModule(const string name) {
         this.dbg = null
+        this.machO = false
         this.name = name
         this.itableFn = 0
         this.itableFnTy = 0
@@ -150,6 +152,11 @@ public class CodeGenModule {
     // bootstrap double-frees those); a collision-renamed `.N` duplicate thus
     // joins its base symbol's comdat group, which merges it all the same.
     public void setWeakComdat(const pointer gv, const string name) {
+        // Mach-O has no COMDAT at all (LLVM aborts on one): a weak definition
+        // is all it needs, and the linkage the caller set already is one.
+        if this.machO {
+            return
+        }
         LLVM llvm = this.cg.getLLVM()
         pointer c
         llvm.getOrInsertComdat(this.module, name, c)
@@ -1657,6 +1664,7 @@ public class CodeGenModule {
     public void configureTarget(const TargetInfo ti) {
         LLVM llvm = this.cg.getLLVM()
         llvm.setTarget(this.module, ti.getTripleStr())
+        this.machO = tripleParse(ti.getTripleStr()).isOSBinFormatMachO()
         llvm.setDataLayout(this.module, ti.getDataLayout())
         // Make pointer lowering follow this target's pointer width.
         this.types.setTargetInfo(ti)

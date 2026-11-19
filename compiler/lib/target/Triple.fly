@@ -73,8 +73,11 @@ public class Triple {
     public bool isKnown()        { return this.arch != Arch.UNKNOWN }
 
     // ── Query helpers consumed by the ToolChain port (1:1 with llvm::Triple) ──
+    // The OS component may carry a version (`arm64-apple-macosx13.0.0`,
+    // `arm64-apple-darwin24.1.0` — what LLVM reports as the host on a Mac), so
+    // Darwin is matched by prefix, as llvm::Triple does.
     public bool isOSDarwin() {
-        return str.equals(this.os, "darwin") || str.equals(this.os, "macosx") || str.equals(this.os, "ios")
+        return str.startsWith(this.os, "darwin") || str.startsWith(this.os, "macos") || str.startsWith(this.os, "ios")
     }
     public bool isWindowsMSVC() {
         return str.equals(this.os, "windows") && str.equals(this.env, "msvc")

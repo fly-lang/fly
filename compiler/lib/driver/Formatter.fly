@@ -1,0 +1,165 @@
+namespace fly.driver
+
+import fly.compiler.parser.Parser
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.data.List
+import fly.str
+import fly.os.io
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Formatter — the passes of `fly fmt` (see Format.fly), as methods: whether the
+// source parsed is the object's state, not an out-parameter, because the seed
+// still reads a function's last parameter as its return slot in some shapes and
+// would not compile a `string f(…, bool ok)` at stage 1.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class Formatter {
+
+    bool ok
+
+    public Formatter() {
+        this.ok = true
+    }
+
+    public bool isOk() {
+        return this.ok
+    }
+
+    // format — the formatted text of `src`; `ok` false (and `src` returned)
+    // when it does not parse. Layout passes repeat until nothing moves: a pass only
+    // touches the OUTERMOST blocks that need it, so a one-liner nested in another
+    // is laid out by the next pass, from the indentation the first one gave it.
+    public string format(const string src) {
+        this.ok = true
+        // The lexer never sees a CR (the frontend reads sources in text mode), so
+        // the layout works on LF text and a CRLF file gets its CRLFs back at the end.
+        string crlfEol = crlfStr()
+        string lfEol = nl()
+        bool crlf = str.equals(lineEnding(src), crlfEol)
+        string cur = str.replace(src, crlfEol, lfEol)
+        int pass = 0
+        while pass < 16 {
+            string next = this.layoutPass(cur)
+            if this.ok == false {
+                return src
+            }
+            if str.equals(next, cur) {
+                break
+            }
+            cur = next
+            pass = pass + 1
+        }
+        cur = this.wrapPass(cur)
+        if this.ok == false {
+            return src
+        }
+        string tidy = tidyLines(cur)
+        if crlf {
+            return str.replace(tidy, lfEol, crlfEol)
+        }
+        return tidy
+    }
+
+    // layoutPass — one pass of statement placement (see format).
+    public string layoutPass(const string src) {
+        Parser p = new Parser(src)
+        p.setRecordBlocks(true)
+        p.parseModule("<fmt>")
+        if p.isSuccess() == false {
+            // say why: line:col and message of each parse error
+            StoringDiagnosticConsumer sink = p.getSink()
+            int di = 0
+            while di < sink.count() {
+                string at = str.concat(sink.getLine(di), str.concat(":", sink.getCol(di)))
+                io.printErrLn(str.concat(str.concat("  ", at), str.concat(": ", sink.getText(di))))
+                di = di + 1
+            }
+            this.ok = false
+            return src
+        }
+        List<ASTBlockStmt> blocks = p.getBlocks()
+        List<int> starts = p.getStmtStarts()
+        List<ASTBlockStmt> owners = p.getStmtBlocks()
+
+        // the blocks that need a line break somewhere
+        List<ASTBlockStmt> todo = new List<ASTBlockStmt>()
+        int bi = 0
+        while bi < blocks.size() {
+            ASTBlockStmt b = blocks.get(bi)
+            if blockNeedsLayout(src, b, starts, owners) {
+                todo.add(b)
+            }
+            bi = bi + 1
+        }
+
+        // edits of the outermost ones only: (offset, indent) — a line break, then
+        // `indent`, replacing the blanks just before `offset`
+        List<int> offs = new List<int>()
+        List<string> indents = new List<string>()
+        int ti = 0
+        while ti < todo.size() {
+            ASTBlockStmt b = todo.get(ti)
+            if isNestedIn(b, todo) == false {
+                int lb = b.getLoc().getOffset()
+                string base = lineIndent(src, lb)
+                string inner = str.concat(base, "    ")
+                int ci = 0
+                while ci < starts.size() {
+                    if owners.get(ci) == b {
+                        int so = starts.get(ci)
+                        if isFirstOnLine(src, so) == false {
+                            offs.add(so)
+                            indents.add(inner)
+                        }
+                    }
+                    ci = ci + 1
+                }
+                int rb = b.getEndLoc().getOffset()
+                if isFirstOnLine(src, rb) == false {
+                    offs.add(rb)
+                    indents.add(base)
+                }
+            }
+            ti = ti + 1
+        }
+        if offs.size() == 0 {
+            return src
+        }
+        return applyBreaks(src, offs, indents, lineEnding(src))
+    }
+
+    // wrapPass — break the parameter list of every declaration whose line is longer
+    // than 120 columns: after a comma, continuation indented 8 more than the line;
+    // if two lines are not enough, one parameter per line. Lists already spread over
+    // several lines are left as they are, and so is anything that is not a parameter
+    // list (a long call or string stays: breaking those is a judgement call).
+    public string wrapPass(const string src) {
+        Parser p = new Parser(src)
+        p.setRecordBlocks(true)
+        p.parseModule("<fmt>")
+        if p.isSuccess() == false {
+            this.ok = false
+            return src
+        }
+        List<int> starts = p.getParamStarts()
+        List<int> groups = p.getParamGroups()
+        List<int> offs = new List<int>()
+        List<string> indents = new List<string>()
+        int n = (int)starts.size()
+        int i = 0
+        while i < n {
+            int g = groups.get(i)
+            int j = i
+            while j < n && groups.get(j) == g {
+                j = j + 1
+            }
+            wrapParamList(src, starts, i, j, offs, indents)
+            i = j
+        }
+        if offs.size() == 0 {
+            return src
+        }
+        return applyBreaks(src, offs, indents, nl())
+    }
+}

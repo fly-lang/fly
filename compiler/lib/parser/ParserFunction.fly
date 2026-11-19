@@ -41,8 +41,10 @@ public class ParserFunction {
     public static List<ASTParam> parseParams(const Parser p) {
         List<ASTParam> params = new List<ASTParam>()
         p.expectPunct("(")
+        int group = p.newParamGroup()
         bool go = p.curIsPunct(")") == false
         while go {
+            p.noteParam(group)
             List<ASTModifier> pmods = p.parseModifiers()
             SourceLocation loc = p.curLoc()
             ASTType ty = p.parseType()

@@ -71,6 +71,21 @@ public class Parser {
     List<Token> pending      // lookahead buffer: tokens probed past `nxt`, re-served by bump()
     List<ASTReturnStmt> bodyReturns   // every `return` in the body being parsed
     List<string> bodyLocals           // every local name declared in that body
+    // Every block parsed, in order, for `fly fmt` (which needs where each block
+    // and each of its statements starts). Off unless asked for: compiling never
+    // needs it.
+    bool recordBlocks
+    List<ASTBlockStmt> blocks
+    // Where each statement STARTS (its first token), with the block it belongs
+    // to: a statement node's own loc is not always its first token (a
+    // `return x` is located at `x`).
+    List<int> stmtStarts
+    List<ASTBlockStmt> stmtBlocks
+    // Where each parameter starts (its modifiers included), and which parameter
+    // list it belongs to (one group id per list), for wrapping long signatures.
+    List<int> paramStarts
+    List<int> paramGroups
+    int paramGroupId
     DiagnosticsEngine diags
     StoringDiagnosticConsumer sink
     ASTModule module
@@ -86,6 +101,13 @@ public class Parser {
         this.diags = new DiagnosticsEngine(opts, this.sink, this.sm)
         this.pending = new List<Token>()
         this.bodyReturns = new List<ASTReturnStmt>()
+        this.recordBlocks = false
+        this.blocks = new List<ASTBlockStmt>()
+        this.stmtStarts = new List<int>()
+        this.stmtBlocks = new List<ASTBlockStmt>()
+        this.paramStarts = new List<int>()
+        this.paramGroups = new List<int>()
+        this.paramGroupId = 0
         this.bodyLocals = new List<string>()
         this.cur = this.lx.next()
         this.nxt = this.lx.next()
@@ -426,6 +448,44 @@ public class Parser {
     // replacing the former ad-hoc hadError/errMsg.
     public bool isSuccess() { return this.diags.hasErrorOccurred() == false }
     public bool hadErr() { return this.diags.hasErrorOccurred() }
+
+    public void setRecordBlocks(const bool on) {
+        this.recordBlocks = on
+    }
+
+    public List<ASTBlockStmt> getBlocks() {
+        return this.blocks
+    }
+
+    public List<int> getStmtStarts() {
+        return this.stmtStarts
+    }
+
+    public List<ASTBlockStmt> getStmtBlocks() {
+        return this.stmtBlocks
+    }
+
+    // newParamGroup / noteParam — called by ParserFunction.parseParams; they
+    // record nothing unless blocks are being recorded.
+    public int newParamGroup() {
+        this.paramGroupId = this.paramGroupId + 1
+        return this.paramGroupId
+    }
+
+    public void noteParam(const int group) {
+        if this.recordBlocks {
+            this.paramStarts.add(this.curLoc().getOffset())
+            this.paramGroups.add(group)
+        }
+    }
+
+    public List<int> getParamStarts() {
+        return this.paramStarts
+    }
+
+    public List<int> getParamGroups() {
+        return this.paramGroups
+    }
     public DiagnosticsEngine getDiags() { return this.diags }
     public StoringDiagnosticConsumer getSink() { return this.sink }
     public ASTModule getModule() { return this.module }
@@ -793,10 +853,17 @@ public class Parser {
         // generic template as source.
         block.setEndLoc(this.curLoc())
         this.expectPunct("}")
+        if this.recordBlocks {
+            this.blocks.add(block)
+        }
         return block
     }
 
     public void parseStmt(const ASTBlockStmt block) {
+        if this.recordBlocks {
+            this.stmtStarts.add(this.curLoc().getOffset())
+            this.stmtBlocks.add(block)
+        }
         if this.curIsKw("return")   { this.parseReturn(block)   return }
         if this.curIsKw("if")       { this.parseIf(block)       return }
         if this.curIsKw("while")    { this.parseWhile(block)    return }

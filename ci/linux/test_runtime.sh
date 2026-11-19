@@ -9,11 +9,12 @@
 #
 # The runtime is platform-specific (fly.runtime.* links the HOST runtime), so this
 # runs ONLY the host suite: it SKIPS foreign-platform suites (RuntimeWindows* /
-# RuntimeMacos*) so RuntimeLinuxSuite is what runs on Linux.
+# RuntimeMacos* on Linux, RuntimeLinux* on macOS).
 # ─────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 # Scripts live in ci/linux/; operate from the project root (two levels up).
 cd "$(dirname "$0")/../.."
+. ci/linux/platform.sh
 
 # Scratch for per-test binaries/logs; under build/ but outside the stage dirs.
 OUT=build/test
@@ -50,10 +51,7 @@ if [ -d build/llvm/lib ]; then
         *":$PWD/build/llvm/lib:"*) ;;
         *) export LIBRARY_PATH="$PWD/build/llvm/lib:${LIBRARY_PATH:-}" ;;
     esac
-    case ":${LD_LIBRARY_PATH:-}:" in
-        *":$PWD/build/llvm/lib:"*) ;;
-        *) export LD_LIBRARY_PATH="$PWD/build/llvm/lib:${LD_LIBRARY_PATH:-}" ;;
-    esac
+    prepend_loader_path "$PWD/build/llvm/lib"
 fi
 case "$FLY" in
     /*) ;;                    # absolute — keep as given
@@ -101,7 +99,11 @@ found=0
 for t in $(find runtime/test -name '*Suite.fly' 2>/dev/null | sort); do
     name=$(basename "$t" .fly)
     # Skip foreign-platform suites (their osname/arch assertions target another OS).
-    case "$name" in *Windows*|*Macos*) continue ;; esac
+    if is_macos; then
+        case "$name" in *Windows*|*Linux*) continue ;; esac
+    else
+        case "$name" in *Windows*|*Macos*) continue ;; esac
+    fi
     found=$((found + 1))
     log="$OUT/_rt_$name.log"
     # One-shot: --suite compiles AND runs; fly's exit code is the run's code (or

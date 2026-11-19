@@ -381,6 +381,7 @@ public class Driver {
                 if str.equals(a, "add")    { firstIsPkg = true }
                 if str.equals(a, "remove") { firstIsPkg = true }
                 if str.equals(a, "why")    { firstIsPkg = true }
+                if str.equals(a, "fmt")    { firstIsPkg = true }
                 if firstIsPkg {
                     return this.runPackage(args)
                 }
@@ -491,10 +492,20 @@ public class Driver {
         // the gnu/UCRT env (the self-contained mingw toolchain fly ships), NOT the
         // host's -msvc triple; every other host defaults to Linux. Cross-compile
         // with an explicit --target.
+        // macOS: Apple Silicon or Intel per the host, with the minimum OS version
+        // in the triple (13.0, the same floor the release is built for) so every
+        // object agrees with the link's -platform_version.
         string effTriple = targetTriple
         if str.isEmpty(effTriple) {
-            if str.equals(env.osname(), "windows") {
+            string hostOs = env.osname()
+            if str.equals(hostOs, "windows") {
                 effTriple = "x86_64-w64-windows-gnu"
+            } elsif str.equals(hostOs, "macos") {
+                if str.equals(env.arch(), "x86_64") {
+                    effTriple = "x86_64-apple-macosx13.0.0"
+                } else {
+                    effTriple = "arm64-apple-macosx13.0.0"
+                }
             } else {
                 effTriple = "x86_64-unknown-linux-gnu"
             }
@@ -1200,7 +1211,7 @@ public class Driver {
         int res
         int n = (int)args.count
         if n < 2 {
-            io.printLn("usage: fly <version|init|build|run|test|clean|cache|add|remove|lock|why|...>")
+            io.printLn("usage: fly <version|init|build|run|test|clean|cache|add|remove|lock|why|fmt|...>")
             return 1
         }
         string cmd = this.argAt(args, 1)
@@ -1235,6 +1246,20 @@ public class Driver {
             string depName = ""
             if n >= 3 { depName = this.argAt(args, 2) }
             return fly.driver.cmdWhy(depName)
+        } elsif str.equals(cmd, "fmt") {
+            // `fly fmt [--check] <file-or-dir>...`: every argument that is not an
+            // option is a path.
+            string paths = ";"
+            int ai = 2
+            while ai < n {
+                string fa = this.argAt(args, ai)
+                if str.startsWith(fa, "--") == false {
+                    string pNew = str.concat(paths, str.concat(fa, ";"))
+                    paths = pNew
+                }
+                ai = ai + 1
+            }
+            return fly.driver.cmdFmt(paths, this.hasFlag(args, n, "--check"))
         } else {
             return fly.driver.cmdNotPorted(cmd)
         }

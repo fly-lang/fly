@@ -15,6 +15,7 @@
 # -----------------------------------------------------------------------------
 set -u
 cd "$(dirname "$0")/../.."
+. ci/linux/platform.sh
 
 STAGE="${STAGE:-2}"
 FLY="${FLY:-build/stage$STAGE/bin/fly}"
@@ -38,18 +39,27 @@ for probe in ci/leak_probes/*/; do
         failed=$((failed + 1)); continue
     fi
 
-    # VmHWM is the kernel's running maximum of the RSS: sampling it until the
-    # process is gone misses at most the last few ms.
-    "$exe" &
-    pid=$!
     peak=0
-    while kill -0 "$pid" 2>/dev/null; do
-        hwm="$(awk '/^VmHWM:/ { print $2 }' "/proc/$pid/status" 2>/dev/null)"
-        if [ -n "$hwm" ] && [ "$hwm" -gt "$peak" ]; then peak="$hwm"; fi
-        sleep 0.01
-    done
-    wait "$pid"
-    rc=$?
+    if is_macos; then
+        # No /proc on macOS: BSD time -l reports the peak RSS ("maximum resident
+        # set size") in bytes once the process exits.
+        /usr/bin/time -l "$exe" > /dev/null 2> "$dir/time.log"
+        rc=$?
+        bytes="$(awk '/maximum resident set size/ { print $1 }' "$dir/time.log")"
+        [ -n "$bytes" ] && peak=$((bytes / 1024))
+    else
+        # VmHWM is the kernel's running maximum of the RSS: sampling it until the
+        # process is gone misses at most the last few ms.
+        "$exe" &
+        pid=$!
+        while kill -0 "$pid" 2>/dev/null; do
+            hwm="$(awk '/^VmHWM:/ { print $2 }' "/proc/$pid/status" 2>/dev/null)"
+            if [ -n "$hwm" ] && [ "$hwm" -gt "$peak" ]; then peak="$hwm"; fi
+            sleep 0.01
+        done
+        wait "$pid"
+        rc=$?
+    fi
     mb="$(awk -v k="$peak" 'BEGIN { printf "%.1f", k / 1024 }')"
     if [ "$rc" -ne 0 ]; then
         echo "  FAIL  $name (exit $rc, peak $mb MB)"; failed=$((failed + 1))

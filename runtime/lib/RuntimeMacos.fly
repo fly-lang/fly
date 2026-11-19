@@ -22,7 +22,16 @@ public void free(const pointer ptr) {}
 public void realloc(const pointer ptr, const ulong size, pointer out) {}
 public void write(const int fd, const pointer buf, const ulong count, long out) {}
 public void read(const int fd, const pointer buf, const ulong count, long out) {}
-public void open(const pointer path, const int flags, const int mode, int out) {}
+// open and fcntl are VARIADIC in C, and on Apple arm64 a variadic argument is
+// read from the stack, never from a register. Fly cannot declare a variadic
+// extern, so the variadic value is passed TWICE: as the 3rd argument (where a
+// register convention -- x86-64 -- reads it) and, after five fillers, as the 9th:
+// x0-x7 hold the first eight, so the 9th is the first stack slot, [sp], where
+// va_arg looks. It is a `long` so the whole 8-byte slot is written. Without it a
+// file created by open(O_CREAT) got whatever mode was on the stack, and
+// F_SETFL set garbage flags.
+public void open(const pointer path, const int flags, const int mode, const long f3, const long f4, const long f5,
+        const long f6, const long f7, const long modeVa, int out) {}
 public void close(const int fd, int out) {}
 public void lseek(const int fd, const long offset, const int whence, long out) {}
 public void mkdir(const pointer path, const int mode, int out) {}
@@ -37,6 +46,9 @@ public void readlink(const pointer path, const pointer buf, const ulong size, lo
 public void stat(const pointer path, const pointer buf, int out) {}
 public void lstat(const pointer path, const pointer buf, int out) {}
 public void getdirentries64(const int fd, const pointer buf, const ulong size, const pointer basep, long out) {}
+public void opendir(const pointer path, pointer out) {}
+public void readdir(const pointer dir, pointer out) {}
+public void closedir(const pointer dir, int out) {}
 public void clock_gettime(const int clk, const pointer ts, int out) {}
 public void nanosleep(const pointer req, const pointer rem, int out) {}
 public void getcwd(const pointer buf, const ulong size, pointer out) {}
@@ -78,7 +90,8 @@ public void getsockname(const int s, const pointer addr, const pointer len, int 
 public void getpeername(const int s, const pointer addr, const pointer len, int out) {}
 public void gethostbyname(const pointer name, pointer out) {}
 public void gethostbyaddr(const pointer addr, const int len, const int type, pointer out) {}
-public void fcntl(const int fd, const int cmd, const int arg, int out) {}
+public void fcntl(const int fd, const int cmd, const int arg, const long f3, const long f4, const long f5,
+        const long f6, const long f7, const long argVa, int out) {}
 public void poll(const pointer fds, const int nfds, const int timeout, int out) {}
 // atomics (libSystem/compiler-rt)
 public void __atomic_load_4(const pointer ptr, const int memorder, int out) {}
@@ -128,7 +141,8 @@ public void proc_exit(const int code) {
 
 // ── Filesystem — thin libSystem wrappers ─────────────────────────────────────
 public void fs_open(const pointer path, const int flags, const int mode, int out) {
-    fly.runtime.open(path, flags, mode, out)
+    long m = mode
+    fly.runtime.open(path, flags, mode, 0, 0, 0, 0, 0, m, out)
 }
 public void fs_close(const int fd) {
     int r = 0
@@ -185,6 +199,97 @@ public void fs_getdents(const int fd, const pointer buf, const ulong size, int o
     fly.runtime.getdirentries64(fd, buf, size, basep, r)
     fly.runtime.free(basep)
     fly.llvm.longToInt(r, out)
+}
+
+// ── Directory enumeration (dir_open/dir_read/dir_close) ────────────────────────
+// std/lib/os/fs.fly reads linux_dirent64 records — d_reclen u16 @16, d_type @18,
+// d_name @19 NUL-terminated, records 8-aligned — so dir_read hands back exactly
+// that shape here too. macOS enumerates through opendir/readdir (its public API;
+// getdirentries64 is not one) and its struct dirent differs: d_ino @0, d_reclen
+// @16, d_namlen u16 @18, d_type @20, d_name @21. Each entry is re-encoded.
+//
+// Context (16 bytes): the DIR* @0, and @8 an entry readdir returned that did not
+// fit the caller's buffer — still valid, since it is only overwritten by the next
+// readdir on the same DIR — handed out first on the following call.
+public void dir_open(const pointer path, pointer out) {
+    pointer d = 0
+    fly.runtime.opendir(path, d)
+    if d == 0 {
+        out = 0
+        return
+    }
+    pointer ctx = 0
+    fly.runtime.mem_alloc(16, ctx)
+    fly.llvm.ptrPokeLong(ctx, 0, d)
+    fly.llvm.ptrPokeLong(ctx, 8, 0)
+    out = ctx
+}
+
+public void dir_read(const pointer ctx, const pointer buf, const ulong size, int out) {
+    long dl = 0
+    fly.llvm.ptrReadLong(ctx, 0, dl)
+    pointer d = 0
+    d = dl
+    long pl = 0
+    fly.llvm.ptrReadLong(ctx, 8, pl)
+    pointer ent = 0
+    ent = pl
+    int cap = 0
+    fly.llvm.longToInt((long)size, cap)
+    int pos = 0
+    bool more = true
+    while more {
+        if ent == 0 {
+            fly.runtime.readdir(d, ent)
+        }
+        if ent == 0 {
+            more = false
+        } else {
+            byte lo = 0
+            byte hi = 0
+            fly.llvm.ptrByteAt(ent, 18, lo)
+            fly.llvm.ptrByteAt(ent, 19, hi)
+            int namlen = (lo & 255) + (hi & 255) * 256
+            int reclen = ((19 + namlen + 1 + 7) / 8) * 8
+            if pos + reclen > cap {
+                // keep it for the next call
+                more = false
+            } else {
+                long ino = 0
+                fly.llvm.ptrReadLong(ent, 0, ino)
+                fly.llvm.ptrPokeLong(buf, pos, ino)
+                fly.llvm.ptrPokeLong(buf, pos + 8, 0)
+                // d_reclen as the low 16 bits of an int at @16; @18 and @19 are
+                // written right after, so its upper bytes do not survive
+                fly.llvm.ptrPokeInt(buf, pos + 16, reclen)
+                byte dtype = 0
+                fly.llvm.ptrByteAt(ent, 20, dtype)
+                fly.llvm.strPoke(buf, pos + 18, dtype)
+                int i = 0
+                while i < namlen {
+                    byte nb = 0
+                    fly.llvm.ptrByteAt(ent, 21 + i, nb)
+                    fly.llvm.strPoke(buf, pos + 19 + i, nb)
+                    i = i + 1
+                }
+                fly.llvm.strPoke(buf, pos + 19 + namlen, 0)
+                pos = pos + reclen
+                ent = 0
+            }
+        }
+    }
+    fly.llvm.ptrPokeLong(ctx, 8, ent)
+    out = pos
+}
+
+public void dir_close(const pointer ctx) {
+    long dl = 0
+    fly.llvm.ptrReadLong(ctx, 0, dl)
+    pointer d = 0
+    d = dl
+    int rc = 0
+    fly.runtime.closedir(d, rc)
+    fly.runtime.mem_free(ctx, 16)
 }
 
 // stat helpers — macOS struct stat: st_mode @ 4 (u16), st_size @ 96 (i64). Buffer 160 B.
@@ -545,7 +650,7 @@ public void proc_exec_redirect(const pointer path, const pointer argv, const poi
     if pid < 0 { out = 0 - 1  return }
     if pid == 0 {
         int fd = 0
-        fly.runtime.open(outPath, 1537, 420, fd)
+        fly.runtime.open(outPath, 1537, 420, 0, 0, 0, 0, 0, 420, fd)
         if fd < 0 { fly.runtime._exit(127) }
         int d = 0
         fly.runtime.dup2(fd, 1, d)
@@ -797,7 +902,7 @@ public void net_set_nonblocking(const long s, const int on, int out) {
     int fd = 0
     fly.llvm.longToInt(s, fd)
     int flags = 0
-    fly.runtime.fcntl(fd, 3, 0, flags)              // F_GETFL
+    fly.runtime.fcntl(fd, 3, 0, 0, 0, 0, 0, 0, 0, flags)            // F_GETFL
     if flags < 0 { out = 0 - 1  return }
     // Subtraction, and a named temp for the test — see RuntimeLinux.fly.
     int want = flags
@@ -808,7 +913,8 @@ public void net_set_nonblocking(const long s, const int on, int out) {
         want = flags - 4
     }
     int rc = 0
-    fly.runtime.fcntl(fd, 4, want, rc)              // F_SETFL
+    long wantVa = want
+    fly.runtime.fcntl(fd, 4, want, 0, 0, 0, 0, 0, wantVa, rc)       // F_SETFL
     if rc < 0 { out = 0 - 1 } else { out = 0 }
 }
 
