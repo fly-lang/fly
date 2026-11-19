@@ -72,11 +72,10 @@ if [ "$STAGE" = "1" ] && is_macos; then
     # seed lowers `__atomic_*_4` to calls no Linux library defines; libSystem
     # exports them. So the stage-1 archive is the Fly member alone, as at stage 2
     # (and no `objcopy --weaken`, which Mach-O objects do not support reliably).
+    # The seed's archive is taken whole: member by member, `ar t` also lists the
+    # Darwin symbol table `__.SYMDEF`, which `ar x` extracts unreadable (mode 0).
     "$FLY" --lib $DBG -o "$T/fly_runtime_lib" --src-dir "$T"
-    for m in $("$AR" t "$T/fly_runtime_lib.a"); do
-        (cd "$T" && "$AR" x fly_runtime_lib.a "$m")
-        "$AR" rc "$LIB/fly_runtime_lib.a" "$T/$m"
-    done
+    cp -f "$T/fly_runtime_lib.a" "$LIB/fly_runtime_lib.a"
 elif [ "$STAGE" = "1" ]; then
     # stage0 reference: --lib emits the archive itself; merge its member(s) in,
     # WEAKENED so the kept C objects' strong definitions win (no duplicate-symbol
