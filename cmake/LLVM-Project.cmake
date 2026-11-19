@@ -1,7 +1,10 @@
 include(FetchContent)
 
 # Configure LLVM precompiled parameters
-set(LLVM_RELEASES_PREFIX_URL https://github.com/fly-lang/llvm-project/releases/download)
+# Prebuilt packages: fly-lang/llvm (built from the fork fly-lang/llvm-project, which
+# GitHub gives no macOS runners; the Linux and Windows packages were copied there
+# byte for byte, so their hashes below are unchanged).
+set(LLVM_RELEASES_PREFIX_URL https://github.com/fly-lang/llvm/releases/download)
 
 if (MSVC)
     set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v${FLY_LLVM_VERSION}-win-x64/llvm-${FLY_LLVM_VERSION}-win-x64.zip")

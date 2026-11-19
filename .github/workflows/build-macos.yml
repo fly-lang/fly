@@ -2,13 +2,8 @@ name: Build macOS
 
 # The C++ seed on Apple Silicon (macos-latest is arm64). Same artifact shape as
 # build-linux.yml: `fly`, the C runtime archive and the two bridge headers.
-#
-# Adding a platform to an EXISTING seed release must not rebuild the others: the
-# Linux and Windows archives of a seed are pinned by SHA-256 in the self-host's
-# stage0 scripts, and a rebuild changes their bytes (that is why release.yml only
-# runs on `bootstrap`). So this workflow can attach its own archive to a release
-# that already exists — `attach_to` = the tag (e.g. v0.13.18) — and touches
-# nothing else in it.
+# release.yml calls it next to Linux and Windows, so a seed release carries all
+# three platforms (macOS from 0.13.19).
 
 on:
   workflow_call:
@@ -21,11 +16,6 @@ on:
     branches:
       - release/*
   workflow_dispatch:
-    inputs:
-      attach_to:
-        description: 'Existing seed release tag to attach the macOS archive to (empty = build and test only)'
-        required: false
-        default: ''
 
 env:
   BUILD_TYPE: Release
@@ -36,8 +26,6 @@ jobs:
 
   build-macos:
     runs-on: macos-latest
-    permissions:
-      contents: write          # `gh release upload` in "Attach to release"
     outputs:
       build_info: ${{ steps.info.outputs.build_info }}
 
@@ -107,19 +95,3 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-      # Attach to an existing release ONLY — the version must match the tag, so
-      # the archive is the seed that tag names.
-      - name: Attach to release
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.attach_to != '' }}
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          VERSION=$(grep -m1 'set(FLY_VERSION' CMakeLists.txt | sed 's/[^"]*"\([^"]*\)".*/\1/')
-          [ "v$VERSION" = "${{ inputs.attach_to }}" ] || { echo "error: tree is $VERSION, tag is ${{ inputs.attach_to }}"; exit 1; }
-          gh release view "${{ inputs.attach_to }}" > /dev/null || { echo "error: no release ${{ inputs.attach_to }}"; exit 1; }
-          ARCHIVE="fly-$VERSION-macos-arm64.tar.gz"
-          chmod +x dist/bin/*
-          tar -czf "$ARCHIVE" -C dist bin/ lib/
-          shasum -a 256 "$ARCHIVE"
-          gh release upload "${{ inputs.attach_to }}" "$ARCHIVE" --clobber

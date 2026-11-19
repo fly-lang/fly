@@ -8,6 +8,7 @@ on:
 env:
   WIN_FILE: win-x64.zip
   LINUX_FILE: linux-x86_64.tar.gz
+  MACOS_FILE: macos-arm64.tar.gz
 
 jobs:
 
@@ -17,8 +18,11 @@ jobs:
   build-windows:
     uses: ./.github/workflows/build-windows.yml
 
+  build-macos:
+    uses: ./.github/workflows/build-macos.yml
+
   release:
-    needs: [build-linux, build-windows]
+    needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
 
     steps:
@@ -55,6 +59,12 @@ jobs:
           name: windows-artifact-${{ steps.artifact.outputs.suffix }}
           path: ./windows
 
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-artifact-${{ steps.artifact.outputs.suffix }}
+          path: ./macos
+
       - name: Package Linux
         run: |
           chmod +x linux/bin/*
@@ -63,12 +73,17 @@ jobs:
         run: |
           cd windows
           zip -r ../fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }} *
+      - name: Package macOS
+        run: |
+          chmod +x macos/bin/*
+          tar -czvf fly-${{ steps.version.outputs.version }}-${{ env.MACOS_FILE }} -C macos bin/ lib/
 
       - name: Verify artifacts
         run: |
           ls -la fly-*
           [ -f "fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }}" ] || exit 1
           [ -f "fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }}" ] || exit 1
+          [ -f "fly-${{ steps.version.outputs.version }}-${{ env.MACOS_FILE }}" ] || exit 1
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -86,6 +101,7 @@ jobs:
           files: |
             fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }}
             fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }}
+            fly-${{ steps.version.outputs.version }}-${{ env.MACOS_FILE }}
           body: |
             Fly ${{ steps.version.outputs.version }} — bootstrap seed
 
@@ -97,5 +113,6 @@ jobs:
             Built and tested on:
             - Linux: ${{ needs.build-linux.outputs.build_info }}
             - Windows: ${{ needs.build-windows.outputs.build_info }}
+            - macOS: ${{ needs.build-macos.outputs.build_info }}
         env:
           GITHUB_TOKEN: ${{ github.token }}
