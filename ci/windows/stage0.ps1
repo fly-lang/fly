@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # stage0.ps1 - set up stage 0 of the staged bootstrap on Windows:
 #
-#   * the fork LLVM pieces (fly-lang/llvm-project release) -> build\llvm
+#   * the fork LLVM pieces (fly-lang/llvm release, built from fly-lang/llvm-project) -> build\llvm
 #     LLVM-C.lib (link import lib) + LLVM-C.dll (runtime) + lld-link.exe (the
 #     COFF linker the release bundles). No package manager; the MSVC toolchain
 #     + Windows SDK come from ilammy/msvc-dev-cmd in the workflow.
@@ -22,7 +22,7 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\gnu_common.ps1"        # $FLY_WIN_TARGET, sysroot paths, Assert-LdLld, MINGW_VERSION
 
 # LLVM the self-host compiler links against: the project's own LLVM build
-# (fly-lang/llvm-project release) rather than the stock LLVM installer. Only that
+# (fly-lang/llvm release) rather than the stock LLVM installer. Only that
 # build ships an LLVM-C.dll exporting the per-target LLVMInitialize* symbols the
 # generated code references (the official/choco LLVM-C.dll omits them).
 #
@@ -118,7 +118,7 @@ if (-not (Test-Path "$llvmLib\LLVM-C.lib") -or -not (Test-Path "$llvmBin\LLVM-C.
     -not (Test-Path "$llvmBin\lld-link.exe") -or -not (Test-Path "$llvmBin\ld.lld.exe") -or
     -not (Test-Path "$llvmBin\lldb.exe") -or -not (Test-Path "$llvmBin\liblldb.dll") -or
     -not (Test-Path "$llvmBin\lldb-dap.exe") -or -not (Test-Path "$llvmBin\lldb-argdumper.exe")) {
-    $url = "https://github.com/fly-lang/llvm-project/releases/download/v$LLVM_VERSION-win-x64/llvm-$LLVM_VERSION-win-x64.zip"
+    $url = "https://github.com/fly-lang/llvm/releases/download/v$LLVM_VERSION-win-x64/llvm-$LLVM_VERSION-win-x64.zip"
     New-Item -ItemType Directory -Force $llvmLib, $llvmBin | Out-Null
     $zipPath = Join-Path $buildDir 'llvm.zip'
     Invoke-WebRequest -Uri $url -OutFile $zipPath -MaximumRetryCount 6 -RetryIntervalSec 15

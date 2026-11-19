@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # stage0.sh — set up stage 0 of the staged bootstrap on Linux:
 #
-#   • the fork LLVM toolchain (fly-lang/llvm-project release) → build/llvm
+#   • the fork LLVM toolchain (fly-lang/llvm release, built from fly-lang/llvm-project) → build/llvm
 #     libLLVM.so + ld.lld + llvm-config + compiler-rt builtins. NO system
 #     package manager: everything the build needs comes from this tarball.
 #   • the pinned bootstrap `fly` release ($FLY_VERSION below) → build/stage0
@@ -71,7 +71,7 @@ else
     LLVM_ASSET="v@V@-linux-x86_64/llvm-@V@-x86_64-linux-gnu.tar.gz"
 fi
 
-# --- LLVM 20 (fly-lang/llvm-project fork, downloaded — NO package manager) ------
+# --- LLVM 20 (the fork, released by fly-lang/llvm — NO package manager) -------
 # Everything comes from the project's OWN LLVM build (LLVM_BUILD_LLVM_DYLIB=ON +
 # LLVM_ENABLE_LIBXML2=OFF + compiler-rt): a libLLVM.so with no external deps, the
 # lld linker, and libclang_rt.builtins.a — which the fly ToolChain links into every
@@ -101,7 +101,7 @@ llvm_sha256() {
 }
 LLVM_SHA256="${FLY_LLVM_SHA256:-$(llvm_sha256 "$LLVM_VERSION" "$HOST_PLATFORM")}"
 if [ ! -f "$FORK_LLVM/lib/libLLVM.$DYLIB_EXT" ] || [ ! -f "$RT_BUILTINS" ] || [ ! -x "$FORK_LLVM/bin/lldb" ] || [ "$NEED_STATIC" = "1" ]; then
-    url="https://github.com/fly-lang/llvm-project/releases/download/${LLVM_ASSET//@V@/$LLVM_VERSION}"
+    url="https://github.com/fly-lang/llvm/releases/download/${LLVM_ASSET//@V@/$LLVM_VERSION}"
     mkdir -p "$BUILD_DIR"
     tarball="$BUILD_DIR/fork-llvm.tar.gz"
     # Atomic download (.part + mv, with retries): an interrupted curl must never
@@ -193,9 +193,8 @@ fi
 # Taken from the published release asset (GitHub records the same digest):
 #   0.13.18  fly-0.13.18-linux-x86_64.tar.gz, released 2026-09-20 from the
 #            `bootstrap` branch at 32528a0bf (sources = release/0.13.X df0b20f0c)
-#   0.13.18  fly-0.13.18-macos-arm64.tar.gz: the same sources (release/0.13.X =
-#            the v0.13.18 tag + a CI-only commit) built on macos-latest and
-#            attached to the existing release by build-macos.yml
+#   macOS arm64 has a seed from 0.13.19 on (the first cut whose release.yml
+#            builds it); until then stage 0 on a Mac has no pinned seed.
 seed_sha256() {
     case "$1/$2" in
         0.13.18/linux-x86_64) echo "f328c4d081de52140e3e704c6f73d71792f21b34b7039be8dc4470b7fb1bbf50" ;;
