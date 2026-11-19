@@ -10,8 +10,9 @@
 #      zero external dependencies.
 #   2. a breakpoint round-trip on a DWARF probe compiled and linked by THIS
 #      stage's fly with --debug-symbols: the breakpoint must resolve to
-#      file:line, the caller frame must carry its line, and `next` must reach
-#      the following line. ld.lld keeps the .debug_* sections by default.
+#      file:line, the caller frame must carry its line, the parameters and the
+#      local must show their values, and `next` must reach the following line.
+#      ld.lld keeps the .debug_* sections by default.
 #   3. lldb-dap.exe (the IDE/DAP adapter, same liblldb) exists and answers
 #      --help. A full DAP session needs a client and is not worth the CI flake.
 #
@@ -86,21 +87,23 @@ if ($LASTEXITCODE -ne 0 -or -not (Test-Path "$OUT/dbg_probe.exe")) {
     Write-Host "  FAIL  probe compile ($FLY --debug-symbols)"; Get-Content "$OUT/compile.log" | Select-Object -Last 10; exit 1
 }
 
-$bp = & $DBG -b -o 'breakpoint set -f dbg_probe.fly -l 2' -o 'run' -o 'bt 2' -o 'next' -o 'continue' `
+$bp = & $DBG -b -o 'breakpoint set -f dbg_probe.fly -l 2' -o 'run' -o 'bt 2' -o 'frame variable a b' -o 'next' -o 'frame variable s' -o 'continue' `
              -- "$OUT/dbg_probe.exe" 2>&1 | Out-String
 if ($LASTEXITCODE -ne 0) { Write-Host "  FAIL  lldb batch run (exit $LASTEXITCODE)"; Write-Host $bp; exit 1 }
-# Each expectation is one thing the line table must get right.
+# Each expectation is one thing the debug info must get right.
 $expect = [ordered]@{
     'Breakpoint 1: where = .*add.* at dbg_probe\.fly:2'   = 'breakpoint resolved to file:line'
     'stop reason = breakpoint'                            = 'breakpoint hit'
     'frame #1: .*main at dbg_probe\.fly:9'                = 'caller frame has its line'
-    'stop reason = step over[\s\S]*add at dbg_probe\.fly:3' = 'next steps to the following line'
+    '\(int\) a = 10[\s\S]*\(int\) b = 32'                = 'parameters have their values'
+    'stop reason = step over[\s\S]*add\(.*\) at dbg_probe\.fly:3' = 'next steps to the following line'
+    '\(int\) s = 42'                                      = 'the local holds a + b after the step'
     'exited with status = 0'                              = 'probe exited cleanly'
 }
 foreach ($re in $expect.Keys) {
     if ($bp -notmatch $re) { Write-Host "  FAIL  $($expect[$re]) (no match for /$re/)"; Write-Host $bp; exit 1 }
 }
-Write-Host '  ok    self-host DWARF: breakpoint at dbg_probe.fly:2, caller at :9, step to :3, exit 0'
+Write-Host '  ok    self-host DWARF: breakpoint at dbg_probe.fly:2, caller at :9, a=10 b=32, step to :3 with s=42, exit 0'
 
 # -- 3. lldb-dap presence -------------------------------------------------------
 $DAP = "$BIN/lldb-dap.exe"

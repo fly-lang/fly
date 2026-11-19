@@ -6,6 +6,7 @@ import fly.compiler.basic.SourceLocation
 import fly.compiler.basic.SourceManager
 import llvm.api.*
 import fly.data.List
+import fly.mem
 import fly.str
 import fly.os.path
 import fly.os.env
@@ -38,9 +39,13 @@ public class CodeGenDebug {
     pointer scope              // subprogram of the body being generated; 0 outside one
     List<string> fileNames     // source path → DIFile, linear (a module has few files)
     List<pointer> fileRefs
+    List<string> typeNames     // Fly type → DWARF type, created once
+    List<pointer> typeRefs
+    pointer ptrTy              // the opaque `ptr` type (parameter spill slots)
     string prefixMap           // --debug-prefix-map pairs, ";OLD=NEW;" (CodeGenOptions)
 
-    public CodeGenDebug(const LLVM llvm, const pointer ctx, const pointer module, const pointer builder, const string name, const string prefixMap) {
+    public CodeGenDebug(const LLVM llvm, const pointer ctx, const pointer module, const pointer builder, const string name, const string prefixMap, const pointer ptrTy) {
+        this.ptrTy = ptrTy
         this.llvm = llvm
         this.prefixMap = prefixMap
         this.ctx = ctx
@@ -48,6 +53,8 @@ public class CodeGenDebug {
         this.scope = 0
         this.fileNames = new List<string>()
         this.fileRefs = new List<pointer>()
+        this.typeNames = new List<string>()
+        this.typeRefs = new List<pointer>()
         pointer d
         llvm.createDIBuilder(module, d)
         this.db = d
@@ -192,6 +199,169 @@ public class CodeGenDebug {
 
     public void resume(const pointer saved) {
         this.llvm.setCurrentDebugLocation(this.builder, saved)
+    }
+
+    // ── Variables ─────────────────────────────────────────────────────────────
+    //
+    // A variable is described where its storage is: `storage` is the address
+    // the value lives at (a local's alloca; a parameter's incoming pointer, since
+    // parameters are passed by reference; the cell holding a class handle). The
+    // DWARF type matches what is AT that address, so a class variable is a
+    // pointer to the class, and a string is its {data, size} pair.
+
+    // typeFor — the DWARF type of a Fly type, created once per module; 0 when the
+    // type is not described (a variable of that type is then left out).
+    public pointer typeFor(const SemaType t) {
+        if t == null { return 0 }
+        SemaClassType cls = t.asClass()
+        string key = t.getName()
+        if cls != null { key = str.concat("class ", key) }
+        int i = 0
+        while i < this.typeNames.size() {
+            if str.equals(this.typeNames.get(i), key) { return this.typeRefs.get(i) }
+            i = i + 1
+        }
+        pointer d = 0
+        string n = t.getName()
+        if cls != null {
+            pointer fwd
+            this.llvm.diCreateForwardDecl(this.db, n, this.cuFile, this.cuFile, fwd)
+            this.llvm.diCreatePointerType(this.db, fwd, "", d)
+        } elsif t.isBool() {
+            d = this.basic("bool", 8, 2)                   // DW_ATE_boolean
+        } elsif t.isInteger() {
+            if str.equals(n, "byte") { d = this.basic(n, 8, 8) }          // DW_ATE_unsigned_char
+            elsif str.equals(n, "ushort") { d = this.basic(n, 16, 7) }    // DW_ATE_unsigned
+            elsif str.equals(n, "uint") { d = this.basic(n, 32, 7) }
+            elsif str.equals(n, "ulong") { d = this.basic(n, 64, 7) }
+            elsif str.equals(n, "short") { d = this.basic(n, 16, 5) }     // DW_ATE_signed
+            elsif str.equals(n, "int") { d = this.basic(n, 32, 5) }
+            elsif str.equals(n, "long") { d = this.basic(n, 64, 5) }
+            elsif str.equals(n, "pointer") { d = this.basic(n, 64, 1) }   // DW_ATE_address
+        } elsif t.isFloat() {
+            if str.equals(n, "double") { d = this.basic(n, 64, 4) } else { d = this.basic(n, 32, 4) }   // DW_ATE_float
+        } elsif t.isString() {
+            // %string = { ptr data, i32 size } — the bytes are NOT NUL-terminated,
+            // so `size` is the length to trust when a debugger prints `data`.
+            pointer chr = this.basic("char", 8, 8)
+            pointer chrPtr
+            this.llvm.diCreatePointerType(this.db, chr, "", chrPtr)
+            d = this.pair("string", "data", chrPtr, "size", this.basic("int", 32, 5), 32)
+        } elsif t.isArray() {
+            // %array = { ptr data, i64 len }
+            d = this.pair(n, "data", this.basic("pointer", 64, 1), "len", this.basic("long", 64, 5), 64)
+        } elsif t.isEnum() {
+            d = this.basic(n, 32, 5)
+        }
+        if d != 0 {
+            this.typeNames.add(key)
+            this.typeRefs.add(d)
+        }
+        return d
+    }
+
+    public pointer basic(const string name, const long bits, const int encoding) {
+        pointer d
+        this.llvm.diCreateBasicType(this.db, name, bits, encoding, d)
+        return d
+    }
+
+    // pair — a 128-bit struct of two members: a 64-bit `first` at offset 0 and a
+    // `second` of `secondBits` at offset 64 (the shape of %string and %array).
+    public pointer pair(const string name, const string first, const pointer firstTy,
+                        const string second, const pointer secondTy, const long secondBits) {
+        pointer m0
+        this.llvm.diCreateMemberType(this.db, this.cuFile, first, this.cuFile, 64, 64, 0, firstTy, m0)
+        pointer m1
+        this.llvm.diCreateMemberType(this.db, this.cuFile, second, this.cuFile, secondBits, 0, 64, secondTy, m1)
+        pointer elems = mem.alloc(16)
+        mem.writePtr(elems, 0, m0)
+        mem.writePtr(elems, 8, m1)
+        pointer d
+        this.llvm.diCreateStructType(this.db, this.cuFile, name, this.cuFile, 128, 64, elems, 2, d)
+        return d
+    }
+
+    // declareVar — describe a local (argNo 0) or a parameter (argNo >= 1, unique
+    // within the function) whose value lives at `storage`.
+    public void declareVar(const SemaVar v, const pointer storage, const int argNo, const bool deref) {
+        if this.scope == 0 { return }
+        if storage == 0 { return }
+        if v == null { return }
+        ASTVar ast = v.getAST()
+        if ast == null { return }
+        this.declareAt(v.getName(), v.getType(), ast.getNameLoc(), storage, argNo, deref)
+    }
+
+    // declareParams — every written parameter, numbered from offset + 1 (a
+    // method's `this` is number 1). The hidden return slot is not a variable.
+    public void declareParams(const List<SemaParam> params, const int offset) {
+        int argNo = offset
+        int i = 0
+        while i < params.size() {
+            SemaParam pm = params.get(i)
+            if pm.isSynthetic() == false {
+                argNo = argNo + 1
+                this.declareParam(pm, argNo)
+            }
+            i = i + 1
+        }
+    }
+
+    // declareParam — a parameter arrives as a POINTER to its value, in a register.
+    // Described through that register, it is lost as soon as the register is
+    // reused (an unused `const string` showed "no location" at its own first
+    // line). So, like clang's `.addr` slots, the pointer is stored in a stack
+    // slot and the variable is described as *slot (DW_OP_deref). A parameter
+    // already bound through a slot of its own (a by-value class handle) is
+    // described there directly.
+    public void declareParam(const SemaParam pm, const int argNo) {
+        if this.scope == 0 { return }
+        pointer st = pm.getLlvmAlloca()
+        if st == 0 { return }
+        if this.llvm.isArgument(st) {
+            pointer slot
+            this.llvm.buildAlloca(this.builder, this.ptrTy, "dbg.arg", slot)
+            this.llvm.buildStore(this.builder, st, slot)
+            this.declareVar(pm, slot, argNo, true)
+        } else {
+            this.declareVar(pm, st, argNo, false)
+        }
+    }
+
+    // declareThis — `this` in a method: the slot holding the object pointer.
+    public void declareThis(const SemaClassType cls, const SemaFunctionBase sfn, const pointer slot) {
+        if this.scope == 0 { return }
+        if cls == null { return }
+        ASTFunction ast = sfn.getAST()
+        if ast == null { return }
+        this.declareAt("this", cls, ast.getNameLoc(), slot, 1, false)
+    }
+
+    public void declareAt(const string name, const SemaType t, const SourceLocation loc, const pointer storage, const int argNo, const bool deref) {
+        if loc == null { return }
+        if loc.isInvalid() { return }
+        SourceManager sm = loc.getSourceManager()
+        if sm == null { return }
+        pointer ty = this.typeFor(t)
+        if ty == 0 { return }
+        int line = sm.getLineNumber(loc)
+        int col = sm.getColumnNumber(loc)
+        pointer file = this.fileFor(sm.getFilename())
+        pointer var
+        if argNo > 0 {
+            this.llvm.diCreateParameterVariable(this.db, this.scope, name, argNo, file, line, ty, var)
+        } else {
+            this.llvm.diCreateAutoVariable(this.db, this.scope, name, file, line, ty, var)
+        }
+        pointer expr
+        if deref { this.llvm.diCreateDerefExpression(this.db, expr) } else { this.llvm.diCreateEmptyExpression(this.db, expr) }
+        pointer dl
+        this.llvm.diCreateDebugLocation(this.ctx, line, col, this.scope, dl)
+        pointer bb
+        this.llvm.getInsertBlock(this.builder, bb)
+        if bb == 0 { return }
+        this.llvm.diInsertDeclareAtEnd(this.db, storage, var, expr, dl, bb)
     }
 
     // finalize — must run before the module is verified or emitted.

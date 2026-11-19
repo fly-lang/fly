@@ -1092,7 +1092,7 @@ public class Driver {
         io.printErrLn("                  Sel: a suite name, a qualified ns.SuiteName, or a NAMESPACE —")
         io.printErrLn("                  a namespace runs every suite declared under it (prefix match)")
         io.printErrLn("  --debug         verbose logging (+ --debug-symbols)")
-        io.printErrLn("  --debug-symbols emit DWARF line tables (functions and source lines)")
+        io.printErrLn("  --debug-symbols emit DWARF: source lines, parameters and local variables")
         io.printErrLn("  --debug-prefix-map=OLD=NEW  write NEW instead of the directory prefix OLD in the DWARF file names")
         io.printErrLn("  --trace-calls   log every function entry/exit via fly.log (visible at FLY_LOG_LEVEL=trace)")
         io.printErrLn("  --print-stats   print compilation statistics to stderr")

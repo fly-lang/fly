@@ -453,6 +453,10 @@ public class CodeGenClass {
             }
             i = i + 1
         }
+        if dbg != null {
+            dbg.declareThis(cls, m, thisSlot)
+            dbg.declareParams(params, 1)
+        }
         cge.bindOutSlot(params)
         // NRVO needs the return slot here too. Sema decides the optimization per
         // function and DROPS the assignment at `return name`, so a method whose

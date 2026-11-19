@@ -10,8 +10,9 @@
 #      $ORIGIN/../lib) with zero external dependencies.
 #   2. breakpoint round-trip on a DWARF probe compiled and linked by THIS
 #      stage's fly with --debug-symbols: the breakpoint must resolve to
-#      file:line, the caller frame must carry its line, and `next` must reach
-#      the following line. On Linux this also exercises the lldb-server launch path
+#      file:line, the caller frame must carry its line, the parameters and the
+#      local must show their values, and `next` must reach the following line.
+#      On Linux this also exercises the lldb-server launch path
 #      (local processes are spawned through it) and lldb-argdumper.
 #   3. lldb-dap (IDE/DAP adapter) exists and answers --help.
 #
@@ -81,21 +82,24 @@ if ! "$FLY" --debug-symbols --src-dir "$OUT" -o dbg_probe --out-dir "$OUT" > "$O
 fi
 [ -x "$OUT/dbg_probe" ] || { echo "  FAIL  probe executable not produced"; exit 1; }
 
-bp="$("$DBG" -b -o 'breakpoint set -f dbg_probe.fly -l 2' -o 'run' -o 'bt 2' -o 'next' -o 'continue' \
+bp="$("$DBG" -b -o 'breakpoint set -f dbg_probe.fly -l 2' -o 'run' -o 'bt 2' -o 'frame variable a b' -o 'next' -o 'frame variable s' -o 'continue' \
       -- "$OUT/dbg_probe" 2>&1)"
 rc=$?
 if [ "$rc" -ne 0 ]; then echo "  FAIL  lldb batch run (exit $rc)"; echo "$bp"; exit 1; fi
-# Each expectation is one thing the line table must get right.
+# Each expectation is one thing the debug info must get right.
 expect() {
     echo "$bp" | grep -qE "$1" || { echo "  FAIL  $2 (no match for /$1/)"; echo "$bp"; exit 1; }
 }
 expect 'Breakpoint 1: where = .*add.* at dbg_probe\.fly:2' 'breakpoint resolved to file:line'
 expect 'stop reason = breakpoint'                           'breakpoint hit'
 expect 'frame #1: .*main at dbg_probe\.fly:9'               'caller frame has its line'
+expect '\(int\) a = 10'                                     'parameter a has its value'
+expect '\(int\) b = 32'                                     'parameter b has its value'
 expect 'stop reason = step over'                            'next stopped'
-expect 'add at dbg_probe\.fly:3'                            'next steps to the following line'
+expect 'add\(.*\) at dbg_probe\.fly:3'                      'next steps to the following line'
+expect '\(int\) s = 42'                                     'the local holds a + b after the step'
 expect 'exited with status = 0'                             'probe exited cleanly'
-echo "  ok    self-host DWARF: breakpoint at dbg_probe.fly:2, caller at :9, step to :3, exit 0"
+echo "  ok    self-host DWARF: breakpoint at dbg_probe.fly:2, caller at :9, a=10 b=32, step to :3 with s=42, exit 0"
 
 # -- 3. lldb-dap presence ------------------------------------------------------
 DAP="$BIN/lldb-dap"

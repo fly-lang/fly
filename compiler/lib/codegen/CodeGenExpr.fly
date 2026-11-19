@@ -437,7 +437,14 @@ public class CodeGenExpr : SemaVisitor {
         }
     }
     public void visit(const SemaReturnStmt node) { CodeGenStmt.ret(this, node) }
-    public void visit(const SemaDeclStmt node) { CodeGenStmt.decl(this, node) }
+    public void visit(const SemaDeclStmt node) {
+        CodeGenStmt.decl(this, node)
+        CodeGenDebug dbg = this.cgm.getDebug()
+        if dbg != null {
+            SemaLocalVar dv = node.getVar()
+            if dv != null { dbg.declareVar(dv, dv.getLlvmAlloca(), 0, false) }
+        }
+    }
     public void visit(const SemaIfStmt node) { CodeGenStmt.ifStmt(this, node) }
     public void visit(const SemaLoopStmt node) { CodeGenStmt.loopStmt(this, node) }
     public void visit(const SemaSwitchStmt node) { CodeGenStmt.switchStmt(this, node) }

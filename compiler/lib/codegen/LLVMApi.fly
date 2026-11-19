@@ -358,6 +358,123 @@ struct DILocationArgs : Args {
     pointer inlinedAt
 }
 
+// LLVMDIBuilderCreateBasicType(Builder, Name, NameLen, SizeInBits, Encoding, Flags)
+struct DIBasicTypeArgs : Args {
+    pointer b
+    pointer name
+    long nameLen
+    long sizeInBits
+    int encoding
+    int flags
+}
+
+// LLVMDIBuilderCreatePointerType(Builder, PointeeTy, SizeInBits, AlignInBits, AddressSpace, Name, NameLen)
+struct DIPointerTypeArgs : Args {
+    pointer b
+    pointer pointee
+    long sizeInBits
+    int alignInBits
+    int addressSpace
+    pointer name
+    long nameLen
+}
+
+// LLVMDIBuilderCreateStructType — 16 arguments, in this order.
+struct DIStructTypeArgs : Args {
+    pointer b
+    pointer scope
+    pointer name
+    long nameLen
+    pointer file
+    int line
+    long sizeInBits
+    int alignInBits
+    int flags
+    pointer derivedFrom
+    pointer elements
+    int count
+    int runTimeLang
+    pointer vtableHolder
+    pointer uniqueId
+    long uniqueIdLen
+}
+
+// LLVMDIBuilderCreateMemberType — 11 arguments, in this order.
+struct DIMemberTypeArgs : Args {
+    pointer b
+    pointer scope
+    pointer name
+    long nameLen
+    pointer file
+    int line
+    long sizeInBits
+    int alignInBits
+    long offsetInBits
+    int flags
+    pointer ty
+}
+
+// LLVMDIBuilderCreateForwardDecl — 12 arguments, in this order.
+struct DIForwardDeclArgs : Args {
+    pointer b
+    int tag
+    pointer name
+    long nameLen
+    pointer scope
+    pointer file
+    int line
+    int runtimeLang
+    long sizeInBits
+    int alignInBits
+    pointer uniqueId
+    long uniqueIdLen
+}
+
+// LLVMDIBuilderCreateAutoVariable(Builder, Scope, Name, NameLen, File, LineNo, Ty, AlwaysPreserve, Flags, AlignInBits)
+struct DIAutoVarArgs : Args {
+    pointer b
+    pointer scope
+    pointer name
+    long nameLen
+    pointer file
+    int line
+    pointer ty
+    int alwaysPreserve
+    int flags
+    int alignInBits
+}
+
+// LLVMDIBuilderCreateParameterVariable(Builder, Scope, Name, NameLen, ArgNo, File, LineNo, Ty, AlwaysPreserve, Flags)
+struct DIParamVarArgs : Args {
+    pointer b
+    pointer scope
+    pointer name
+    long nameLen
+    int argNo
+    pointer file
+    int line
+    pointer ty
+    int alwaysPreserve
+    int flags
+}
+
+// LLVMDIBuilderCreateExpression(Builder, Addr, Length)
+struct DIExpressionArgs : Args {
+    pointer b
+    pointer addr
+    long count
+}
+
+// LLVMDIBuilderInsertDeclareRecordAtEnd(Builder, Storage, VarInfo, Expr, DebugLoc, Block)
+struct DIDeclareArgs : Args {
+    pointer b
+    pointer storage
+    pointer varInfo
+    pointer expr
+    pointer loc
+    pointer block
+}
+
 // LLVMAddModuleFlag(M, Behavior, Key, KeyLen, Val)
 struct ModuleFlagArgs : Args {
     pointer m
@@ -1233,7 +1350,14 @@ public class LLVM {
         pointer entry = 0
         if fn != 0 { this.getEntryBasicBlock(fn, entry) }
         bool moved = false
+        // Positioning BEFORE an instruction also copies that instruction's debug
+        // location into the builder (LLVM's SetInsertPoint), and going back with
+        // positionBuilderAtEnd does not undo it: every later instruction of the
+        // statement inherited the location of the entry block's terminator. Save
+        // the location and put it back.
+        pointer savedLoc = 0
         if entry != 0 && entry != cur {
+            this.getCurrentDebugLocation(b, savedLoc)
             pointer term = 0
             this.getBasicBlockTerminator(entry, term)
             if term != 0 { this.positionBuilderBefore(b, term) }
@@ -1246,7 +1370,10 @@ public class LLVM {
         a.s = name
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMBuildAlloca", a, v)
-        if moved { this.positionBuilderAtEnd(b, cur) }
+        if moved {
+            this.positionBuilderAtEnd(b, cur)
+            this.setCurrentDebugLocation(b, savedLoc)
+        }
     }
 
     public void buildLoad2(const pointer b, const pointer ty, const pointer ptr, const string name, pointer v) {
@@ -2076,6 +2203,174 @@ public class LLVM {
         a.a = val
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMValueAsMetadata", a, v)
+    }
+
+    public void diCreateBasicType(const pointer db, const string name, const long sizeInBits, const int encoding, pointer v) {
+        DIBasicTypeArgs a = new DIBasicTypeArgs()
+        a.b = db
+        a.name = cbuf(name)
+        a.nameLen = str.len(name)
+        a.sizeInBits = sizeInBits
+        a.encoding = encoding
+        a.flags = 0
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMDIBuilderCreateBasicType", a, v)
+    }
+
+    public void diCreatePointerType(const pointer db, const pointer pointee, const string name, pointer v) {
+        DIPointerTypeArgs a = new DIPointerTypeArgs()
+        a.b = db
+        a.pointee = pointee
+        a.sizeInBits = 64
+        a.alignInBits = 0
+        a.addressSpace = 0
+        a.name = cbuf(name)
+        a.nameLen = str.len(name)
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMDIBuilderCreatePointerType", a, v)
+    }
+
+    // diCreateStructType — `elements` is a C array of `count` member types.
+    public void diCreateStructType(const pointer db, const pointer scope, const string name, const pointer file,
+                                   const long sizeInBits, const int alignInBits, const pointer elements, const int count, pointer v) {
+        DIStructTypeArgs a = new DIStructTypeArgs()
+        a.b = db
+        a.scope = scope
+        a.name = cbuf(name)
+        a.nameLen = str.len(name)
+        a.file = file
+        a.line = 0
+        a.sizeInBits = sizeInBits
+        a.alignInBits = alignInBits
+        a.flags = 0
+        a.derivedFrom = 0
+        a.elements = elements
+        a.count = count
+        a.runTimeLang = 0
+        a.vtableHolder = 0
+        a.uniqueId = cbuf("")
+        a.uniqueIdLen = 0
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMDIBuilderCreateStructType", a, v)
+    }
+
+    public void diCreateMemberType(const pointer db, const pointer scope, const string name, const pointer file,
+                                   const long sizeInBits, const int alignInBits, const long offsetInBits, const pointer ty, pointer v) {
+        DIMemberTypeArgs a = new DIMemberTypeArgs()
+        a.b = db
+        a.scope = scope
+        a.name = cbuf(name)
+        a.nameLen = str.len(name)
+        a.file = file
+        a.line = 0
+        a.sizeInBits = sizeInBits
+        a.alignInBits = alignInBits
+        a.offsetInBits = offsetInBits
+        a.flags = 0
+        a.ty = ty
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMDIBuilderCreateMemberType", a, v)
+    }
+
+    // diCreateForwardDecl — a struct known only by name (tag 19 = DW_TAG_structure_type).
+    public void diCreateForwardDecl(const pointer db, const string name, const pointer scope, const pointer file, pointer v) {
+        DIForwardDeclArgs a = new DIForwardDeclArgs()
+        a.b = db
+        a.tag = 19
+        a.name = cbuf(name)
+        a.nameLen = str.len(name)
+        a.scope = scope
+        a.file = file
+        a.line = 0
+        a.runtimeLang = 0
+        a.sizeInBits = 0
+        a.alignInBits = 0
+        a.uniqueId = cbuf("")
+        a.uniqueIdLen = 0
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMDIBuilderCreateForwardDecl", a, v)
+    }
+
+    public void diCreateAutoVariable(const pointer db, const pointer scope, const string name, const pointer file,
+                                     const int line, const pointer ty, pointer v) {
+        DIAutoVarArgs a = new DIAutoVarArgs()
+        a.b = db
+        a.scope = scope
+        a.name = cbuf(name)
+        a.nameLen = str.len(name)
+        a.file = file
+        a.line = line
+        a.ty = ty
+        a.alwaysPreserve = 1
+        a.flags = 0
+        a.alignInBits = 0
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMDIBuilderCreateAutoVariable", a, v)
+    }
+
+    public void diCreateParameterVariable(const pointer db, const pointer scope, const string name, const int argNo,
+                                          const pointer file, const int line, const pointer ty, pointer v) {
+        DIParamVarArgs a = new DIParamVarArgs()
+        a.b = db
+        a.scope = scope
+        a.name = cbuf(name)
+        a.nameLen = str.len(name)
+        a.argNo = argNo
+        a.file = file
+        a.line = line
+        a.ty = ty
+        a.alwaysPreserve = 1
+        a.flags = 0
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMDIBuilderCreateParameterVariable", a, v)
+    }
+
+    // isArgument — is `val` a function argument (LLVMIsAArgument)?
+    public bool isArgument(const pointer val) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = val
+        pointer r
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMIsAArgument", a, r)
+        return r != 0
+    }
+
+    // diCreateDerefExpression — DW_OP_deref (0x06): the storage holds the
+    // ADDRESS of the variable, not the variable itself.
+    public void diCreateDerefExpression(const pointer db, pointer v) {
+        pointer ops = mem.alloc(8)
+        long deref = 6
+        mem.writeLong(ops, 0, deref)
+        DIExpressionArgs a = new DIExpressionArgs()
+        a.b = db
+        a.addr = ops
+        a.count = 1
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMDIBuilderCreateExpression", a, v)
+    }
+
+    // diCreateEmptyExpression — the variable lives AT the storage address.
+    public void diCreateEmptyExpression(const pointer db, pointer v) {
+        DIExpressionArgs a = new DIExpressionArgs()
+        a.b = db
+        a.addr = 0
+        a.count = 0
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMDIBuilderCreateExpression", a, v)
+    }
+
+    public void diInsertDeclareAtEnd(const pointer db, const pointer storage, const pointer varInfo, const pointer expr,
+                                     const pointer loc, const pointer block) {
+        DIDeclareArgs a = new DIDeclareArgs()
+        a.b = db
+        a.storage = storage
+        a.varInfo = varInfo
+        a.expr = expr
+        a.loc = loc
+        a.block = block
+        pointer rec
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMDIBuilderInsertDeclareRecordAtEnd", a, rec)
     }
 
     // addModuleFlag — behavior 1 = Warning (what clang uses for the debug flags).

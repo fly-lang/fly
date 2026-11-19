@@ -118,7 +118,7 @@ public class CodeGenModule {
         if o != null {
             if o.getDebugSymbols() {
                 if this.dbg == null {
-                    this.dbg = new CodeGenDebug(this.cg.getLLVM(), this.ctx, this.module, this.builder, this.name, o.getDebugPrefixMap())
+                    this.dbg = new CodeGenDebug(this.cg.getLLVM(), this.ctx, this.module, this.builder, this.name, o.getDebugPrefixMap(), this.types.ptrType())
                 }
             }
         }
@@ -1072,6 +1072,7 @@ public class CodeGenModule {
             }
             i = i + 1
         }
+        if this.dbg != null { this.dbg.declareParams(params, 0) }
 
         CodeGenExpr cge = new CodeGenExpr(this)
         cge.bindOutSlot(params)
