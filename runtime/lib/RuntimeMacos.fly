@@ -8,7 +8,7 @@ namespace fly.runtime
 // NOTE: written and compile-checked on Linux; NOT runtime-tested on macOS (no SDK
 // available here). Differences from the Linux backend it mirrors:
 //   • struct stat layout: st_mode @ 4 (u16), st_size @ 96 (i64)
-//   • getdents → getdirentries64(fd, buf, size, *basep)
+//   • no getdents: directories are listed with opendir/readdir (dir_*)
 //   • CLOCK_MONOTONIC = 6 (Linux: 1)
 //   • futex → __ulock_wait / __ulock_wake
 //   • argv/env via _NSGetArgc / _NSGetArgv / _NSGetEnviron (no globals, no /proc)
@@ -45,7 +45,6 @@ public void symlink(const pointer target, const pointer link, int out) {}
 public void readlink(const pointer path, const pointer buf, const ulong size, long out) {}
 public void stat(const pointer path, const pointer buf, int out) {}
 public void lstat(const pointer path, const pointer buf, int out) {}
-public void getdirentries64(const int fd, const pointer buf, const ulong size, const pointer basep, long out) {}
 public void opendir(const pointer path, pointer out) {}
 public void readdir(const pointer dir, pointer out) {}
 public void closedir(const pointer dir, int out) {}
@@ -191,14 +190,11 @@ public void fs_readlink(const pointer path, const pointer buf, const ulong size,
     fly.runtime.readlink(path, buf, size, r)
     fly.llvm.longToInt(r, out)
 }
+// Unsupported, as on Windows: libSystem does not export getdirentries64, and its
+// records are not linux_dirent64 anyway. Directories are listed through
+// dir_open/dir_read/dir_close below (opendir/readdir).
 public void fs_getdents(const int fd, const pointer buf, const ulong size, int out) {
-    pointer basep = 0
-    fly.runtime.malloc(8, basep)
-    fly.llvm.ptrPokeLong(basep, 0, 0)
-    long r = 0
-    fly.runtime.getdirentries64(fd, buf, size, basep, r)
-    fly.runtime.free(basep)
-    fly.llvm.longToInt(r, out)
+    out = 0 - 1
 }
 
 // ── Directory enumeration (dir_open/dir_read/dir_close) ────────────────────────
