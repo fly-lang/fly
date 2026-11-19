@@ -551,6 +551,9 @@ public class ToolChain {
         }
         proc.argsAdd(h, "-m")
         proc.argsAdd(h, "i386pep")                       // x86_64 PE emulation
+        // Reproducible output: ld.lld in mingw mode stamps the link time into the
+        // PE header unless told not to, so the same program linked twice differed.
+        proc.argsAdd(h, "--no-insert-timestamp")
         proc.argsAdd(h, str.concat("-L", slib))
         proc.argsAdd(h, str.concat("-L", builtinsDir))
         if str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
