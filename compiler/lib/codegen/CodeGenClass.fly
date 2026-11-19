@@ -6,6 +6,7 @@ import fly.compiler.codegen.CodeGenModule
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenBridge
 import fly.compiler.codegen.CodeGenLLVM
+import fly.compiler.codegen.CodeGenDebug
 import fly.compiler.codegen.CodeGenType
 import fly.compiler.codegen.CodeGenIntrinsics
 import fly.compiler.codegen.CodeGenTrace
@@ -31,11 +32,11 @@ public class CodeGenClass {
     public CodeGenClass() { }
 
     // declareStruct — create the named LLVM struct type.
-    //   native CLASS:  { ptr vtable, flattened fields… }          (flat model)
-    //   STRUCT:        { fields… }                                 (reference ABI)
-    //   HEADER class:  { ptr vtable, base subobjects…, own fields }(reference
-    //                   Itanium-style layout — these objects cross the archive
-    //                   boundary, so field offsets must match the reference)
+    //   CLASS:  { ptr vtable, flattened fields… } — bases first, then own (flat)
+    //   STRUCT: { fields… }
+    // The same for a class read from a header: the archive behind it was built
+    // by this compiler. (It used to take the seed's base-subobject layout, when
+    // the shipped std was compiled by the seed.)
     public static void declareStruct(const CodeGenModule cgm, const SemaClassType cls) {
         if cls.getLlvmStructType() != 0 { return }   // already declared (recursion)
         CodeGenLLVM cg = cgm.getCg()
@@ -53,35 +54,16 @@ public class CodeGenClass {
             pointer vtp = types.ptrType()
             fieldTys.add(vtp)                   // slot 0: vtable pointer
         }
-        if cls.isFromHeader() && isStruct == false {
-            // base subobjects BY VALUE (reference layout), then OWN fields only
-            List<SemaClassType> hb = cls.getBaseClasses()
-            int bi = 0
-            while bi < hb.size() {
-                SemaClassType hbase = hb.get(bi)
-                if hbase.getClassKind() != SemaClassKind.STRUCT {
-                    declareStruct(cgm, hbase)
-                    fieldTys.add(hbase.getLlvmStructType())
-                }
-                bi = bi + 1
-            }
-            List<SemaClassAttribute> own = cls.getAttributeList()
-            int oi = 0
-            while oi < own.size() {
-                SemaClassAttribute oa = own.get(oi)
-                pointer ofty = fieldLlvmType(cgm, oa.getType())
-                fieldTys.add(ofty)
-                oi = oi + 1
-            }
-        } else {
-            List<SemaClassAttribute> attrs = allAttributes(cls)   // base fields first, then own
-            int i = 0
-            while i < attrs.size() {
-                SemaClassAttribute a = attrs.get(i)
-                pointer fty = fieldLlvmType(cgm, a.getType())
-                fieldTys.add(fty)
-                i = i + 1
-            }
+        // ONE layout for every class, wherever it comes from: a class read from a
+        // `.fly.h` was compiled into its archive by this same compiler, so its
+        // objects have exactly the layout computed here.
+        List<SemaClassAttribute> attrs = allAttributes(cls)   // base fields first, then own
+        int i = 0
+        while i < attrs.size() {
+            SemaClassAttribute a = attrs.get(i)
+            pointer fty = fieldLlvmType(cgm, a.getType())
+            fieldTys.add(fty)
+            i = i + 1
         }
         cg.structSetBodyN(st, fieldTys, false)
 
@@ -126,19 +108,6 @@ public class CodeGenClass {
             }
         }
         return cgm.getTypes().lowerType(t)
-    }
-
-    // nonStructBaseCount — subobject slots a HEADER class's own fields sit after.
-    public static int nonStructBaseCount(const SemaClassType cls) {
-        int n = 0
-        List<SemaClassType> bs = cls.getBaseClasses()
-        int i = 0
-        while i < bs.size() {
-            SemaClassType b = bs.get(i)
-            if b.getClassKind() != SemaClassKind.STRUCT { n = n + 1 }
-            i = i + 1
-        }
-        return n
     }
 
     // refClassId — the reference codegen's class Id (`io.FileWriter`): LAST
@@ -247,7 +216,7 @@ public class CodeGenClass {
         List<pointer> slots = new List<pointer>()
         pointer nullSlot
         llvm.constPointerNull(ptrTy, nullSlot)
-        slots.add(nullSlot)                     // slot 0: offset-to-top (null)
+        slots.add(nullSlot)                     // slot 0: the itable directory, set below (null when none)
         int i = 0
         while i < ms.size() {
             SemaClassMethod m = ms.get(i)
@@ -256,34 +225,80 @@ public class CodeGenClass {
             i = i + 1
         }
 
-        // Interface region (audit V4): implemented interfaces put their methods at
-        // MODULE-GLOBAL slots (cgm.ifaceBase + method index) so an interface-typed
-        // dispatch indexes the same slot in every implementing class's vtable. The
-        // gap between the own methods and the region is null padding.
+        // Interfaces: one ITABLE per implemented interface — the implementations
+        // in the interface's own method order — and slot 0 of the vtable points to
+        // a directory of (interface id, itable) pairs ending in (null, null).
+        //
+        // This replaced a module-global interface region (every interface at a
+        // fixed slot past the largest class's methods). That only works inside
+        // ONE object: a program and a library compiled separately computed
+        // different regions, so an interface call across the boundary — a
+        // program calling Reader.read on an object built by the std archive —
+        // hit the wrong slot. The itable index depends only on the interface's
+        // declaration and the id only on its qualified name, so both sides of
+        // any boundary agree. See emitInterfaceFn for the lookup.
         List<SemaClassType> ifs = implementedInterfaces(cls)
-        int fi = 0
-        while fi < ifs.size() {
-            SemaClassType ifc = ifs.get(fi)
-            int base = cgm.ifaceBase(ifc.getName())
-            if base > 0 {
+        if ifs.size() > 0 {
+            pointer i64Ty
+            llvm.int64TypeInContext(cgm.getCtx(), i64Ty)
+            List<pointer> dir = new List<pointer>()
+            int fi = 0
+            while fi < ifs.size() {
+                SemaClassType ifc = ifs.get(fi)
                 List<SemaClassMethod> ims = vmethods(ifc)
-                int need = base + (int)ims.size()
-                while slots.size() < need { slots.add(nullSlot) }
+                List<pointer> its = new List<pointer>()
                 int im = 0
                 while im < ims.size() {
                     SemaClassMethod idecl = ims.get(im)
                     // match the implementation by FULL SIGNATURE — by name the
-                    // overloaded visitor methods all hit the same slot
+                    // overloaded visitor methods would all hit the same entry
+                    pointer ifn = nullSlot
                     int own = indexOfMethodSig(ms, idecl)
                     if own >= 0 {
                         SemaClassMethod impl = ms.get(own)
-                        pointer ifn = impl.getLlvmFn()
-                        if ifn != 0 { slots.set(base + im, ifn) }
+                        pointer implFn = impl.getLlvmFn()
+                        if implFn != 0 { ifn = implFn }
                     }
+                    its.add(ifn)
                     im = im + 1
                 }
+                pointer itInit
+                cg.constArrayN(ptrTy, its, itInit)
+                pointer itTy
+                llvm.arrayType(ptrTy, (int)its.size(), itTy)
+                string itName = str.concat(vtableName(cls), str.concat(".itable.", ifc.getName()))
+                pointer itG
+                llvm.addGlobal(cgm.getModule(), itTy, itName, itG)
+                llvm.setInitializer(itG, itInit)
+                llvm.setGlobalConstant(itG, true)
+                if cls.getGenericTemplate() != null {
+                    llvm.setLinkage(itG, 3)
+                    cgm.setWeakComdat(itG, itName)
+                }
+                pointer idVal
+                llvm.constInt(i64Ty, ifaceId(ifc), false, idVal)
+                pointer idPtr
+                llvm.constIntToPtr(idVal, ptrTy, idPtr)
+                dir.add(idPtr)
+                dir.add(itG)
+                fi = fi + 1
             }
-            fi = fi + 1
+            dir.add(nullSlot)
+            dir.add(nullSlot)
+            pointer dirInit
+            cg.constArrayN(ptrTy, dir, dirInit)
+            pointer dirTy
+            llvm.arrayType(ptrTy, (int)dir.size(), dirTy)
+            string dirName = str.concat(vtableName(cls), ".itables")
+            pointer dirG
+            llvm.addGlobal(cgm.getModule(), dirTy, dirName, dirG)
+            llvm.setInitializer(dirG, dirInit)
+            llvm.setGlobalConstant(dirG, true)
+            if cls.getGenericTemplate() != null {
+                llvm.setLinkage(dirG, 3)
+                cgm.setWeakComdat(dirG, dirName)
+            }
+            slots.set(0, dirG)
         }
 
         pointer init
@@ -303,6 +318,35 @@ public class CodeGenClass {
             cgm.setWeakComdat(g, vtableName(cls))
         }
         cls.setLlvmVTable(g)
+    }
+
+    // ifaceId — an interface's identity in every itable directory: an FNV-1a-style
+    // 64-bit hash of its namespace-qualified name. A hash rather than the address
+    // of a global, so it is the same in every object and every DLL without any
+    // linker cooperation. Never 0: (0, null) terminates a directory.
+    public static long ifaceId(const SemaClassType iface) {
+        string key = str.concat(SemaBuilder.classNsFlat(iface), str.concat(".", iface.getName()))
+        long h = 1469598103934665603
+        int n = str.len(key)
+        int i = 0
+        while i < n {
+            byte kb = str.byteAt(key, i)
+            int kc = kb & 255
+            h = h ^ kc
+            h = h * 1099511628211
+            i = i + 1
+        }
+        if h == 0 { h = 1 }
+        return h
+    }
+
+    // ifaceMethodIndex — the entry of interface method `fn` in any itable of
+    // `iface`: its position in the interface's own method order.
+    public static int ifaceMethodIndex(const SemaClassType iface, const SemaFunctionBase fn) {
+        List<SemaClassMethod> ims = vmethods(iface)
+        int idx = indexOfMethodSig(ims, fn)
+        if idx < 0 { idx = 0 }
+        return idx
     }
 
     // implementedInterfaces — every INTERFACE reachable through the base list
@@ -355,6 +399,8 @@ public class CodeGenClass {
         pointer entry
         llvm.appendBasicBlockInContext(cgm.getCtx(), f, "entry", entry)
         llvm.positionBuilderAtEnd(b, entry)
+        CodeGenDebug dbg = cgm.getDebug()
+        if dbg != null { dbg.beginFunction(m, f, false) }
 
         CodeGenExpr cge = new CodeGenExpr(cgm)
         pointer errParam
@@ -407,6 +453,10 @@ public class CodeGenClass {
             }
             i = i + 1
         }
+        if dbg != null {
+            dbg.declareThis(cls, m, thisSlot)
+            dbg.declareParams(params, 1)
+        }
         cge.bindOutSlot(params)
         // NRVO needs the return slot here too. Sema decides the optimization per
         // function and DROPS the assignment at `return name`, so a method whose
@@ -425,6 +475,7 @@ public class CodeGenClass {
             pointer ret
             llvm.buildRetVoid(b, ret)
         }
+        if dbg != null { dbg.endFunction() }
     }
 
     // emitDefaultInstance — one `new C()` with NO arguments, returning the object
@@ -666,25 +717,16 @@ public class CodeGenClass {
 
         // super calls dispatch DIRECT to the resolved base function — loading the
         // vtable would re-dispatch to the most-derived override (audit V4).
-        // Everything else loads the vtable pointer (slot 0) + the method slot:
-        // for a CLASS-typed receiver the slot comes from its vmethods position;
-        // for an INTERFACE-typed receiver from the module-global interface region
-        // (same index in every implementing class's vtable).
-        // Dispatch selection:
-        //   super / STRUCT / header CLASS  → DIRECT (no vtable, or the archive's
-        //     Itanium vtable whose class-slot indices differ from ours)
-        //   header INTERFACE → vtable dispatch with the REFERENCE per-base layout:
-        //     the receiver IS a base-subobject pointer (produced by archive code),
-        //     slot 0 = offset-to-top, methods at their interface order + 1 —
-        //     which is exactly methodSlot() over the interface itself
-        //   native INTERFACE → module-global interface slots (flat model)
-        //   native CLASS → own vmethods slot
+        // Everything else loads the vtable pointer (field 0 of the object):
+        //   super / STRUCT  → DIRECT call (a base's own body / no vtable)
+        //   CLASS receiver  → vtable[ its vmethods position + 1 ]
+        //   INTERFACE receiver → the itable the vtable's directory holds for that
+        //     interface, at the method's index within the interface (see
+        //     buildVTable). Header-origin or not makes no difference: the
+        //     archive behind a header was built by this compiler.
         bool direct = false
         if node.isSuper() { direct = true }
         if cls.getClassKind() == SemaClassKind.STRUCT { direct = true }
-        // (removed) header CLASS → direct workaround: the self-host vtable now
-        // includes constructors (reference numbering), so an archive-built class
-        // vtable is index-compatible → dispatch through it like a native class.
         pointer fnPtr
         if direct {
             fnPtr = fn.getLlvmFn()
@@ -693,10 +735,14 @@ public class CodeGenClass {
             llvm.buildStructGEP2(b, structTy, objPtr, 0, "vtslot", vtSlot)
             pointer vt
             llvm.buildLoad2(b, ptrTy, vtSlot, "vt", vt)
+            // `table` is where the function pointer is read: the vtable itself,
+            // or — for a native interface receiver — the itable that the object's
+            // itable directory holds for that interface.
+            pointer table = vt
             int slot = 0
             if cls.getClassKind() == SemaClassKind.INTERFACE {
-                if cls.isFromHeader() { slot = methodSlot(cls, fn) }
-                else { slot = cgm.ifaceSlot(cls, fn) }
+                table = cgm.emitItableLookup(vt, ifaceId(cls))
+                slot = ifaceMethodIndex(cls, fn)
             } else {
                 slot = methodSlot(cls, fn)
             }
@@ -707,7 +753,7 @@ public class CodeGenClass {
             List<pointer> idxAddrs = new List<pointer>()
             idxAddrs.add(slotIdx)
             pointer fnSlot
-            cg.buildGEP2N(b, ptrTy, vt, idxAddrs, "vfnslot", fnSlot)
+            cg.buildGEP2N(b, ptrTy, table, idxAddrs, "vfnslot", fnSlot)
             llvm.buildLoad2(b, ptrTy, fnSlot, "vfn", fnPtr)
         }
 
@@ -933,25 +979,10 @@ public class CodeGenClass {
     // ── name + index helpers ──────────────────────────────────────────────────
 
     // fieldIndex — slot index of a field.
-    //   native CLASS: 1 + position in the FLATTENED list (slot 0 = vtable);
-    //   STRUCT:       plain position (no vtable slot, reference ABI);
-    //   HEADER class: 1 + base-subobject count + position among OWN fields
-    //                 (reference Itanium layout; inherited fields would need a
-    //                 nested subobject GEP — unsupported for now).
+    //   CLASS:  1 + position in the FLATTENED list (slot 0 = vtable) — inherited
+    //           fields included, which the old header layout could not reach;
+    //   STRUCT: plain position (no vtable slot).
     public static int fieldIndex(const SemaClassType cls, const string name) {
-        if cls.isFromHeader() {
-            if cls.getClassKind() != SemaClassKind.STRUCT {
-                int hb = 1 + nonStructBaseCount(cls)
-                List<SemaClassAttribute> own = cls.getAttributeList()
-                int oi = 0
-                while oi < own.size() {
-                    SemaClassAttribute oa = own.get(oi)
-                    if str.equals(oa.getName(), name) { return oi + hb }
-                    oi = oi + 1
-                }
-                return hb
-            }
-        }
         int base = 1
         if cls.getClassKind() == SemaClassKind.STRUCT { base = 0 }
         List<SemaClassAttribute> attrs = allAttributes(cls)

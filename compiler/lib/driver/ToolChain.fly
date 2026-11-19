@@ -551,6 +551,9 @@ public class ToolChain {
         }
         proc.argsAdd(h, "-m")
         proc.argsAdd(h, "i386pep")                       // x86_64 PE emulation
+        // Reproducible output: ld.lld in mingw mode stamps the link time into the
+        // PE header unless told not to, so the same program linked twice differed.
+        proc.argsAdd(h, "--no-insert-timestamp")
         proc.argsAdd(h, str.concat("-L", slib))
         proc.argsAdd(h, str.concat("-L", builtinsDir))
         if str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
@@ -670,6 +673,21 @@ public class ToolChain {
         string build = path.dirname(parent)
         string s3 = path.join(path.join(build, "llvm"), "lib")
         return str.concat(s1, str.concat(";", str.concat(s2, str.concat(";", s3))))
+    }
+
+    // builtinsCandidates — where libclang_rt.builtins.a may sit relative to the fly
+    // binary's dir, ";"-separated in probe order: the bundle's
+    // <exe>/../lib/clang/<major>/lib/<triple>/ (a release, and build/stage<N>), then
+    // the fork LLVM's tree for a dev build (build/stage<N>/bin → build/llvm). Pure,
+    // so ToolChainSuite can pin the order without touching the filesystem.
+    public string builtinsCandidates(const string exeDir, const string major, const string triple) {
+        string rel = path.join(path.join(path.join(path.join("lib", "clang"), major), "lib"), triple)
+        string relLib = path.join(rel, "libclang_rt.builtins.a")
+        string parent = path.dirname(exeDir)
+        string s1 = path.join(parent, relLib)
+        string build = path.dirname(parent)
+        string s2 = path.join(path.join(build, "llvm"), relLib)
+        return str.concat(s1, str.concat(";", s2))
     }
 
     // getLLVMLibDir — locate the dir holding the LLVM import lib (LLVM-20.lib, the
@@ -982,6 +1000,29 @@ public class ToolChain {
         string newLib = "libclang_rt.builtins.a"
         string oldLib = str.concat(str.concat("libclang_rt.builtins-", suffix), ".a")
         string sysBase = str.concat("/usr/lib/llvm-", major)
+
+        // 0) next to the fly binary — the release bundle ships the archive as
+        //    <exe>/../lib/clang/<major>/lib/<triple>/, and a dev build finds the
+        //    fork LLVM's copy under build/llvm. Before these, a Linux user needed
+        //    a system LLVM 20 to link anything, and the bootstrap made one with
+        //    `sudo ln -s build/llvm /usr/lib/llvm-20`.
+        string exe = env.exePath()
+        if str.isEmpty(exe) == false {
+            string rest = this.builtinsCandidates(path.dirname(exe), major, tripleDir)
+            while str.isEmpty(rest) == false {
+                string cand = rest
+                int sep = str.indexOf(rest, ";")
+                if sep >= 0 {
+                    cand = str.substring(rest, 0, sep)
+                    // distinct temp: `x = substring(x, …)` would self-alias
+                    string tail = str.substring(rest, sep + 1, str.len(rest))
+                    rest = tail
+                } else {
+                    rest = ""
+                }
+                if fs.exists(cand) { return cand }
+            }
+        }
 
         // 1) system new-style: /usr/lib/llvm-20/lib/clang/20/lib/<triple>/libclang_rt.builtins.a
         string c1 = path.join(path.join(path.join(sysBase, str.concat("lib/clang/", str.concat(major, "/lib"))), tripleDir), newLib)

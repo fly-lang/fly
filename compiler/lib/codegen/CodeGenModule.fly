@@ -4,6 +4,7 @@ import fly.compiler.sema.*
 import fly.compiler.target.*
 import fly.compiler.basic.CodeGenOptions
 import fly.compiler.codegen.CodeGenLLVM
+import fly.compiler.codegen.CodeGenDebug
 import fly.compiler.codegen.CodeGenType
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenClass
@@ -40,11 +41,17 @@ public class CodeGenModule {
     pointer arrayTy        // the `%array = { ptr data, i64 len }` named struct (native arrays)
     pointer freeFn         // lazily-declared `void @free(ptr)` (libc); null until first use
     pointer freeFnTy       // its function type
-    Map<string, int> ifaceBases   // interface name → global vtable slot base (V4)
+    pointer itableFn       // `@__fly_itable`, the interface lookup helper; null until first use
+    pointer itableFnTy     // its function type
     CodeGenOptions codeGenOpts    // linker flags sink (CLang bridge); null in unit tests
+    CodeGenDebug dbg              // DWARF line tables (--debug-symbols); null otherwise
+    string name
 
     public CodeGenModule(const string name) {
-        this.ifaceBases = new Map<string, int>()
+        this.dbg = null
+        this.name = name
+        this.itableFn = 0
+        this.itableFnTy = 0
         this.codeGenOpts = null
         this.cg = new CodeGenLLVM()
         LLVM llvm = this.cg.getLLVM()
@@ -106,7 +113,17 @@ public class CodeGenModule {
         this.freeFnTy = 0
     }
 
-    public void setCodeGenOpts(const CodeGenOptions o) { this.codeGenOpts = o }
+    public void setCodeGenOpts(const CodeGenOptions o) {
+        this.codeGenOpts = o
+        if o != null {
+            if o.getDebugSymbols() {
+                if this.dbg == null {
+                    this.dbg = new CodeGenDebug(this.cg.getLLVM(), this.ctx, this.module, this.builder, this.name, o.getDebugPrefixMap(), this.types.ptrType())
+                }
+            }
+        }
+    }
+    public CodeGenDebug getDebug() { return this.dbg }
     public CodeGenOptions getCodeGenOpts() { return this.codeGenOpts }
     // addLinkerOption — register a `-l` flag for the ToolChain link (deduplicated
     // by the ";flag;" segment check). No-op when no options sink is wired.
@@ -176,30 +193,10 @@ public class CodeGenModule {
         List<SemaFunctionBase> bodies = reg.getBodies()
         List<SemaClassType> classes = this.concreteClasses(reg)
 
-        // 0) interface dispatch bases (audit V4): the flat object model has ONE
-        // vtable per object, so an interface method must sit at the SAME index in
-        // every implementing class's vtable. Each interface gets a module-global
-        // slot region PAST every class's own method slots; buildVTable places the
-        // implementations there and interface-typed calls index by these bases.
-        int maxOwn = 0
-        int mc = 0
-        while mc < classes.size() {
-            List<SemaClassMethod> vms = CodeGenClass.vmethods(classes.get(mc))
-            if vms.size() > maxOwn { maxOwn = (int)vms.size() }
-            mc = mc + 1
-        }
-        List<SemaClassType> allCls = reg.getClasses()
-        int accBase = 1 + maxOwn
-        int ic = 0
-        while ic < allCls.size() {
-            SemaClassType icls = allCls.get(ic)
-            if icls.getClassKind() == SemaClassKind.INTERFACE {
-                this.ifaceBases.put(icls.getName(), accBase)
-                List<SemaClassMethod> ims = CodeGenClass.vmethods(icls)
-                accBase = accBase + (int)ims.size()
-            }
-            ic = ic + 1
-        }
+        // Interface dispatch needs no module-wide preparation: each class carries
+        // its own itables (CodeGenClass.buildVTable) and a call looks its
+        // interface up by id (emitItableLookup), so separately compiled objects
+        // agree without seeing each other's classes.
 
         // 1a) class struct types
         int c = 0
@@ -296,6 +293,9 @@ public class CodeGenModule {
         } elsif mainFn != null {
             this.emitMainWrapper(mainFn)
         }
+
+        // the debug info is complete only once finalized — before verify/emit
+        if this.dbg != null { this.dbg.finalize() }
     }
 
     // suiteClasses — the SUITE classes this module defines (header-origin suites
@@ -1037,6 +1037,7 @@ public class CodeGenModule {
         pointer entry
         llvm.appendBasicBlockInContext(this.ctx, f, "entry", entry)
         llvm.positionBuilderAtEnd(this.builder, entry)
+        if this.dbg != null { this.dbg.beginFunction(fn, f, false) }
 
         List<SemaParam> params = fn.getParams()
         pointer ptrTy = this.types.ptrType()
@@ -1071,6 +1072,7 @@ public class CodeGenModule {
             }
             i = i + 1
         }
+        if this.dbg != null { this.dbg.declareParams(params, 0) }
 
         CodeGenExpr cge = new CodeGenExpr(this)
         cge.bindOutSlot(params)
@@ -1106,6 +1108,7 @@ public class CodeGenModule {
             pointer ret
             llvm.buildRetVoid(this.builder, ret)
         }
+        if this.dbg != null { this.dbg.endFunction() }
     }
 
     // isRuntimeCABIDef — a `fly.runtime` function with a REAL body (not an empty-body
@@ -1308,23 +1311,145 @@ public class CodeGenModule {
         return ""
     }
 
-    // ifaceSlot — the module-global vtable slot of interface method `fn`:
-    // the interface's base region + the method's index within the interface.
-    public int ifaceSlot(const SemaClassType iface, const SemaFunctionBase fn) {
-        int base = 0
-        if this.ifaceBases.has(iface.getName()) { base = this.ifaceBases.get(iface.getName()) }
-        List<SemaClassMethod> ims = CodeGenClass.vmethods(iface)
-        // FULL-SIGNATURE index: name-only collapsed every visitor overload to
-        // slot 0 of the region
-        int idx = CodeGenClass.indexOfMethodSig(ims, fn)
-        if idx < 0 { idx = 0 }
-        return base + idx
+    // emitItableLookup — at the current insertion point, the itable the object
+    // with vtable `vt` holds for the interface with id `ifaceId`: a call to the
+    // module's lookup helper (see itableLookupFn).
+    public pointer emitItableLookup(const pointer vt, const long ifaceId) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer fn = this.itableLookupFn()
+        pointer i64Ty
+        llvm.int64TypeInContext(this.ctx, i64Ty)
+        pointer idV
+        llvm.constInt(i64Ty, ifaceId, false, idV)
+        List<pointer> args = new List<pointer>()
+        args.add(vt)
+        args.add(idV)
+        pointer table
+        this.cg.buildCallN(this.builder, this.itableFnTy, fn, args, "itable", table)
+        return table
     }
 
-    // ifaceBase — the slot base for an interface name (0 = unknown).
-    public int ifaceBase(const string name) {
-        if this.ifaceBases.has(name) { return this.ifaceBases.get(name) }
-        return 0
+    // itableLookupFn — `ptr @__fly_itable(ptr vt, i64 id)`, defined once per module
+    // with LinkOnceODR + comdat so every object that dispatches through an
+    // interface carries it and the linker keeps one. It scans the (id, itable)
+    // pairs that vtable slot 0 points to and returns the matching itable, or null
+    // when the class does not implement the interface (Sema rules that out).
+    public pointer itableLookupFn() {
+        if this.itableFn != 0 { return this.itableFn }
+        LLVM llvm = this.cg.getLLVM()
+        pointer b = this.builder
+        pointer ptrTy = this.types.ptrType()
+        pointer i64Ty
+        llvm.int64TypeInContext(this.ctx, i64Ty)
+        List<pointer> ps = new List<pointer>()
+        ps.add(ptrTy)
+        ps.add(i64Ty)
+        pointer fty
+        this.cg.functionTypeN(ptrTy, ps, false, fty)
+        string name = "__fly_itable"
+        pointer fn
+        llvm.getNamedFunction(this.module, name, fn)
+        if fn == 0 { llvm.addFunction(this.module, name, fty, fn) }
+        this.itableFn = fn
+        this.itableFnTy = fty
+        llvm.setLinkage(fn, 3)
+        this.setWeakComdat(fn, name)
+
+        // build the body away from the caller's block, then go back to it. The
+        // helper has no subprogram, so the caller's debug location must not
+        // follow the builder into it.
+        pointer savedLoc = 0
+        if this.dbg != null { savedLoc = this.dbg.suspend() }
+        pointer callerBB
+        llvm.getInsertBlock(b, callerBB)
+
+        pointer entryBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "entry", entryBB)
+        pointer loopBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "loop", loopBB)
+        pointer testBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "test", testBB)
+        pointer nextBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "next", nextBB)
+        pointer foundBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "found", foundBB)
+        pointer missingBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "missing", missingBB)
+
+        pointer vt
+        llvm.getParam(fn, 0, vt)
+        pointer want
+        llvm.getParam(fn, 1, want)
+        pointer zero64
+        llvm.constInt(i64Ty, 0, false, zero64)
+        pointer one64
+        llvm.constInt(i64Ty, 1, false, one64)
+        pointer two64
+        llvm.constInt(i64Ty, 2, false, two64)
+        pointer brV
+
+        // entry: dir = vt[0]; k = 0
+        llvm.positionBuilderAtEnd(b, entryBB)
+        pointer dir
+        llvm.buildLoad2(b, ptrTy, vt, "dir", dir)
+        pointer kAddr
+        llvm.buildAlloca(b, i64Ty, "k", kAddr)
+        llvm.buildStore(b, zero64, kAddr)
+        llvm.buildBr(b, loopBB, brV)
+
+        // loop: key = dir[2k]; a null key ends the directory
+        llvm.positionBuilderAtEnd(b, loopBB)
+        pointer kv
+        llvm.buildLoad2(b, i64Ty, kAddr, "kv", kv)
+        pointer ki
+        llvm.buildMul(b, kv, two64, "ki", ki)
+        List<pointer> keyIdx = new List<pointer>()
+        keyIdx.add(ki)
+        pointer keyAddr
+        this.cg.buildGEP2N(b, ptrTy, dir, keyIdx, "keyp", keyAddr)
+        pointer key
+        llvm.buildLoad2(b, ptrTy, keyAddr, "key", key)
+        pointer keyInt
+        llvm.buildPtrToInt(b, key, i64Ty, "keyi", keyInt)
+        pointer isEnd
+        llvm.buildICmp(b, 32, keyInt, zero64, "end", isEnd)      // 32 = LLVMIntEQ
+        llvm.buildCondBr(b, isEnd, missingBB, testBB, brV)
+
+        // test: the wanted interface?
+        llvm.positionBuilderAtEnd(b, testBB)
+        pointer isHit
+        llvm.buildICmp(b, 32, keyInt, want, "hit", isHit)
+        llvm.buildCondBr(b, isHit, foundBB, nextBB, brV)
+
+        // next: k = k + 1
+        llvm.positionBuilderAtEnd(b, nextBB)
+        pointer kn
+        llvm.buildAdd(b, kv, one64, "kn", kn)
+        llvm.buildStore(b, kn, kAddr)
+        llvm.buildBr(b, loopBB, brV)
+
+        // found: return dir[2k + 1]
+        llvm.positionBuilderAtEnd(b, foundBB)
+        pointer ti
+        llvm.buildAdd(b, ki, one64, "ti", ti)
+        List<pointer> tabIdx = new List<pointer>()
+        tabIdx.add(ti)
+        pointer tabAddr
+        this.cg.buildGEP2N(b, ptrTy, dir, tabIdx, "tabp", tabAddr)
+        pointer tab
+        llvm.buildLoad2(b, ptrTy, tabAddr, "tab", tab)
+        pointer retV
+        llvm.buildRet(b, tab, retV)
+
+        // missing: null
+        llvm.positionBuilderAtEnd(b, missingBB)
+        pointer nullV
+        llvm.constPointerNull(ptrTy, nullV)
+        llvm.buildRet(b, nullV, retV)
+
+        if callerBB != 0 { llvm.positionBuilderAtEnd(b, callerBB) }
+        if this.dbg != null { this.dbg.resume(savedLoc) }
+        return fn
     }
 
     // emitMalloc — `call ptr @malloc(i64 size)` with a RUNTIME size value
@@ -1561,8 +1686,15 @@ public class CodeGenModule {
         }
 
         // LLVMCodeGenLevelDefault=2, LLVMRelocPIC=2, LLVMCodeModelDefault=0.
+        // A debug build at -O0 uses LLVMCodeGenLevelNone instead (clang -g -O0):
+        // the default level reschedules and merges instructions, so a statement's
+        // code ends up under line 0 and a breakpoint on it lands on the next line.
+        int cgLevel = 2
+        if this.dbg != null {
+            if this.codeGenOpts.getOptLevel() == 0 { cgLevel = 0 }
+        }
         pointer tm = 0
-        llvm.createTargetMachine(target, triple, "", "", 2, 2, 0, tm)
+        llvm.createTargetMachine(target, triple, "", "", cgLevel, 2, 0, tm)
         if tm == 0 {
             ok = false
             return

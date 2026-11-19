@@ -55,7 +55,11 @@ if ($WithLLVM) {
 
 New-Item -ItemType Directory -Force (Split-Path -Parent $Out) | Out-Null
 $parts = Get-MingwLinkParts
-$args = @('-m', 'i386pep') + $parts.LibDirs + $parts.Pre + $objs + $parts.Post + @('-o', $Out)
+# --no-insert-timestamp: ld.lld in mingw mode stamps the link time into the PE
+# header (and the export/debug directories), so two clean builds of the same
+# sources gave different executables while every object and archive matched.
+# Without it the link output depends only on its inputs (reproducible builds).
+$args = @('-m', 'i386pep', '--no-insert-timestamp') + $parts.LibDirs + $parts.Pre + $objs + $parts.Post + @('-o', $Out)
 & $script:GNU_ldLld @args
 if ($LASTEXITCODE -ne 0) { throw "link of $Out failed (exit $LASTEXITCODE)" }
 exit 0

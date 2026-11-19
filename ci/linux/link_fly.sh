@@ -65,6 +65,16 @@ else
     RPATH="$(cd "$FORK_LLVM/lib" && pwd)"
 fi
 
+# compiler-rt builtins: linked into EVERY program fly produces, so they ship in
+# the bundle at the path the ToolChain probes first (<exe>/../lib/clang/<major>/
+# lib/<triple>/, LLVM's own layout). Always copied, bundle or not: a release
+# without them could link nothing on a host without a system LLVM 20.
+RT_REL="lib/clang/20/lib/x86_64-unknown-linux-gnu"
+RT_SRC="$FORK_LLVM/$RT_REL/libclang_rt.builtins.a"
+[ -f "$RT_SRC" ] || { echo "error: $RT_SRC missing — run ci/linux/stage0.sh." >&2; exit 1; }
+mkdir -p "build/stage$STAGE/$RT_REL"
+cp -f "$RT_SRC" "build/stage$STAGE/$RT_REL/libclang_rt.builtins.a"
+
 echo "stage$STAGE: linking $OUT/fly ..."
 # The link itself lives in link_bin.sh, shared with build_lsp.sh; RPATH is
 # passed through because only this script knows about the LLVM bundling mode.

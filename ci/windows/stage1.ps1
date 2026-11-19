@@ -46,11 +46,20 @@ $stage1Tests = if ($env:FLY_STAGE1_TESTS) { $env:FLY_STAGE1_TESTS } else { '1' }
 # stage 1" step - because the compiler suites are the LARGEST set and the ones
 # most likely to catch a stage1 codegen defect; leaving them out meant a local
 # stage1 built a self-host and never exercised its own compiler.
-$steps = @('build_runtime', 'build_std', 'build_compiler', 'link_fly',
+# 'rebuild_std': build_std again, with the fly just linked. The seed's std above
+# only served to link that fly (both sides seed-compiled); everything after it -
+# the stage-1 suites and stage 2 - uses a std built by the self-host, laid out
+# the way the self-host lays out classes.
+$steps = @('build_runtime', 'build_std', 'build_compiler', 'link_fly', 'rebuild_std',
            'test_runtime', 'test_std', 'test_compiler')
 foreach ($step in $steps) {
     if (($step -like 'test_*') -and ($stage1Tests -eq '0')) { continue }
-    & ".\ci\windows\$step.ps1"
+    if ($step -eq 'rebuild_std') {
+        $env:FLY_STD_BUILDER = 'self'
+        try { & ".\ci\windows\build_std.ps1" } finally { Remove-Item Env:FLY_STD_BUILDER -ErrorAction SilentlyContinue }
+    } else {
+        & ".\ci\windows\$step.ps1"
+    }
     if ($LASTEXITCODE -ne 0) { Write-Host "error: $step.ps1 failed (exit $LASTEXITCODE)"; exit 1 }
 }
 

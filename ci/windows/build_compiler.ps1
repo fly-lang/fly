@@ -62,6 +62,13 @@ $D = "build/stage$STAGE/driver"
 Remove-Item $D -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $D | Out-Null
 $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
+# The self-host compiler reads its std headers from build\stage<N-1>\lib; mapping
+# that directory to "lib" keeps the path out of the DWARF, so stage 2 and stage 3
+# describe the same sources with the same bits (the fixpoint compares bytes).
+# The seed (stage 1) has no such option.
+if ($DBG -and $STAGE -ne '1') {
+    $DBG += "--debug-prefix-map=$((Resolve-Path "build/stage$([int]$STAGE - 1)/lib").Path)=lib"
+}
 Write-Host "stage${STAGE}: compiling driver + compiler (monolithic, from source) ...$(if ($DBG) { ' (+debug-symbols)' })"
 # DIRECTORY CLI (seed and self-host alike): no positional — the entry (the
 # single main(), compiler/lib/driver/Driver.fly) is discovered from --src-dir

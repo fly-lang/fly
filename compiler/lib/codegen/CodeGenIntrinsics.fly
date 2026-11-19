@@ -399,6 +399,7 @@ public class CodeGenIntrinsics {
     // non-const param receives the C return value, no error param. The archive
     // fly_runtime_lib.a defines these as unmangled C symbols.
     public static void genRuntime(const CodeGenExpr cge, const SemaCall node) {
+        if CodeGenIntrinsics.genAtomicBuiltin(cge, node) { return }
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         CodeGenModule cgm = cge.getCgm()
@@ -459,6 +460,104 @@ public class CodeGenIntrinsics {
                 llvm.buildStore(b, rv, oa)
             }
         }
+    }
+
+    // genAtomicBuiltin — the runtime's four 4-byte atomics, declared in
+    // fly.runtime under their libatomic names, become LLVM atomic instructions
+    // instead of calls — the way a C compiler treats its __atomic builtins.
+    // As calls they needed a library that defines them: llvm-mingw's
+    // compiler-rt does on Windows, but on Linux only GCC's libatomic does, so a
+    // runtime without the seed's C objects could not link. Every operation is
+    // sequentially consistent (stronger than the orderings the runtime asks
+    // for, never weaker); the memorder arguments are ignored. Returns false for
+    // any other function.
+    //   __atomic_load_4(ptr, order, out)              load atomic
+    //   __atomic_store_4(ptr, val, order)             atomicrmw xchg (a seq_cst store)
+    //   __atomic_compare_exchange_4(ptr, expected, desired, weak, succ, fail, out)
+    //                                                 cmpxchg; *expected = witnessed
+    //   __atomic_fetch_add_4(ptr, val, order, out)    atomicrmw add
+    public static bool genAtomicBuiltin(const CodeGenExpr cge, const SemaCall node) {
+        SemaFunctionBase fn = node.getFunction()
+        string fname = fn.getName()
+        bool isLoad = str.equals(fname, "__atomic_load_4")
+        bool isStore = str.equals(fname, "__atomic_store_4")
+        bool isCas = str.equals(fname, "__atomic_compare_exchange_4")
+        bool isAdd = str.equals(fname, "__atomic_fetch_add_4")
+        bool known = isLoad || isStore
+        if isCas { known = true }
+        if isAdd { known = true }
+        if known == false { return false }
+
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        List<SemaExpr> args = node.getArgs()
+        List<SemaParam> params = fn.getParams()
+        pointer i32t
+        llvm.int32TypeInContext(cgm.getCtx(), i32t)
+        pointer ptrTy = cge.ptrType()
+        int seqCst = 7
+
+        // the target address: a Fly `pointer` is an integer → inttoptr
+        SemaExpr pe = args.get(0)
+        pointer pv = cge.gen(pe)
+        pointer addr
+        llvm.buildIntToPtr(b, pv, ptrTy, "atomic.ptr", addr)
+
+        if isLoad {
+            pointer lv
+            llvm.buildLoad2(b, i32t, addr, "atomic.load", lv)
+            llvm.setOrdering(lv, seqCst)
+            SemaExpr outE = args.get(2)
+            pointer outA = cge.genAddr(outE)
+            llvm.buildStore(b, lv, outA)
+            return true
+        }
+
+        // the i32 operand: arg 1 for store / fetch_add, arg 2 (desired) for cas
+        int valIdx = 1
+        if isCas { valIdx = 2 }
+        SemaExpr ve = args.get(valIdx)
+        SemaParam vp = params.get(valIdx)
+        pointer vv0 = cge.gen(ve)
+        pointer vv = cge.coerce(vv0, ve.getType(), vp.getType())
+
+        if isStore {
+            pointer old
+            llvm.buildAtomicRMW(b, 0, addr, vv, seqCst, old)    // 0 = xchg
+            return true
+        }
+        if isAdd {
+            pointer prev
+            llvm.buildAtomicRMW(b, 1, addr, vv, seqCst, prev)   // 1 = add
+            SemaExpr outE2 = args.get(3)
+            pointer outA2 = cge.genAddr(outE2)
+            llvm.buildStore(b, prev, outA2)
+            return true
+        }
+
+        // compare-exchange: `expected` is read through its pointer, and always
+        // receives the witnessed value (equal to it on success, which is the C
+        // contract on failure); `out` gets the success flag.
+        SemaExpr ee = args.get(1)
+        pointer ev = cge.gen(ee)
+        pointer expAddr
+        llvm.buildIntToPtr(b, ev, ptrTy, "atomic.exp", expAddr)
+        pointer expected
+        llvm.buildLoad2(b, i32t, expAddr, "atomic.expv", expected)
+        pointer pair
+        llvm.buildAtomicCmpXchg(b, addr, expected, vv, seqCst, pair)
+        pointer witnessed
+        llvm.buildExtractValue(b, pair, 0, "atomic.old", witnessed)
+        pointer ok
+        llvm.buildExtractValue(b, pair, 1, "atomic.ok", ok)
+        llvm.buildStore(b, witnessed, expAddr)
+        SemaExpr okE = args.get(6)
+        SemaParam okP = params.get(6)
+        pointer okA = cge.genAddr(okE)
+        pointer okV = cge.coerce(ok, SemaBuiltin.getBoolType(), okP.getType())
+        llvm.buildStore(b, okV, okA)
+        return true
     }
 
     // extendToI64 — widen an integer value to i64 by its Fly type: already-64-bit

@@ -163,13 +163,32 @@ public class Lexer {
         return new Token(kind, loc, start, this.pos)
     }
 
-    // lexNumber — integer / float / hex (digits, '.', trailing alnum).
+    // lexNumber — integer / float / hex (digits, '.', trailing alnum), plus the
+    // SIGN of a decimal exponent: `1.5e-16` is one token. Without it the lexer
+    // stopped after the `e`, and `d * 1.1102230246251565e-16` compiled as
+    // `d * 1.1102230246251565 - 16` — silently, since that is valid Fly. A hex
+    // literal never takes a sign: in `0x1e-5` the `e` is a digit and `-` is a
+    // subtraction.
     public Token lexNumber(const SourceLocation loc, const int start) {
+        bool hex = false
+        if this.byteAt(start) == 48 {
+            int x = this.byteAt(start + 1)
+            if x == 120 || x == 88 { hex = true }      // 0x / 0X
+        }
         bool more = true
         while more && this.pos < this.len {
             int d = this.byteAt(this.pos)
             if isIdentifierBody(d) || d == 46 {
                 this.advance()
+                bool isExp = d == 101 || d == 69        // e / E
+                if isExp && hex == false {
+                    int sg = this.byteAt(this.pos)
+                    bool hasSign = sg == 43 || sg == 45  // + / -
+                    if hasSign {
+                        int nd = this.byteAt(this.pos + 1)
+                        if nd >= 48 && nd <= 57 { this.advance() }
+                    }
+                }
             } else {
                 more = false
             }

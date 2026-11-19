@@ -96,7 +96,9 @@ cd fly
 ./ci/linux/stage2.sh
 ```
 
-On a host without LLVM 20, stage 0 creates the symlink `/usr/lib/llvm-20` with `sudo`.
+No system LLVM and no `sudo` are needed: everything LLVM-related comes from the
+fork's archive in `build/llvm`, and a release carries the compiler-rt builtins
+it links into every program.
 
 #### Windows
 

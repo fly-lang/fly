@@ -4,10 +4,19 @@
 # build/stage$STAGE/lib. Run with STAGE=1 (the stage0 bootstrap compiles) or
 # STAGE=2 (the stage1 fly recompiles); see stage1.sh for the stage map.
 #
-# The runtime is Fly layered over C primitives (mem_alloc, copyCStr, …) whose .c
-# sources live only in the reference repo — the two seeds taken from the previous
-# stage's lib are llvm.fly.h (generated bridge header, no source here) and the
-# runtime archive (for its C members; the Fly member is REPLACED by this build).
+# What goes into the archive:
+#   STAGE=2  the Fly runtime ALONE — this is what ships. RuntimeLinux.fly
+#            defines every primitive anything references (a census found 61 also
+#            defined by the seed's C objects, and the C-only rest referenced by
+#            nothing), and the self-host lowers its four `__atomic_*_4` calls to
+#            LLVM atomic instructions (CodeGenIntrinsics.genAtomicBuiltin), so no
+#            libatomic is needed either.
+#   STAGE=1  the seed's C primitive objects (Env.c.o, Fs.c.o, … — sources only in
+#            the 0.13.x repo), kept from the seed's archive, plus the Fly member
+#            WEAKENED so the C definitions win. The seed compiles this runtime and
+#            lowers `__atomic_*_4` to calls nothing on Linux defines; the C
+#            objects stand in. Stage 1 is the seed's world and never ships.
+# Up to 0.14.7 the stage-2 archive kept the C objects too.
 # Output: $LIB/fly_runtime_lib.a + runtime.fly.h.
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
@@ -23,7 +32,7 @@ if [ "$STAGE" = "1" ]; then
     mkdir -p build/stage1/bin
     ln -f build/stage0/bin/fly "$FLY" 2>/dev/null || cp -f build/stage0/bin/fly "$FLY"
 else
-    SEED=build/stage1/lib               # seeds come from the stage1 build
+    SEED=build/stage1/lib               # llvm.fly.h comes from the stage1 build
     FLY=build/stage1/bin/fly            # the fly linked by stage1
     [ -x "$FLY" ] || { echo "error: stage1 fly '$FLY' not found — run ci/linux/stage1.sh first." >&2; exit 1; }
 fi
@@ -33,18 +42,21 @@ rm -rf "$T"; mkdir -p "$T"
 AR="${AR:-ar}"
 OBJCOPY="${OBJCOPY:-objcopy}"
 
-# stage seeds (refreshed every run so a stale lib never wins)
-[ -f "$SEED/llvm.fly.h" ] && [ -f "$SEED/fly_runtime_lib.a" ] || { echo "error: seeds missing in $SEED — run the previous stage first." >&2; exit 1; }
+# llvm.fly.h (refreshed every run so a stale copy never wins)
+[ -f "$SEED/llvm.fly.h" ] || { echo "error: $SEED/llvm.fly.h missing — run the previous stage first." >&2; exit 1; }
 cp -f "$SEED/llvm.fly.h" "$LIB/"
-cp -f "$SEED/fly_runtime_lib.a" "$LIB/"
-
-# Keep ONLY the C-primitive members (*.c.o) in the seeded archive: the Fly member's
-# NAME varies by producer (bootstrap/reference: `runtime.fly.o` or `fly_runtime_lib`;
-# self-host: `fly_runtime_lib`), so a name-based `ar r` swap could leave a stale
-# duplicate defining every fly.runtime symbol twice.
-for m in $("$AR" t "$LIB/fly_runtime_lib.a"); do
-    case "$m" in *.c.o) ;; *) "$AR" d "$LIB/fly_runtime_lib.a" "$m" ;; esac
-done
+# A fresh archive every run; at stage 1 it starts from the seed's C members only.
+rm -f "$LIB/fly_runtime_lib.a"
+if [ "$STAGE" = "1" ]; then
+    [ -f "$SEED/fly_runtime_lib.a" ] || { echo "error: $SEED/fly_runtime_lib.a missing — run stage0 first." >&2; exit 1; }
+    cp -f "$SEED/fly_runtime_lib.a" "$LIB/"
+    # Keep ONLY the C members (*.c.o): the Fly member's NAME varies by producer
+    # (`runtime.fly.o` / `fly_runtime_lib`), so a name-based swap could leave a
+    # stale duplicate defining every fly.runtime symbol twice.
+    for m in $("$AR" t "$LIB/fly_runtime_lib.a"); do
+        case "$m" in *.c.o) ;; *) "$AR" d "$LIB/fly_runtime_lib.a" "$m" ;; esac
+    done
+fi
 
 # DIRECTORY CLI: --lib compiles the whole --src-dir; the one runtime source is
 # STAGED into the temp dir so exactly that file is the library (its
@@ -55,26 +67,26 @@ DBG=""; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && DBG="--debug-symbols"
 echo "stage$STAGE: compiling runtime/lib/RuntimeLinux.fly ...${DBG:+ (+debug-symbols)}"
 cp -f runtime/lib/RuntimeLinux.fly "$T/RuntimeLinux.fly"
 if [ "$STAGE" = "1" ]; then
-    # stage0 reference: --lib emits the archive itself; merge its member(s) in.
+    # stage0 reference: --lib emits the archive itself; merge its member(s) in,
+    # WEAKENED so the kept C objects' strong definitions win (no duplicate-symbol
+    # error); the Fly-only symbols it uniquely provides are still used.
     "$FLY" --lib $DBG -o "$T/fly_runtime_lib" --src-dir "$T"
     for m in $("$AR" t "$T/fly_runtime_lib.a"); do
         (cd "$T" && "$AR" x fly_runtime_lib.a "$m")
-        # WEAKEN the fresh Fly runtime member: it redefines the C-ABI symbols
-        # (mem_alloc, fs_*, …) that the kept seed `.c.o` C primitives also provide.
-        # As a weak member the seed's strong defs win (no duplicate-symbol error);
-        # the Fly-only symbols it uniquely provides (e.g. dir_open) are still used.
-        # (stage0 emits these STRONG; the self-host already emits weak C-ABI wrappers.)
         "$OBJCOPY" --weaken "$T/$m"
-        "$AR" r "$LIB/fly_runtime_lib.a" "$T/$m"
+        "$AR" rc "$LIB/fly_runtime_lib.a" "$T/$m"
     done
 else
-    # self-host: --lib emits one merged object; add it (weakened, as above).
+    # self-host: --lib emits one merged object — the whole archive.
     "$FLY" --lib $DBG -o fly_runtime_lib --out-dir "$T" --src-dir "$T"
     [ -f "$T/fly_runtime_lib" ] || { echo "error: runtime object not emitted." >&2; exit 1; }
-    "$OBJCOPY" --weaken "$T/fly_runtime_lib"
-    "$AR" r "$LIB/fly_runtime_lib.a" "$T/fly_runtime_lib"
+    "$AR" rc "$LIB/fly_runtime_lib.a" "$T/fly_runtime_lib"
 fi
 "$AR" s "$LIB/fly_runtime_lib.a"
+# What ships carries no object the seed compiled.
+if [ "$STAGE" != "1" ] && "$AR" t "$LIB/fly_runtime_lib.a" | grep -q '\.c\.o$'; then
+    echo "error: the stage-$STAGE runtime archive contains C objects from the seed." >&2; exit 1
+fi
 
 # headers (nested `>>` spaced so re-reads lex them; idempotent). The compiler names
 # the emitted header after the source (RuntimeLinux.fly.h); std/compiler compile

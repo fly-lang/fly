@@ -8,12 +8,11 @@
 #   1. lldb --version runs and reports the fork LLVM version — proves the
 #      binary starts from the shipped layout (liblldb.dll import-by-name) with
 #      zero external dependencies.
-#   2. a breakpoint round-trip on a DWARF probe: the probe is compiled by the
-#      SEED (build\stage0\bin\fly.exe) with --debug-symbols, because the
-#      self-host codegen does not emit DWARF yet. Compile is -c (gnu codegen,
-#      object) + link_bin.ps1 (fork ld.lld + mingw/UCRT — ld.lld keeps the
-#      .debug_* sections by default), the same no-MSVC path every shipped
-#      binary takes.
+#   2. a breakpoint round-trip on a DWARF probe compiled and linked by THIS
+#      stage's fly with --debug-symbols: the breakpoint must resolve to
+#      file:line, the caller frame must carry its line, the parameters and the
+#      local must show their values, and `next` must reach the following line.
+#      ld.lld keeps the .debug_* sections by default.
 #   3. lldb-dap.exe (the IDE/DAP adapter, same liblldb) exists and answers
 #      --help. A full DAP session needs a client and is not worth the CI flake.
 #
@@ -23,8 +22,7 @@
 #     incomplete. This is what CI runs.
 #   * plain dev build - the debugger stage0 provisions into build\llvm\bin, the
 #     very files link_fly.ps1 would bundle. This used to SKIP, which meant a dev
-#     build never exercised the DWARF round-trip at all - and the probe is built
-#     by the seed, so a seed that broke --debug-symbols went unnoticed until CI.
+#     build never exercised the DWARF round-trip at all.
 #     Only the shipped LAYOUT is left untested here, and only CI can test it.
 # Skips (exit 0) only when neither exists (stage0 was never run).
 # -----------------------------------------------------------------------------
@@ -39,7 +37,7 @@ $env:STAGE = $STAGE                          # link_bin.ps1 derives its lib dir 
 # lldb-dap.exe (check 3) - so the two always come from the same layout.
 $BIN = "build/stage$STAGE/bin"
 $DBG = "$BIN/lldb.exe"
-$SEED = 'build/stage0/bin/fly.exe'
+$FLY = "build/stage$STAGE/bin/fly.exe"
 
 if (-not (Test-Path $DBG -PathType Leaf)) {
     if ($env:FLY_BUNDLE_LLVM -eq '1') {
@@ -53,8 +51,8 @@ if (-not (Test-Path $DBG -PathType Leaf)) {
     $DBG = "$BIN/lldb.exe"
     Write-Host "test_dbg: non-bundle build - testing the provisioned debugger in $BIN (the shipped layout is checked with FLY_BUNDLE_LLVM=1)"
 }
-if (-not (Test-Path $SEED -PathType Leaf)) {
-    Write-Host "error: seed compiler '$SEED' not found - run ci\windows\stage0.ps1 first."; exit 1
+if (-not (Test-Path $FLY -PathType Leaf)) {
+    Write-Host "error: '$FLY' not found - build stage $STAGE first."; exit 1
 }
 
 $OUT = 'build/test/dbg'
@@ -67,7 +65,7 @@ if ($LASTEXITCODE -ne 0 -or $ver -notmatch 'lldb version \d+\.\d+\.\d+') {
 }
 Write-Host "  ok    $(($ver.Trim() -split "`n")[0])"
 
-# -- 2. breakpoint round-trip on a seed-built DWARF probe -----------------------
+# -- 2. breakpoint round-trip on a self-host DWARF probe -----------------------
 @'
 int add(const int a, const int b) {
     int s = a + b
@@ -81,27 +79,31 @@ void main() {
 }
 '@ | Set-Content "$OUT/dbg_probe.fly" -Encoding UTF8
 
-& $SEED --debug-symbols -c @FLY_TARGET_ARGS --src-dir $OUT -o dbg_probe --out-dir $OUT *> "$OUT/compile.log"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host '  FAIL  probe compile (seed, --debug-symbols)'; Get-Content "$OUT/compile.log" | Select-Object -Last 10; exit 1
+# Compiled AND linked by this stage's own fly — the self-host emits the DWARF
+# (phase 1.6) and links it the way a user program is linked.
+Remove-Item "$OUT/dbg_probe.exe" -Force -ErrorAction SilentlyContinue
+& $FLY --debug-symbols --src-dir $OUT -o dbg_probe --out-dir $OUT *> "$OUT/compile.log"
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path "$OUT/dbg_probe.exe")) {
+    Write-Host "  FAIL  probe compile ($FLY --debug-symbols)"; Get-Content "$OUT/compile.log" | Select-Object -Last 10; exit 1
 }
-# The emitted object name varies by driver version - normalize.
-$obj = @("$OUT/dbg_probe", "$OUT/dbg_probe.o", "$OUT/dbg_probe.fly.o", "$OUT/dbg_probe.fly.obj") |
-       Where-Object { Test-Path $_ } | Select-Object -First 1
-if (-not $obj) { Write-Host "  FAIL  probe object not found under $OUT"; exit 1 }
-& "$PSScriptRoot\link_bin.ps1" -Obj $obj -Out "$OUT/dbg_probe.exe"
-if ($LASTEXITCODE -ne 0) { Write-Host '  FAIL  probe link'; exit 1 }
 
-$bp = & $DBG -b -o 'breakpoint set -f dbg_probe.fly -l 2' -o 'run' -o 'frame info' -o 'continue' `
+$bp = & $DBG -b -o 'breakpoint set -f dbg_probe.fly -l 2' -o 'run' -o 'bt 2' -o 'frame variable a b' -o 'next' -o 'frame variable s' -o 'continue' `
              -- "$OUT/dbg_probe.exe" 2>&1 | Out-String
 if ($LASTEXITCODE -ne 0) { Write-Host "  FAIL  lldb batch run (exit $LASTEXITCODE)"; Write-Host $bp; exit 1 }
-if ($bp -notmatch 'stop reason = breakpoint') {
-    Write-Host '  FAIL  breakpoint did not hit (no "stop reason = breakpoint")'; Write-Host $bp; exit 1
+# Each expectation is one thing the debug info must get right.
+$expect = [ordered]@{
+    'Breakpoint 1: where = .*add.* at dbg_probe\.fly:2'   = 'breakpoint resolved to file:line'
+    'stop reason = breakpoint'                            = 'breakpoint hit'
+    'frame #1: .*main at dbg_probe\.fly:9'                = 'caller frame has its line'
+    '\(int\) a = 10[\s\S]*\(int\) b = 32'                = 'parameters have their values'
+    'stop reason = step over[\s\S]*add\(.*\) at dbg_probe\.fly:3' = 'next steps to the following line'
+    '\(int\) s = 42'                                      = 'the local holds a + b after the step'
+    'exited with status = 0'                              = 'probe exited cleanly'
 }
-if ($bp -notmatch 'exited with status = 0') {
-    Write-Host '  FAIL  probe did not exit cleanly under lldb'; Write-Host $bp; exit 1
+foreach ($re in $expect.Keys) {
+    if ($bp -notmatch $re) { Write-Host "  FAIL  $($expect[$re]) (no match for /$re/)"; Write-Host $bp; exit 1 }
 }
-Write-Host '  ok    breakpoint at dbg_probe.fly:2 hit, probe resumed and exited 0'
+Write-Host '  ok    self-host DWARF: breakpoint at dbg_probe.fly:2, caller at :9, a=10 b=32, step to :3 with s=42, exit 0'
 
 # -- 3. lldb-dap presence -------------------------------------------------------
 $DAP = "$BIN/lldb-dap.exe"

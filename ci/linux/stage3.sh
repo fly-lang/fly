@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# stage3.sh — OPTIONAL fixpoint check of the staged bootstrap (see the stage map
-# in stage1.sh; Windows mirror: ci/windows/stage3.ps1). Run only at release time.
+# stage3.sh — fixpoint check of the staged bootstrap (see the stage map in
+# stage1.sh; Windows mirror: ci/windows/stage3.ps1). CI runs it on every build.
 #
 #   stage1  built by the SEED (C++ reference)          → self-host #1
 #   stage2  built by stage1 (self-host #1)             → the SHIPPED compiler
@@ -20,8 +20,9 @@
 #
 # stage3 does NOT touch build/stage2 (that is what ships): everything goes to
 # build/stage3. It needs a finished stage 2 (stage2.sh) and costs one more
-# compile of the compiler, which is why it is not part of the normal pipeline:
-# CI runs it only from release.yml (build-*.yml input `stage3: "1"`).
+# compile of the compiler - seconds. It runs as its own CI step after stage 2,
+# blocking, on every push and release (it used to be release-only, and the
+# first release found a seed defect every push had carried: ASTBuilder.CreateParam).
 #
 # On a mismatch it recompiles ONCE MORE with the same stage2 compiler to tell
 # apart the two causes: stage3 != stage3' means the compiler is not
@@ -41,6 +42,10 @@ for need in "$FLY2" "$OBJ2"; do
     [ -f "$need" ] || { echo "error: '$need' missing — run ci/linux/stage2.sh first." >&2; exit 1; }
 done
 DBG=""; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && DBG="--debug-symbols"
+# Same mapping as build_compiler.sh: the stage2 fly reads its headers from
+# build/stage2/lib, the one that built stage 2 from build/stage1/lib — both
+# become "lib" in the DWARF, or the objects would differ by that path alone.
+[ -n "$DBG" ] && DBG="$DBG --debug-prefix-map=$(cd build/stage2/lib && pwd)=lib"
 
 # Compile the compiler with the STAGE-2 fly into $1; print the object path.
 # Same invocation as build_compiler.sh STAGE=2 (self-host: -c, no link).

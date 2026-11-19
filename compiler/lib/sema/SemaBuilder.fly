@@ -332,7 +332,15 @@ public class SemaBuilder {
     public static SemaValue CreateNumberValue(const ASTNumberValue ast) {
         string raw = ast.getValue()
         SemaValue v = null
-        if str.contains(raw, ".") {
+        // A float is a literal with a '.' or a decimal exponent (`1e-9`); in a
+        // hex literal an `e` is just a digit.
+        bool isHexLit = str.startsWith(raw, "0x") || str.startsWith(raw, "0X")
+        bool hasExp = str.contains(raw, "e") || str.contains(raw, "E")
+        bool isFloatLit = str.contains(raw, ".")
+        if isHexLit == false {
+            if hasExp { isFloatLit = true }
+        }
+        if isFloatLit {
             SemaType ft = SemaBuiltin.getDoubleType()
             v = new SemaFloatValue(ast, ft, raw)
         } else {

@@ -1,0 +1,26 @@
+// A decimal exponent is part of the literal: `1.5e-3` is one number. The
+// self-host lexer used to stop at the `e`, so `x * 1.5e-3` compiled as
+// `x * 1.5 - 3` - valid Fly, silently wrong.
+
+void check(const bool ok, const int code) {
+    if ok == false { fail code, "float literal with an exponent read wrongly" }
+}
+
+void main() {
+    double a = 1.5e-3
+    check(a > 0.0014, 1)
+    check(a < 0.0016, 2)
+    double b = 2.0E+2
+    check(b > 199.9, 3)
+    check(b < 200.1, 4)
+    double c = 1e3
+    check(c > 999.9, 5)
+    check(c < 1000.1, 6)
+    double tiny = 1.1102230246251565e-16
+    check(tiny > 0.0, 7)
+    check(tiny < 0.000001, 8)
+    double x = 4.0
+    double y = x * 2.5e-1
+    check(y > 0.99, 9)
+    check(y < 1.01, 10)
+}

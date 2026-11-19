@@ -8,11 +8,6 @@ on:
         required: false
         type: string
         default: "1"
-      stage3:
-        description: '"1" runs the optional stage-3 fixpoint check (ci/linux/stage3.sh); release.yml only.'
-        required: false
-        type: string
-        default: "0"
   push:
     paths-ignore:
       - '.github/workflows/**'
@@ -32,8 +27,8 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-latest
-    # Emit DWARF into the stage-1 build (stage0 honours --debug-symbols; the
-    # self-host does not yet) so a crash symbolizes via gdb/valgrind/llvm-symbolizer.
+    # Emit DWARF into every stage (the seed at stage 1, the self-host from stage 2)
+    # so a crash symbolizes via gdb/valgrind/llvm-symbolizer.
     # release.yml passes debug_symbols="0" for lean artifacts; plain push /
     # workflow_dispatch default to "1".
     env:
@@ -166,15 +161,14 @@ jobs:
       #     sudo apt-get update -qq && sudo apt-get install -y -qq valgrind
       #     ./ci/linux/valgrind_check.sh
 
-      # Release only (release.yml passes stage3="1"; push / dispatch skip it): the
-      # bootstrap fixpoint. The shipped stage2 compiler recompiles the compiler and
-      # the object must be byte-identical to the one stage1 produced — otherwise the
-      # self-host's codegen depends on which compiler built it. One more compiler
-      # build, hence not on every push. BLOCKING: a broken fixpoint stops the release
-      # (known divergence as of 2026-11-16: stage3 emits extra per-type _F helper
-      # symbols - see the fly-ci skill - so releases stay blocked until it is fixed).
-      - name: Stage 3 (fixpoint check, release only)
-        if: inputs.stage3 == '1'
+      # Every build: the bootstrap fixpoint. The shipped stage2 compiler recompiles
+      # the compiler and the object must be byte-identical to the one stage1
+      # produced - otherwise the self-host's codegen depends on which compiler
+      # built it, which no suite can see (a suite runs one compiler). It costs one
+      # more compile of the compiler (seconds). BLOCKING. It used to run on release
+      # builds only, and the first release found a seed defect the pushes had
+      # carried for weeks (a null upcast made non-null: see ASTBuilder.CreateParam).
+      - name: Stage 3 (fixpoint check)
         run: ./ci/linux/stage3.sh
 
       - name: Set artifact name
