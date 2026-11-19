@@ -139,9 +139,38 @@ public void proc_exit(const int code) {
 }
 
 // ── Filesystem — thin libSystem wrappers ─────────────────────────────────────
+// macOpenFlags — std/lib/os/fs.fly passes the LINUX open(2) flag values (as it
+// does to the Windows backend); the BSD bits differ, so translate them. Without
+// it O_APPEND (Linux 1024) reached open() as O_TRUNC (BSD 1024): appendStr
+// overwrote the file. The access mode (low two bits) is the same on both.
+//   Linux:  O_CREAT 64   O_EXCL 128   O_TRUNC 512   O_APPEND 1024
+//   macOS:  O_CREAT 512  O_EXCL 2048  O_TRUNC 1024  O_APPEND 8
+// Named temps for the tests: `flags & 64 != 0` would parse as `flags & (64 != 0)`.
+public void macOpenFlags(const int flags, int out) {
+    int mf = flags & 3
+    int cCreat = flags & 64
+    if cCreat != 0 {
+        mf = mf | 512
+    }
+    int cExcl = flags & 128
+    if cExcl != 0 {
+        mf = mf | 2048
+    }
+    int cTrunc = flags & 512
+    if cTrunc != 0 {
+        mf = mf | 1024
+    }
+    int cApp = flags & 1024
+    if cApp != 0 {
+        mf = mf | 8
+    }
+    out = mf
+}
 public void fs_open(const pointer path, const int flags, const int mode, int out) {
+    int mf = 0
+    macOpenFlags(flags, mf)
     long m = mode
-    fly.runtime.open(path, flags, mode, 0, 0, 0, 0, 0, m, out)
+    fly.runtime.open(path, mf, mode, 0, 0, 0, 0, 0, m, out)
 }
 public void fs_close(const int fd) {
     int r = 0
