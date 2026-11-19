@@ -46,6 +46,13 @@ D="build/stage$STAGE/driver"
 rm -rf "$D"; mkdir -p "$D"
 # FLY_DEBUG_SYMBOLS=1 → emit DWARF so a self-host crash symbolizes to a source line.
 DBG=""; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && DBG="--debug-symbols"
+# The self-host compiler reads its std headers from build/stage<N-1>/lib; mapping
+# that directory to "lib" keeps the path out of the DWARF, so stage 2 and stage 3
+# describe the same sources with the same bits (the fixpoint compares bytes).
+# The seed (stage 1) has no such option.
+if [ -n "$DBG" ] && [ "$STAGE" != "1" ]; then
+    DBG="$DBG --debug-prefix-map=$(cd "build/stage$((STAGE - 1))/lib" && pwd)=lib"
+fi
 echo "stage$STAGE: compiling driver + compiler (monolithic, from source) ...${DBG:+ (+debug-symbols)}"
 # DIRECTORY CLI (seed and self-host alike): no positional — the entry (the
 # single main(), compiler/lib/driver/Driver.fly) is discovered from --src-dir

@@ -161,6 +161,7 @@ public class Driver {
         int jobs = 0                    // --jobs / -j
         int optLevel = 0                // -O<n>
         bool debugSymbols = false       // --debug-symbols / --debug
+        string debugPrefixMap = ";"     // --debug-prefix-map=OLD=NEW pairs, ";OLD=NEW;"
         bool traceCalls = false         // --trace-calls: fly.log enter/exit instrumentation
         bool enableTls = false          // --tls: link the real TLS backend + -lssl
         bool createLibrary = false      // --lib
@@ -168,7 +169,6 @@ public class Driver {
         bool showStats = false          // --print-stats
         bool showTimers = false         // --ftime-report
         bool noWarn = false             // -w / --no-warning
-        bool askedDebugSymbols = false  // --debug-symbols given EXPLICITLY (not via --debug)
 
         int n = (int)args.count
         int i = 1                       // skip argv[0] (program name)
@@ -257,7 +257,17 @@ public class Driver {
                 debugSymbols = true
             } elsif str.equals(a, "--debug-symbols") {
                 debugSymbols = true
-                askedDebugSymbols = true
+            } elsif str.startsWith(a, "--debug-prefix-map=") {
+                // clang's -fdebug-prefix-map: rewrite a directory prefix in the
+                // DWARF file names, so where the sources (or the compiler) sit
+                // does not leak into the object. OLD=NEW, split at the first '='.
+                string dpmPair = this.eqValue(a)
+                if str.indexOf(dpmPair, "=") <= 0 {
+                    io.printErrLn(str.concat("error: --debug-prefix-map expects OLD=NEW, got: ", dpmPair))
+                    return 1
+                }
+                string dpmNew = str.concat(debugPrefixMap, str.concat(dpmPair, ";"))
+                debugPrefixMap = dpmNew
             } elsif str.equals(a, "--trace-calls") {
                 traceCalls = true
             } elsif str.equals(a, "--tls") {
@@ -505,6 +515,7 @@ public class Driver {
         cgo.setShared(isShared)
         cgo.setPie(isPie)
         cgo.setDebugSymbols(debugSymbols)
+        cgo.setDebugPrefixMap(debugPrefixMap)
         cgo.setTraceCalls(traceCalls)
         cgo.setEnableTls(enableTls)
         cgo.setOptLevel(optLevel)
@@ -515,9 +526,6 @@ public class Driver {
         // exactly what "an unknown option is an error" exists to prevent. Each of
         // these is a real gap in the self-host back end; -w silences the notes.
         if noWarn == false {
-            if askedDebugSymbols {
-                io.printErrLn("warning: --debug-symbols has no effect yet: the self-host back end does not emit debug information")
-            }
             if showTimers {
                 io.printErrLn("warning: --ftime-report has no effect yet: phase timers are not implemented (use --print-stats)")
             }
@@ -1083,8 +1091,9 @@ public class Driver {
         io.printErrLn("  --suite[=Sel]   build the suite test exe AND run it (fly exits with the run's code).")
         io.printErrLn("                  Sel: a suite name, a qualified ns.SuiteName, or a NAMESPACE —")
         io.printErrLn("                  a namespace runs every suite declared under it (prefix match)")
-        io.printErrLn("  --debug         verbose logging (+ request DWARF; self-host codegen emits none yet)")
-        io.printErrLn("  --debug-symbols request DWARF debug symbols (no effect yet: a warning says so)")
+        io.printErrLn("  --debug         verbose logging (+ --debug-symbols)")
+        io.printErrLn("  --debug-symbols emit DWARF line tables (functions and source lines)")
+        io.printErrLn("  --debug-prefix-map=OLD=NEW  write NEW instead of the directory prefix OLD in the DWARF file names")
         io.printErrLn("  --trace-calls   log every function entry/exit via fly.log (visible at FLY_LOG_LEVEL=trace)")
         io.printErrLn("  --print-stats   print compilation statistics to stderr")
         io.printErrLn("  --ftime-report  phase timers (no effect yet: a warning says so)")

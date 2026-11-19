@@ -42,6 +42,10 @@ for need in "$FLY2" "$OBJ2"; do
     [ -f "$need" ] || { echo "error: '$need' missing — run ci/linux/stage2.sh first." >&2; exit 1; }
 done
 DBG=""; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && DBG="--debug-symbols"
+# Same mapping as build_compiler.sh: the stage2 fly reads its headers from
+# build/stage2/lib, the one that built stage 2 from build/stage1/lib — both
+# become "lib" in the DWARF, or the objects would differ by that path alone.
+[ -n "$DBG" ] && DBG="$DBG --debug-prefix-map=$(cd build/stage2/lib && pwd)=lib"
 
 # Compile the compiler with the STAGE-2 fly into $1; print the object path.
 # Same invocation as build_compiler.sh STAGE=2 (self-host: -c, no link).

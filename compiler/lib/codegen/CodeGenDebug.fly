@@ -1,0 +1,223 @@
+namespace fly.compiler.codegen
+
+import fly.compiler.sema.*
+import fly.compiler.ast.*
+import fly.compiler.basic.SourceLocation
+import fly.compiler.basic.SourceManager
+import llvm.api.*
+import fly.data.List
+import fly.str
+import fly.os.path
+import fly.os.env
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CodeGenDebug — DWARF line tables for `--debug-symbols` (the seed's
+// CodeGenModule DBuilder + EmitDebugLocation, through the LLVM-C DIBuilder).
+//
+// What it describes: one DICompileUnit per module, one DIFile per source file,
+// one DISubprogram per function or method body, and a !dbg location on every
+// instruction a statement emits. That is what a debugger needs to map an address
+// to file:line, set a breakpoint on a line and step; variables and types are not
+// described yet.
+//
+// The one rule that keeps the module valid: an instruction may only carry a
+// location whose scope is the subprogram of ITS OWN function. So the current
+// location is set when a body begins, moved per statement, and CLEARED when the
+// body ends — every function emitted outside a body (wrappers, vtables, the test
+// runner, lazily created helpers) then gets no location at all.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class CodeGenDebug {
+
+    LLVM llvm
+    pointer ctx
+    pointer builder
+    pointer db
+    pointer cu
+    pointer cuFile
+    pointer scope              // subprogram of the body being generated; 0 outside one
+    List<string> fileNames     // source path → DIFile, linear (a module has few files)
+    List<pointer> fileRefs
+    string prefixMap           // --debug-prefix-map pairs, ";OLD=NEW;" (CodeGenOptions)
+
+    public CodeGenDebug(const LLVM llvm, const pointer ctx, const pointer module, const pointer builder, const string name, const string prefixMap) {
+        this.llvm = llvm
+        this.prefixMap = prefixMap
+        this.ctx = ctx
+        this.builder = builder
+        this.scope = 0
+        this.fileNames = new List<string>()
+        this.fileRefs = new List<pointer>()
+        pointer d
+        llvm.createDIBuilder(module, d)
+        this.db = d
+        this.cuFile = this.fileFor(name)
+        pointer u
+        llvm.diCreateCompileUnit(d, this.cuFile, "Fly Compiler", u)
+        this.cu = u
+
+        // Without these two flags LLVM drops the debug info (version mismatch) or
+        // picks its default DWARF version per target; clang sets both the same way.
+        // On Windows the absence of "CodeView" keeps the output DWARF, which is what
+        // the bundled lldb reads.
+        pointer i32
+        llvm.int32TypeInContext(ctx, i32)
+        pointer three
+        llvm.constInt(i32, 3, false, three)
+        pointer mdVer
+        llvm.valueAsMetadata(three, mdVer)
+        llvm.addModuleFlag(module, 1, "Debug Info Version", mdVer)
+        pointer four
+        llvm.constInt(i32, 4, false, four)
+        pointer mdDwarf
+        llvm.valueAsMetadata(four, mdDwarf)
+        llvm.addModuleFlag(module, 1, "Dwarf Version", mdDwarf)
+    }
+
+    // fileFor — the DIFile for a source path, created once. A relative path is
+    // described relative to the current directory, which is where the compiler
+    // resolved it.
+    public pointer fileFor(const string p) {
+        int i = 0
+        while i < this.fileNames.size() {
+            if str.equals(this.fileNames.get(i), p) { return this.fileRefs.get(i) }
+            i = i + 1
+        }
+        string name = p
+        string dir = "."
+        if path.isAbsolute(p) {
+            name = path.basename(p)
+            dir = path.dirname(p)
+        } else {
+            string cwd = env.cwdGet()
+            if str.isEmpty(cwd) == false { dir = cwd }
+        }
+        dir = this.remap(dir)
+        pointer f
+        this.llvm.diCreateFile(this.db, name, dir, f)
+        this.fileNames.add(p)
+        this.fileRefs.add(f)
+        return f
+    }
+
+    // remap — apply --debug-prefix-map (";OLD=NEW;" pairs) to a directory, as
+    // clang's -fdebug-prefix-map: a directory equal to OLD, or below it, has OLD
+    // replaced by NEW; when several match, the LAST one given wins. '/' and '\'
+    // compare equal, since Windows paths reach here in both spellings. What it
+    // is for: two compilers in different places must describe the same sources
+    // with the same bits (the stage 3 fixpoint compares objects byte by byte),
+    // and a debug build should not depend on the machine that made it.
+    public string remap(const string dir) {
+        string result = dir
+        string m = this.prefixMap
+        int n = str.len(m)
+        int start = 0
+        while start < n {
+            int end = start
+            while end < n && (str.byteAt(m, end) & 255) != 59 { end = end + 1 }   // ';'
+            if end > start {
+                string pair = str.substring(m, start, end)
+                int eq = str.indexOf(pair, "=")
+                if eq > 0 {
+                    string oldP = str.substring(pair, 0, eq)
+                    if isPathPrefix(dir, oldP) {
+                        string newP = str.substring(pair, eq + 1, str.len(pair))
+                        result = str.concat(newP, str.substring(dir, str.len(oldP), str.len(dir)))
+                    }
+                }
+            }
+            start = end + 1
+        }
+        return result
+    }
+
+    // beginFunction — attach a subprogram to `fn` and point the builder at its
+    // first line. A body with no usable location is left undescribed (scope 0),
+    // and so are the statements inside it.
+    public void beginFunction(const SemaFunctionBase sfn, const pointer fn, const bool isLocal) {
+        this.scope = 0
+        this.llvm.setCurrentDebugLocation(this.builder, 0)
+        ASTFunction ast = sfn.getAST()
+        if ast == null { return }
+        SourceLocation loc = ast.getNameLoc()
+        if loc == null { return }
+        SourceManager sm = loc.getSourceManager()
+        if sm == null { return }
+        int line = sm.getLineNumber(loc)
+        pointer file = this.fileFor(sm.getFilename())
+        pointer ty
+        this.llvm.diCreateSubroutineType(this.db, file, ty)
+        pointer sp
+        this.llvm.diCreateFunction(this.db, file, sfn.getName(), "", file, line, ty, isLocal, sp)
+        this.llvm.setSubprogram(fn, sp)
+        this.scope = sp
+        this.setLine(line, sm.getColumnNumber(loc))
+    }
+
+    // endFunction — clear the location, so nothing emitted outside a described
+    // body inherits it.
+    public void endFunction() {
+        this.scope = 0
+        this.llvm.setCurrentDebugLocation(this.builder, 0)
+    }
+
+    // atStmt — move the current location to the start of a statement.
+    public void atStmt(const SemaStmt s) {
+        if this.scope == 0 { return }
+        if s == null { return }
+        ASTStmt ast = s.getAST()
+        if ast == null { return }
+        SourceLocation loc = ast.getLoc()
+        if loc == null { return }
+        if loc.isInvalid() { return }
+        SourceManager sm = loc.getSourceManager()
+        if sm == null { return }
+        this.setLine(sm.getLineNumber(loc), sm.getColumnNumber(loc))
+    }
+
+    public void setLine(const int line, const int col) {
+        pointer dl
+        this.llvm.diCreateDebugLocation(this.ctx, line, col, this.scope, dl)
+        this.llvm.setCurrentDebugLocation(this.builder, dl)
+    }
+
+    // suspend / resume — around a helper function created in the middle of a
+    // body: it must not carry the body's location.
+    public pointer suspend() {
+        pointer cur
+        this.llvm.getCurrentDebugLocation(this.builder, cur)
+        this.llvm.setCurrentDebugLocation(this.builder, 0)
+        return cur
+    }
+
+    public void resume(const pointer saved) {
+        this.llvm.setCurrentDebugLocation(this.builder, saved)
+    }
+
+    // finalize — must run before the module is verified or emitted.
+    public void finalize() {
+        this.llvm.diBuilderFinalize(this.db)
+    }
+}
+
+// isPathPrefix — `dir` equals `prefix` or lies below it, with '/' and '\'
+// treated as the same separator. A trailing separator on `prefix` is allowed.
+public bool isPathPrefix(const string dir, const string prefix) {
+    int pn = str.len(prefix)
+    int dn = str.len(dir)
+    if pn == 0 || pn > dn { return false }
+    int i = 0
+    while i < pn {
+        int a = str.byteAt(dir, i) & 255
+        int b = str.byteAt(prefix, i) & 255
+        if a == 92 { a = 47 }
+        if b == 92 { b = 47 }
+        if a != b { return false }
+        i = i + 1
+    }
+    if pn == dn { return true }
+    int last = str.byteAt(prefix, pn - 1) & 255
+    if last == 47 || last == 92 { return true }
+    int next = str.byteAt(dir, pn) & 255
+    return next == 47 || next == 92
+}

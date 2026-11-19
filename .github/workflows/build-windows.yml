@@ -27,10 +27,10 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
-    # Emit DWARF into the stage-1 build (stage0 honours --debug-symbols; the
-    # self-host does not yet) so a crash symbolizes to a source line via
-    # llvm-symbolizer. release.yml passes debug_symbols="0" for lean artifacts;
-    # plain push / workflow_dispatch default to "1".
+    # Emit DWARF into every stage (the seed at stage 1, the self-host from stage 2)
+    # so a crash symbolizes to a source line via llvm-symbolizer. release.yml
+    # passes debug_symbols="0" for lean artifacts; plain push /
+    # workflow_dispatch default to "1".
     env:
       FLY_DEBUG_SYMBOLS: ${{ inputs.debug_symbols == '0' && '0' || '1' }}
 

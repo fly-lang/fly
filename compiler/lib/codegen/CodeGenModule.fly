@@ -4,6 +4,7 @@ import fly.compiler.sema.*
 import fly.compiler.target.*
 import fly.compiler.basic.CodeGenOptions
 import fly.compiler.codegen.CodeGenLLVM
+import fly.compiler.codegen.CodeGenDebug
 import fly.compiler.codegen.CodeGenType
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenClass
@@ -43,8 +44,12 @@ public class CodeGenModule {
     pointer itableFn       // `@__fly_itable`, the interface lookup helper; null until first use
     pointer itableFnTy     // its function type
     CodeGenOptions codeGenOpts    // linker flags sink (CLang bridge); null in unit tests
+    CodeGenDebug dbg              // DWARF line tables (--debug-symbols); null otherwise
+    string name
 
     public CodeGenModule(const string name) {
+        this.dbg = null
+        this.name = name
         this.itableFn = 0
         this.itableFnTy = 0
         this.codeGenOpts = null
@@ -108,7 +113,17 @@ public class CodeGenModule {
         this.freeFnTy = 0
     }
 
-    public void setCodeGenOpts(const CodeGenOptions o) { this.codeGenOpts = o }
+    public void setCodeGenOpts(const CodeGenOptions o) {
+        this.codeGenOpts = o
+        if o != null {
+            if o.getDebugSymbols() {
+                if this.dbg == null {
+                    this.dbg = new CodeGenDebug(this.cg.getLLVM(), this.ctx, this.module, this.builder, this.name, o.getDebugPrefixMap())
+                }
+            }
+        }
+    }
+    public CodeGenDebug getDebug() { return this.dbg }
     public CodeGenOptions getCodeGenOpts() { return this.codeGenOpts }
     // addLinkerOption — register a `-l` flag for the ToolChain link (deduplicated
     // by the ";flag;" segment check). No-op when no options sink is wired.
@@ -278,6 +293,9 @@ public class CodeGenModule {
         } elsif mainFn != null {
             this.emitMainWrapper(mainFn)
         }
+
+        // the debug info is complete only once finalized — before verify/emit
+        if this.dbg != null { this.dbg.finalize() }
     }
 
     // suiteClasses — the SUITE classes this module defines (header-origin suites
@@ -1019,6 +1037,7 @@ public class CodeGenModule {
         pointer entry
         llvm.appendBasicBlockInContext(this.ctx, f, "entry", entry)
         llvm.positionBuilderAtEnd(this.builder, entry)
+        if this.dbg != null { this.dbg.beginFunction(fn, f, false) }
 
         List<SemaParam> params = fn.getParams()
         pointer ptrTy = this.types.ptrType()
@@ -1088,6 +1107,7 @@ public class CodeGenModule {
             pointer ret
             llvm.buildRetVoid(this.builder, ret)
         }
+        if this.dbg != null { this.dbg.endFunction() }
     }
 
     // isRuntimeCABIDef — a `fly.runtime` function with a REAL body (not an empty-body
@@ -1334,7 +1354,11 @@ public class CodeGenModule {
         llvm.setLinkage(fn, 3)
         this.setWeakComdat(fn, name)
 
-        // build the body away from the caller's block, then go back to it
+        // build the body away from the caller's block, then go back to it. The
+        // helper has no subprogram, so the caller's debug location must not
+        // follow the builder into it.
+        pointer savedLoc = 0
+        if this.dbg != null { savedLoc = this.dbg.suspend() }
         pointer callerBB
         llvm.getInsertBlock(b, callerBB)
 
@@ -1423,6 +1447,7 @@ public class CodeGenModule {
         llvm.buildRet(b, nullV, retV)
 
         if callerBB != 0 { llvm.positionBuilderAtEnd(b, callerBB) }
+        if this.dbg != null { this.dbg.resume(savedLoc) }
         return fn
     }
 
@@ -1660,8 +1685,15 @@ public class CodeGenModule {
         }
 
         // LLVMCodeGenLevelDefault=2, LLVMRelocPIC=2, LLVMCodeModelDefault=0.
+        // A debug build at -O0 uses LLVMCodeGenLevelNone instead (clang -g -O0):
+        // the default level reschedules and merges instructions, so a statement's
+        // code ends up under line 0 and a breakpoint on it lands on the next line.
+        int cgLevel = 2
+        if this.dbg != null {
+            if this.codeGenOpts.getOptLevel() == 0 { cgLevel = 0 }
+        }
         pointer tm = 0
-        llvm.createTargetMachine(target, triple, "", "", 2, 2, 0, tm)
+        llvm.createTargetMachine(target, triple, "", "", cgLevel, 2, 0, tm)
         if tm == 0 {
             ok = false
             return

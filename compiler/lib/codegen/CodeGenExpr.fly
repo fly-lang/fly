@@ -4,6 +4,7 @@ import fly.compiler.sema.*
 import fly.compiler.ast.*
 import fly.compiler.codegen.CodeGenModule
 import fly.compiler.codegen.CodeGenLLVM
+import fly.compiler.codegen.CodeGenDebug
 import fly.compiler.codegen.CodeGenType
 import fly.compiler.codegen.CodeGenExprOps
 import fly.compiler.codegen.CodeGenStmt
@@ -277,8 +278,10 @@ public class CodeGenExpr : SemaVisitor {
         }
         this.frames.add(node)
         int i = 0
+        CodeGenDebug dbg = this.cgm.getDebug()
         while i < content.size() {
             SemaStmt s = content.get(i)
+            if dbg != null { dbg.atStmt(s) }
             s.accept(this)
             // Fail-fast per case: inside a suite `case`, if a statement left an
             // error in the case's slot, jump to the case end so later statements

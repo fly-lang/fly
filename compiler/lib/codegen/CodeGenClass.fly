@@ -6,6 +6,7 @@ import fly.compiler.codegen.CodeGenModule
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenBridge
 import fly.compiler.codegen.CodeGenLLVM
+import fly.compiler.codegen.CodeGenDebug
 import fly.compiler.codegen.CodeGenType
 import fly.compiler.codegen.CodeGenIntrinsics
 import fly.compiler.codegen.CodeGenTrace
@@ -398,6 +399,8 @@ public class CodeGenClass {
         pointer entry
         llvm.appendBasicBlockInContext(cgm.getCtx(), f, "entry", entry)
         llvm.positionBuilderAtEnd(b, entry)
+        CodeGenDebug dbg = cgm.getDebug()
+        if dbg != null { dbg.beginFunction(m, f, false) }
 
         CodeGenExpr cge = new CodeGenExpr(cgm)
         pointer errParam
@@ -468,6 +471,7 @@ public class CodeGenClass {
             pointer ret
             llvm.buildRetVoid(b, ret)
         }
+        if dbg != null { dbg.endFunction() }
     }
 
     // emitDefaultInstance — one `new C()` with NO arguments, returning the object

@@ -5,6 +5,7 @@ import fly.compiler.ast.*
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenIntrinsics
 import fly.compiler.codegen.CodeGenTrace
+import fly.compiler.codegen.CodeGenDebug
 import llvm.api.*
 import fly.mem
 import fly.os.io
@@ -240,6 +241,10 @@ public class CodeGenStmt {
         cge.position(nextBB)
         if idx < elsifs.size() {
             SemaRuleStmt r = elsifs.get(idx)
+            // The elsif condition belongs to the elsif's own line; its block
+            // opens with `{` on that line (expressions carry no location).
+            CodeGenDebug dbg = cge.getCgm().getDebug()
+            if dbg != null { dbg.atStmt(r.getStmt()) }
             emitIfChain(cge, r.getExpr(), r.getStmt(), elsifs, idx + 1, elseS, mergeBB)
         } else {
             if elseS != null { elseS.accept(cge) }
@@ -270,8 +275,11 @@ public class CodeGenStmt {
         bool atEnd = node.hasVerifyConditionAtEnd()
         if atEnd { cge.br(bodyBB) } else { cge.br(condBB) }
 
-        // cond
+        // cond — reached again from the end of the body, so give it back the
+        // loop's own line rather than the last body statement's.
         cge.position(condBB)
+        CodeGenDebug ldbg = cge.getCgm().getDebug()
+        if ldbg != null { ldbg.atStmt(node) }
         SemaExpr cond = node.getCond()
         if cond != null {
             pointer cv = cge.gen(cond)

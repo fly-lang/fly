@@ -238,6 +238,7 @@ public class CodeGenOptions {
     public string getRecordCommandLine() { return this.recordCommandLine }
     public void setRecordCommandLine(const string s) { this.recordCommandLine = s }
     public string getDebugPrefixMap() { return this.debugPrefixMap }
+    public void setDebugPrefixMap(const string pairs) { this.debugPrefixMap = pairs }
     public void addDebugPrefixMap(const string pair) {
         this.debugPrefixMap = str.concat(this.debugPrefixMap, str.concat(pair, ";"))
     }
