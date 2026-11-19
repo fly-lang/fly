@@ -207,7 +207,7 @@ void CodeGenClass::CreateVTable() {
 				*CGM->Module, ArrayOfInt8Ptr, true,
 				VTLinkage, ArrayValue, VTableName);
 			if (Sema->getGenericTemplate() != nullptr)
-				VTable->setComdat(CGM->getModule()->getOrInsertComdat(VTable->getName()));
+				CGM->SetComdat(VTable, VTable->getName());
 		}
 	} else if (Sema->getClassKind() == SemaClassKind::SUITE) {
 		// SUITE (B018): no vtable slot — suites are final, every call dispatches
@@ -337,7 +337,7 @@ llvm::GlobalVariable *CodeGenClass::BuildPerBaseVTable(SemaClassType *Base, uint
 		*CGM->Module, ArrayTy, true,
 		BaseVTLinkage, ArrayVal, BaseVTableName);
 	if (Sema->getGenericTemplate() != nullptr)
-		BaseVT->setComdat(CGM->getModule()->getOrInsertComdat(BaseVT->getName()));
+		CGM->SetComdat(BaseVT, BaseVT->getName());
 	return BaseVT;
 }
 
@@ -513,7 +513,7 @@ void CodeGenClass::CreateAttributes() {
 					GV->setInitializer(Init);
 					GV->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
 					// COMDAT so the static field's weak definition dedups on COFF too
-					GV->setComdat(CGM->getModule()->getOrInsertComdat(GV->getName()));
+					CGM->SetComdat(GV, GV->getName());
 					GV->setConstant(false);
 				}
 				CGV = new CodeGenVar(CGM, Attribute, AttrType);
@@ -544,7 +544,7 @@ void CodeGenClass::CreateInitConstructor() {
 	InitConstructor = llvm::Function::Create(FnType, Linkage, CtorId, CGM->getModule());
 	// COMDAT so the weak init_ctor dedups on COFF too (COFF has no weak defs)
 	if (!IsExternal)
-		InitConstructor->setComdat(CGM->getModule()->getOrInsertComdat(CtorId));
+		CGM->SetComdat(InitConstructor, CtorId);
 }
 
 void CodeGenClass::GenInitConstructorBody() {

@@ -364,7 +364,9 @@ namespace {
 
     // ─── GetRuntimeLibPath ───────────────────────────────────────────────────
 
-#ifndef _WIN32
+    // Only the Linux x86_64 LLVM package ships libclang_rt.builtins-x86_64.a
+    // (macOS gets the builtins from libSystem).
+#if defined(__linux__) && defined(__x86_64__)
     TEST_F(ToolChainTest, GetCompilerRTBuiltinsPath_ReturnsNonEmptyOnLinuxX86_64) {
         ToolChain TC = makeTC("x86_64-linux-gnu");
         std::string P = TC.GetCompilerRTBuiltinsPath();

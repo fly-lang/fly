@@ -123,7 +123,7 @@ void CodeGenClassMethod::GenBody() {
 	// COFF too (lld-link merges comdats only; see CodeGenFunction::GenBody).
 	if (Fn && Class->getGenericTemplate() != nullptr) {
 		Fn->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
-		Fn->setComdat(CGM->getModule()->getOrInsertComdat(Fn->getName()));
+		CGM->SetComdat(Fn, Fn->getName());
 	}
 
     setInsertPoint();

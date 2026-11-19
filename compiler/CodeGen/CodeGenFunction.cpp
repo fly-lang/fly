@@ -139,7 +139,7 @@ void CodeGenFunction::GenBody() {
     // linkonce_odr there is a plain external and duplicates at link.
     if (Fn && static_cast<SemaFunction *>(Sema)->getGenericTemplate() != nullptr) {
         Fn->setLinkage(llvm::GlobalValue::LinkOnceODRLinkage);
-        Fn->setComdat(CGM->getModule()->getOrInsertComdat(Fn->getName()));
+        CGM->SetComdat(Fn, Fn->getName());
     }
 
     // Only C-ABI runtime functions return-by-value; reset so a bare `return` in a

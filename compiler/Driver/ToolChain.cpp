@@ -968,10 +968,64 @@ bool ToolChain::getWindowsSDKLibraryPath(std::string &path) const {
     return true;
 }
 
+// The macOS SDK root (holds libSystem's .tbd stubs): $SDKROOT, else what
+// `xcrun --show-sdk-path` reports, else the Command Line Tools' default SDK.
+// "" when none exists (no developer tools installed).
+static std::string DarwinSdkPath() {
+    if (std::optional<std::string> Env = llvm::sys::Process::GetEnv("SDKROOT"))
+        if (!Env->empty() && llvm::sys::fs::exists(*Env))
+            return *Env;
+    const std::string Xcrun = "/usr/bin/xcrun";
+    if (llvm::sys::fs::exists(Xcrun)) {
+        llvm::SmallString<128> OutPath;
+        if (!llvm::sys::fs::createTemporaryFile("fly-sdk", "txt", OutPath)) {
+            std::optional<llvm::StringRef> Redirects[] = {std::nullopt, llvm::StringRef(OutPath), std::nullopt};
+            llvm::StringRef Args[] = {Xcrun, "--show-sdk-path"};
+            int RC = llvm::sys::ExecuteAndWait(Xcrun, Args, std::nullopt, Redirects);
+            auto Buf = llvm::MemoryBuffer::getFile(OutPath);
+            llvm::sys::fs::remove(OutPath);
+            if (RC == 0 && Buf) {
+                std::string P = (*Buf)->getBuffer().trim().str();
+                if (!P.empty() && llvm::sys::fs::exists(P))
+                    return P;
+            }
+        }
+    }
+    const std::string CLT = "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk";
+    if (llvm::sys::fs::exists(CLT))
+        return CLT;
+    return "";
+}
+
+// ld64.lld needs what Apple's `ld` gets from clang: the architecture, the
+// platform with its minimum and SDK versions, and the SDK root where libSystem's
+// .tbd stubs live. libSystem is the C library, libm, pthreads AND the
+// compiler-rt builtins on macOS, so no libclang_rt is linked. On arm64 every
+// binary must carry a signature: ld64.lld adds an ad-hoc one itself.
 bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile) {
     FLY_DEBUG_SCOPE_MSG("ToolChain", "LinkDarwin", "Out: " + OutFile);
     llvm::SmallVector<std::string, 16> CmdArgs;
     CmdArgs.push_back("ld64.lld");
+
+    CmdArgs.push_back("-arch");
+    CmdArgs.push_back(T.getArch() == llvm::Triple::x86_64 ? "x86_64" : "arm64");
+    // Minimum macOS from the triple ("arm64-apple-macosx13.0.0"); a bare
+    // "darwin"/"macosx" carries none: 13.0, the floor the release is built for.
+    llvm::VersionTuple MinOS(13, 0);
+    llvm::VersionTuple FromTriple;
+    if (T.getOSMajorVersion() > 0 && T.getMacOSXVersion(FromTriple) && FromTriple.getMajor() >= 11)
+        MinOS = FromTriple;
+    CmdArgs.push_back("-platform_version");
+    CmdArgs.push_back("macos");
+    CmdArgs.push_back(MinOS.getAsString());
+    CmdArgs.push_back(MinOS.getAsString());
+    const std::string Sdk = DarwinSdkPath();
+    if (!Sdk.empty()) {
+        CmdArgs.push_back("-syslibroot");
+        CmdArgs.push_back(Sdk);
+    } else {
+        llvm::errs() << "warning: no macOS SDK found (xcode-select --install); linking without -syslibroot\n";
+    }
 
     CmdArgs.push_back("-e");
     CmdArgs.push_back("_main");
