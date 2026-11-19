@@ -56,8 +56,15 @@ FLY
 echo "Compile: OK"
 
 # ── DWARF content assertions ───────────────────────────────────────────────────
-"$DWARFDUMP" --debug-info "$WORK/dbg_test" > "$WORK/dwarf_info.txt" 2>&1
-"$DWARFDUMP" --debug-line "$WORK/dbg_test" > "$WORK/dwarf_line.txt" 2>&1
+# macOS keeps the DWARF out of the executable: fly gathers it with dsymutil
+# into dbg_test.dSYM next to the program.
+DWARF_SRC="$WORK/dbg_test"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    DWARF_SRC="$WORK/dbg_test.dSYM"
+    [[ -d "$DWARF_SRC" ]] || { echo "FAIL: no dbg_test.dSYM (dsymutil did not run)"; exit 1; }
+fi
+"$DWARFDUMP" --debug-info "$DWARF_SRC" > "$WORK/dwarf_info.txt" 2>&1
+"$DWARFDUMP" --debug-line "$DWARF_SRC" > "$WORK/dwarf_line.txt" 2>&1
 
 PASS=1
 

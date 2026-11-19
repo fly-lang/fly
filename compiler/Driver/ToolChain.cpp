@@ -16,6 +16,9 @@
 
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Program.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/ConvertUTF.h"
 #include "lld/Common/Driver.h"
 LLD_HAS_DRIVER(coff)
@@ -1027,8 +1030,13 @@ bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, con
         llvm::errs() << "warning: no macOS SDK found (xcode-select --install); linking without -syslibroot\n";
     }
 
-    CmdArgs.push_back("-e");
-    CmdArgs.push_back("_main");
+    // A dynamic library (--lib-dyn) has no entry point.
+    if (CodeGenOpts.Shared) {
+        CmdArgs.push_back("-dylib");
+    } else {
+        CmdArgs.push_back("-e");
+        CmdArgs.push_back("_main");
+    }
     CmdArgs.push_back("-o");
     CmdArgs.push_back(OutFile.c_str());
 
@@ -1064,10 +1072,40 @@ bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, con
     if (T.getObjectFormat() == llvm::Triple::MachO) {
         SmallVector<const char*, 16> LinkArgs;
         createLinkArgs(CmdArgs, LinkArgs);
-        return lld::macho::link(LinkArgs, llvm::outs(), llvm::errs(), false, false);
+        if (!lld::macho::link(LinkArgs, llvm::outs(), llvm::errs(), false, false))
+            return false;
+        // Mach-O keeps no DWARF in the linked image: it points at the objects,
+        // which the driver deletes. dsymutil gathers it into <out>.dSYM next to
+        // the program, where lldb and llvm-dwarfdump look for it.
+        if (CodeGenOpts.DebugSymbols)
+            RunDsymutil(OutFile);
+        return true;
     }
 
     return false;
+}
+
+// dsymutil from the LLVM toolchain (<ToolchainLibDir>/../bin), else from PATH
+// (/usr/bin/dsymutil with the developer tools). Missing or failing, the program
+// still links: only its debug information is lost, so warn.
+void ToolChain::RunDsymutil(const std::string &OutFile) const {
+    std::string Dsymutil;
+    if (!CodeGenOpts.ToolchainLibDir.empty()) {
+        llvm::SmallString<256> P(CodeGenOpts.ToolchainLibDir);
+        llvm::sys::path::append(P, "..", "bin", "dsymutil");
+        if (llvm::sys::fs::can_execute(P))
+            Dsymutil = std::string(P.str());
+    }
+    if (Dsymutil.empty())
+        if (llvm::ErrorOr<std::string> Found = llvm::sys::findProgramByName("dsymutil"))
+            Dsymutil = *Found;
+    if (Dsymutil.empty()) {
+        llvm::errs() << "warning: dsymutil not found: the program has no debug information\n";
+        return;
+    }
+    llvm::StringRef Args[] = {Dsymutil, OutFile};
+    if (llvm::sys::ExecuteAndWait(Dsymutil, Args) != 0)
+        llvm::errs() << "warning: dsymutil failed: the program has no debug information\n";
 }
 
 bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile, FrontendOptions &FrontendOpts) {

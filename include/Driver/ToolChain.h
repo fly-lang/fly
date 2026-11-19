@@ -48,6 +48,8 @@ namespace fly {
 
         bool LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile);
 
+        void RunDsymutil(const std::string &OutFile) const;
+
         bool LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile, FrontendOptions &FrontendOpts);
         bool getPIE();
         bool isArmBigEndian();
