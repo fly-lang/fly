@@ -101,7 +101,7 @@ void ASTArrayValue::accept(ASTVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
-uint64_t ASTArrayValue::size() const {
+size_t ASTArrayValue::size() const {
     return Values.size();
 }
 
@@ -129,7 +129,7 @@ void ASTStructValue::accept(ASTVisitor &Visitor) {
 	Visitor.visit(*this);
 }
 
-uint64_t ASTStructValue::size() const {
+size_t ASTStructValue::size() const {
     return Values.size();
 }
 

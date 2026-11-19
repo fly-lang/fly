@@ -297,6 +297,10 @@ namespace fly {
 
         llvm::Module *getModule() const;
 
+        // COMDAT for linkonce dedup on COFF/ELF. Mach-O has no COMDATs (its weak
+        // definitions already dedup), so there it is skipped.
+        void SetComdat(llvm::GlobalObject *GO, llvm::StringRef Name) const;
+
         void FinalizeDebugInfo();
 
         void EmitDebugLocation(const SourceLocation &Loc);

@@ -8,6 +8,7 @@ on:
 env:
   WIN_FILE: win-x64.zip
   LINUX_FILE: linux-x86_64.tar.gz
+  MACOS_FILE: macos-arm64.tar.gz
 
 jobs:
 
@@ -17,8 +18,11 @@ jobs:
   build-windows:
     uses: ./.github/workflows/build-windows.yml
 
+  build-macos:
+    uses: ./.github/workflows/build-macos.yml
+
   release:
-    needs: [build-linux, build-windows]
+    needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
 
     steps:
@@ -55,6 +59,12 @@ jobs:
           name: windows-artifact-${{ steps.artifact.outputs.suffix }}
           path: ./windows
 
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-artifact-${{ steps.artifact.outputs.suffix }}
+          path: ./macos
+
       - name: Package Linux
         run: |
           chmod +x linux/bin/*
@@ -63,12 +73,17 @@ jobs:
         run: |
           cd windows
           zip -r ../fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }} *
+      - name: Package macOS
+        run: |
+          chmod +x macos/bin/*
+          tar -czvf fly-${{ steps.version.outputs.version }}-${{ env.MACOS_FILE }} -C macos bin/ lib/
 
       - name: Verify artifacts
         run: |
           ls -la fly-*
           [ -f "fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }}" ] || exit 1
           [ -f "fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }}" ] || exit 1
+          [ -f "fly-${{ steps.version.outputs.version }}-${{ env.MACOS_FILE }}" ] || exit 1
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -76,10 +91,17 @@ jobs:
           draft: false
           prerelease: false
           tag_name: v${{ steps.version.outputs.version }}
+          # Create the tag on the commit THIS run built. Without it the action
+          # tags the repository's default branch (`main`, the 0.14 line), so
+          # every seed tag v0.13.7 .. v0.13.18 pointed at a 0.14 merge commit
+          # instead of its `bootstrap` commit (fixed by hand 2026-11-16). Only
+          # affects a NEW tag: a re-run for an existing version keeps its tag.
+          target_commitish: ${{ github.sha }}
           name: Fly ${{ steps.version.outputs.version }}
           files: |
             fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }}
             fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }}
+            fly-${{ steps.version.outputs.version }}-${{ env.MACOS_FILE }}
           body: |
             Fly ${{ steps.version.outputs.version }} — bootstrap seed
 
@@ -91,5 +113,6 @@ jobs:
             Built and tested on:
             - Linux: ${{ needs.build-linux.outputs.build_info }}
             - Windows: ${{ needs.build-windows.outputs.build_info }}
+            - macOS: ${{ needs.build-macos.outputs.build_info }}
         env:
           GITHUB_TOKEN: ${{ github.token }}

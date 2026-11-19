@@ -292,6 +292,12 @@ llvm::Module *CodeGenModule::getModule() const {
     return Module;
 }
 
+void CodeGenModule::SetComdat(llvm::GlobalObject *GO, llvm::StringRef Name) const {
+    if (llvm::Triple(Module->getTargetTriple()).isOSBinFormatMachO())
+        return;
+    GO->setComdat(Module->getOrInsertComdat(Name));
+}
+
 TargetInfo &CodeGenModule::getTarget() {
 	return Target;
 }

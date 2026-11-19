@@ -13,6 +13,7 @@
 #include "AST/ASTValue.h"
 #include "CodeGen/CodeGenModule.h"
 #include "CodeGenTest.h"
+#include "llvm/TargetParser/Triple.h"
 
 #include <AST/ASTAttribute.h>
 #include <AST/ASTDeclStmt.h>
@@ -144,8 +145,13 @@ namespace {
         // strips comdat markers from the golden IR above; assert them here directly.
         llvm::Function *IC = M->getFunction("TestClass.init_ctor");
         ASSERT_NE(IC, nullptr);
-        ASSERT_NE(IC->getComdat(), nullptr);
-        EXPECT_EQ(IC->getComdat()->getName(), "TestClass.init_ctor");
+        // Mach-O has no COMDATs: there the weak definition alone dedups.
+        if (llvm::Triple(M->getTargetTriple()).isOSBinFormatMachO()) {
+            EXPECT_EQ(IC->getComdat(), nullptr);
+        } else {
+            ASSERT_NE(IC->getComdat(), nullptr);
+            EXPECT_EQ(IC->getComdat()->getName(), "TestClass.init_ctor");
+        }
     }
 
 	TEST_F(CodeGenTest, CGClassGetterMethod) {

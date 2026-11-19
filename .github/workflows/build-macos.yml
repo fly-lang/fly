@@ -1,0 +1,98 @@
+name: Build macOS
+
+# The C++ seed on Apple Silicon (macos-latest is arm64). Same artifact shape as
+# build-linux.yml: `fly`, the C runtime archive and the two bridge headers.
+# release.yml calls it next to Linux and Windows, so a seed release carries all
+# three platforms (macOS from 0.13.19).
+
+on:
+  workflow_call:
+    outputs:
+      build_info:
+        value: ${{ jobs.build-macos.outputs.build_info }}
+  push:
+    paths-ignore:
+      - '.github/workflows/**'
+    branches:
+      - release/*
+  workflow_dispatch:
+
+env:
+  BUILD_TYPE: Release
+  BUILD_DIR: build
+  MACOSX_DEPLOYMENT_TARGET: '13.0'
+
+jobs:
+
+  build-macos:
+    runs-on: macos-latest
+    outputs:
+      build_info: ${{ steps.info.outputs.build_info }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: brew install ninja
+
+      - name: Configure
+        run: cmake -E make_directory ${{env.BUILD_DIR}}
+
+      - name: Set Build Type
+        shell: bash
+        if: startsWith(github.ref, 'refs/heads/release/')
+        run: echo "BUILD_TYPE=RelWithDebInfo" >> $GITHUB_ENV
+
+      - name: Build
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
+        run: |
+          cmake .. -G Ninja -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_VERBOSE_MAKEFILE=ON
+          # -k 0: report every compile error of a run, not just the first one.
+          cmake --build . --config ${{env.BUILD_TYPE}} -- -k 0
+
+      - name: Test
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}
+        run: ctest --output-on-failure
+
+      - name: Backtrace on Crash
+        if: failure()
+        working-directory: ${{github.workspace}}/${{env.BUILD_DIR}}/test
+        run: |
+          [ -x ./fly_test ] || exit 0
+          lldb --batch -o "run --gtest_catch_exceptions=0" -o "bt all" -- ./fly_test || true
+
+      - name: Capture build info
+        id: info
+        run: |
+          OS="macOS $(sw_vers -productVersion) $(uname -m)"
+          CC=$(cc --version | head -1)
+          echo "build_info=${OS}, ${CC}" >> $GITHUB_OUTPUT
+
+      - name: Set artifact name
+        id: artifact
+        shell: bash
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          echo "artifact_name=macos-artifact-${BRANCH//\//-}" >> $GITHUB_OUTPUT
+
+      # Same contents as the Linux seed: `fly`, the runtime archive and the
+      # bridge headers — never a glob of bin/ (test executables live there too).
+      - name: Stage release artifacts
+        run: |
+          mkdir -p dist/bin dist/lib
+          cp ${{env.BUILD_DIR}}/bin/fly dist/bin/
+          cp -R ${{env.BUILD_DIR}}/lib/. dist/lib/
+          find dist/lib -type f ! \( -name "*.fly.h" -o -name "fly_runtime_lib.a" \) -delete
+          # The seed must run on any Mac with Apple's own libraries: anything
+          # resolved from Homebrew or /usr/local would not be there.
+          if otool -L dist/bin/fly | grep -E '/opt/homebrew|/usr/local'; then
+            echo "error: fly depends on non-system libraries"; exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.artifact_name }}
+          path: dist/
+          if-no-files-found: error
+          overwrite: true
+

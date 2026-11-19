@@ -16,6 +16,9 @@
 
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Program.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/Path.h"
 #include "llvm/Support/ConvertUTF.h"
 #include "lld/Common/Driver.h"
 LLD_HAS_DRIVER(coff)
@@ -968,13 +971,72 @@ bool ToolChain::getWindowsSDKLibraryPath(std::string &path) const {
     return true;
 }
 
+// The macOS SDK root (holds libSystem's .tbd stubs): $SDKROOT, else what
+// `xcrun --show-sdk-path` reports, else the Command Line Tools' default SDK.
+// "" when none exists (no developer tools installed).
+static std::string DarwinSdkPath() {
+    if (std::optional<std::string> Env = llvm::sys::Process::GetEnv("SDKROOT"))
+        if (!Env->empty() && llvm::sys::fs::exists(*Env))
+            return *Env;
+    const std::string Xcrun = "/usr/bin/xcrun";
+    if (llvm::sys::fs::exists(Xcrun)) {
+        llvm::SmallString<128> OutPath;
+        if (!llvm::sys::fs::createTemporaryFile("fly-sdk", "txt", OutPath)) {
+            std::optional<llvm::StringRef> Redirects[] = {std::nullopt, llvm::StringRef(OutPath), std::nullopt};
+            llvm::StringRef Args[] = {Xcrun, "--show-sdk-path"};
+            int RC = llvm::sys::ExecuteAndWait(Xcrun, Args, std::nullopt, Redirects);
+            auto Buf = llvm::MemoryBuffer::getFile(OutPath);
+            llvm::sys::fs::remove(OutPath);
+            if (RC == 0 && Buf) {
+                std::string P = (*Buf)->getBuffer().trim().str();
+                if (!P.empty() && llvm::sys::fs::exists(P))
+                    return P;
+            }
+        }
+    }
+    const std::string CLT = "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk";
+    if (llvm::sys::fs::exists(CLT))
+        return CLT;
+    return "";
+}
+
+// ld64.lld needs what Apple's `ld` gets from clang: the architecture, the
+// platform with its minimum and SDK versions, and the SDK root where libSystem's
+// .tbd stubs live. libSystem is the C library, libm, pthreads AND the
+// compiler-rt builtins on macOS, so no libclang_rt is linked. On arm64 every
+// binary must carry a signature: ld64.lld adds an ad-hoc one itself.
 bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile) {
     FLY_DEBUG_SCOPE_MSG("ToolChain", "LinkDarwin", "Out: " + OutFile);
     llvm::SmallVector<std::string, 16> CmdArgs;
     CmdArgs.push_back("ld64.lld");
 
-    CmdArgs.push_back("-e");
-    CmdArgs.push_back("_main");
+    CmdArgs.push_back("-arch");
+    CmdArgs.push_back(T.getArch() == llvm::Triple::x86_64 ? "x86_64" : "arm64");
+    // Minimum macOS from the triple ("arm64-apple-macosx13.0.0"); a bare
+    // "darwin"/"macosx" carries none: 13.0, the floor the release is built for.
+    llvm::VersionTuple MinOS(13, 0);
+    llvm::VersionTuple FromTriple;
+    if (T.getOSMajorVersion() > 0 && T.getMacOSXVersion(FromTriple) && FromTriple.getMajor() >= 11)
+        MinOS = FromTriple;
+    CmdArgs.push_back("-platform_version");
+    CmdArgs.push_back("macos");
+    CmdArgs.push_back(MinOS.getAsString());
+    CmdArgs.push_back(MinOS.getAsString());
+    const std::string Sdk = DarwinSdkPath();
+    if (!Sdk.empty()) {
+        CmdArgs.push_back("-syslibroot");
+        CmdArgs.push_back(Sdk);
+    } else {
+        llvm::errs() << "warning: no macOS SDK found (xcode-select --install); linking without -syslibroot\n";
+    }
+
+    // A dynamic library (--lib-dyn) has no entry point.
+    if (CodeGenOpts.Shared) {
+        CmdArgs.push_back("-dylib");
+    } else {
+        CmdArgs.push_back("-e");
+        CmdArgs.push_back("_main");
+    }
     CmdArgs.push_back("-o");
     CmdArgs.push_back(OutFile.c_str());
 
@@ -1010,10 +1072,40 @@ bool ToolChain::LinkDarwin(const llvm::SmallVector<std::string, 4> &InFiles, con
     if (T.getObjectFormat() == llvm::Triple::MachO) {
         SmallVector<const char*, 16> LinkArgs;
         createLinkArgs(CmdArgs, LinkArgs);
-        return lld::macho::link(LinkArgs, llvm::outs(), llvm::errs(), false, false);
+        if (!lld::macho::link(LinkArgs, llvm::outs(), llvm::errs(), false, false))
+            return false;
+        // Mach-O keeps no DWARF in the linked image: it points at the objects,
+        // which the driver deletes. dsymutil gathers it into <out>.dSYM next to
+        // the program, where lldb and llvm-dwarfdump look for it.
+        if (CodeGenOpts.DebugSymbols)
+            RunDsymutil(OutFile);
+        return true;
     }
 
     return false;
+}
+
+// dsymutil from the LLVM toolchain (<ToolchainLibDir>/../bin), else from PATH
+// (/usr/bin/dsymutil with the developer tools). Missing or failing, the program
+// still links: only its debug information is lost, so warn.
+void ToolChain::RunDsymutil(const std::string &OutFile) const {
+    std::string Dsymutil;
+    if (!CodeGenOpts.ToolchainLibDir.empty()) {
+        llvm::SmallString<256> P(CodeGenOpts.ToolchainLibDir);
+        llvm::sys::path::append(P, "..", "bin", "dsymutil");
+        if (llvm::sys::fs::can_execute(P))
+            Dsymutil = std::string(P.str());
+    }
+    if (Dsymutil.empty())
+        if (llvm::ErrorOr<std::string> Found = llvm::sys::findProgramByName("dsymutil"))
+            Dsymutil = *Found;
+    if (Dsymutil.empty()) {
+        llvm::errs() << "warning: dsymutil not found: the program has no debug information\n";
+        return;
+    }
+    llvm::StringRef Args[] = {Dsymutil, OutFile};
+    if (llvm::sys::ExecuteAndWait(Dsymutil, Args) != 0)
+        llvm::errs() << "warning: dsymutil failed: the program has no debug information\n";
 }
 
 bool ToolChain::LinkLinux(const llvm::SmallVector<std::string, 4> &InFiles, const std::string &OutFile, FrontendOptions &FrontendOpts) {

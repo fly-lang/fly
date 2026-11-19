@@ -42,7 +42,12 @@ namespace fly {
 
         Logger& Attr(const char* key, bool val);
 
-        Logger& Attr(const char* key, uint64_t val);
+        // unsigned long and unsigned long long are distinct types everywhere, while
+        // size_t and uint64_t are one type on Linux/Windows but two on macOS:
+        // overloading on the former lets both size_t and uint64_t resolve.
+        Logger& Attr(const char* key, unsigned long val);
+
+        Logger& Attr(const char* key, unsigned long long val);
 
         // Null-safe pointer: calls val->str() or prints "null"
         template<typename T>

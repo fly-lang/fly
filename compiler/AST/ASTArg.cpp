@@ -14,12 +14,12 @@
 
 using namespace fly;
 
-ASTArg::ASTArg(ASTExpr *Expr, uint64_t Index) :
+ASTArg::ASTArg(ASTExpr *Expr, size_t Index) :
         ASTBase(Expr->getLocation(), ASTKind::AST_ARG), Expr(Expr), Index(Index) {
 
 }
 
-uint64_t ASTArg::getIndex() const {
+size_t ASTArg::getIndex() const {
     return Index;
 }
 
