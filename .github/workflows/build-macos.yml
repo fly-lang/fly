@@ -3,9 +3,8 @@ name: Build macOS
 # The staged bootstrap on Apple Silicon (macos-latest is arm64). The same scripts
 # as Linux — ci/linux/*.sh branch on the host through ci/linux/platform.sh — and
 # the same order: stage 0 (seed + fork LLVM for macOS arm64), stage 1, the stage-1
-# suites, stage 2, the stage-2 suites, stage 3. The seed is 0.13.18 like on the
-# other platforms: its macOS archive is the same sources built on macos-latest
-# (fly_0.13.x build-macos.yml) and attached to the existing v0.13.18 release.
+# suites, stage 2, the stage-2 suites, stage 3. The seed is 0.13.19, the first one
+# released with a macOS arm64 archive next to the Linux and Windows ones.
 
 on:
   workflow_call:

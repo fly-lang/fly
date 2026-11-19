@@ -54,7 +54,9 @@ $LLVM_VERSION = if ($env:LLVM_VERSION) { $env:LLVM_VERSION } else { "20.1.8" }
 # is the same; what changed is the surface syntax, plus two rules the seed now
 # enforces: a value function must return on every path, and a struct local that
 # every return hands back is built directly in the caller's slot (NRVO).
-$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.18" }
+# 0.13.19 adds macOS arm64 (the language and the ABI are those of 0.13.18): the
+# first seed published for all three platforms.
+$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.19" }
 
 # Resolve everything against the PROJECT ROOT (this script lives in ci\windows\,
 # two levels down) so the downloads land next to the build regardless of the
@@ -213,8 +215,11 @@ Assert-LdLld                                   # build\llvm\bin\ld.lld.exe (extr
 # published release asset (GitHub records the same digest):
 #   0.13.18  fly-0.13.18-win-x64.zip, released 2026-09-20 from the `bootstrap`
 #            branch at 32528a0bf (sources = release/0.13.X df0b20f0c)
+#   0.13.19  fly-0.13.19-win-x64.zip, released 2026-11-20 from the `bootstrap`
+#            branch at fb2a6cb12 (sources = release/0.13.X 7ff8a1789)
 $SEED_SHA256_TABLE = @{
     '0.13.18' = 'fa0f7507f60e34905e502a593ede54e56624b41d9c0ebf404112ad4e77e748ab'
+    '0.13.19' = '60d8d6ed6b91fb02b215604c837fbfe031e4136eaa6ccf5850972545822fb091'
 }
 # FLY_SEED_SHA256 overrides the table: the hash of a candidate seed under test,
 # or `none` to skip verification (testing only - never set it in CI).

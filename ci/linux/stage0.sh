@@ -55,7 +55,10 @@ ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # is the same; what changed is the surface syntax, plus two rules the seed now
 # enforces: a value function must return on every path, and a struct local that
 # every return hands back is built directly in the caller's slot (NRVO).
-FLY_VERSION="${FLY_VERSION:-0.13.18}"
+# 0.13.19 adds macOS arm64 (the language and the ABI are those of 0.13.18): its
+# seed links Mach-O with ld64.lld, skips COMDATs there and gathers DWARF with
+# dsymutil. The first seed published for all three platforms.
+FLY_VERSION="${FLY_VERSION:-0.13.19}"
 
 BUILD_DIR="$ROOT/build"
 STAGE0_DIR="$BUILD_DIR/stage0"
@@ -194,11 +197,14 @@ fi
 # Taken from the published release asset (GitHub records the same digest):
 #   0.13.18  fly-0.13.18-linux-x86_64.tar.gz, released 2026-09-20 from the
 #            `bootstrap` branch at 32528a0bf (sources = release/0.13.X df0b20f0c)
-#   macOS arm64 has a seed from 0.13.19 on (the first cut whose release.yml
-#            builds it); until then stage 0 on a Mac has no pinned seed.
+#   0.13.19  fly-0.13.19-{linux-x86_64,macos-arm64}.tar.gz, released 2026-11-20
+#            from the `bootstrap` branch at fb2a6cb12 (sources = release/0.13.X
+#            7ff8a1789); the first seed with a macOS arm64 archive
 seed_sha256() {
     case "$1/$2" in
         0.13.18/linux-x86_64) echo "f328c4d081de52140e3e704c6f73d71792f21b34b7039be8dc4470b7fb1bbf50" ;;
+        0.13.19/linux-x86_64) echo "3efc3fe36de905c740c17ae6cb162ec3262ea8cd4bafee96e7acf8c25fd0bb54" ;;
+        0.13.19/macos-arm64)  echo "f08d95898a321067eb5ca31c69a7b1e8c48bbd30ac1a02f123c3848ebd5ac484" ;;
         *)                    echo "" ;;
     esac
 }
