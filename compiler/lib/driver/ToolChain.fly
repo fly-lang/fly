@@ -520,6 +520,13 @@ public class ToolChain {
         if str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
             proc.argsAdd(h, str.concat("-L", this.codeGenOpts.getToolchainLibDir()))
         }
+        // LLVM lib dir, so programs using the LLVM C-API (the compiler's own
+        // CodeGen/Target test suites, `-lLLVM-20`) link: next to fly (release
+        // bundle) or build/llvm/lib (dev), as in LinkLinux. Skipped if absent.
+        string llvmLibDir = this.getLLVMLibDir()
+        if str.isEmpty(llvmLibDir) == false {
+            proc.argsAdd(h, str.concat("-L", llvmLibDir))
+        }
 
         int ni = segCount(inFilesSemi)
         int i = 0
