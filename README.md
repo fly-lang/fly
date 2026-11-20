@@ -1,5 +1,6 @@
   [![Build Linux](https://github.com/fly-lang/fly/actions/workflows/build-linux.yml/badge.svg)](https://github.com/fly-lang/fly/actions/workflows/build-linux.yml)
   [![Build Windows](https://github.com/fly-lang/fly/actions/workflows/build-windows.yml/badge.svg)](https://github.com/fly-lang/fly/actions/workflows/build-windows.yml)
+  [![Build macOS](https://github.com/fly-lang/fly/actions/workflows/build-macos.yml/badge.svg)](https://github.com/fly-lang/fly/actions/workflows/build-macos.yml)
   ![GitHub issues](https://img.shields.io/github/issues-raw/fly-lang/fly?color=blue)
   ![GitHub closed issues](https://img.shields.io/github/issues-closed/fly-lang/fly?color=blue)
   <br />
@@ -51,7 +52,8 @@ automatically, class instances are released explicitly.
 ## Getting Started
 
 ### Install a release
-Download the archive for your platform from the
+Download the archive for your platform — Linux x86_64, Windows x64 or, from 0.14.9,
+macOS arm64 — from the
 [releases page](https://github.com/fly-lang/fly/releases) and unpack it anywhere. It is
 self-contained: `bin/` holds `fly`, `fly-lsp`, `fly-registry`, the linker and `lldb`;
 `lib/` holds the runtime, the standard library and its headers. Put `bin/` on your `PATH`.
@@ -97,8 +99,23 @@ cd fly
 ```
 
 No system LLVM and no `sudo` are needed: everything LLVM-related comes from the
-fork's archive in `build/llvm`, and a release carries the compiler-rt builtins
-it links into every program.
+LLVM archive in `build/llvm` (upstream LLVM, built by
+[fly-lang/llvm](https://github.com/fly-lang/llvm)), and a release carries the
+compiler-rt builtins it links into every program.
+
+#### macOS (Apple Silicon)
+
+Requires the Xcode Command Line Tools (`xcode-select --install`) for the macOS SDK
+that programs link against. The same POSIX scripts as Linux are used; Homebrew is
+not needed.
+
+```bash
+git clone --branch release/0.14.X https://github.com/fly-lang/fly.git
+cd fly
+. ./ci/linux/stage0.sh
+./ci/linux/stage1.sh
+./ci/linux/stage2.sh
+```
 
 #### Windows
 
