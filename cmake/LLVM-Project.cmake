@@ -1,9 +1,10 @@
 include(FetchContent)
 
 # Configure LLVM precompiled parameters
-# Prebuilt packages: fly-lang/llvm (built from the fork fly-lang/llvm-project, which
-# GitHub gives no macOS runners; the Linux and Windows packages were copied there
-# byte for byte, so their hashes below are unchanged).
+# Prebuilt packages: fly-lang/llvm, built from upstream llvm/llvm-project (tag
+# llvmorg-<version>, unmodified). The 20.1.8 Linux and Windows packages were built in
+# the former fork fly-lang/llvm-project (same sources) and copied there byte for byte,
+# so their hashes below are unchanged.
 set(LLVM_RELEASES_PREFIX_URL https://github.com/fly-lang/llvm/releases/download)
 
 if (MSVC)
@@ -11,7 +12,7 @@ if (MSVC)
     set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.zip")
     set(LLVM_HASH 4681ffc5da525a3498ffc1acdfc7b95b8d1b8616759f624dd247ded537435a12)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    # Apple Silicon only: the fork publishes no x86_64 macOS build of LLVM 20.
+    # Apple Silicon only: fly-lang/llvm publishes no x86_64 macOS build of LLVM 20.
     set(LLVM_RELEASES_URL "${LLVM_RELEASES_PREFIX_URL}/v${FLY_LLVM_VERSION}-macos-aarch64/llvm-${FLY_LLVM_VERSION}-aarch64-apple-darwin.tar.gz")
     set(LLVM_DOWNLOAD_FILE "${CMAKE_BINARY_DIR}/llvm.tar.gz")
     set(LLVM_HASH b01dbfc9c1163c07c86d04b88cbc2169575b5479ac3d9bfe68c0148950e697ec)
