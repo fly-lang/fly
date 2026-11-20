@@ -188,7 +188,7 @@ public class GitFetcher {
                 arc = 1
             }
         }
-        fs.delete(tarTmp)
+        fs.del(tarTmp)
         fs.dirDeleteAll(bare)
 
         string tomlPath = str.concat(entry, "/Manifest.fly")

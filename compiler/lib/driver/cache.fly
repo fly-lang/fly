@@ -117,7 +117,7 @@ public class Cache {
 
     public void clean() {
         if fs.isDir(this.root) {
-            fs.delete(this.root)
+            fs.del(this.root)
             fs.dirCreateAll(this.root, 493)
             io.printLn(str.concat("Cache cleared: ", this.root))
         }

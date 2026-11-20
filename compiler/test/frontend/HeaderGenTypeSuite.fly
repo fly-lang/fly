@@ -62,11 +62,11 @@ string genInto(const string name, const string src) {
     // generator, kept passing its own removal.
     string stale = str.concat(odir, "/m.fly")
     if fs.exists(stale) {
-        fs.delete(stale)
+        fs.del(stale)
     }
     string staleH = str.concat(odir, "/m.fly.h")
     if fs.exists(staleH) {
-        fs.delete(staleH)
+        fs.del(staleH)
     }
     Parser p = new Parser(fs.readStr(mpath))
     ASTModule m = p.parseModule(mpath)

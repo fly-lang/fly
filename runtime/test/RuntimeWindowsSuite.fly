@@ -222,7 +222,7 @@ suite RuntimeWindowsSuite {
             fly.runtime.fs_lmtime(cp, lmt)
             assert.assertTrue(lmt > 0, 65)
             mem.free(cp, len + 1)
-            fs.delete(f)
+            fs.del(f)
         }
     }
 
@@ -249,7 +249,7 @@ suite RuntimeWindowsSuite {
         case "set / get / delete round-trip": {
             env.set("FLY_RT_WIN_VAR", "abc123")
             assert.assertStr(env.get("FLY_RT_WIN_VAR"), "abc123", 82)
-            env.delete("FLY_RT_WIN_VAR")
+            env.del("FLY_RT_WIN_VAR")
             assert.assertStr(env.get("FLY_RT_WIN_VAR"), "", 83)
         }
         case "cwd / args / hostname / arch / exe non-empty": {

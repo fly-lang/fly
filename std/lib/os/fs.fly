@@ -381,8 +381,9 @@ public void chmod(const string path, const int mode) {
     cstrFree(cpath)
 }
 
-// delete removes the file or empty directory at path (unlink).
-public void delete(const string path) {
+// del removes the file or empty directory at path (unlink). Named `del` because
+// `delete` is becoming the keyword that frees an object created with `new`.
+public void del(const string path) {
     pointer cpath = strToCstr(path)
     int ret = 0
     fly.runtime.fs_unlink(cpath, ret)

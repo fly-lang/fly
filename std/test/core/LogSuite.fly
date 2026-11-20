@@ -93,19 +93,19 @@ suite LogSuite {
             LogLevel got = log.getLevel()
             int gv = got.value
             assert.assertEqI(gv, 5, 206)
-            env.delete("FLY_LOG_LEVEL")
+            env.del("FLY_LOG_LEVEL")
             log.reset()
         }
         case "FLY_LOG_LEVEL=off silences everything": {
             log.reset()
             env.set("FLY_LOG_LEVEL", "off")
             assert.assertTrue(log.isOff(), 207)
-            env.delete("FLY_LOG_LEVEL")
+            env.del("FLY_LOG_LEVEL")
             log.reset()
         }
         case "no env var means the INFO default": {
             log.reset()
-            env.delete("FLY_LOG_LEVEL")
+            env.del("FLY_LOG_LEVEL")
             LogLevel got = log.getLevel()
             int gv = got.value
             assert.assertEqI(gv, 3, 208)
@@ -118,7 +118,7 @@ suite LogSuite {
         case "a message at the threshold reaches the file, one below does not": {
             log.reset()
             string p = "log_suite_tmp.txt"
-            fs.delete(p)
+            fs.del(p)
             log.setLevel(LogLevel.INFO)
             log.setFile(p)
             log.info("visible line")
@@ -126,13 +126,13 @@ suite LogSuite {
             string content = fs.readStr(p)
             assert.assertTrue(str.contains(content, "[INFO] visible line"), 301)
             assert.assertFalse(str.contains(content, "hidden line"), 302)
-            fs.delete(p)
+            fs.del(p)
             log.reset()
         }
         case "err tags the line with ERROR and passes every threshold": {
             log.reset()
             string p = "log_suite_tmp.txt"
-            fs.delete(p)
+            fs.del(p)
             log.setLevel(LogLevel.ERROR)
             log.setFile(p)
             log.err("boom")
@@ -140,13 +140,13 @@ suite LogSuite {
             string content = fs.readStr(p)
             assert.assertTrue(str.contains(content, "[ERROR] boom"), 303)
             assert.assertFalse(str.contains(content, "quiet"), 304)
-            fs.delete(p)
+            fs.del(p)
             log.reset()
         }
         case "when off nothing is written at all": {
             log.reset()
             string p = "log_suite_tmp.txt"
-            fs.delete(p)
+            fs.del(p)
             log.setOff()
             log.setFile(p)
             log.err("nope")
@@ -160,7 +160,7 @@ suite LogSuite {
         case "enter and exit nest with two-space indentation at TRACE": {
             log.reset()
             string p = "log_suite_tmp.txt"
-            fs.delete(p)
+            fs.del(p)
             log.setLevelName("trace")
             log.setFile(p)
             log.enter("outer")
@@ -172,26 +172,26 @@ suite LogSuite {
             assert.assertTrue(str.contains(content, "[TRACE]   > inner"), 402)
             assert.assertTrue(str.contains(content, "[TRACE]   < inner"), 403)
             assert.assertTrue(str.contains(content, "[TRACE] < outer"), 404)
-            fs.delete(p)
+            fs.del(p)
             log.reset()
         }
         case "exitFail marks the failing exit": {
             log.reset()
             string p = "log_suite_tmp.txt"
-            fs.delete(p)
+            fs.del(p)
             log.setLevelName("trace")
             log.setFile(p)
             log.enter("doomed")
             log.exitFail("doomed")
             string content = fs.readStr(p)
             assert.assertTrue(str.contains(content, "<! doomed"), 405)
-            fs.delete(p)
+            fs.del(p)
             log.reset()
         }
         case "below TRACE the hooks are silent": {
             log.reset()
             string p = "log_suite_tmp.txt"
-            fs.delete(p)
+            fs.del(p)
             log.setLevel(LogLevel.DEBUG)
             log.setFile(p)
             log.enter("quiet")

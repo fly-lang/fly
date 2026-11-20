@@ -42,7 +42,7 @@ suite OsProcSuite {
     void execCaptureTest() {
         case "the child's stdout is captured into the file": {
             string outp = "fly_proc_cap1.txt"
-            fs.delete(outp)
+            fs.del(outp)
             pointer h = proc.argsNew()
             string prog = "/bin/echo"
             if str.equals(env.osname(), "windows") {
@@ -58,7 +58,7 @@ suite OsProcSuite {
             assert.assertTrue(fs.exists(outp), 502)
             // The content itself, which is what proves the redirect worked.
             assert.assertTrue(str.contains(fs.readStr(outp), "flycapture"), 503)
-            fs.delete(outp)
+            fs.del(outp)
         }
         case "the output file is TRUNCATED, not appended to": {
             string outp = "fly_proc_cap2.txt"
@@ -79,11 +79,11 @@ suite OsProcSuite {
             // were missing from the redirect.
             assert.assertFalse(str.startsWith(body, "XXXXX"), 504)
             assert.assertTrue(str.len(body) < 100, 505)
-            fs.delete(outp)
+            fs.del(outp)
         }
         case "a nonexistent program fails, per platform": {
             string outp = "fly_proc_cap3.txt"
-            fs.delete(outp)
+            fs.del(outp)
             int rc = proc.execCapture("fly_no_such_program_xyz", 0, outp)
             // The same split exec() already documents: -1 from CreateProcessA on
             // Windows, 127 from the forked child on POSIX.
@@ -92,7 +92,7 @@ suite OsProcSuite {
             } else {
                 assert.assertEqI(rc, 127, 506)
             }
-            fs.delete(outp)
+            fs.del(outp)
         }
         case "a non-zero exit code is reported": {
             if str.equals(env.osname(), "windows") {
@@ -103,12 +103,12 @@ suite OsProcSuite {
                 int rc = proc.execCapture("cmd.exe", h, outp)
                 proc.argsFree(h)
                 assert.assertEqI(rc, 3, 507)
-                fs.delete(outp)
+                fs.del(outp)
             } else {
                 string outp = "fly_proc_cap4.txt"
                 int rc = proc.execCapture("/bin/false", 0, outp)
                 assert.assertNeI(rc, 0, 507)
-                fs.delete(outp)
+                fs.del(outp)
             }
         }
         case "several arguments reach the child": {
@@ -129,7 +129,7 @@ suite OsProcSuite {
             string body = fs.readStr(outp)
             assert.assertTrue(str.contains(body, "one"), 509)
             assert.assertTrue(str.contains(body, "two"), 510)
-            fs.delete(outp)
+            fs.del(outp)
         }
     }
 
@@ -283,7 +283,7 @@ suite OsProcSuite {
                 string self = env.exePath()
                 assert.assertNotEmpty(self, 401)
                 assert.assertEqI(proc.run(self), 0, 402)
-                env.delete("FLY_PROC_SUITE_CHILD")
+                env.del("FLY_PROC_SUITE_CHILD")
             }
         }
         case "exec passes arguments to the child": {
@@ -297,7 +297,7 @@ suite OsProcSuite {
                 proc.argsAdd(h, "ignored-b")
                 assert.assertEqI(proc.exec(env.exePath(), h), 0, 403)
                 proc.argsFree(h)
-                env.delete("FLY_PROC_SUITE_CHILD")
+                env.del("FLY_PROC_SUITE_CHILD")
             }
         }
     }

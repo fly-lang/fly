@@ -1374,7 +1374,7 @@ private string secureViaClient(const string verb, const string url, const string
     statusOut = st
     if st < 0 {
         if fs.exists(tmp) {
-            fs.delete(tmp)
+            fs.del(tmp)
         }
         return body
     }
@@ -1384,7 +1384,7 @@ private string secureViaClient(const string verb, const string url, const string
         // CRT), so a text-mode read here would be the single point that corrupts
         // every binary download on Windows.
         body = fs.readBytes(tmp)
-        fs.delete(tmp)
+        fs.del(tmp)
     }
     return body
 }

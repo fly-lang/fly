@@ -811,7 +811,7 @@ suite ManifestSuite {
             bool s3 = lf.isStale(fp)
             string fpMiss = path.join(tmpBase(), "man_suite_stale_missing.txt")
             bool s4 = lf.isStale(fpMiss)
-            fs.delete(fp)
+            fs.del(fp)
             assert.assertNotEmpty(h, 259)
             assert.assertTrue(s1, 260)
             assert.assertFalse(s2, 261)
@@ -823,7 +823,7 @@ suite ManifestSuite {
     void readLockFileTest() {
         case "readLock: missing → empty, written → parsed back": {
             string fp = path.join(tmpBase(), "man_suite_Lock.fly")
-            fs.delete(fp)
+            fs.del(fp)
             int e1 = 0
             Lockfile missing = driver.readLock(fp, e1)
             int cMissing = missing.packageCount()
@@ -841,7 +841,7 @@ suite ManifestSuite {
             LockedPackage b = back.packageAt(0)
             string bn = b.getName()
             string bv = b.getVersion()
-            fs.delete(fp)
+            fs.del(fp)
             assert.assertEqI(e1, 0, 264)
             assert.assertEqI(cMissing, 0, 265)
             assert.assertEqI(e2, 0, 266)

@@ -52,7 +52,7 @@ suite CodeGenDriverSuite {
             assert.assertEqI(code, 1, 11)
         }
         case "--no-output → exit 0 + no file written": {
-            fs.delete("/tmp/cg/noout.ll")
+            fs.del("/tmp/cg/noout.ll")
             FrontendOptions fo = new FrontendOptions("/tmp/cg/noout.ll")
             fo.setBackendAction(0)
             CodeGenOptions cgo = new CodeGenOptions()

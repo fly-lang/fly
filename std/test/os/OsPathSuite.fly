@@ -360,15 +360,15 @@ suite OsPathSuite {
             fs.writeStr("fly_path_glob_b.txt", "b", 420)
             assert.assertGtI(path.globCount("./fly_path_glob_*.txt"), 1, 909)
             assert.assertEqI(path.globCount("./fly_path_glob_nomatch_*.txt"), 0, 910)
-            fs.delete("fly_path_glob_a.txt")
-            fs.delete("fly_path_glob_b.txt")
+            fs.del("fly_path_glob_a.txt")
+            fs.del("fly_path_glob_b.txt")
         }
         case "glob agrees with globCount": {
             fs.writeStr("fly_path_glob_c.txt", "c", 420)
             fly.os.env.StringArray hits = path.glob("./fly_path_glob_c*.txt")
             assert.assertEqI(hits.count, path.globCount("./fly_path_glob_c*.txt"), 911)
             assert.assertGtI(hits.count, 0, 912)
-            fs.delete("fly_path_glob_c.txt")
+            fs.del("fly_path_glob_c.txt")
         }
         case "glob walks past a long entry name": {
             // Same dirent trap as fs.dirRead: a 150-byte name has a record length

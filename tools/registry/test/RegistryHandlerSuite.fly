@@ -374,7 +374,7 @@ suite RegistryHandlerSuite {
             assert.assertTrue(str.contains(r.body, "mypkg"), 905)
             // Delete the extracted copy: the next GET must recover it from the
             // stored tarball rather than 404 (reference parity).
-            fs.delete(h.manifestPath("mypkg", "1.0.0"))
+            fs.del(h.manifestPath("mypkg", "1.0.0"))
             assert.assertFalse(fs.exists(h.manifestPath("mypkg", "1.0.0")), 906)
             RegResponse again = h.handle("GET", "/v1/mypkg/1.0.0", "", "", "")
             assert.assertEqI(again.status, 200, 907)
