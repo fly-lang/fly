@@ -2,6 +2,8 @@ namespace fly.compiler.codegen
 
 import fly.compiler.sema.*
 import fly.compiler.ast.*
+import fly.compiler.basic.SourceLocation
+import fly.compiler.basic.SourceManager
 import fly.compiler.codegen.CodeGenModule
 import fly.compiler.codegen.CodeGenLLVM
 import fly.compiler.codegen.CodeGenDebug
@@ -55,6 +57,7 @@ public class CodeGenExpr : SemaVisitor {
                            // to the return slot). Its stored value is a RETURNED heap
                            // handle, which must NOT be freed at scope exit (ownership
                            // escapes). Empty = no class is returned (free every handle).
+    SemaStmt curStmt       // the statement being generated: where a null trap reports
 
     public CodeGenExpr(const CodeGenModule cgm) {
         this.cgm = cgm
@@ -73,6 +76,7 @@ public class CodeGenExpr : SemaVisitor {
         this.lastErrPtr = 0
         this.handleSafe = 0
         this.lastStrLit = ""
+        this.curStmt = null
         this.traceName = ""
         this.outSlots = new List<pointer>()
     }
@@ -200,6 +204,61 @@ public class CodeGenExpr : SemaVisitor {
     public void position(const pointer bb) {
         this.llvm.positionBuilderAtEnd(this.builder, bb)
         this.terminated = false
+    }
+
+    // nullCheck — stop the program with a diagnostic when the object reference
+    // `obj` is null, before anything reads through it. Always emitted, in every
+    // build (maintainer's decision for phase 2): a null reference ends with
+    // "error 134: null reference: <what> at <file>:<line>:<col>", never a crash.
+    // `what` says what was attempted ("calling 'size' on a null 'Box'"). The
+    // position is the statement's: expressions carry no location of their own.
+    public void nullCheck(const pointer obj, const string what) {
+        pointer ptrTy = this.ptrType()
+        pointer nul
+        this.llvm.constPointerNull(ptrTy, nul)
+        pointer isNull
+        this.llvm.buildICmp(this.builder, 32, obj, nul, "isnull", isNull)
+        pointer trapBB = this.newBlock("null.trap")
+        pointer okBB = this.newBlock("null.ok")
+        pointer br
+        this.llvm.buildCondBr(this.builder, isNull, trapBB, okBB, br)
+        this.position(trapBB)
+        string msg = str.concat("null reference: ", what)
+        string where = this.stmtWhere()
+        if str.isEmpty(where) {
+            this.cgm.emitNullTrap(msg)
+        } else {
+            string full = str.concat(msg, str.concat(" at ", where))
+            this.cgm.emitNullTrap(full)
+        }
+        this.position(okBB)
+    }
+
+    // stmtWhere — "<file>:<line>:<col>" of the statement being generated, or ""
+    // when it has no usable location.
+    public string stmtWhere() {
+        if this.curStmt == null {
+            return ""
+        }
+        ASTStmt ast = this.curStmt.getAST()
+        if ast == null {
+            return ""
+        }
+        SourceLocation loc = ast.getLoc()
+        if loc == null {
+            return ""
+        }
+        if loc.isInvalid() {
+            return ""
+        }
+        SourceManager sm = loc.getSourceManager()
+        if sm == null {
+            return ""
+        }
+        string file = str.concat(sm.getFilename(), ":")
+        string line = str.concat(str.convert(sm.getLineNumber(loc)), ":")
+        string fileLine = str.concat(file, line)
+        return str.concat(fileLine, str.convert(sm.getColumnNumber(loc)))
     }
 
     // newBlock — append a fresh basic block to the current function.
@@ -353,6 +412,7 @@ public class CodeGenExpr : SemaVisitor {
         CodeGenDebug dbg = this.cgm.getDebug()
         while i < content.size() {
             SemaStmt s = content.get(i)
+            this.curStmt = s
             if dbg != null {
                 dbg.atStmt(s)
             }

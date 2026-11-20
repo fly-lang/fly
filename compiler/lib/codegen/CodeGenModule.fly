@@ -43,6 +43,8 @@ public class CodeGenModule {
     pointer freeFnTy       // its function type
     pointer itableFn       // `@__fly_itable`, the interface lookup helper; null until first use
     pointer itableFnTy     // its function type
+    pointer nullTrapFn     // `@__fly_null_trap`, the null-reference trap; null until first use
+    pointer nullTrapFnTy   // its function type
     CodeGenOptions codeGenOpts    // linker flags sink (CLang bridge); null in unit tests
     CodeGenDebug dbg              // DWARF line tables (--debug-symbols); null otherwise
     bool machO                    // the target emits Mach-O (set by configureTarget)
@@ -54,6 +56,8 @@ public class CodeGenModule {
         this.name = name
         this.itableFn = 0
         this.itableFnTy = 0
+        this.nullTrapFn = 0
+        this.nullTrapFnTy = 0
         this.codeGenOpts = null
         this.cg = new CodeGenLLVM()
         LLVM llvm = this.cg.getLLVM()
@@ -1447,6 +1451,97 @@ public class CodeGenModule {
     // emitItableLookup — at the current insertion point, the itable the object
     // with vtable `vt` holds for the interface with id `ifaceId`: a call to the
     // module's lookup helper (see itableLookupFn).
+    // nullTrapCode — the exit code of a program stopped by a null reference: 134,
+    // what an abort reports on POSIX, so it reads as a crash and not as a value a
+    // program chose with `fail`.
+    public int nullTrapCode() {
+        return 134
+    }
+
+    // emitNullTrap — `call @__fly_null_trap(msg)` + unreachable at the current
+    // insert point: the block that runs when an object reference is null.
+    public void emitNullTrap(const string message) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer fn = this.nullTrapFnGet()
+        List<pointer> args = new List<pointer>()
+        args.add(this.cstr(message))
+        pointer cv
+        this.cg.buildCallN(this.builder, this.nullTrapFnTy, fn, args, "", cv)
+        pointer u
+        llvm.buildUnreachable(this.builder, u)
+    }
+
+    // nullTrapFnGet — `void @__fly_null_trap(ptr msg)`: print "error 134: <msg>" to
+    // stderr and exit with 134. One per module, LinkOnceODR + COMDAT like
+    // `@__fly_itable`, so separately compiled objects share it. It calls the
+    // runtime's C-ABI err_print and proc_exit, whose declarations here match the
+    // wrappers the runtime module itself emits (emitRuntimeCABIWrapper reuses them).
+    public pointer nullTrapFnGet() {
+        if this.nullTrapFn != 0 {
+            return this.nullTrapFn
+        }
+        LLVM llvm = this.cg.getLLVM()
+        pointer b = this.builder
+        pointer ptrTy = this.types.ptrType()
+        pointer voidTy
+        llvm.voidTypeInContext(this.ctx, voidTy)
+        pointer i32Ty
+        llvm.int32TypeInContext(this.ctx, i32Ty)
+        List<pointer> ps = new List<pointer>()
+        ps.add(ptrTy)
+        pointer fty
+        this.cg.functionTypeN(voidTy, ps, false, fty)
+        string name = "__fly_null_trap"
+        pointer fn
+        llvm.getNamedFunction(this.module, name, fn)
+        if fn == 0 {
+            llvm.addFunction(this.module, name, fty, fn)
+        }
+        this.nullTrapFn = fn
+        this.nullTrapFnTy = fty
+        llvm.setLinkage(fn, 3)
+        this.setWeakComdat(fn, name)
+
+        // Built away from the caller's block, then back to it; like `@__fly_itable`
+        // it has no subprogram, so the caller's debug location must not follow.
+        pointer savedLoc = 0
+        if this.dbg != null {
+            savedLoc = this.dbg.suspend()
+        }
+        pointer callerBB
+        llvm.getInsertBlock(b, callerBB)
+        pointer entryBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "entry", entryBB)
+        llvm.positionBuilderAtEnd(b, entryBB)
+
+        pointer msg
+        llvm.getParam(fn, 0, msg)
+        pointer code
+        llvm.constInt(i32Ty, this.nullTrapCode(), false, code)
+        List<pointer> epTys = new List<pointer>()
+        epTys.add(i32Ty)
+        epTys.add(ptrTy)
+        List<pointer> epArgs = new List<pointer>()
+        epArgs.add(code)
+        epArgs.add(msg)
+        this.callVoidRt("err_print", epTys, epArgs)
+        List<pointer> exTys = new List<pointer>()
+        exTys.add(i32Ty)
+        List<pointer> exArgs = new List<pointer>()
+        exArgs.add(code)
+        this.callVoidRt("proc_exit", exTys, exArgs)
+        pointer u
+        llvm.buildUnreachable(b, u)
+
+        if callerBB != 0 {
+            llvm.positionBuilderAtEnd(b, callerBB)
+        }
+        if this.dbg != null {
+            this.dbg.resume(savedLoc)
+        }
+        return fn
+    }
+
     public pointer emitItableLookup(const pointer vt, const long ifaceId) {
         LLVM llvm = this.cg.getLLVM()
         pointer fn = this.itableLookupFn()

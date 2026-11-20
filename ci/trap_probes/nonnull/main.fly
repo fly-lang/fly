@@ -1,0 +1,25 @@
+public class Box {
+
+    int v
+
+    public Box() {
+        this.v = 7
+    }
+
+    public int size() {
+        return this.v
+    }
+
+    public int twice() {
+        return this.size() * 2
+    }
+}
+
+// A valid reference must run untouched: the check costs a comparison, never a
+// different result. Calls through `this` are not checked at all.
+void main() {
+    Box b = new Box()
+    if b.twice() != 14 {
+        fail 1, "wrong value through a checked reference"
+    }
+}

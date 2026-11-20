@@ -761,6 +761,10 @@ public class CodeGenClass {
         SemaType pt = parent.getType()
         SemaClassType cls = pt.asClass()
         pointer structTy = cls.getLlvmStructType()
+        if needsNullCheck(parent, cls) {
+            string onWhat = str.concat("' on a null '", str.concat(cls.getName(), "'"))
+            cge.nullCheck(objPtr, str.concat(str.concat("calling '", fn.getName()), onWhat))
+        }
 
         // super calls dispatch DIRECT to the resolved base function — loading the
         // vtable would re-dispatch to the most-derived override (audit V4).
@@ -958,6 +962,10 @@ public class CodeGenClass {
 
         ASTMember mast = node.getAST()
         string fname = mast.getName()
+        if needsNullCheck(parent, cls) {
+            string ofWhat = str.concat("' of a null '", str.concat(cls.getName(), "'"))
+            cge.nullCheck(objPtr, str.concat(str.concat("accessing field '", fname), ofWhat))
+        }
         int idx = fieldIndex(cls, fname)
         pointer fldPtr
         llvm.buildStructGEP2(b, structTy, objPtr, idx, "fld", fldPtr)
@@ -1051,6 +1059,20 @@ public class CodeGenClass {
     //   CLASS:  1 + position in the FLATTENED list (slot 0 = vtable) — inherited
     //           fields included, which the old header layout could not reach;
     //   STRUCT: plain position (no vtable slot).
+    // needsNullCheck — does reading through this receiver need the null trap?
+    // Not for `this`, which the caller already checked before the call, and not
+    // for a STRUCT, a value whose variable always points at its own storage.
+    // Every CLASS and INTERFACE reference may be null and is checked.
+    public static bool needsNullCheck(const SemaExpr receiver, const SemaClassType cls) {
+        if receiver.getKind() == SemaKind.INSTANCE_VAR {
+            return false
+        }
+        if cls.getClassKind() == SemaClassKind.STRUCT {
+            return false
+        }
+        return true
+    }
+
     public static int fieldIndex(const SemaClassType cls, const string name) {
         int base = 1
         if cls.getClassKind() == SemaClassKind.STRUCT {

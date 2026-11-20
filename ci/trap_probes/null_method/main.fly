@@ -1,0 +1,17 @@
+public class Box {
+
+    int v
+
+    public Box() {
+        this.v = 1
+    }
+
+    public int size() {
+        return this.v
+    }
+}
+
+void main() {
+    Box b = null
+    int n = b.size()
+}

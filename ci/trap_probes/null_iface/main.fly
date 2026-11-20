@@ -1,0 +1,18 @@
+public interface Shape {
+    int area()
+}
+
+public class Square : Shape {
+
+    public Square() {
+    }
+
+    public int area() {
+        return 4
+    }
+}
+
+void main() {
+    Shape s = null
+    int a = s.area()
+}
