@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # stage0.ps1 - set up stage 0 of the staged bootstrap on Windows:
 #
-#   * the fork LLVM pieces (fly-lang/llvm release, built from fly-lang/llvm-project) -> build\llvm
+#   * the LLVM pieces (fly-lang/llvm release, built from upstream llvm/llvm-project) -> build\llvm
 #     LLVM-C.lib (link import lib) + LLVM-C.dll (runtime) + lld-link.exe (the
 #     COFF linker the release bundles). No package manager; the MSVC toolchain
 #     + Windows SDK come from ilammy/msvc-dev-cmd in the workflow.

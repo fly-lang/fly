@@ -2,7 +2,7 @@
 # -----------------------------------------------------------------------------
 # stage0.sh — set up stage 0 of the staged bootstrap on Linux:
 #
-#   • the fork LLVM toolchain (fly-lang/llvm release, built from fly-lang/llvm-project) → build/llvm
+#   • the LLVM toolchain (fly-lang/llvm release, built from upstream llvm/llvm-project) → build/llvm
 #     libLLVM.so + ld.lld + llvm-config + compiler-rt builtins. NO system
 #     package manager: everything the build needs comes from this tarball.
 #   • the pinned bootstrap `fly` release ($FLY_VERSION below) → build/stage0
