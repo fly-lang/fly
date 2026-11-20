@@ -620,6 +620,15 @@ public class Parser {
         DiagnosticBuilder b = this.diags.report(this.curLoc(), id)
         b.emit()
     }
+    // checkDeclName — a declared name (variable, parameter, field, method or
+    // function) must not be a reserved word. Names in qualified paths still accept
+    // keywords (curIsNamePart), but a declaration naming `while`, `new` or `delete`
+    // would make the program unreadable and the word unusable as a statement.
+    public void checkDeclName() {
+        if this.cur.kind == TokenKind.KEYWORD {
+            this.reportErrStr(DiagID.err_parser_reserved_name, this.curText())
+        }
+    }
     public void reportErrStr(const DiagID id, const string arg) {
         DiagnosticBuilder b = this.diags.report(this.curLoc(), id)
         b.addStr(arg)
@@ -1020,6 +1029,7 @@ public class Parser {
         string nm = ""
         SourceLocation nloc = this.curLoc()      // the NAME token, for setNameLoc
         if this.curIsNamePart() {
+            this.checkDeclName()
             nm = this.curText()
             this.bump()
         } else {
@@ -1138,6 +1148,10 @@ public class Parser {
         }
         if this.curIsKw("case") {
             this.parseSuiteCase(block)
+            return
+        }
+        if this.curIsKw("delete") {
+            this.parseDelete(block)
             return
         }
         if this.curIsKw("break") {
@@ -1394,6 +1408,22 @@ public class Parser {
         c.setLabel(label)
     }
 
+    // parseDelete — `delete x`: free the object x refers to (calling its `free()`
+    // first when the class declares one) and set x to null. The target must sit on
+    // the keyword's line, like a `return` value; what it may be (a variable or a
+    // field holding a class reference) is checked by the resolver.
+    public void parseDelete(const ASTBlockStmt block) {
+        SourceLocation loc = this.curLoc()
+        int kwLine = this.curLine()
+        this.expectKw("delete")
+        if this.curLine() != kwLine {
+            this.reportErr(DiagID.err_parser_syntax_error)
+            return
+        }
+        ASTExpr target = this.parseExpr()
+        ASTDeleteStmt d = ASTBuilder.CreateDeleteStmt(block, loc, target)
+    }
+
     // parseReturn — `return`, `return expr`, or `return a, b` (one value per
     // declared return type). A value must sit on the SAME line as the keyword:
     // Fly has no statement terminator, so that is what keeps `if x { return }`
@@ -1524,6 +1554,7 @@ public class Parser {
         string nm = ""
         SourceLocation nloc = this.curLoc()      // the NAME token, for setNameLoc
         if this.curIsNamePart() {
+            this.checkDeclName()
             nm = this.curText()
             this.bump()
         } else {

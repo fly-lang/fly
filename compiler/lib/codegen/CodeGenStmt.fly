@@ -4,6 +4,7 @@ import fly.compiler.sema.*
 import fly.compiler.ast.*
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenIntrinsics
+import fly.compiler.codegen.CodeGenClass
 import fly.compiler.codegen.CodeGenTrace
 import fly.compiler.codegen.CodeGenDebug
 import llvm.api.*
@@ -204,6 +205,39 @@ public class CodeGenStmt {
                 }
             }
         }
+    }
+
+    // deleteStmt — `delete x`: when x is not null, call its class's `free()` (if
+    // it declares one), release the object, then store null into x. Deleting a
+    // null reference does nothing, and the null store makes a second `delete`, or
+    // the scope-exit release of a local created with `new`, a no-op instead of a
+    // double free.
+    public static void deleteStmt(const CodeGenExpr cge, const SemaDeleteStmt node) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        SemaExpr target = node.getExpr()
+        SemaClassType cls = target.getType().asClass()
+        pointer ptrTy = cge.ptrType()
+        pointer slot = cge.genAddr(target)
+        pointer obj
+        llvm.buildLoad2(b, ptrTy, slot, "del", obj)
+        pointer nul
+        llvm.constPointerNull(ptrTy, nul)
+        pointer notNull
+        llvm.buildICmp(b, 33, obj, nul, "delnn", notNull)
+        pointer doBB = cge.newBlock("delete.do")
+        pointer endBB = cge.newBlock("delete.end")
+        pointer cbr
+        llvm.buildCondBr(b, notNull, doBB, endBB, cbr)
+        cge.position(doBB)
+        SemaClassMethod freeM = CodeGenClass.findFreeMethod(cls)
+        if freeM != null {
+            CodeGenClass.callNoArgMethod(cge, cls, freeM, obj)
+        }
+        cge.getCgm().freeHandle(obj)
+        llvm.buildStore(b, nul, slot)
+        cge.br(endBB)
+        cge.position(endBB)
     }
 
     // ret — bare `return`: any attached value-assignment is gen'd, then ret void

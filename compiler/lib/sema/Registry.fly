@@ -698,7 +698,14 @@ public bool signaturesEqual(const List<SemaType> a, const List<SemaType> b) {
         while i < a.size() && eq {
             SemaType x = a.get(i)
             SemaType y = b.get(i)
-            if x.isEquals(y) == false {
+            // A parameter whose type did not resolve has a null type (its error is
+            // already reported): compare those by identity instead of crashing on
+            // the next diagnostic.
+            if x == null || y == null {
+                if x != y {
+                    eq = false
+                }
+            } elsif x.isEquals(y) == false {
                 eq = false
             }
             i = i + 1

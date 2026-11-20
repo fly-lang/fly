@@ -1,0 +1,12 @@
+public class Box {
+
+    public Box() {
+    }
+
+    public void kill() {
+        delete this
+    }
+}
+
+void main() {
+}

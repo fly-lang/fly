@@ -1,0 +1,45 @@
+import fly.os.io
+
+public interface Closer {
+    void free()
+}
+
+public class Res : Closer {
+
+    public Res() {
+    }
+
+    public void free() {
+        io.printLn("freed")
+    }
+}
+
+public class Holder {
+
+    public Res r
+
+    public Holder() {
+        this.r = new Res()
+    }
+}
+
+// delete calls free(), releases the object and leaves the reference null; a second
+// delete of the same reference does nothing. Through a field and an interface too.
+void main() {
+    Res a = new Res()
+    delete a
+    if a != null {
+        fail 1, "delete must leave the variable null"
+    }
+    delete a
+    Holder h = new Holder()
+    delete h.r
+    if h.r != null {
+        fail 2, "delete must leave the field null"
+    }
+    Closer c = new Res()
+    delete c
+    if c != null {
+        fail 3, "delete through an interface must leave it null"
+    }
+}

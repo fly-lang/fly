@@ -899,7 +899,9 @@ public class CodeGenExpr : SemaVisitor {
     public void visit(const SemaLoopInStmt node) {
         CodeGenArray.loopIn(this, node)
     }
-    public void visit(const SemaDeleteStmt node) { }
+    public void visit(const SemaDeleteStmt node) {
+        CodeGenStmt.deleteStmt(this, node)
+    }
 
     // emitCaseFailFast — called after each statement of a case body: if the case's
     // %error slot holds a code, branch to the case end (skipping the rest). Else

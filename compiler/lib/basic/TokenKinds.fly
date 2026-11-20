@@ -98,6 +98,7 @@ public enum TokenKind {
     kw_const,
     kw_continue,
     kw_default,
+    kw_delete,
     kw_double,
     kw_elsif,
     kw_else,
@@ -193,6 +194,9 @@ public TokenKind getKeywordKind(const string w) {
     }
     if w == "default" {
         return TokenKind.kw_default
+    }
+    if w == "delete" {
+        return TokenKind.kw_delete
     }
     if w == "double" {
         return TokenKind.kw_double

@@ -808,15 +808,22 @@ public class ResolverStmt {
         }
     }
 
-    // delete — the parser rejects `delete` today, so this only fires for AST
-    // built programmatically; diagnose (the codegen visit is empty — a silent
-    // no-op would leak and skip the intended destruction).
+    // delete — `delete x` frees the object x refers to (calling its `free()` first
+    // when the class declares one) and sets x to null. The target must therefore
+    // be something that can be set: a local, a parameter or a field, holding a
+    // class or interface reference.
     public static void deleteStmt(const Resolver r, const ASTDeleteStmt node) {
-        r.diagStr(node.getLoc(), DiagID.err_sema_not_supported, "delete statements")
-
         ASTExpr e = node.getExpr()
         e.accept(r)
         SemaExpr re = r.getCurrentExpr()
+        if re == null {
+            return
+        }
+        string why = deleteTargetProblem(re)
+        if str.isEmpty(why) == false {
+            r.diagStr(node.getLoc(), DiagID.err_sema_delete_target, why)
+            return
+        }
         SemaBlockStmt blk = r.getCurrentSemaBlock()
         if blk != null {
             if re != null {
@@ -824,6 +831,36 @@ public class ResolverStmt {
                 blk.addContent(sd)
             }
         }
+    }
+
+    // deleteTargetProblem — why `re` cannot be deleted, or "" when it can.
+    public static string deleteTargetProblem(const SemaExpr re) {
+        SemaKind k = re.getKind()
+        if k == SemaKind.INSTANCE_VAR {
+            return "'this' cannot be deleted"
+        }
+        bool settable = k == SemaKind.LOCAL_VAR || k == SemaKind.PARAM_VAR
+        if k == SemaKind.ATTRIBUTE || k == SemaKind.MEMBER {
+            settable = true
+        }
+        if settable == false {
+            return "the target must be a variable or a field, so that it can be set to null"
+        }
+        SemaType t = re.getType()
+        SemaClassType cls = null
+        if t != null {
+            cls = t.asClass()
+        }
+        if cls == null {
+            return "the target is not a class or interface reference"
+        }
+        if cls.getClassKind() == SemaClassKind.STRUCT {
+            return str.concat(str.concat("'", cls.getName()), "' is a struct, released at the end of its scope")
+        }
+        if re.isConstVar() {
+            return "the variable is declared 'const'"
+        }
+        return ""
     }
 
     public static void breakStmt(const Resolver r, const ASTBreakStmt node) {

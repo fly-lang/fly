@@ -32,6 +32,7 @@ public class ParserClass {
         string nm = ""
         SourceLocation nloc = p.curLoc()      // the NAME token, for setNameLoc
         if p.curIsNamePart() {
+            p.checkDeclName()
             nm = p.curText()
             p.bump()
         } else {
@@ -102,6 +103,7 @@ public class ParserClass {
         string nm = ""
         SourceLocation nloc = p.curLoc()      // the NAME token, for setNameLoc
         if p.curIsNamePart() {
+            p.checkDeclName()
             nm = p.curText()
             p.bump()
         } else {

@@ -23,8 +23,8 @@ import fly.registry
 // Every public symbol of the module is exercised: the five free functions
 // (safeSegment, urlDecode, jsonStringArray, strLess, dirNames), RegResponse
 // (fields + toHttp), and every RegistryHandler entry point — the storage-layout
-// helpers, requiresAuth, and handle() across all five routes plus the failure
-// paths. THE SOCKET LAYER IS NOT HERE: handle() takes a parsed request, so this
+// helpers, requiresAuth, and route() across all five routes plus the failure
+// paths. THE SOCKET LAYER IS NOT HERE: route() takes a parsed request, so this
 // suite is pure logic. The wire is covered end to end by ci/*/test_registry.*.
 //
 // Each case builds its own storage directory under the CWD and removes it
@@ -197,19 +197,19 @@ suite RegistryHandlerSuite {
 
             string tgz = gzipFixture()
             // No token configured: a POST with no header still publishes.
-            RegResponse a = open.handle("POST", "/v1/p/1.0.0", "", "", tgz)
+            RegResponse a = open.route("POST", "/v1/p/1.0.0", "", "", tgz)
             assert.assertEqI(a.status, 201, 508)
             // Token configured: missing, malformed and wrong headers all 401.
-            RegResponse b = locked.handle("POST", "/v1/q/1.0.0", "", "", tgz)
+            RegResponse b = locked.route("POST", "/v1/q/1.0.0", "", "", tgz)
             assert.assertEqI(b.status, 401, 509)
-            RegResponse c = locked.handle("POST", "/v1/q/1.0.0", "", "tok", tgz)
+            RegResponse c = locked.route("POST", "/v1/q/1.0.0", "", "tok", tgz)
             assert.assertEqI(c.status, 401, 510)          // missing "Bearer "
-            RegResponse e = locked.handle("POST", "/v1/q/1.0.0", "", "Bearer nope", tgz)
+            RegResponse e = locked.route("POST", "/v1/q/1.0.0", "", "Bearer nope", tgz)
             assert.assertEqI(e.status, 401, 511)
-            RegResponse f = locked.handle("POST", "/v1/q/1.0.0", "", "Bearer tok", tgz)
+            RegResponse f = locked.route("POST", "/v1/q/1.0.0", "", "Bearer tok", tgz)
             assert.assertEqI(f.status, 201, 512)
             // GET is public even when a token is configured.
-            RegResponse g = locked.handle("GET", "/v1/q", "", "", "")
+            RegResponse g = locked.route("GET", "/v1/q", "", "", "")
             assert.assertEqI(g.status, 200, 513)
             fs.dirDeleteAll(d)
         }
@@ -252,11 +252,11 @@ suite RegistryHandlerSuite {
         case "unknown paths and methods are refused, not mis-served": {
             string d = freshStorage("routing")
             RegistryHandler h = new RegistryHandler(d, "")
-            assert.assertEqI(h.handle("GET", "/", "", "", "").status, 404, 701)
-            assert.assertEqI(h.handle("GET", "/v2/p", "", "", "").status, 404, 702)
-            assert.assertEqI(h.handle("GET", "/v1/p/1.0.0/bogus", "", "", "").status, 404, 703)
-            assert.assertEqI(h.handle("DELETE", "/v1/p/1.0.0", "", "", "").status, 400, 704)
-            assert.assertEqI(h.handle("POST", "/v1/p/1.0.0/download", "", "", "x").status, 400, 705)
+            assert.assertEqI(h.route("GET", "/", "", "", "").status, 404, 701)
+            assert.assertEqI(h.route("GET", "/v2/p", "", "", "").status, 404, 702)
+            assert.assertEqI(h.route("GET", "/v1/p/1.0.0/bogus", "", "", "").status, 404, 703)
+            assert.assertEqI(h.route("DELETE", "/v1/p/1.0.0", "", "", "").status, 400, 704)
+            assert.assertEqI(h.route("POST", "/v1/p/1.0.0/download", "", "", "x").status, 400, 705)
             fs.dirDeleteAll(d)
         }
         case "a path-traversal name or version is rejected with 400": {
@@ -264,19 +264,19 @@ suite RegistryHandlerSuite {
             // BEFORE validation, which is the order that makes this safe.
             string d = freshStorage("traversal")
             RegistryHandler h = new RegistryHandler(d, "")
-            assert.assertEqI(h.handle("GET", "/v1/..%2f..%2fetc", "", "", "").status, 400, 706)
-            assert.assertEqI(h.handle("GET", "/v1/..", "", "", "").status, 400, 707)
-            assert.assertEqI(h.handle("GET", "/v1/p/..%2f..%2fetc", "", "", "").status, 400, 708)
-            assert.assertEqI(h.handle("GET", "/v1/.hidden", "", "", "").status, 400, 709)
+            assert.assertEqI(h.route("GET", "/v1/..%2f..%2fetc", "", "", "").status, 400, 706)
+            assert.assertEqI(h.route("GET", "/v1/..", "", "", "").status, 400, 707)
+            assert.assertEqI(h.route("GET", "/v1/p/..%2f..%2fetc", "", "", "").status, 400, 708)
+            assert.assertEqI(h.route("GET", "/v1/.hidden", "", "", "").status, 400, 709)
             fs.dirDeleteAll(d)
         }
         case "listing an unknown package is 404, not an empty array": {
             string d = freshStorage("unknown")
             RegistryHandler h = new RegistryHandler(d, "")
-            RegResponse r = h.handle("GET", "/v1/nope", "", "", "")
+            RegResponse r = h.route("GET", "/v1/nope", "", "", "")
             assert.assertEqI(r.status, 404, 710)
-            assert.assertEqI(h.handle("GET", "/v1/nope/1.0.0", "", "", "").status, 404, 711)
-            assert.assertEqI(h.handle("GET", "/v1/nope/1.0.0/download", "", "", "").status, 404, 712)
+            assert.assertEqI(h.route("GET", "/v1/nope/1.0.0", "", "", "").status, 404, 711)
+            assert.assertEqI(h.route("GET", "/v1/nope/1.0.0/download", "", "", "").status, 404, 712)
             fs.dirDeleteAll(d)
         }
     }
@@ -289,7 +289,7 @@ suite RegistryHandlerSuite {
             string tgz = gzipFixture()
             assert.assertTrue(str.len(tgz) > 0, 801)
 
-            RegResponse r = h.handle("POST", "/v1/mypkg/1.0.0", "", "", tgz)
+            RegResponse r = h.route("POST", "/v1/mypkg/1.0.0", "", "", tgz)
             assert.assertEqI(r.status, 201, 802)
             assert.assertStr(r.body, "published", 803)
             // The tarball is stored VERBATIM — a byte-exact round trip through
@@ -309,11 +309,11 @@ suite RegistryHandlerSuite {
             string d = freshStorage("badpublish")
             RegistryHandler h = new RegistryHandler(d, "")
             // Missing version: POST /v1/{name} has no version segment.
-            assert.assertEqI(h.handle("POST", "/v1/p", "", "", "x").status, 400, 808)
+            assert.assertEqI(h.route("POST", "/v1/p", "", "", "x").status, 400, 808)
             // Empty body.
-            assert.assertEqI(h.handle("POST", "/v1/p/1.0.0", "", "", "").status, 400, 809)
+            assert.assertEqI(h.route("POST", "/v1/p/1.0.0", "", "", "").status, 400, 809)
             // Not gzip at all.
-            RegResponse r = h.handle("POST", "/v1/p/1.0.0", "", "", "not a gzip archive")
+            RegResponse r = h.route("POST", "/v1/p/1.0.0", "", "", "not a gzip archive")
             assert.assertEqI(r.status, 400, 810)
             assert.assertFalse(fs.exists(h.tarballPath("p", "1.0.0")), 811)
             fs.dirDeleteAll(d)
@@ -327,7 +327,7 @@ suite RegistryHandlerSuite {
             string tgz = gzipFixture()
             string half = str.substring(tgz, 0, str.len(tgz) / 2)
             assert.assertTrue(targz.isGzip(half), 812)   // still LOOKS like gzip
-            RegResponse r = h.handle("POST", "/v1/p/1.0.0", "", "", half)
+            RegResponse r = h.route("POST", "/v1/p/1.0.0", "", "", half)
             assert.assertEqI(r.status, 400, 813)
             assert.assertFalse(fs.exists(h.tarballPath("p", "1.0.0")), 814)
             fs.dirDeleteAll(d)
@@ -336,9 +336,9 @@ suite RegistryHandlerSuite {
             string d = freshStorage("republish")
             RegistryHandler h = new RegistryHandler(d, "")
             string tgz = gzipFixture()
-            assert.assertEqI(h.handle("POST", "/v1/p/1.0.0", "", "", tgz).status, 201, 815)
-            assert.assertEqI(h.handle("POST", "/v1/p/1.0.0", "", "", tgz).status, 201, 816)
-            RegResponse list = h.handle("GET", "/v1/p", "", "", "")
+            assert.assertEqI(h.route("POST", "/v1/p/1.0.0", "", "", tgz).status, 201, 815)
+            assert.assertEqI(h.route("POST", "/v1/p/1.0.0", "", "", tgz).status, 201, 816)
+            RegResponse list = h.route("GET", "/v1/p", "", "", "")
             // Still ONE version, not a duplicate entry.
             assert.assertTrue(str.contains(list.body, "1.0.0"), 817)
             assert.assertEqI(str.count(list.body, "1.0.0"), 1, 818)
@@ -352,12 +352,12 @@ suite RegistryHandlerSuite {
             string d = freshStorage("list")
             RegistryHandler h = new RegistryHandler(d, "")
             string tgz = gzipFixture()
-            h.handle("POST", "/v1/p/1.0.2", "", "", tgz)
-            h.handle("POST", "/v1/p/1.0.1", "", "", tgz)
-            h.handle("POST", "/v1/p/1.0.10", "", "", tgz)
+            h.route("POST", "/v1/p/1.0.2", "", "", tgz)
+            h.route("POST", "/v1/p/1.0.1", "", "", tgz)
+            h.route("POST", "/v1/p/1.0.10", "", "", tgz)
             // A stray file in the package dir must not become a "version".
             fs.writeStr(path.join(h.pkgDir("p"), "notes.txt"), "x", 420)
-            RegResponse r = h.handle("GET", "/v1/p", "", "", "")
+            RegResponse r = h.route("GET", "/v1/p", "", "", "")
             assert.assertEqI(r.status, 200, 901)
             assert.assertStr(r.contentType, "application/json", 902)
             // Byte order, so "1.0.10" sorts before "1.0.2" — documented, and the
@@ -368,15 +368,15 @@ suite RegistryHandlerSuite {
         case "metadata is served, and re-extracted if it was deleted": {
             string d = freshStorage("meta")
             RegistryHandler h = new RegistryHandler(d, "")
-            h.handle("POST", "/v1/mypkg/1.0.0", "", "", gzipFixture())
-            RegResponse r = h.handle("GET", "/v1/mypkg/1.0.0", "", "", "")
+            h.route("POST", "/v1/mypkg/1.0.0", "", "", gzipFixture())
+            RegResponse r = h.route("GET", "/v1/mypkg/1.0.0", "", "", "")
             assert.assertEqI(r.status, 200, 904)
             assert.assertTrue(str.contains(r.body, "mypkg"), 905)
             // Delete the extracted copy: the next GET must recover it from the
             // stored tarball rather than 404 (reference parity).
             fs.del(h.manifestPath("mypkg", "1.0.0"))
             assert.assertFalse(fs.exists(h.manifestPath("mypkg", "1.0.0")), 906)
-            RegResponse again = h.handle("GET", "/v1/mypkg/1.0.0", "", "", "")
+            RegResponse again = h.route("GET", "/v1/mypkg/1.0.0", "", "", "")
             assert.assertEqI(again.status, 200, 907)
             assert.assertTrue(str.contains(again.body, "mypkg"), 908)
             fs.dirDeleteAll(d)
@@ -385,8 +385,8 @@ suite RegistryHandlerSuite {
             string d = freshStorage("download")
             RegistryHandler h = new RegistryHandler(d, "")
             string tgz = gzipFixture()
-            h.handle("POST", "/v1/mypkg/1.0.0", "", "", tgz)
-            RegResponse r = h.handle("GET", "/v1/mypkg/1.0.0/download", "", "", "")
+            h.route("POST", "/v1/mypkg/1.0.0", "", "", tgz)
+            RegResponse r = h.route("GET", "/v1/mypkg/1.0.0/download", "", "", "")
             assert.assertEqI(r.status, 200, 909)
             assert.assertStr(r.contentType, "application/octet-stream", 910)
             assert.assertEqI(str.len(r.body), str.len(tgz), 911)
@@ -401,26 +401,26 @@ suite RegistryHandlerSuite {
             string d = freshStorage("search")
             RegistryHandler h = new RegistryHandler(d, "")
             string tgz = gzipFixture()
-            h.handle("POST", "/v1/alpha/1.0.0", "", "", tgz)
-            h.handle("POST", "/v1/beta/1.0.0", "", "", tgz)
-            h.handle("POST", "/v1/alphabet/1.0.0", "", "", tgz)
-            RegResponse all = h.handle("GET", "/v1/search", "", "", "")
+            h.route("POST", "/v1/alpha/1.0.0", "", "", tgz)
+            h.route("POST", "/v1/beta/1.0.0", "", "", tgz)
+            h.route("POST", "/v1/alphabet/1.0.0", "", "", tgz)
+            RegResponse all = h.route("GET", "/v1/search", "", "", "")
             assert.assertEqI(all.status, 200, 914)
             assert.assertStr(all.body, arr3("alpha", "alphabet", "beta"), 915)
-            RegResponse some = h.handle("GET", "/v1/search", "q=alpha", "", "")
+            RegResponse some = h.route("GET", "/v1/search", "q=alpha", "", "")
             assert.assertStr(some.body, arr2("alpha", "alphabet"), 916)
-            RegResponse none = h.handle("GET", "/v1/search", "q=zzz", "", "")
+            RegResponse none = h.route("GET", "/v1/search", "q=zzz", "", "")
             assert.assertStr(none.body, "[]", 917)
             // A percent-encoded query is decoded before matching, and extra
             // parameters after '&' are not swallowed into the term.
-            RegResponse enc = h.handle("GET", "/v1/search", "q=alph%61&limit=5", "", "")
+            RegResponse enc = h.route("GET", "/v1/search", "q=alph%61&limit=5", "", "")
             assert.assertStr(enc.body, arr2("alpha", "alphabet"), 918)
             fs.dirDeleteAll(d)
         }
         case "search on an empty registry is an empty array, not an error": {
             string d = freshStorage("search_empty")
             RegistryHandler h = new RegistryHandler(d, "")
-            RegResponse r = h.handle("GET", "/v1/search", "q=x", "", "")
+            RegResponse r = h.route("GET", "/v1/search", "q=x", "", "")
             assert.assertEqI(r.status, 200, 919)
             assert.assertStr(r.body, "[]", 920)
             fs.dirDeleteAll(d)

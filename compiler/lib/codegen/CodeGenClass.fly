@@ -1059,6 +1059,63 @@ public class CodeGenClass {
     //   CLASS:  1 + position in the FLATTENED list (slot 0 = vtable) — inherited
     //           fields included, which the old header layout could not reach;
     //   STRUCT: plain position (no vtable slot).
+    // findFreeMethod — the class's `free()` with no parameters (its own or
+    // inherited), which `delete` calls before releasing the object; null if the
+    // class has none.
+    public static SemaClassMethod findFreeMethod(const SemaClassType cls) {
+        SemaClassMethod m = cls.LookupMethod("free")
+        if m == null {
+            return null
+        }
+        if m.getParams().size() != 0 {
+            return null
+        }
+        return m
+    }
+
+    // callNoArgMethod — `obj.m()` for a method with no parameters and no result,
+    // dispatched like methodCall does: through the vtable of a class, the itable of
+    // an interface, directly for a struct. `obj` is known to be non-null.
+    public static void callNoArgMethod(const CodeGenExpr cge, const SemaClassType cls, const SemaClassMethod m,
+            const pointer obj) {
+        CodeGenModule cgm = cge.getCgm()
+        CodeGenLLVM cg = cgm.getCg()
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        pointer ptrTy = cgm.getTypes().ptrType()
+        pointer fnPtr = 0
+        if cls.getClassKind() == SemaClassKind.STRUCT {
+            fnPtr = m.getLlvmFn()
+        } else {
+            pointer vtSlot
+            llvm.buildStructGEP2(b, cls.getLlvmStructType(), obj, 0, "vtslot", vtSlot)
+            pointer vt
+            llvm.buildLoad2(b, ptrTy, vtSlot, "vt", vt)
+            pointer table = vt
+            int slot = 0
+            if cls.getClassKind() == SemaClassKind.INTERFACE {
+                table = cgm.emitItableLookup(vt, ifaceId(cls))
+                slot = ifaceMethodIndex(cls, m)
+            } else {
+                slot = methodSlot(cls, m)
+            }
+            pointer i64Ty
+            llvm.int64TypeInContext(cgm.getCtx(), i64Ty)
+            pointer slotIdx
+            llvm.constInt(i64Ty, slot, false, slotIdx)
+            List<pointer> idx = new List<pointer>()
+            idx.add(slotIdx)
+            pointer fnSlot
+            cg.buildGEP2N(b, ptrTy, table, idx, "vfnslot", fnSlot)
+            llvm.buildLoad2(b, ptrTy, fnSlot, "vfn", fnPtr)
+        }
+        List<pointer> args = new List<pointer>()
+        args.add(cge.getErrPtr())
+        args.add(obj)
+        pointer cv
+        cg.buildCallN(b, m.getLlvmFnType(), fnPtr, args, "", cv)
+    }
+
     // needsNullCheck — does reading through this receiver need the null trap?
     // Not for `this`, which the caller already checked before the call, and not
     // for a STRUCT, a value whose variable always points at its own storage.

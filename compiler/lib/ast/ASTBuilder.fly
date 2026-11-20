@@ -303,8 +303,8 @@ public class ASTBuilder {
         return cont
     }
     public static ASTDeleteStmt CreateDeleteStmt(const ASTBlockStmt parent, const SourceLocation loc,
-            const ASTIdentifier varRef) {
-        ASTDeleteStmt del = new ASTDeleteStmt(loc, varRef)
+            const ASTExpr target) {
+        ASTDeleteStmt del = new ASTDeleteStmt(loc, target)
         parent.addContent(del)
         del.setParent(parent)
         return del

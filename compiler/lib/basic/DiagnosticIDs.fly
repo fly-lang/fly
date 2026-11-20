@@ -36,6 +36,7 @@ public enum DiagClass {
 public enum DiagID {
     err_parser_syntax_error,
     err_parser_identifier_expected,
+    err_parser_reserved_name,
     err_parser_ternary_expr,
     err_parser_expr_close_paren,
     err_parser_expr_expected_primary,
@@ -108,6 +109,7 @@ public enum DiagID {
     err_sema_unreachable_code,
     err_sema_condition_not_bool,
     err_sema_duplicate_function,
+    err_sema_delete_target,
     warn_header_private_shipped
 }
 
@@ -167,6 +169,9 @@ public string levelName(const DiagLevel l) {
 public string getDescription(const DiagID id) {
     if id == DiagID.err_parser_syntax_error {
         return "unexpected token; cannot determine what statement or declaration this begins"
+    }
+    if id == DiagID.err_parser_reserved_name {
+        return "'%0' is a reserved word and cannot be used as a name"
     }
     if id == DiagID.err_parser_identifier_expected {
         return "expected an identifier here"
@@ -383,6 +388,9 @@ public string getDescription(const DiagID id) {
     }
     if id == DiagID.err_sema_condition_not_bool {
         return "a condition must be 'bool', not '%0'; compare explicitly (e.g. 'x != 0')"
+    }
+    if id == DiagID.err_sema_delete_target {
+        return "'delete' frees an object: %0"
     }
     if id == DiagID.err_sema_duplicate_function {
         return "'%0' is already defined in this file with the same parameter types; overloads must differ in their parameters"

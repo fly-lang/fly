@@ -396,9 +396,9 @@ public class RegistryHandler {
 
     // ── dispatch ─────────────────────────────────────────────────────────────
 
-    // handle — route one parsed request. `authHeader` is the Authorization
+    // route — route one parsed request (`handle` is a reserved word). `authHeader` is the Authorization
     // header value ("" when absent).
-    public RegResponse handle(const string method, const string path, const string query,
+    public RegResponse route(const string method, const string path, const string query,
                               const string authHeader, const string body) {
         // GET /v1/search?q=…
         if str.equals(method, "GET") {

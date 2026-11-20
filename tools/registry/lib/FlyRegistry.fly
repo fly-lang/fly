@@ -207,7 +207,7 @@ void main() {
                 string query = http.query(raw)
                 string authHdr = http.header(raw, "Authorization")
                 string body = http.body(raw)
-                RegResponse resp = handler.handle(method, path, query, authHdr, body)
+                RegResponse resp = handler.route(method, path, query, authHdr, body)
                 net.sendStr(client, resp.toHttp())
             }
             net.shutdownWrite(client)
