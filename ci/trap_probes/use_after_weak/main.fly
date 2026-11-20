@@ -1,0 +1,21 @@
+public class Res {
+
+    int v
+
+    public Res() {
+        this.v = 1
+    }
+
+    public int value() {
+        return this.v
+    }
+}
+
+// Once the last holder lets go, a weak reference reads null: a use through it
+// stops on the null trap instead of touching a destroyed object.
+void main() {
+    Res h = new shared Res()
+    Res w = weak h
+    h = null
+    int n = w.value()
+}

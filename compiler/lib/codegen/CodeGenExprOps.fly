@@ -37,12 +37,21 @@ public class CodeGenExprOps {
         // keeps `h = h2` correct when both name the same object.
         if left.isSharedHolder() {
             SemaType hty = left.getType()
-            if right.isSharedHolder() {
+            if right.isSharedHolder() || right.isWeakRef() {
                 CodeGenStmt.emitRetain(cge, rhs)
             }
             pointer haddr = cge.genAddr(left)
             CodeGenStmt.emitReleaseSlot(cge, hty.asClass(), haddr)
             cge.getLLVM().buildStore(cge.getBuilder(), rhs, haddr)
+            node.setLlvmValue(rhs)
+            return
+        }
+        // A WEAK destination: the old weak reference goes, then the new one (already
+        // counted by `weak h`, or null) is stored.
+        if left.isWeakRef() {
+            pointer waddr = cge.genAddr(left)
+            CodeGenStmt.emitWeakReleaseSlot(cge, waddr)
+            cge.getLLVM().buildStore(cge.getBuilder(), rhs, waddr)
             node.setLlvmValue(rhs)
             return
         }
@@ -798,6 +807,15 @@ public class CodeGenExprOps {
         SemaExpr e = node.getExpr()
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
+
+        // `weak h`: the object of h (h a holder, or a weak reference — then the
+        // object only if it still lives), counted as one more weak reference.
+        if k == ASTUnaryKind.OP_UNARY_WEAK {
+            pointer wobj = cge.gen(e)
+            CodeGenStmt.emitWeakRetain(cge, wobj)
+            node.setLlvmValue(wobj)
+            return
+        }
 
         if k == ASTUnaryKind.OP_UNARY_NOT_LOG {
             pointer val = cge.gen(e)

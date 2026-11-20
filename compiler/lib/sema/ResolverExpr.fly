@@ -70,6 +70,9 @@ public class ResolverExpr {
         if e.isSharedHolder() {
             return true          // a counted copy, from a local or a holding field
         }
+        if e.isWeakRef() {
+            return true          // a promotion: counted when the object still lives, else null
+        }
         if e.getKind() == SemaKind.VALUE && e.getType() == null {
             return true
         }
@@ -110,7 +113,7 @@ public class ResolverExpr {
         // right side is a place where `new unique` is allowed.
         bool ownerTarget = false
         if left != null {
-            bool owningLeft = left.isUniqueOwner() || left.isSharedHolder()
+            bool owningLeft = left.isUniqueOwner() || left.isSharedHolder() || left.isWeakRef()
             ownerTarget = node.getBinaryKind() == ASTBinaryKind.OP_BINARY_ASSIGN && owningLeft
         }
         ASTExpr savedSite = r.getUniqueSite()
@@ -209,6 +212,14 @@ public class ResolverExpr {
                         if handsOut && rLocal {
                             r.getReturnMoves().add(right)
                         }
+                    } elsif left.isWeakRef() {
+                        // a weak variable takes only a new weak reference (`w = weak h`)
+                        // or null; anything else would be released without being counted
+                        bool wNull = right.getKind() == SemaKind.VALUE && right.getType() == null
+                        if right.isWeakMake() == false && wNull == false {
+                            r.diagStr(node.getOpLocation(), DiagID.err_sema_weak_ref,
+                                    "a weak variable takes only 'weak h' or null")
+                        }
                     } elsif left.isSharedHolder() {
                         if ResolverExpr.sharedSource(right) == false {
                             r.diagStr(node.getOpLocation(), DiagID.err_sema_shared_ref,
@@ -280,6 +291,25 @@ public class ResolverExpr {
         SemaExpr inner = r.getCurrentExpr()
         SemaUnary u = SemaBuilder.CreateUnary(node, inner)
         ASTUnaryKind uk = node.getOpKind()
+        // `weak h`: one weak reference to the object of h, which must be a shared
+        // holder (or another weak reference). Like `new unique`, it only appears
+        // where a variable takes it — a weak reference left in mid-air would be
+        // counted and never released.
+        if uk == ASTUnaryKind.OP_UNARY_WEAK {
+            u.setWeakMake(true)
+            if inner != null {
+                if inner.isSharedHolder() == false && inner.isWeakRef() == false {
+                    r.diagStr(node.getLoc(), DiagID.err_sema_weak_ref,
+                            "it observes a 'new shared' object: write 'weak h' with h a shared holder")
+                }
+            }
+            if r.getUniqueSite() != node {
+                r.diagStr(node.getLoc(), DiagID.err_sema_weak_ref,
+                        "it must initialize a variable declaration or be assigned to a weak variable")
+            }
+            r.setCurrentExpr(u)
+            return
+        }
         if inner != null {
             // `-5` is still a constant for the narrowing check: re-record the
             // literal under the unary that negates it.

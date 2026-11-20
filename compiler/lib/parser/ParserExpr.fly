@@ -114,6 +114,16 @@ public class ParserExpr {
     }
 
     public static ASTExpr parseUnary(const Parser p) {
+        // `weak h` — CONTEXTUAL like the `new` qualifiers: `weak` is an operator only
+        // when a name follows, so it stays a valid name everywhere else.
+        if p.curIsIdent() && p.nxtIsIdent() && str.equals(p.curText(), "weak") {
+            SourceLocation wloc = p.curLoc()
+            p.bump()
+            ASTExpr target = ParserExpr.parseUnary(p)
+            ASTExpr w = ASTBuilder.CreateUnary(wloc, ASTUnaryKind.OP_UNARY_WEAK, target)
+            p.setLastWeak(w)
+            return w
+        }
         if p.curIsPunct("!") {
             SourceLocation loc = p.curLoc()
             p.bump()

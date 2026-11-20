@@ -10,6 +10,7 @@ import fly.compiler.codegen.CodeGenDebug
 import fly.compiler.codegen.CodeGenType
 import fly.compiler.codegen.CodeGenIntrinsics
 import fly.compiler.codegen.CodeGenTrace
+import fly.compiler.codegen.CodeGenStmt
 import llvm.api.*
 import fly.mem
 import fly.data.List
@@ -991,6 +992,10 @@ public class CodeGenClass {
             pointer fty = cge.lowerType(a.getType())
             pointer loaded
             llvm.buildLoad2(b, fty, fldPtr, "fldv", loaded)
+            // a weak field reads as the object only while it lives
+            if a.isWeakRef() {
+                loaded = CodeGenStmt.emitWeakGet(cge, loaded)
+            }
             node.setLlvmValue(loaded)
         }
     }

@@ -854,8 +854,8 @@ public class ResolverStmt {
     //   init is `new unique C(...)`  → y owns the object: deleted at scope end;
     //   init is a unique owner x     → the object MOVES to y, which owns it, and x
     //                                  is left null (codegen, via moveFrom);
-    //   init is `new shared` / `new weak` → not implemented yet: an error, so a
-    //                                  program never silently gets the plain form.
+    //   init is `new shared`, a holder or a weak ref → y is a holder (a weak one is PROMOTED);
+    //   init is `weak h`              → y is a weak reference; `new weak` is an error.
     public static void trackUnique(const Resolver r, const ASTStmt node, const SemaLocalVar slv,
             const SemaExpr init, const SemaDeclStmt ds) {
         SemaCall ic = init.asCall()
@@ -878,7 +878,8 @@ public class ResolverStmt {
                 }
                 slv.setSharedHolder(true)
             } elsif k == ASTCallKind.CALL_NEW_WEAK {
-                r.diagStr(node.getLoc(), DiagID.err_sema_not_supported, "'new weak' (coming after 'new shared')")
+                r.diagStr(node.getLoc(), DiagID.err_sema_weak_ref,
+                        "a weak reference does not create an object, it observes a shared one: write 'weak h'")
             } elsif ResolverStmt.callReturnsShared(ic) {
                 // `C y = make()` where make returns a holder: y holds that reference.
                 slv.setSharedHolder(true)
@@ -903,6 +904,25 @@ public class ResolverStmt {
             if blk != null {
                 blk.addAlloc(slv)
             }
+        }
+        // `C w = weak h`: w is a weak reference (released at scope end).
+        if init.isWeakMake() {
+            slv.setWeakRef(true)
+            SemaBlockStmt wblk = r.getCurrentSemaBlock()
+            if wblk != null {
+                wblk.addAlloc(slv)
+            }
+            return
+        }
+        // `C p = w` with w weak: a PROMOTION — p is a holder of the object if it
+        // still lives (codegen counts it), null otherwise.
+        if init.isWeakRef() {
+            slv.setSharedHolder(true)
+            SemaBlockStmt pblk = r.getCurrentSemaBlock()
+            if pblk != null {
+                pblk.addAlloc(slv)
+            }
+            return
         }
         // `C y = x` with x a shared holder (a local or a holding field): y holds a
         // COUNTED copy (codegen retains); x keeps its own reference.

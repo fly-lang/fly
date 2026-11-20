@@ -127,6 +127,7 @@ public class Parser {
     List<string> bodyShared           // the locals holding a `new shared` reference (by init or copy)
     List<string> bodyFieldCopies      // "local=field" for `C local = this.field` (and copies of those)
     ASTClass curClass                 // the class whose body is being parsed (owning fields); null outside
+    ASTExpr lastWeak                  // the last `weak h` built: lets noteOwnerField spot `this.f = weak h`
     // Every block parsed, in order, for `fly fmt` (which needs where each block
     // and each of its statements starts). Off unless asked for: compiling never
     // needs it.
@@ -169,6 +170,7 @@ public class Parser {
         this.bodyShared = new List<string>()
         this.bodyFieldCopies = new List<string>()
         this.curClass = null
+        this.lastWeak = null
         this.cur = this.lx.next()
         this.nxt = this.lx.next()
         this.prevLine = 0
@@ -635,6 +637,14 @@ public class Parser {
         if held {
             this.curClass.addSharedField(m.getName())
         }
+        // and for a WEAK field: `this.parent = weak p` (the cycle-breaking case)
+        if this.lastWeak != null && right == this.lastWeak {
+            this.curClass.addWeakField(m.getName())
+        }
+    }
+
+    public void setLastWeak(const ASTExpr w) {
+        this.lastWeak = w
     }
 
     public ASTClass getCurClass() {

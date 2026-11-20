@@ -450,6 +450,14 @@ public class ResolverClass {
                 }
                 hi = hi + 1
             }
+            List<string> weaks = cast.getWeakFields()
+            int wi = 0
+            while wi < weaks.size() {
+                if str.equals(weaks.get(wi), node.getName()) {
+                    attr.setWeakRef(true)
+                }
+                wi = wi + 1
+            }
         }
 
         ASTExpr ie = node.getExpr()

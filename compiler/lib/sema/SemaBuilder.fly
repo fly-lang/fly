@@ -279,6 +279,9 @@ public class SemaBuilder {
         if ref != null && ref.isSharedHolder() {
             m.setSharedHolder(true)
         }
+        if ref != null && ref.isWeakRef() {
+            m.setWeakRef(true)
+        }
         return m
     }
 

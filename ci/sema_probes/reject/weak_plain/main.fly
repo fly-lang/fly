@@ -1,0 +1,11 @@
+public class Res {
+
+    public Res() {
+    }
+}
+
+void main() {
+    Res a = new Res()
+    Res w = weak a
+    delete a
+}

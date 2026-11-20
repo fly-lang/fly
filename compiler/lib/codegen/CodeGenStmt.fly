@@ -223,6 +223,11 @@ public class CodeGenStmt {
             CodeGenStmt.emitReleaseSlot(cge, cls, slot)
             return
         }
+        // `delete w` on a weak reference lets go of the weak reference only.
+        if target.isWeakRef() {
+            CodeGenStmt.emitWeakReleaseSlot(cge, slot)
+            return
+        }
         CodeGenStmt.emitDeleteSlot(cge, cls, slot)
     }
 
@@ -379,6 +384,37 @@ public class CodeGenStmt {
         cge.position(endBB)
     }
 
+    // ── `weak` ────────────────────────────────────────────────────────────────
+
+    // emitWeakGet — the object a weak reference points at while it lives, else
+    // null: what every read of a weak variable or field yields.
+    public static pointer emitWeakGet(const CodeGenExpr cge, const pointer obj) {
+        CodeGenModule cgm = cge.getCgm()
+        List<pointer> args = new List<pointer>()
+        args.add(obj)
+        pointer v
+        cgm.getCg().buildCallN(cge.getBuilder(), cgm.weakGetTy(), cgm.weakGetFn(), args, "weakget", v)
+        return v
+    }
+
+    // emitWeakRetain — one more weak reference to `obj` (null does nothing).
+    public static void emitWeakRetain(const CodeGenExpr cge, const pointer obj) {
+        CodeGenModule cgm = cge.getCgm()
+        List<pointer> args = new List<pointer>()
+        args.add(obj)
+        pointer cv
+        cgm.getCg().buildCallN(cge.getBuilder(), cgm.retainFnTy(), cgm.weakRetainFn(), args, "", cv)
+    }
+
+    // emitWeakReleaseSlot — the weak reference at `slot` goes (null into the slot).
+    public static void emitWeakReleaseSlot(const CodeGenExpr cge, const pointer slot) {
+        CodeGenModule cgm = cge.getCgm()
+        List<pointer> args = new List<pointer>()
+        args.add(slot)
+        pointer cv
+        cgm.getCg().buildCallN(cge.getBuilder(), cgm.retainFnTy(), cgm.weakReleaseFn(), args, "", cv)
+    }
+
     // sharedHeader — the header of a shared object: 16 bytes before it.
     public static pointer sharedHeader(const CodeGenExpr cge, const pointer obj) {
         LLVM llvm = cge.getLLVM()
@@ -410,6 +446,17 @@ public class CodeGenStmt {
         int i = 0
         while i < attrs.size() {
             SemaClassAttribute a = attrs.get(i)
+            // a WEAK field lets go of its weak reference (the observed object is
+            // not touched)
+            if a.isWeakRef() {
+                if cls.getLlvmStructType() == 0 {
+                    CodeGenClass.declareStruct(cge.getCgm(), cls)
+                }
+                int widx = CodeGenClass.fieldIndex(cls, a.getName())
+                pointer wPtr
+                cge.getLLVM().buildStructGEP2(cge.getBuilder(), cls.getLlvmStructType(), obj, widx, "weakfld", wPtr)
+                CodeGenStmt.emitWeakReleaseSlot(cge, wPtr)
+            }
             // a HOLDING field lets go of its reference: the object goes only if
             // that was the last one
             if a.isSharedHolder() {

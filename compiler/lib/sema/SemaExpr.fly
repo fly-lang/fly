@@ -41,6 +41,9 @@ public class SemaExpr : SemaNode {
                         // plain accessor, like constVar: a narrowing virtual mis-dispatches.
     bool sharedHolder   // this expression IS a variable holding a counted `new shared` reference:
                         // released at scope end; copying it into another holder counts it.
+    bool weakRef        // this expression IS a variable holding a weak reference: reads see the
+                        // object while it lives and null after; released at scope end.
+    bool weakMake       // this expression IS `weak h`: it creates one weak reference.
 
     public SemaExpr(const SemaKind kind, const SemaType type) {
         super(kind)
@@ -51,6 +54,8 @@ public class SemaExpr : SemaNode {
         this.constVar = false
         this.uniqueOwner = false
         this.sharedHolder = false
+        this.weakRef = false
+        this.weakMake = false
     }
 
     public SemaType getType() {
@@ -70,6 +75,18 @@ public class SemaExpr : SemaNode {
     }
     public void setOwnedStrTemp(const bool o) {
         this.ownedStrTemp = o
+    }
+    public bool isWeakRef() {
+        return this.weakRef
+    }
+    public void setWeakRef(const bool v) {
+        this.weakRef = v
+    }
+    public bool isWeakMake() {
+        return this.weakMake
+    }
+    public void setWeakMake(const bool v) {
+        this.weakMake = v
     }
     public bool isSharedHolder() {
         return this.sharedHolder

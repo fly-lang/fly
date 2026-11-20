@@ -509,6 +509,12 @@ public class CodeGenExpr : SemaVisitor {
                     j = j + 1
                     continue
                 }
+                // A WEAK local lets go of its weak reference.
+                if v.isWeakRef() {
+                    CodeGenStmt.emitWeakReleaseSlot(this, v.getLlvmAlloca())
+                    j = j + 1
+                    continue
+                }
                 // ESCAPED handles (passed as a call argument or assigned away —
                 // see the Stage-7 escape marking in ResolverCall/ResolverExpr)
                 // may be retained elsewhere: freeing them here left dangling
@@ -612,7 +618,10 @@ public class CodeGenExpr : SemaVisitor {
         SemaLocalVar hv = node.getVar()
         SemaExpr hinit = node.getExpr()
         if hv != null && hinit != null {
-            if hv.isSharedHolder() && hinit.isSharedHolder() {
+            // (a weak initializer is a PROMOTION: its read already yielded the object
+            // if it lives, or null, which retain ignores)
+            bool counted = hinit.isSharedHolder() || hinit.isWeakRef()
+            if hv.isSharedHolder() && counted {
                 pointer held
                 this.llvm.buildLoad2(this.builder, this.ptrType(), hv.getLlvmAlloca(), "held", held)
                 CodeGenStmt.emitRetain(this, held)
@@ -716,6 +725,10 @@ public class CodeGenExpr : SemaVisitor {
             pointer ty = this.lowerType(v.getType())
             pointer loaded
             this.llvm.buildLoad2(this.builder, ty, addr, "ld", loaded)
+            // a weak reference reads as the object only while it lives
+            if v.isWeakRef() {
+                loaded = CodeGenStmt.emitWeakGet(this, loaded)
+            }
             v.setLlvmValue(loaded)
         }
     }
@@ -754,6 +767,9 @@ public class CodeGenExpr : SemaVisitor {
             pointer fty = this.lowerType(a.getType())
             pointer loaded
             this.llvm.buildLoad2(this.builder, fty, fldPtr, "fldv", loaded)
+            if a.isWeakRef() {
+                loaded = CodeGenStmt.emitWeakGet(this, loaded)
+            }
             a.setLlvmValue(loaded)
         }
     }

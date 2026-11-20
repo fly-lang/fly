@@ -1,0 +1,13 @@
+public class Res {
+
+    public Res() {
+    }
+}
+
+void look(const Res r) {
+}
+
+void main() {
+    Res h = new shared Res()
+    look(weak h)
+}
