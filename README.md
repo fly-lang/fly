@@ -42,12 +42,14 @@ There is no garbage collector: structs live on the stack, strings are released
 automatically, class instances are released explicitly.
 
 ### Built with
-- [LLVM](https://llvm.org/) 20.1.8, from the project's own fork
-  ([fly-lang/llvm-project](https://github.com/fly-lang/llvm-project)), downloaded by the
-  bootstrap — no system LLVM, no package manager.
-- A **seed compiler**: the C++ implementation of Fly kept on the `release/0.13.X` branch.
-  It is downloaded as a pinned binary and used once, to compile this tree for the first
-  time.
+- [LLVM](https://llvm.org/) 20.1.8, upstream and unmodified, built by
+  [fly-lang/llvm](https://github.com/fly-lang/llvm) and downloaded by the bootstrap —
+  no system LLVM, no package manager.
+- A **seed compiler**: the previous Fly release, **0.14.9** — itself written in Fly. It is
+  downloaded as a pinned, SHA-256-verified binary and used once, to compile this tree for
+  the first time. The chain goes back to the C++ implementation of Fly
+  (`release/0.13.X`, frozen at 0.13.19), which built 0.14.x: to rebuild everything from
+  sources, start there and follow the release branches.
 
 ## Getting Started
 
@@ -80,7 +82,7 @@ Fly builds itself in three stages:
 
 | Stage | What happens |
 |---|---|
-| 0 | downloads the pinned seed compiler and the fork LLVM into `build/` |
+| 0 | downloads the pinned seed (Fly 0.14.9) and LLVM into `build/` |
 | 1 | the seed compiles runtime, std and compiler from this tree and links the first `fly`; the suites then run under it |
 | 2 | that `fly` recompiles the runtime and the compiler, builds the tools and runs every guard; `build/stage2` is what a release ships |
 
@@ -91,7 +93,7 @@ The seed version is pinned in `ci/linux/stage0.sh` and `ci/windows/stage0.ps1`.
 Requires `gcc` and `libc6-dev` (for the C start-up objects), `ar` and `objcopy`.
 
 ```bash
-git clone --branch release/0.14.X https://github.com/fly-lang/fly.git
+git clone --branch release/0.15.X https://github.com/fly-lang/fly.git
 cd fly
 . ./ci/linux/stage0.sh        # sourced: it exports PATH and the library paths
 ./ci/linux/stage1.sh
@@ -110,7 +112,7 @@ that programs link against. The same POSIX scripts as Linux are used; Homebrew i
 not needed.
 
 ```bash
-git clone --branch release/0.14.X https://github.com/fly-lang/fly.git
+git clone --branch release/0.15.X https://github.com/fly-lang/fly.git
 cd fly
 . ./ci/linux/stage0.sh
 ./ci/linux/stage1.sh
@@ -124,7 +126,7 @@ No Visual Studio is needed, to build Fly or to use it: programs link against a b
 llvm-mingw / UCRT sysroot.
 
 ```powershell
-git clone --branch release/0.14.X --config core.autocrlf=false https://github.com/fly-lang/fly.git
+git clone --branch release/0.15.X --config core.autocrlf=false https://github.com/fly-lang/fly.git
 cd fly
 . .\ci\windows\stage0.ps1
 .\ci\windows\stage1.ps1

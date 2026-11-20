@@ -3,14 +3,12 @@
 # PowerShell counterpart of ci/linux/build_runtime.sh; see stage1.ps1 for the
 # stage map.
 #
-# Windows targets x86_64-w64-windows-gnu (llvm-mingw / UCRT), so the runtime is
-# COMPILED FROM runtime/lib/RuntimeWindows.fly with the stage0 reference compiler
-# for that triple — NOT copied from the MSVC seed. stage0 emits the runtime as
-# flat C-ABI, unmangled symbols with NO MSVCRT/OLDNAMES directive (CRT-neutral),
-# which is exactly what links against the mingw/UCRT sysroot. (The self-host
-# compiler mis-emits these definitions with the ordinary Fly ABI — see the
-# selfhost-runtime-cabi note — so the runtime is stage0-built at BOTH stages until
-# that is fixed; STAGE=2 re-runs this same stage0 recompile.)
+# Windows targets x86_64-w64-windows-gnu (llvm-mingw / UCRT): the runtime is
+# COMPILED FROM runtime/lib/RuntimeWindows.fly for that triple, at every stage, by
+# a self-host compiler — the seed (a self-host release since 0.15) at stage 1, the
+# stage-1 fly at stage 2. `fly.runtime` definitions get flat C-ABI, unmangled
+# wrappers (CodeGenModule.emitRuntimeCABIWrapper), which is what links against
+# the mingw/UCRT sysroot.
 #
 # Output: $LIB/fly_runtime_lib.lib + runtime.fly.h + llvm.fly.h.
 # -----------------------------------------------------------------------------
@@ -33,11 +31,9 @@ function Split-GenericClosers($file) {
     Set-Content $file $c -NoNewline
 }
 
-# -- Compiler: STAGE 1 uses the stage0 reference (hardlinked as fly0.exe so its
-#    <exe>\..\lib discovery serves build\stage1\lib); STAGE 2 SELF-HOSTS with the
-#    stage1 fly.exe. The self-host emits `fly.runtime` defs with the correct flat
-#    C-ABI (unmangled wrappers — see CodeGenModule.emitRuntimeCABIWrapper), so its
-#    runtime archive is link-compatible with the reference's. ---------------------
+# -- Compiler: STAGE 1 uses the seed (hardlinked as fly0.exe so its <exe>\..\lib
+#    discovery serves build\stage1\lib, not the seed's own lib); STAGE 2 the
+#    stage-1 fly.exe. -------------------------------------------------------------
 if ($STAGE -eq '1') {
     if (-not (Test-Path 'build/stage0/bin/fly.exe' -PathType Leaf)) {
         Write-Host "error: stage0 compiler missing - run ci\windows\stage0.ps1 first."; exit 1

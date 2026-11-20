@@ -58,7 +58,15 @@ ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # 0.13.19 adds macOS arm64 (the language and the ABI are those of 0.13.18): its
 # seed links Mach-O with ld64.lld, skips COMDATs there and gathers DWARF with
 # dsymutil. The first seed published for all three platforms.
-FLY_VERSION="${FLY_VERSION:-0.13.19}"
+#
+# From release/0.15.X the seed is a SELF-HOST release (plan item 1.9): 0.14.9,
+# the last 0.14.x, compiled by Fly itself. The C++ compiler is no longer part of
+# this series: it is frozen at 0.13.19 and only starts the chain from scratch
+# (0.13.19 builds release/0.14.X, whose 0.14.9 builds this branch). What the
+# tree may use is now bounded by what 0.14.9 can compile, not by the C++ code.
+# Its archive has the same layout the C++ seeds had: bin/ (fly and the bundled
+# tools) and lib/ (std + runtime archives and their headers).
+FLY_VERSION="${FLY_VERSION:-0.14.9}"
 
 BUILD_DIR="$ROOT/build"
 STAGE0_DIR="$BUILD_DIR/stage0"
@@ -200,11 +208,16 @@ fi
 #   0.13.19  fly-0.13.19-{linux-x86_64,macos-arm64}.tar.gz, released 2026-11-20
 #            from the `bootstrap` branch at fb2a6cb12 (sources = release/0.13.X
 #            7ff8a1789); the first seed with a macOS arm64 archive
+#   0.14.9   fly-0.14.9-{linux-x86_64,macos-arm64}.tar.gz, the self-host release of
+#            2026-11-20 (tag v0.14.9, release/0.14.X 1b7047976): the first
+#            self-host seed (SHA256SUMS of the release)
 seed_sha256() {
     case "$1/$2" in
         0.13.18/linux-x86_64) echo "f328c4d081de52140e3e704c6f73d71792f21b34b7039be8dc4470b7fb1bbf50" ;;
         0.13.19/linux-x86_64) echo "3efc3fe36de905c740c17ae6cb162ec3262ea8cd4bafee96e7acf8c25fd0bb54" ;;
         0.13.19/macos-arm64)  echo "f08d95898a321067eb5ca31c69a7b1e8c48bbd30ac1a02f123c3848ebd5ac484" ;;
+        0.14.9/linux-x86_64)  echo "4d5f3eb67c0c9541eea0ce4214b6b3c1493f5e5195715422e6da6e4cc43cdd86" ;;
+        0.14.9/macos-arm64)   echo "445afdd27c797a525d456fd21e84bcac38125b5a115c7101f4a338e185632489" ;;
         *)                    echo "" ;;
     esac
 }
