@@ -512,8 +512,13 @@ public class ToolChain {
         } else {
             io.printErrLn("warning: no macOS SDK found (xcode-select --install); linking without -syslibroot")
         }
-        proc.argsAdd(h, "-e")
-        proc.argsAdd(h, "_main")
+        // A dynamic library (--lib-dyn) has no entry point.
+        if this.codeGenOpts.getShared() {
+            proc.argsAdd(h, "-dylib")
+        } else {
+            proc.argsAdd(h, "-e")
+            proc.argsAdd(h, "_main")
+        }
         proc.argsAdd(h, "-o")
         proc.argsAdd(h, outFile)
 

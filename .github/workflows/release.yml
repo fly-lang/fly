@@ -8,6 +8,7 @@ on:
 env:
   WIN_FILE: win-x64.zip
   LINUX_FILE: linux-x86_64.tar.gz
+  MACOS_FILE: macos-arm64.tar.gz
 
 jobs:
 
@@ -24,8 +25,13 @@ jobs:
     with:
       debug_symbols: "0"
 
+  build-macos:
+    uses: ./.github/workflows/build-macos.yml
+    with:
+      debug_symbols: "0"
+
   release:
-    needs: [build-linux, build-windows]
+    needs: [build-linux, build-windows, build-macos]
     runs-on: ubuntu-latest
 
     steps:
@@ -59,12 +65,25 @@ jobs:
           name: windows-artifact-${{ steps.artifact.outputs.suffix }}
           path: build/windows
 
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-artifact-${{ steps.artifact.outputs.suffix }}
+          path: build/macos
+
       - name: Package Linux
         run: |
           cd build/linux
           # download-artifact@v4 drops the Unix executable bit; restore it.
           chmod +x bin/*
           tar -czvf "$GITHUB_WORKSPACE/fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }}" *
+
+      - name: Package macOS
+        run: |
+          cd build/macos
+          # download-artifact@v4 drops the Unix executable bit; restore it.
+          chmod +x bin/*
+          tar -czvf "$GITHUB_WORKSPACE/fly-${{ steps.version.outputs.version }}-${{ env.MACOS_FILE }}" *
 
       - name: Package Windows
         run: |
@@ -76,15 +95,17 @@ jobs:
           ls -la fly-*
           [ -f "fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }}" ] || exit 1
           [ -f "fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }}" ] || exit 1
+          [ -f "fly-${{ steps.version.outputs.version }}-${{ env.MACOS_FILE }}" ] || exit 1
 
       # SHA256SUMS ships with the archives, so a release can be verified without
       # trusting the download channel, and the hashes a later bootstrap pins
       # (ci/*/stage0: seed_sha256 / $SEED_SHA256_TABLE) can be read off the
-      # release itself. `sha256sum -c SHA256SUMS` checks both archives.
+      # release itself. `sha256sum -c SHA256SUMS` checks all three archives.
       - name: Checksums
         run: |
           sha256sum "fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }}" \
-                    "fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }}" > SHA256SUMS
+                    "fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }}" \
+                    "fly-${{ steps.version.outputs.version }}-${{ env.MACOS_FILE }}" > SHA256SUMS
           cat SHA256SUMS
           sha256sum -c SHA256SUMS
 
@@ -98,6 +119,7 @@ jobs:
           files: |
             fly-${{ steps.version.outputs.version }}-${{ env.LINUX_FILE }}
             fly-${{ steps.version.outputs.version }}-${{ env.WIN_FILE }}
+            fly-${{ steps.version.outputs.version }}-${{ env.MACOS_FILE }}
             SHA256SUMS
           body: |
             Fly ${{ steps.version.outputs.version }} Release
@@ -105,5 +127,6 @@ jobs:
             Built and tested on:
             - Linux (Ubuntu)
             - Windows (x64)
+            - macOS (arm64, Apple Silicon; macOS 13+)
         env:
           GITHUB_TOKEN: ${{ github.token }}
