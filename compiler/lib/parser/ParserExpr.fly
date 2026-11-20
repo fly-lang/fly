@@ -30,6 +30,7 @@ public class ParserExpr {
             SourceLocation oploc = p.curLoc()
             p.bump()
             ASTExpr right = ParserExpr.parseAssign(p)
+            p.noteOwnerField(left, right)
             return ASTBuilder.CreateBinary(oploc, ASTBinaryKind.OP_BINARY_ASSIGN, left, right)
         }
         // compound assignment `a += b` … `a >>= b` (B015, doc 8.4): right-

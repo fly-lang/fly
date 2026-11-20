@@ -23,6 +23,7 @@ public class ASTClass : ASTNode {
     ASTClassKind classKind
     List<ASTType> bases
     List<ASTType> typeParams
+    List<string> ownerFields   // fields a method fills with `this.f = new unique ...` or an owner: they own
 
     public ASTClass(const ASTClassKind classKind, const List<ASTModifier> modifiers, const SourceLocation loc,
             const string name, const List<ASTType> bases) {
@@ -33,8 +34,22 @@ public class ASTClass : ASTNode {
         this.bases = bases
         this.nodes = new List<ASTNode>()
         this.typeParams = new List<ASTType>()
+        this.ownerFields = new List<string>()
     }
 
+    public List<string> getOwnerFields() {
+        return this.ownerFields
+    }
+    public void addOwnerField(const string n) {
+        int i = 0
+        while i < this.ownerFields.size() {
+            if this.ownerFields.get(i) == n {
+                return
+            }
+            i = i + 1
+        }
+        this.ownerFields.add(n)
+    }
     public List<ASTNode> getNodes() {
         return this.nodes
     }

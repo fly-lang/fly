@@ -10,7 +10,11 @@ import fly.compiler.sema.SemaError
 import fly.compiler.sema.SemaBlockStmt
 import fly.compiler.sema.SymbolTable
 import fly.compiler.ast.ASTFunction
+import fly.compiler.ast.ASTReturnStmt
+import fly.compiler.ast.ASTExpr
+import fly.compiler.ast.ASTIdentifier
 import fly.data.List
+import fly.str
 
 // SemaFunctionBase — common base of standalone functions and class methods. 1:1
 // with C++ SemaFunctionBase (minus CodeGenFunctionBase). Holds the local scope,
@@ -100,6 +104,38 @@ public class SemaFunctionBase : SemaNode {
     }
     public ASTFunction getAST() {
         return this.funcAst
+    }
+    // returnsOwned — does a `return` hand back a local that owns a `new unique`
+    // object? Then the caller owns the result: a declaration initialized by the
+    // call becomes its owner. Answered from the AST (the parser recorded the owner
+    // locals), so it holds before any body is resolved.
+    public bool returnsOwned() {
+        if this.funcAst == null {
+            return false
+        }
+        List<string> owners = this.funcAst.getOwnerLocals()
+        if owners.size() == 0 {
+            return false
+        }
+        List<ASTReturnStmt> rets = this.funcAst.getReturnStmts()
+        int i = 0
+        while i < rets.size() {
+            List<ASTExpr> values = rets.get(i).getExprs()
+            if values.size() == 1 {
+                ASTIdentifier id = values.get(0).asIdentifier()
+                if id != null && id.getParent() == null {
+                    int j = 0
+                    while j < owners.size() {
+                        if str.equals(owners.get(j), id.getName()) {
+                            return true
+                        }
+                        j = j + 1
+                    }
+                }
+            }
+            i = i + 1
+        }
+        return false
     }
     public List<SemaLocalVar> getLocalVars() {
         return this.localVars

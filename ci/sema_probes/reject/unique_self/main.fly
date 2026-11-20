@@ -1,0 +1,10 @@
+public class Res {
+
+    public Res() {
+    }
+}
+
+void main() {
+    Res a = new unique Res()
+    a = a
+}

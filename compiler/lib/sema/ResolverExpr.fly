@@ -60,12 +60,44 @@ public class ResolverExpr {
         r.setCurrentExpr(e)
     }
 
+    // ownedSource — may an owner take this value? A `new unique` object, another
+    // owner (moved), the result of a call that returns an owner, or null (which
+    // just deletes what the owner held).
+    public static bool ownedSource(const SemaExpr e) {
+        if e.isUniqueOwner() {
+            // only a LOCAL owner moves; an owning field lends, it never gives up
+            return e.getKind() == SemaKind.LOCAL_VAR
+        }
+        if e.getKind() == SemaKind.VALUE && e.getType() == null {
+            return true
+        }
+        SemaCall c = e.asCall()
+        if c == null {
+            return false
+        }
+        if c.getAST().getCallKind() == ASTCallKind.CALL_NEW_UNIQUE {
+            return true
+        }
+        return ResolverStmt.callReturnsOwned(c)
+    }
+
     public static void binary(const Resolver r, const ASTBinary node) {
         ASTExpr l = node.getLeftExpr()
         l.accept(r)
         SemaExpr left = r.getCurrentExpr()
         ASTExpr rt = node.getRightExpr()
+        // `owner = new unique C()`: an owner may take a fresh object, so the
+        // right side is a place where `new unique` is allowed.
+        bool ownerTarget = false
+        if left != null {
+            ownerTarget = node.getBinaryKind() == ASTBinaryKind.OP_BINARY_ASSIGN && left.isUniqueOwner()
+        }
+        ASTExpr savedSite = r.getUniqueSite()
+        if ownerTarget {
+            r.setUniqueSite(rt)
+        }
         rt.accept(r)
+        r.setUniqueSite(savedSite)
         SemaExpr right = r.getCurrentExpr()
         SemaBinary b = SemaBuilder.CreateBinary(node, left, right)
         // Numeric promotion: an arithmetic op over two numbers yields the wider type
@@ -140,21 +172,28 @@ public class ResolverExpr {
                         }
                     }
                 }
-                // `new unique` ownership (step U1): an owner moves only into a new
-                // declaration (`C y = x`) or out through `return`; every other
-                // assignment would leave two names for one owned object, or an owner
-                // holding something it does not own. Reassignment comes with step U2.
+                // `new unique` ownership. An owner takes only what it may delete: a
+                // fresh `new unique` object, another owner (a move, which leaves the
+                // source null), an owned call result, or null; its old object is
+                // deleted first (codegen). An owner moves only into another owner, a
+                // new declaration or a return: anything else would leave two names
+                // for one owned object.
                 if left != null && right != null {
                     if r.isReturnAssign() {
-                        if right.isUniqueOwner() {
+                        if right.isUniqueOwner() && right.getKind() == SemaKind.LOCAL_VAR {
                             r.getReturnMoves().add(right)
                         }
-                    } elsif right.isUniqueOwner() {
-                        r.diagStr(node.getOpLocation(), DiagID.err_sema_unique_move,
-                                "the owner moves only into a new declaration (C y = x) or a return")
                     } elsif left.isUniqueOwner() {
+                        if left == right {
+                            r.diagStr(node.getOpLocation(), DiagID.err_sema_unique_move,
+                                    "an owner cannot be assigned to itself")
+                        } elsif ResolverExpr.ownedSource(right) == false {
+                            r.diagStr(node.getOpLocation(), DiagID.err_sema_unique_move,
+                                    "an owner takes only a 'new unique' object, another owner, an owned result or null")
+                        }
+                    } elsif right.isUniqueOwner() && right.getKind() == SemaKind.LOCAL_VAR {
                         r.diagStr(node.getOpLocation(), DiagID.err_sema_unique_move,
-                                "an owner cannot be reassigned yet: declare a new variable instead")
+                                "the owner moves only into another owner, a new declaration (C y = x) or a return")
                     }
                 }
                 // Assignment compatibility: the assignee's type must accept the RHS

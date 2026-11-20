@@ -4,6 +4,7 @@ import fly.compiler.sema.*
 import fly.compiler.ast.*
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenIntrinsics
+import fly.compiler.codegen.CodeGenStmt
 import llvm.api.*
 import fly.mem
 import fly.data.List
@@ -26,6 +27,21 @@ public class CodeGenExprOps {
         SemaExpr right = node.getRight()
         pointer rhs = cge.gen(right)
         rhs = cge.coerce(rhs, right.getType(), left.getType())
+        // A `new unique` OWNER destination: the value is computed first, then the
+        // object the owner held is deleted (free(), release), then the new one is
+        // stored; a move from another owner leaves that owner null. The resolver
+        // accepted only what an owner may delete later (see ownedSource).
+        if left.isUniqueOwner() {
+            SemaType oty = left.getType()
+            pointer oaddr = cge.genAddr(left)
+            CodeGenStmt.emitDeleteSlot(cge, oty.asClass(), oaddr)
+            cge.getLLVM().buildStore(cge.getBuilder(), rhs, oaddr)
+            if right.isUniqueOwner() {
+                CodeGenStmt.emitNullStore(cge, cge.genAddr(right))
+            }
+            node.setLlvmValue(rhs)
+            return
+        }
         // An ARRAY ELEMENT destination is settled HERE, ahead of clone-on-store.
         // An element is a BORROW: the array owns its buffer and nothing else, and
         // its release never walks the elements. Cloning a string into a slot would

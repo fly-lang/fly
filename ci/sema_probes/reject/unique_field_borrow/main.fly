@@ -1,0 +1,21 @@
+public class Res {
+
+    public Res() {
+    }
+}
+
+public class Box {
+
+    Res inner
+
+    public Box() {
+        this.inner = new unique Res()
+    }
+
+    public void put(const Res r) {
+        this.inner = r
+    }
+}
+
+void main() {
+}

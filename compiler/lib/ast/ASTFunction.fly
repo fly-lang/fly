@@ -31,6 +31,7 @@ public class ASTFunction : ASTNode {
     // name of every local it declares.
     List<ASTReturnStmt> returnStmts
     List<string> localNames
+    List<string> ownerLocals   // locals that own a `new unique` object (directly or by a move)
 
     public ASTFunction(const SourceLocation loc, const List<ASTModifier> modifiers, const string name,
             const List<ASTParam> params, const ASTFunctionKind functionKind) {
@@ -43,6 +44,7 @@ public class ASTFunction : ASTNode {
         this.typeParams = new List<ASTType>()
         this.returnStmts = new List<ASTReturnStmt>()
         this.localNames = new List<string>()
+        this.ownerLocals = new List<string>()
     }
 
     public string getName() {
@@ -80,6 +82,12 @@ public class ASTFunction : ASTNode {
     }
     public void addLocalName(const string n) {
         this.localNames.add(n)
+    }
+    public List<string> getOwnerLocals() {
+        return this.ownerLocals
+    }
+    public void addOwnerLocal(const string n) {
+        this.ownerLocals.add(n)
     }
     public ASTFunction asFunction() {
         return this

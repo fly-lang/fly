@@ -1,1 +1,1 @@
-an owner cannot be reassigned yet
+an owner takes only a 'new unique' object

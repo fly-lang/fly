@@ -430,6 +430,19 @@ public class ResolverClass {
         SemaType t = r.getCurrentType()
         SemaClassAttribute attr = SemaBuilder.CreateClassAttribute(cls, node, t)
         cls.addAttribute(attr)
+        // An OWNING field (the parser saw `this.f = new unique ...` or an owner
+        // stored into it): deleted with the object, borrowed by every read.
+        ASTClass cast = cls.getAST()
+        if cast != null {
+            List<string> owners = cast.getOwnerFields()
+            int oi = 0
+            while oi < owners.size() {
+                if str.equals(owners.get(oi), node.getName()) {
+                    attr.setUniqueOwner(true)
+                }
+                oi = oi + 1
+            }
+        }
 
         ASTExpr ie = node.getExpr()
         if ie != null {

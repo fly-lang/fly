@@ -3,6 +3,7 @@ namespace fly.compiler.codegen
 import fly.compiler.sema.*
 import fly.compiler.ast.*
 import fly.compiler.codegen.CodeGenExpr
+import fly.compiler.codegen.CodeGenModule
 import fly.compiler.codegen.CodeGenIntrinsics
 import fly.compiler.codegen.CodeGenClass
 import fly.compiler.codegen.CodeGenTrace
@@ -230,6 +231,22 @@ public class CodeGenStmt {
     // emitDeleteSlot — the body of `delete`, for the reference stored at `slot`;
     // also what a `new unique` owner runs when its scope ends.
     public static void emitDeleteSlot(const CodeGenExpr cge, const SemaClassType cls, const pointer slot) {
+        // One `@__fly_drop.<class>` per class holds the body (emitDeleteBody), so a
+        // class owning a field of its own type (a list node owning the next one)
+        // recurses at run time, over real objects, not in the compiler.
+        CodeGenModule cgm = cge.getCgm()
+        pointer fn = cgm.dropFn(cls)
+        List<pointer> args = new List<pointer>()
+        args.add(cge.getErrPtr())
+        args.add(slot)
+        pointer cv
+        cgm.getCg().buildCallN(cge.getBuilder(), cgm.dropFnTy(), fn, args, "", cv)
+    }
+
+    // emitDeleteBody — what `@__fly_drop.<class>` does with the reference at `slot`:
+    // nothing when it is null; otherwise free() (if the class declares one), the
+    // owning fields, the object itself, and null into the slot.
+    public static void emitDeleteBody(const CodeGenExpr cge, const SemaClassType cls, const pointer slot) {
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         pointer ptrTy = cge.ptrType()
@@ -248,10 +265,42 @@ public class CodeGenStmt {
         if freeM != null {
             CodeGenClass.callNoArgMethod(cge, cls, freeM, obj)
         }
+        CodeGenStmt.emitDeleteOwnedFields(cge, cls, obj)
         cge.getCgm().freeHandle(obj)
         llvm.buildStore(b, nul, slot)
         cge.br(endBB)
         cge.position(endBB)
+    }
+
+    // emitDeleteOwnedFields — delete every OWNING field of `obj` (a field a method
+    // fills with `new unique` or an owner), after the class's free() and before
+    // the object goes: what the object owns goes with it. The fields are those of
+    // the STATIC type `cls`, bases included; deleting through a base or interface
+    // type therefore misses fields only a subclass declares (they leak, nothing
+    // is freed twice).
+    public static void emitDeleteOwnedFields(const CodeGenExpr cge, const SemaClassType cls, const pointer obj) {
+        if cls.getClassKind() == SemaClassKind.INTERFACE {
+            return
+        }
+        List<SemaClassAttribute> attrs = CodeGenClass.allAttributes(cls)
+        int i = 0
+        while i < attrs.size() {
+            SemaClassAttribute a = attrs.get(i)
+            if a.isUniqueOwner() {
+                SemaType at = a.getType()
+                SemaClassType fcls = at.asClass()
+                if fcls != null {
+                    if cls.getLlvmStructType() == 0 {
+                        CodeGenClass.declareStruct(cge.getCgm(), cls)
+                    }
+                    int idx = CodeGenClass.fieldIndex(cls, a.getName())
+                    pointer fldPtr
+                    cge.getLLVM().buildStructGEP2(cge.getBuilder(), cls.getLlvmStructType(), obj, idx, "ownfld", fldPtr)
+                    CodeGenStmt.emitDeleteSlot(cge, fcls, fldPtr)
+                }
+            }
+            i = i + 1
+        }
     }
 
     // ret — bare `return`: any attached value-assignment is gen'd, then ret void

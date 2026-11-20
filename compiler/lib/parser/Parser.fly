@@ -123,6 +123,8 @@ public class Parser {
     List<Token> pending      // lookahead buffer: tokens probed past `nxt`, re-served by bump()
     List<ASTReturnStmt> bodyReturns   // every `return` in the body being parsed
     List<string> bodyLocals           // every local name declared in that body
+    List<string> bodyOwners           // the locals that own a `new unique` object (by init or move)
+    ASTClass curClass                 // the class whose body is being parsed (owning fields); null outside
     // Every block parsed, in order, for `fly fmt` (which needs where each block
     // and each of its statements starts). Off unless asked for: compiling never
     // needs it.
@@ -161,6 +163,8 @@ public class Parser {
         this.paramGroups = new List<int>()
         this.paramGroupId = 0
         this.bodyLocals = new List<string>()
+        this.bodyOwners = new List<string>()
+        this.curClass = null
         this.cur = this.lx.next()
         this.nxt = this.lx.next()
         this.prevLine = 0
@@ -527,9 +531,90 @@ public class Parser {
     // instead of walking the tree again — and the AST needs no narrowing helpers
     // (adding virtuals to the statement base is the vtable-shift risk this
     // codebase avoids). Fly has no nested functions, so one pair of lists is enough.
+    // noteOwner — `C name = new unique C()` or `C name = owner` (a move): `name`
+    // owns its object. Recorded per body so the resolver knows, BEFORE resolving
+    // any body, which functions hand an owner back through `return` (their
+    // callers then own the result) — resolution order cannot decide that.
+    public void noteOwner(const string name, const ASTExpr init) {
+        ASTCall ic = init.asCall()
+        if ic != null {
+            if ic.getCallKind() == ASTCallKind.CALL_NEW_UNIQUE {
+                this.bodyOwners.add(name)
+            }
+            return
+        }
+        ASTIdentifier id = init.asIdentifier()
+        if id == null {
+            return
+        }
+        if id.getParent() != null {
+            return
+        }
+        int i = 0
+        while i < this.bodyOwners.size() {
+            if str.equals(this.bodyOwners.get(i), id.getName()) {
+                this.bodyOwners.add(name)
+                return
+            }
+            i = i + 1
+        }
+    }
+
+    // noteOwnerField — inside a method, `this.f = new unique C()` or `this.f = owner`
+    // makes `f` an OWNING field of the class being parsed: deleted with the object.
+    // Recorded before resolution, like the owner locals, so every read of `f` in
+    // any method is already known to borrow from an owner.
+    public void noteOwnerField(const ASTExpr left, const ASTExpr right) {
+        if this.curClass == null {
+            return
+        }
+        ASTMember m = left.asMember()
+        if m == null {
+            return
+        }
+        ASTExpr recv = m.getParent()
+        if recv == null {
+            return
+        }
+        ASTIdentifier rid = recv.asIdentifier()
+        if rid == null {
+            return
+        }
+        if rid.getParent() != null || str.equals(rid.getName(), "this") == false {
+            return
+        }
+        bool owned = false
+        ASTCall ic = right.asCall()
+        if ic != null {
+            owned = ic.getCallKind() == ASTCallKind.CALL_NEW_UNIQUE
+        } else {
+            ASTIdentifier id = right.asIdentifier()
+            if id != null && id.getParent() == null {
+                int i = 0
+                while i < this.bodyOwners.size() {
+                    if str.equals(this.bodyOwners.get(i), id.getName()) {
+                        owned = true
+                    }
+                    i = i + 1
+                }
+            }
+        }
+        if owned {
+            this.curClass.addOwnerField(m.getName())
+        }
+    }
+
+    public ASTClass getCurClass() {
+        return this.curClass
+    }
+    public void setCurClass(const ASTClass c) {
+        this.curClass = c
+    }
+
     public void beginBody() {
         this.bodyReturns = new List<ASTReturnStmt>()
         this.bodyLocals = new List<string>()
+        this.bodyOwners = new List<string>()
     }
     public void endBody(const ASTFunction f) {
         if f == null {
@@ -544,6 +629,11 @@ public class Parser {
         while j < this.bodyLocals.size() {
             f.addLocalName(this.bodyLocals.get(j))
             j = j + 1
+        }
+        int k = 0
+        while k < this.bodyOwners.size() {
+            f.addOwnerLocal(this.bodyOwners.get(k))
+            k = k + 1
         }
         this.beginBody()
     }
@@ -1572,6 +1662,7 @@ public class Parser {
             this.bump()
             ASTExpr init = this.parseExpr()
             d.setExpr(init)
+            this.noteOwner(nm, init)
         }
     }
 

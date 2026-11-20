@@ -9,6 +9,7 @@ import fly.compiler.codegen.CodeGenType
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenClass
 import fly.compiler.codegen.CodeGenTrace
+import fly.compiler.codegen.CodeGenStmt
 import llvm.api.*
 import fly.mem
 import fly.data.List
@@ -45,6 +46,9 @@ public class CodeGenModule {
     pointer itableFnTy     // its function type
     pointer nullTrapFn     // `@__fly_null_trap`, the null-reference trap; null until first use
     pointer nullTrapFnTy   // its function type
+    List<string> dropNames // `@__fly_drop.<class>` helpers built so far (delete bodies), by name
+    List<pointer> dropFns
+    pointer dropFnTyV      // their common type: void (ptr err, ptr slot)
     CodeGenOptions codeGenOpts    // linker flags sink (CLang bridge); null in unit tests
     CodeGenDebug dbg              // DWARF line tables (--debug-symbols); null otherwise
     bool machO                    // the target emits Mach-O (set by configureTarget)
@@ -58,6 +62,9 @@ public class CodeGenModule {
         this.itableFnTy = 0
         this.nullTrapFn = 0
         this.nullTrapFnTy = 0
+        this.dropNames = new List<string>()
+        this.dropFns = new List<pointer>()
+        this.dropFnTyV = 0
         this.codeGenOpts = null
         this.cg = new CodeGenLLVM()
         LLVM llvm = this.cg.getLLVM()
@@ -1476,6 +1483,79 @@ public class CodeGenModule {
     // `@__fly_itable`, so separately compiled objects share it. It calls the
     // runtime's C-ABI err_print and proc_exit, whose declarations here match the
     // wrappers the runtime module itself emits (emitRuntimeCABIWrapper reuses them).
+    // dropFnTy — the type every `@__fly_drop.<class>` shares: void (ptr err, ptr slot).
+    public pointer dropFnTy() {
+        if this.dropFnTyV == 0 {
+            LLVM llvm = this.cg.getLLVM()
+            pointer voidTy
+            llvm.voidTypeInContext(this.ctx, voidTy)
+            List<pointer> ps = new List<pointer>()
+            ps.add(this.types.ptrType())
+            ps.add(this.types.ptrType())
+            pointer fty
+            this.cg.functionTypeN(voidTy, ps, false, fty)
+            this.dropFnTyV = fty
+        }
+        return this.dropFnTyV
+    }
+
+    // dropFn — `void @__fly_drop.<ns>.<Class>(ptr err, ptr slot)`: the body of
+    // `delete` for the reference at `slot` (CodeGenStmt.emitDeleteBody). One per
+    // class and module, LinkOnceODR + COMDAT like `@__fly_itable`. Registered
+    // BEFORE its body is built, so a class owning a field of its own type calls
+    // itself instead of expanding forever.
+    public pointer dropFn(const SemaClassType cls) {
+        string qual = str.concat(SemaBuilder.classNsFlat(cls), str.concat(".", cls.getName()))
+        string name = str.concat("__fly_drop.", qual)
+        int i = 0
+        while i < this.dropNames.size() {
+            if str.equals(this.dropNames.get(i), name) {
+                return this.dropFns.get(i)
+            }
+            i = i + 1
+        }
+        LLVM llvm = this.cg.getLLVM()
+        pointer fty = this.dropFnTy()
+        pointer fn
+        llvm.getNamedFunction(this.module, name, fn)
+        if fn == 0 {
+            llvm.addFunction(this.module, name, fty, fn)
+        }
+        this.dropNames.add(name)
+        this.dropFns.add(fn)
+        llvm.setLinkage(fn, 3)
+        this.setWeakComdat(fn, name)
+
+        // Built away from the caller's block, then back to it; no subprogram, so
+        // the caller's debug location must not follow (as for `@__fly_itable`).
+        pointer b = this.builder
+        pointer savedLoc = 0
+        if this.dbg != null {
+            savedLoc = this.dbg.suspend()
+        }
+        pointer callerBB
+        llvm.getInsertBlock(b, callerBB)
+        pointer entryBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "entry", entryBB)
+        llvm.positionBuilderAtEnd(b, entryBB)
+        CodeGenExpr dcg = new CodeGenExpr(this)
+        pointer errP
+        llvm.getParam(fn, 0, errP)
+        dcg.setErrPtr(errP)
+        pointer slotP
+        llvm.getParam(fn, 1, slotP)
+        CodeGenStmt.emitDeleteBody(dcg, cls, slotP)
+        pointer rv
+        llvm.buildRetVoid(b, rv)
+        if callerBB != 0 {
+            llvm.positionBuilderAtEnd(b, callerBB)
+        }
+        if this.dbg != null {
+            this.dbg.resume(savedLoc)
+        }
+        return fn
+    }
+
     public pointer nullTrapFnGet() {
         if this.nullTrapFn != 0 {
             return this.nullTrapFn

@@ -270,7 +270,13 @@ public class SemaBuilder {
         if ref != null {
             t = ref.getType()
         }
-        return new SemaMember(ast, ref, parent, t)
+        SemaMember m = new SemaMember(ast, ref, parent, t)
+        // `obj.f` of an owning field is itself an owner place: an assignment to it
+        // deletes what it held, and a read only borrows (see ResolverExpr).
+        if ref != null && ref.isUniqueOwner() {
+            m.setUniqueOwner(true)
+        }
+        return m
     }
 
     // CreateArrayAccess — `base[index]`, typed as the array's ELEMENT type so the
