@@ -64,11 +64,11 @@ public class ResolverExpr {
     // owner (moved), the result of a call that returns an owner, or null (which
     // just deletes what the owner held).
     // sharedSource — may a shared holder take this value? A `new shared` object,
-    // another LOCAL holder (counted copy), the result of a call that returns a
+    // another holder (counted copy), the result of a call that returns a
     // holder, or null (which just releases what the holder had).
     public static bool sharedSource(const SemaExpr e) {
         if e.isSharedHolder() {
-            return e.getKind() == SemaKind.LOCAL_VAR
+            return true          // a counted copy, from a local or a holding field
         }
         if e.getKind() == SemaKind.VALUE && e.getType() == null {
             return true

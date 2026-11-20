@@ -276,6 +276,9 @@ public class SemaBuilder {
         if ref != null && ref.isUniqueOwner() {
             m.setUniqueOwner(true)
         }
+        if ref != null && ref.isSharedHolder() {
+            m.setSharedHolder(true)
+        }
         return m
     }
 

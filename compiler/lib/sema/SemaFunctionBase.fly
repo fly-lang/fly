@@ -13,6 +13,9 @@ import fly.compiler.ast.ASTFunction
 import fly.compiler.ast.ASTReturnStmt
 import fly.compiler.ast.ASTExpr
 import fly.compiler.ast.ASTIdentifier
+import fly.compiler.ast.ASTClass
+import fly.compiler.sema.SemaClassMethod
+import fly.compiler.sema.SemaClassType
 import fly.data.List
 import fly.str
 
@@ -122,7 +125,43 @@ public class SemaFunctionBase : SemaNode {
         if this.funcAst == null {
             return false
         }
-        return this.returnsOneOf(this.funcAst.getSharedLocals())
+        if this.returnsOneOf(this.funcAst.getSharedLocals()) {
+            return true
+        }
+        // A method's `C c = this.f; return c` hands back a holder when `f` is a
+        // HOLDING field of its class — known only now, with every method parsed.
+        SemaClassMethod m = this.asClassMethod()
+        if m == null {
+            return false
+        }
+        SemaClassType cls = m.getClass()
+        if cls == null {
+            return false
+        }
+        ASTClass cast = cls.getAST()
+        if cast == null {
+            return false
+        }
+        List<string> held = cast.getSharedFields()
+        List<string> names = new List<string>()
+        List<string> copies = this.funcAst.getFieldCopies()
+        int i = 0
+        while i < copies.size() {
+            string pair = copies.get(i)
+            int eq = str.indexOf(pair, "=")
+            if eq > 0 {
+                string field = str.substring(pair, eq + 1, str.len(pair))
+                int j = 0
+                while j < held.size() {
+                    if str.equals(held.get(j), field) {
+                        names.add(str.substring(pair, 0, eq))
+                    }
+                    j = j + 1
+                }
+            }
+            i = i + 1
+        }
+        return this.returnsOneOf(names)
     }
 
     // returnsOneOf — does some `return` hand back exactly one of `owners`?

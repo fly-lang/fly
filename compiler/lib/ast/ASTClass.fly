@@ -24,6 +24,7 @@ public class ASTClass : ASTNode {
     List<ASTType> bases
     List<ASTType> typeParams
     List<string> ownerFields   // fields a method fills with `this.f = new unique ...` or an owner: they own
+    List<string> sharedFields  // fields a method fills with `this.f = new shared ...` or a holder: they hold
 
     public ASTClass(const ASTClassKind classKind, const List<ASTModifier> modifiers, const SourceLocation loc,
             const string name, const List<ASTType> bases) {
@@ -35,8 +36,22 @@ public class ASTClass : ASTNode {
         this.nodes = new List<ASTNode>()
         this.typeParams = new List<ASTType>()
         this.ownerFields = new List<string>()
+        this.sharedFields = new List<string>()
     }
 
+    public List<string> getSharedFields() {
+        return this.sharedFields
+    }
+    public void addSharedField(const string n) {
+        int i = 0
+        while i < this.sharedFields.size() {
+            if this.sharedFields.get(i) == n {
+                return
+            }
+            i = i + 1
+        }
+        this.sharedFields.add(n)
+    }
     public List<string> getOwnerFields() {
         return this.ownerFields
     }

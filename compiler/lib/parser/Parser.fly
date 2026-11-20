@@ -125,6 +125,7 @@ public class Parser {
     List<string> bodyLocals           // every local name declared in that body
     List<string> bodyOwners           // the locals that own a `new unique` object (by init or move)
     List<string> bodyShared           // the locals holding a `new shared` reference (by init or copy)
+    List<string> bodyFieldCopies      // "local=field" for `C local = this.field` (and copies of those)
     ASTClass curClass                 // the class whose body is being parsed (owning fields); null outside
     // Every block parsed, in order, for `fly fmt` (which needs where each block
     // and each of its statements starts). Off unless asked for: compiling never
@@ -166,6 +167,7 @@ public class Parser {
         this.bodyLocals = new List<string>()
         this.bodyOwners = new List<string>()
         this.bodyShared = new List<string>()
+        this.bodyFieldCopies = new List<string>()
         this.curClass = null
         this.cur = this.lx.next()
         this.nxt = this.lx.next()
@@ -549,6 +551,20 @@ public class Parser {
             }
             return
         }
+        // `C name = this.field`: a holder only if `field` holds, which the class
+        // may establish in a method parsed later — so record the pair and let the
+        // resolver decide (SemaFunctionBase.returnsShared).
+        ASTMember mem = init.asMember()
+        if mem != null {
+            ASTExpr recv = mem.getParent()
+            if recv != null {
+                ASTIdentifier rid = recv.asIdentifier()
+                if rid != null && rid.getParent() == null && str.equals(rid.getName(), "this") {
+                    this.bodyFieldCopies.add(str.concat(name, str.concat("=", mem.getName())))
+                }
+            }
+            return
+        }
         ASTIdentifier id = init.asIdentifier()
         if id == null {
             return
@@ -560,6 +576,19 @@ public class Parser {
             this.bodyOwners.add(name)
         } elsif listHas(this.bodyShared, id.getName()) {
             this.bodyShared.add(name)
+        } else {
+            // a copy of a field copy is a copy of the same field
+            string prefix = str.concat(id.getName(), "=")
+            int i = 0
+            while i < this.bodyFieldCopies.size() {
+                string pair = this.bodyFieldCopies.get(i)
+                if str.startsWith(pair, prefix) {
+                    string field = str.substring(pair, str.len(prefix), str.len(pair))
+                    this.bodyFieldCopies.add(str.concat(name, str.concat("=", field)))
+                    return
+                }
+                i = i + 1
+            }
         }
     }
 
@@ -587,23 +616,24 @@ public class Parser {
             return
         }
         bool owned = false
+        bool held = false
         ASTCall ic = right.asCall()
         if ic != null {
             owned = ic.getCallKind() == ASTCallKind.CALL_NEW_UNIQUE
+            held = ic.getCallKind() == ASTCallKind.CALL_NEW_SHARED
         } else {
             ASTIdentifier id = right.asIdentifier()
             if id != null && id.getParent() == null {
-                int i = 0
-                while i < this.bodyOwners.size() {
-                    if str.equals(this.bodyOwners.get(i), id.getName()) {
-                        owned = true
-                    }
-                    i = i + 1
-                }
+                owned = listHas(this.bodyOwners, id.getName())
+                held = listHas(this.bodyShared, id.getName())
             }
         }
         if owned {
             this.curClass.addOwnerField(m.getName())
+        }
+        // the same for a HOLDING field: `this.f = new shared C()` or a holder
+        if held {
+            this.curClass.addSharedField(m.getName())
         }
     }
 
@@ -619,6 +649,7 @@ public class Parser {
         this.bodyLocals = new List<string>()
         this.bodyOwners = new List<string>()
         this.bodyShared = new List<string>()
+        this.bodyFieldCopies = new List<string>()
     }
     public void endBody(const ASTFunction f) {
         if f == null {
@@ -643,6 +674,11 @@ public class Parser {
         while s < this.bodyShared.size() {
             f.addSharedLocal(this.bodyShared.get(s))
             s = s + 1
+        }
+        int fc = 0
+        while fc < this.bodyFieldCopies.size() {
+            f.addFieldCopy(this.bodyFieldCopies.get(fc))
+            fc = fc + 1
         }
         this.beginBody()
     }

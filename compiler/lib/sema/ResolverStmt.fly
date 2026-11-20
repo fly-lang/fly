@@ -904,8 +904,9 @@ public class ResolverStmt {
                 blk.addAlloc(slv)
             }
         }
-        // `C y = x` with x a shared holder: y holds a COUNTED copy (codegen retains).
-        if init.isSharedHolder() && init.getKind() == SemaKind.LOCAL_VAR {
+        // `C y = x` with x a shared holder (a local or a holding field): y holds a
+        // COUNTED copy (codegen retains); x keeps its own reference.
+        if init.isSharedHolder() {
             slv.setSharedHolder(true)
             SemaBlockStmt hblk = r.getCurrentSemaBlock()
             if hblk != null {

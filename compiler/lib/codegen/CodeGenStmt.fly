@@ -410,6 +410,21 @@ public class CodeGenStmt {
         int i = 0
         while i < attrs.size() {
             SemaClassAttribute a = attrs.get(i)
+            // a HOLDING field lets go of its reference: the object goes only if
+            // that was the last one
+            if a.isSharedHolder() {
+                SemaType ht = a.getType()
+                SemaClassType hcls = ht.asClass()
+                if hcls != null {
+                    if cls.getLlvmStructType() == 0 {
+                        CodeGenClass.declareStruct(cge.getCgm(), cls)
+                    }
+                    int hidx = CodeGenClass.fieldIndex(cls, a.getName())
+                    pointer hPtr
+                    cge.getLLVM().buildStructGEP2(cge.getBuilder(), cls.getLlvmStructType(), obj, hidx, "heldfld", hPtr)
+                    CodeGenStmt.emitReleaseSlot(cge, hcls, hPtr)
+                }
+            }
             if a.isUniqueOwner() {
                 SemaType at = a.getType()
                 SemaClassType fcls = at.asClass()

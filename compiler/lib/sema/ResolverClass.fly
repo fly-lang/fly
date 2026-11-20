@@ -442,6 +442,14 @@ public class ResolverClass {
                 }
                 oi = oi + 1
             }
+            List<string> holders = cast.getSharedFields()
+            int hi = 0
+            while hi < holders.size() {
+                if str.equals(holders.get(hi), node.getName()) {
+                    attr.setSharedHolder(true)
+                }
+                hi = hi + 1
+            }
         }
 
         ASTExpr ie = node.getExpr()
