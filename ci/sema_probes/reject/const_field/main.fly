@@ -1,5 +1,11 @@
 class A { const int v
- public A() { this.v = 1 }
- public void bump() { this.v = 2 } }
-void main() { A a = new A()
- a.bump() }
+ public A() {
+     this.v = 1
+ }
+ public void bump() {
+     this.v = 2
+ } }
+void main() {
+    A a = new A()
+ a.bump()
+}

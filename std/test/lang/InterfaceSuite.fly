@@ -23,41 +23,71 @@ interface Named { int tag() }
 
 class Node {
     int id
-    public Node(const int i) { this.id = i }
-    public int getId() { return this.id }
+    public Node(const int i) {
+        this.id = i
+    }
+    public int getId() {
+        return this.id
+    }
 }
 
 class Box : Node, Shape {
-    public Box(const int i) { super(i) }
-    public int sides() { return 4 }
+    public Box(const int i) {
+        super(i)
+    }
+    public int sides() {
+        return 4
+    }
 }
 
 class Tri : Node, Shape {
-    public Tri(const int i) { super(i) }
-    public int sides() { return 3 }
+    public Tri(const int i) {
+        super(i)
+    }
+    public int sides() {
+        return 3
+    }
 }
 
 // Implements two interfaces at once.
 class Tagged : Node, Shape, Named {
-    public Tagged(const int i) { super(i) }
-    public int sides() { return 6 }
-    public int tag() { return 99 }
+    public Tagged(const int i) {
+        super(i)
+    }
+    public int sides() {
+        return 6
+    }
+    public int tag() {
+        return 99
+    }
 }
 
 // Only the base implements Shape; the derived class inherits it.
 class Derived : Box {
-    public Derived(const int i) { super(i) }
+    public Derived(const int i) {
+        super(i)
+    }
 }
 
 // The derived class overrides the inherited implementation.
 class Overriding : Box {
-    public Overriding(const int i) { super(i) }
-    public int sides() { return 8 }
+    public Overriding(const int i) {
+        super(i)
+    }
+    public int sides() {
+        return 8
+    }
 }
 
-int viaConst(const Shape s) { return s.sides() }
-int viaParam(Shape s)       { return s.sides() }
-int tagOf(const Named n)    { return n.tag() }
+int viaConst(const Shape s) {
+    return s.sides()
+}
+int viaParam(Shape s) {
+    return s.sides()
+}
+int tagOf(const Named n) {
+    return n.tag()
+}
 
 Shape makeShape(const bool box) {
     if box {
@@ -106,7 +136,9 @@ suite InterfaceSuite {
             int bad = 0 - 1
             int i = 0
             while i < 50 {
-                if s.sides() != 3 { bad = i }
+                if s.sides() != 3 {
+                    bad = i
+                }
                 i = i + 1
             }
             assert.assertEqI(bad, 0 - 1, 205)

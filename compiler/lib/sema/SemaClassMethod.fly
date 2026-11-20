@@ -37,21 +37,53 @@ public class SemaClassMethod : SemaFunctionBase {
         this.finalFlag = false
     }
 
-    public SemaClassMethod asClassMethod() { return this }
+    public SemaClassMethod asClassMethod() {
+        return this
+    }
 
-    public SemaClassType getClass() { return this.classType }
-    public SemaClassInstance getThis() { return this.thisInstance }
-    public bool isConstructor() { return this.ctorFlag }
-    public bool isAbstract() { return this.abstractFlag }
-    public void setAbstract(const bool abstractFlag) { this.abstractFlag = abstractFlag }
-    public SemaVisibilityKind getVisibility() { return this.visibility }
-    public void setVisibility(const SemaVisibilityKind visibility) { this.visibility = visibility }
-    public bool isStatic() { return this.staticFlag }
-    public void setStatic(const bool staticFlag) { this.staticFlag = staticFlag }
-    public bool isFinal() { return this.finalFlag }
-    public void setFinal(const bool finalFlag) { this.finalFlag = finalFlag }
-    public SemaClassMethod getOverridden() { return this.overridden }
-    public void setOverridden(const SemaClassMethod overridden) { this.overridden = overridden }
-    public SemaComment getComment() { return this.comment }
-    public void setComment(const SemaComment comment) { this.comment = comment }
+    public SemaClassType getClass() {
+        return this.classType
+    }
+    public SemaClassInstance getThis() {
+        return this.thisInstance
+    }
+    public bool isConstructor() {
+        return this.ctorFlag
+    }
+    public bool isAbstract() {
+        return this.abstractFlag
+    }
+    public void setAbstract(const bool abstractFlag) {
+        this.abstractFlag = abstractFlag
+    }
+    public SemaVisibilityKind getVisibility() {
+        return this.visibility
+    }
+    public void setVisibility(const SemaVisibilityKind visibility) {
+        this.visibility = visibility
+    }
+    public bool isStatic() {
+        return this.staticFlag
+    }
+    public void setStatic(const bool staticFlag) {
+        this.staticFlag = staticFlag
+    }
+    public bool isFinal() {
+        return this.finalFlag
+    }
+    public void setFinal(const bool finalFlag) {
+        this.finalFlag = finalFlag
+    }
+    public SemaClassMethod getOverridden() {
+        return this.overridden
+    }
+    public void setOverridden(const SemaClassMethod overridden) {
+        this.overridden = overridden
+    }
+    public SemaComment getComment() {
+        return this.comment
+    }
+    public void setComment(const SemaComment comment) {
+        this.comment = comment
+    }
 }

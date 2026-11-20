@@ -37,7 +37,9 @@ public class List<T> {
         }
         if this.len >= this.cap {
             pointer newcap = this.cap * 2
-            if newcap == 0 { newcap = 8 }
+            if newcap == 0 {
+                newcap = 8
+            }
             pointer ni = 0
             if this.items == 0 {
                 fly.runtime.mem_alloc(newcap * this.stride, ni)
@@ -63,7 +65,9 @@ public class List<T> {
     }
 
     public void set(const pointer idx, const T val) {
-        if idx >= this.len { return }
+        if idx >= this.len {
+            return
+        }
         T probe
         fly.llvm.slotFreeT(this.items, idx * this.stride, probe)
         fly.llvm.slotPokeT(this.items, idx * this.stride, val)
@@ -74,7 +78,9 @@ public class List<T> {
     }
 
     public void remove(const pointer idx) {
-        if idx >= this.len { return }
+        if idx >= this.len {
+            return
+        }
         T probe
         fly.llvm.slotFreeT(this.items, idx * this.stride, probe)
         pointer rest = this.len - idx - 1

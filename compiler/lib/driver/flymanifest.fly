@@ -51,7 +51,9 @@ public class FlyManifestReader {
         while i < nodes.size() {
             ASTClass c = nodes.get(i).asClass()
             if c != null {
-                if this.extendsManifest(c) { return c }
+                if this.extendsManifest(c) {
+                    return c
+                }
             }
             i = i + 1
         }
@@ -67,7 +69,9 @@ public class FlyManifestReader {
                 List<ASTName> names = nt.getNames()
                 if names.size() > 0 {
                     string last = names.get(names.size() - 1).getName()
-                    if str.equals(last, "Manifest") { return true }
+                    if str.equals(last, "Manifest") {
+                        return true
+                    }
                 }
             }
             i = i + 1
@@ -80,7 +84,9 @@ public class FlyManifestReader {
         int i = 0
         while i < members.size() {
             ASTVar v = members.get(i).asVar()
-            if v != null { this.readField(v, m) }
+            if v != null {
+                this.readField(v, m)
+            }
             i = i + 1
         }
     }
@@ -88,40 +94,91 @@ public class FlyManifestReader {
     void readField(const ASTVar v, const Manifest m) {
         string name = v.getName()
         ASTExpr init = v.getExpr()
-        if init == null { return }
+        if init == null {
+            return
+        }
         // [package] scalars
-        if str.equals(name, "name")        { m.setName(this.strOf(init))         return }
-        if str.equals(name, "version")     { m.setVersion(this.strOf(init))      return }
-        if str.equals(name, "description") { m.setDescription(this.strOf(init))  return }
-        if str.equals(name, "license")     { m.setLicense(this.strOf(init))      return }
-        if str.equals(name, "flyVersion")  { m.setFlyVersion(this.strOf(init))   return }
-        if str.equals(name, "homepage")    { m.setHomepage(this.strOf(init))     return }
-        if str.equals(name, "repository")  { m.setRepository(this.strOf(init))   return }
-        if str.equals(name, "registry")    { m.setDefaultRegistry(this.strOf(init)) return }
+        if str.equals(name, "name") {
+            m.setName(this.strOf(init))
+            return
+        }
+        if str.equals(name, "version") {
+            m.setVersion(this.strOf(init))
+            return
+        }
+        if str.equals(name, "description") {
+            m.setDescription(this.strOf(init))
+            return
+        }
+        if str.equals(name, "license") {
+            m.setLicense(this.strOf(init))
+            return
+        }
+        if str.equals(name, "flyVersion") {
+            m.setFlyVersion(this.strOf(init))
+            return
+        }
+        if str.equals(name, "homepage") {
+            m.setHomepage(this.strOf(init))
+            return
+        }
+        if str.equals(name, "repository") {
+            m.setRepository(this.strOf(init))
+            return
+        }
+        if str.equals(name, "registry") {
+            m.setDefaultRegistry(this.strOf(init))
+            return
+        }
         // string arrays
-        if str.equals(name, "authors")  { this.readStrArray(init, m, 0)  return }
-        if str.equals(name, "linkLibs") { this.readStrArray(init, m, 1)  return }
+        if str.equals(name, "authors") {
+            this.readStrArray(init, m, 0)
+            return
+        }
+        if str.equals(name, "linkLibs") {
+            this.readStrArray(init, m, 1)
+            return
+        }
         // object arrays (array of `new T(...)`)
-        if str.equals(name, "dependencies")    { this.readDeps(init, m, false)  return }
-        if str.equals(name, "devDependencies") { this.readDeps(init, m, true)   return }
-        if str.equals(name, "targets")         { this.readTargets(init, m)      return }
+        if str.equals(name, "dependencies") {
+            this.readDeps(init, m, false)
+            return
+        }
+        if str.equals(name, "devDependencies") {
+            this.readDeps(init, m, true)
+            return
+        }
+        if str.equals(name, "targets") {
+            this.readTargets(init, m)
+            return
+        }
     }
 
     // strOf — the string value of a scalar initializer ("" if not a string literal).
     string strOf(const ASTExpr e) {
         ASTStringValue sv = e.asStringValue()
-        if sv != null { return sv.getValue() } else { return "" }
+        if sv != null {
+            return sv.getValue()
+        } else {
+            return ""
+        }
     }
 
     // readStrArray — a `{"a", "b"}` initializer; kind 0 = authors, 1 = linkLibs.
     void readStrArray(const ASTExpr e, const Manifest m, const int kind) {
         ASTArrayValue arr = e.asArrayValue()
-        if arr == null { return }
+        if arr == null {
+            return
+        }
         List<ASTExpr> vals = arr.getValues()
         int i = 0
         while i < vals.size() {
             string s = this.strOf(vals.get(i))
-            if kind == 0 { m.addAuthor(s) } else { m.addLinkLib(s) }
+            if kind == 0 {
+                m.addAuthor(s)
+            } else {
+                m.addLinkLib(s)
+            }
             i = i + 1
         }
     }
@@ -131,7 +188,9 @@ public class FlyManifestReader {
     // may be omitted and default to "". The dep kind is inferred: path > git > registry.
     void readDeps(const ASTExpr e, const Manifest m, const bool dev) {
         ASTArrayValue arr = e.asArrayValue()
-        if arr == null { return }
+        if arr == null {
+            return
+        }
         List<ASTExpr> vals = arr.getValues()
         int i = 0
         while i < vals.size() {
@@ -146,26 +205,50 @@ public class FlyManifestReader {
                 string dbr = ""
                 string drev = ""
                 string dpath = ""
-                if args.size() > 0 { dn = this.argStr(args, 0) }
-                if args.size() > 1 { dv = this.argStr(args, 1) }
-                if args.size() > 2 { dreg = this.argStr(args, 2) }
-                if args.size() > 3 { dgit = this.argStr(args, 3) }
-                if args.size() > 4 { dtag = this.argStr(args, 4) }
-                if args.size() > 5 { dbr = this.argStr(args, 5) }
-                if args.size() > 6 { drev = this.argStr(args, 6) }
-                if args.size() > 7 { dpath = this.argStr(args, 7) }
+                if args.size() > 0 {
+                    dn = this.argStr(args, 0)
+                }
+                if args.size() > 1 {
+                    dv = this.argStr(args, 1)
+                }
+                if args.size() > 2 {
+                    dreg = this.argStr(args, 2)
+                }
+                if args.size() > 3 {
+                    dgit = this.argStr(args, 3)
+                }
+                if args.size() > 4 {
+                    dtag = this.argStr(args, 4)
+                }
+                if args.size() > 5 {
+                    dbr = this.argStr(args, 5)
+                }
+                if args.size() > 6 {
+                    drev = this.argStr(args, 6)
+                }
+                if args.size() > 7 {
+                    dpath = this.argStr(args, 7)
+                }
                 GitDep g = new GitDep()
                 if str.isEmpty(dpath) == false {
                     g.setPath(dpath)
                 } elsif str.isEmpty(dgit) == false {
                     g.setGitUrl(dgit)
-                    if str.isEmpty(dtag) == false { g.setRef(0, dtag) }
-                    elsif str.isEmpty(dbr) == false { g.setRef(1, dbr) }
-                    elsif str.isEmpty(drev) == false { g.setRef(2, drev) }
+                    if str.isEmpty(dtag) == false {
+                        g.setRef(0, dtag)
+                    } elsif str.isEmpty(dbr) == false {
+                        g.setRef(1, dbr)
+                    } elsif str.isEmpty(drev) == false {
+                        g.setRef(2, drev)
+                    }
                 } else {
                     g.setRegistry(dreg, dn, dv)
                 }
-                if dev { m.addDevDep(dn, g) } else { m.addDep(dn, g) }
+                if dev {
+                    m.addDevDep(dn, g)
+                } else {
+                    m.addDep(dn, g)
+                }
             }
             i = i + 1
         }
@@ -174,7 +257,9 @@ public class FlyManifestReader {
     // readTargets — `{ new Target("name", "path", "lib"), ... }`.
     void readTargets(const ASTExpr e, const Manifest m) {
         ASTArrayValue arr = e.asArrayValue()
-        if arr == null { return }
+        if arr == null {
+            return
+        }
         List<ASTExpr> vals = arr.getValues()
         int i = 0
         while i < vals.size() {
@@ -184,9 +269,15 @@ public class FlyManifestReader {
                 string tn = ""
                 string tp = ""
                 string tl = ""
-                if args.size() > 0 { tn = this.argStr(args, 0) }
-                if args.size() > 1 { tp = this.argStr(args, 1) }
-                if args.size() > 2 { tl = this.argStr(args, 2) }
+                if args.size() > 0 {
+                    tn = this.argStr(args, 0)
+                }
+                if args.size() > 1 {
+                    tp = this.argStr(args, 1)
+                }
+                if args.size() > 2 {
+                    tl = this.argStr(args, 2)
+                }
                 m.addTarget(new Target(tn, tn, tp, tl))
             }
             i = i + 1
@@ -197,6 +288,10 @@ public class FlyManifestReader {
     string argStr(const List<ASTArg> args, const int idx) {
         ASTNode e = args.get(idx).getExpr()
         ASTStringValue sv = e.asStringValue()
-        if sv != null { return sv.getValue() } else { return "" }
+        if sv != null {
+            return sv.getValue()
+        } else {
+            return ""
+        }
     }
 }

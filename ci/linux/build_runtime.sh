@@ -21,6 +21,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 cd "$(dirname "$0")/../.."
+. ci/linux/platform.sh
 
 # ── Stage plumbing: pick the compiler and the in/out dirs from $STAGE. ────────
 STAGE="${STAGE:-1}"
@@ -47,7 +48,7 @@ OBJCOPY="${OBJCOPY:-objcopy}"
 cp -f "$SEED/llvm.fly.h" "$LIB/"
 # A fresh archive every run; at stage 1 it starts from the seed's C members only.
 rm -f "$LIB/fly_runtime_lib.a"
-if [ "$STAGE" = "1" ]; then
+if [ "$STAGE" = "1" ] && ! is_macos; then
     [ -f "$SEED/fly_runtime_lib.a" ] || { echo "error: $SEED/fly_runtime_lib.a missing — run stage0 first." >&2; exit 1; }
     cp -f "$SEED/fly_runtime_lib.a" "$LIB/"
     # Keep ONLY the C members (*.c.o): the Fly member's NAME varies by producer
@@ -64,9 +65,18 @@ fi
 # them in would define every C-ABI symbol three times with wrong-platform code).
 # FLY_DEBUG_SYMBOLS=1 → emit DWARF so a self-host crash symbolizes to a source line.
 DBG=""; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && DBG="--debug-symbols"
-echo "stage$STAGE: compiling runtime/lib/RuntimeLinux.fly ...${DBG:+ (+debug-symbols)}"
-cp -f runtime/lib/RuntimeLinux.fly "$T/RuntimeLinux.fly"
-if [ "$STAGE" = "1" ]; then
+echo "stage$STAGE: compiling runtime/lib/$RUNTIME_SRC ...${DBG:+ (+debug-symbols)}"
+cp -f "runtime/lib/$RUNTIME_SRC" "$T/$RUNTIME_SRC"
+if [ "$STAGE" = "1" ] && is_macos; then
+    # macOS: no seed C objects to keep. They exist on Linux only because the
+    # seed lowers `__atomic_*_4` to calls no Linux library defines; libSystem
+    # exports them. So the stage-1 archive is the Fly member alone, as at stage 2
+    # (and no `objcopy --weaken`, which Mach-O objects do not support reliably).
+    # The seed's archive is taken whole: member by member, `ar t` also lists the
+    # Darwin symbol table `__.SYMDEF`, which `ar x` extracts unreadable (mode 0).
+    "$FLY" --lib $DBG -o "$T/fly_runtime_lib" --src-dir "$T"
+    cp -f "$T/fly_runtime_lib.a" "$LIB/fly_runtime_lib.a"
+elif [ "$STAGE" = "1" ]; then
     # stage0 reference: --lib emits the archive itself; merge its member(s) in,
     # WEAKENED so the kept C objects' strong definitions win (no duplicate-symbol
     # error); the Fly-only symbols it uniquely provides are still used.
@@ -94,7 +104,7 @@ fi
 # name regardless of the source basename.
 for h in "$T"/*.fly.h; do
     [ -e "$h" ] || continue
-    sed -E ':a;s/>>/> >/;ta' "$h" > "$LIB/runtime.fly.h"
+    space_generic_closers "$h" "$LIB/runtime.fly.h"
 done
 
 # ── TLS: the always-linked stub, plus the real OpenSSL backend ────────────────
@@ -124,7 +134,7 @@ for c in "$T2/fly_tls_stub.a" "$T2/fly_tls_stub"; do [ -f "$c" ] && { STUB="$c";
 [ -n "$STUB" ] || { echo "error: tls stub library not emitted." >&2; exit 1; }
 if [ "${STUB##*.}" = "a" ]; then cp -f "$STUB" "$LIB/fly_tls_stub.a"
 else "$AR" rcs "$LIB/fly_tls_stub.a" "$STUB"; fi
-[ -f "$T2/TlsStub.fly.h" ] && sed -E ':a;s/>>/> >/;ta' "$T2/TlsStub.fly.h" > "$LIB/TlsStub.fly.h"
+[ -f "$T2/TlsStub.fly.h" ] && space_generic_closers "$T2/TlsStub.fly.h" "$LIB/TlsStub.fly.h"
 
 rm -rf "$T2"; mkdir -p "$T2"
 echo "stage$STAGE: compiling runtime/lib/TlsOpenSSL.fly (real backend, --tls only) ..."

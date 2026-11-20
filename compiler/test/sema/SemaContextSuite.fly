@@ -15,8 +15,6 @@ import fly.str
 // supports), the Registry, SemaBuilder and the Resolver companions.
 // ─────────────────────────────────────────────────────────────────────────────
 
-
-
 suite SemaContextSuite {
 
     // Resolve a single function with a typed param, a return type, and a local

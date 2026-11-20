@@ -46,7 +46,9 @@ public struct Thread {
 public Thread spawnThread(const pointer fn, const pointer arg, const ulong stack) {
     Thread res = new Thread()
     ulong sz = stack
-    if sz == 0 { sz = 1048576 }
+    if sz == 0 {
+        sz = 1048576
+    }
     int t = 0
     fly.runtime.thread_spawn(fn, arg, sz, t)
     res.id = t
@@ -113,7 +115,9 @@ public void rwmutexRlock(RWMutex rw) {
         if s >= 0 {
             int ns = s + 1
             int old = fly.sync.atomicCas(rw.state_ptr, s, ns)
-            if old == s { done = true }
+            if old == s {
+                done = true
+            }
         } else {
             fly.runtime.futex_wait(rw.state_ptr, s)
         }
@@ -260,7 +264,9 @@ public void semaphoreAcquire(Semaphore s) {
         int v = fly.sync.atomicLoad(s.ptr)
         if v > 0 {
             int old = fly.sync.atomicCas(s.ptr, v, v - 1)
-            if old == v { done = true }
+            if old == v {
+                done = true
+            }
         } else {
             fly.runtime.futex_wait(s.ptr, 0)
         }
@@ -290,28 +296,40 @@ public bool semaphoreTryAcquire(Semaphore s) {
 // no-op rather than a double free.
 
 public void mutexFree(Mutex m) {
-    if m.ptr != 0 { fly.runtime.mem_free(m.ptr, 4) }
+    if m.ptr != 0 {
+        fly.runtime.mem_free(m.ptr, 4)
+    }
     m.ptr = 0
 }
 
 public void rwMutexFree(RWMutex rw) {
-    if rw.state_ptr != 0 { fly.runtime.mem_free(rw.state_ptr, 4) }
-    if rw.waiters_ptr != 0 { fly.runtime.mem_free(rw.waiters_ptr, 4) }
+    if rw.state_ptr != 0 {
+        fly.runtime.mem_free(rw.state_ptr, 4)
+    }
+    if rw.waiters_ptr != 0 {
+        fly.runtime.mem_free(rw.waiters_ptr, 4)
+    }
     rw.state_ptr = 0
     rw.waiters_ptr = 0
 }
 
 public void waitGroupFree(WaitGroup wg) {
-    if wg.ptr != 0 { fly.runtime.mem_free(wg.ptr, 4) }
+    if wg.ptr != 0 {
+        fly.runtime.mem_free(wg.ptr, 4)
+    }
     wg.ptr = 0
 }
 
 public void onceFree(Once o) {
-    if o.ptr != 0 { fly.runtime.mem_free(o.ptr, 4) }
+    if o.ptr != 0 {
+        fly.runtime.mem_free(o.ptr, 4)
+    }
     o.ptr = 0
 }
 
 public void semaphoreFree(Semaphore s) {
-    if s.ptr != 0 { fly.runtime.mem_free(s.ptr, 4) }
+    if s.ptr != 0 {
+        fly.runtime.mem_free(s.ptr, 4)
+    }
     s.ptr = 0
 }

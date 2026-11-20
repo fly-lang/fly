@@ -49,7 +49,8 @@ public class ResolverExpr {
                     r.diagStr(node.getLoc(), DiagID.err_sema_not_a_value, node.getName())
                 } elsif sk == SymbolKind.FUNCTION {
                     r.diagStr(node.getLoc(), DiagID.err_sema_function_not_a_value, node.getName())
-                } elsif sk == SymbolKind.TYPE || sk == SymbolKind.CLASS || sk == SymbolKind.ENUM || sk == SymbolKind.BUILTIN_TYPE {
+                } elsif sk == SymbolKind.TYPE || sk == SymbolKind.CLASS || sk == SymbolKind.ENUM ||
+                        sk == SymbolKind.BUILTIN_TYPE {
                     r.diagStr(node.getLoc(), DiagID.err_sema_type_not_a_value, node.getName())
                 }
             }
@@ -89,9 +90,11 @@ public class ResolverExpr {
                             bool lStr = lt.isString()
                             bool rStr = rtp.isString()
                             if lStr != rStr {
-                                bool anyGeneric = lt.getKind() == SemaKind.TYPE_PARAM || rtp.getKind() == SemaKind.TYPE_PARAM
+                                bool anyGeneric = lt.getKind() == SemaKind.TYPE_PARAM ||
+                                        rtp.getKind() == SemaKind.TYPE_PARAM
                                 if anyGeneric == false {
-                                    r.diagStr2(node.getOpLocation(), DiagID.err_sema_types_operation, lt.getName(), rtp.getName())
+                                    r.diagStr2(node.getOpLocation(), DiagID.err_sema_types_operation, lt.getName(),
+                                            rtp.getName())
                                 }
                             }
                         }
@@ -126,9 +129,14 @@ public class ResolverExpr {
                         SemaType rvt = right.getType()
                         bool rIsStr = false
                         bool rIsArr = false
-                        if rvt != null { rIsStr = rvt.isString()  rIsArr = rvt.isArray() }
+                        if rvt != null {
+                            rIsStr = rvt.isString()
+                            rIsArr = rvt.isArray()
+                        }
                         if rIsStr == false {
-                            if rIsArr == false { right.setEscaped(true) }
+                            if rIsArr == false {
+                                right.setEscaped(true)
+                            }
                         }
                     }
                 }
@@ -148,9 +156,13 @@ public class ResolverExpr {
                     if left.isConstVar() {
                         string cn = "?"
                         ASTIdentifier cid = l.asIdentifier()
-                        if cid != null { cn = cid.getName() }
+                        if cid != null {
+                            cn = cid.getName()
+                        }
                         ASTMember cmem = l.asMember()
-                        if cmem != null { cn = cmem.getName() }
+                        if cmem != null {
+                            cn = cmem.getName()
+                        }
                         r.diagStr(node.getOpLocation(), DiagID.err_sema_const_assign, cn)
                     }
                 }
@@ -161,7 +173,8 @@ public class ResolverExpr {
                         SemaType clt = left.getType()
                         if clt != null {
                             if clt.isString() {
-                                r.diagStr(node.getOpLocation(), DiagID.err_sema_not_supported, "compound assignments on strings")
+                                r.diagStr(node.getOpLocation(), DiagID.err_sema_not_supported,
+                                        "compound assignments on strings")
                             }
                         }
                     }
@@ -182,20 +195,30 @@ public class ResolverExpr {
             // literal under the unary that negates it.
             if uk == ASTUnaryKind.OP_UNARY_NEG {
                 if inner == r.getLitExpr() {
-                    if r.isLitNeg() == false { r.noteLiteral(u, r.getLitRaw(), true) }
+                    if r.isLitNeg() == false {
+                        r.noteLiteral(u, r.getLitRaw(), true)
+                    }
                 }
             }
             // ++ / -- write their operand: not on a const variable.
             bool writes = uk == ASTUnaryKind.OP_UNARY_PRE_INCR || uk == ASTUnaryKind.OP_UNARY_POST_INCR
-            if uk == ASTUnaryKind.OP_UNARY_PRE_DECR { writes = true }
-            if uk == ASTUnaryKind.OP_UNARY_POST_DECR { writes = true }
+            if uk == ASTUnaryKind.OP_UNARY_PRE_DECR {
+                writes = true
+            }
+            if uk == ASTUnaryKind.OP_UNARY_POST_DECR {
+                writes = true
+            }
             if writes {
                 if inner.isConstVar() {
                     string un = "?"
                     ASTIdentifier uid = e.asIdentifier()
-                    if uid != null { un = uid.getName() }
+                    if uid != null {
+                        un = uid.getName()
+                    }
                     ASTMember umem = e.asMember()
-                    if umem != null { un = umem.getName() }
+                    if umem != null {
+                        un = umem.getName()
+                    }
                     r.diagStr(node.getLoc(), DiagID.err_sema_const_assign, un)
                 }
             }
@@ -217,15 +240,25 @@ public class ResolverExpr {
         ASTExpr ie = node.getIndex()
         ie.accept(r)
         SemaExpr index = r.getCurrentExpr()
-        if base == null { r.setCurrentExpr(null)  return }
-        if index == null { r.setCurrentExpr(null)  return }
+        if base == null {
+            r.setCurrentExpr(null)
+            return
+        }
+        if index == null {
+            r.setCurrentExpr(null)
+            return
+        }
 
         SemaType bt = base.getType()
         SemaArrayType at = null
-        if bt != null { at = bt.asArray() }
+        if bt != null {
+            at = bt.asArray()
+        }
         if at == null {
             string bn = "?"
-            if bt != null { bn = bt.getName() }
+            if bt != null {
+                bn = bt.getName()
+            }
             r.diagStr(node.getLoc(), DiagID.err_sema_subscript_not_array, bn)
             r.setCurrentExpr(null)
             return
@@ -233,10 +266,14 @@ public class ResolverExpr {
 
         SemaType it = index.getType()
         bool intIndex = false
-        if it != null { intIndex = it.isInteger() }
+        if it != null {
+            intIndex = it.isInteger()
+        }
         if intIndex == false {
             string inm = "?"
-            if it != null { inm = it.getName() }
+            if it != null {
+                inm = it.getName()
+            }
             r.diagStr(node.getLoc(), DiagID.err_sema_subscript_index_not_int, inm)
             r.setCurrentExpr(null)
             return
@@ -268,7 +305,10 @@ public class ResolverExpr {
         SemaExpr from = r.getCurrentExpr()
         // an unresolved inner expr already reported its diagnostic — building a
         // cast around null would segfault codegen (gen on a null expr)
-        if from == null { r.setCurrentExpr(null)  return }
+        if from == null {
+            r.setCurrentExpr(null)
+            return
+        }
         ASTType tt = node.getToType()
         tt.accept(r)
         SemaType toType = r.getCurrentType()
@@ -282,7 +322,10 @@ public class ResolverExpr {
     // chain). Enum accessors / static / namespace member access are Stage 7+.
     public static void member(const Resolver r, const ASTMember node) {
         ASTExpr parent = node.getParent()
-        if parent == null { r.setCurrentExpr(null)  return }
+        if parent == null {
+            r.setCurrentExpr(null)
+            return
+        }
 
         // `super.attr` (audit V4): read an INHERITED field through the current
         // method's `this` — the attribute is looked up from the FIRST base up the
@@ -306,7 +349,9 @@ public class ResolverExpr {
                             Registry sreg = r.getReg()
                             Symbol tsym = sreg.LookupName("this", r.getCurrentScope())
                             SemaExpr thisE = null
-                            if tsym != null { thisE = tsym.getExprRef() }
+                            if tsym != null {
+                                thisE = tsym.getExprRef()
+                            }
                             SemaMember smem = SemaBuilder.CreateMemberVar(node, sattr, thisE)
                             r.setCurrentExpr(smem)
                             return
@@ -332,7 +377,10 @@ public class ResolverExpr {
                     SemaEnumType et = tt.asEnum()
                     if et != null {
                         SemaEnumEntry entry = et.LookupEntry(node.getName())
-                        if entry != null { r.setCurrentExpr(entry)  return }
+                        if entry != null {
+                            r.setCurrentExpr(entry)
+                            return
+                        }
                         r.diagStr(node.getLoc(), DiagID.err_sema_unknown_member, node.getName())
                         r.setCurrentExpr(null)
                         return
@@ -361,9 +409,15 @@ public class ResolverExpr {
 
         parent.accept(r)
         SemaExpr pe = r.getCurrentExpr()
-        if pe == null { r.setCurrentExpr(null)  return }
+        if pe == null {
+            r.setCurrentExpr(null)
+            return
+        }
         SemaType pt = pe.getType()
-        if pt == null { r.setCurrentExpr(null)  return }
+        if pt == null {
+            r.setCurrentExpr(null)
+            return
+        }
 
         // Enum property access: `<entry-or-enum-var>.value` (int, the 1-based
         // index) / `.name` (string). Builds SemaEnumAccessor with exactly one of
@@ -375,7 +429,9 @@ public class ResolverExpr {
             if accName || accValue {
                 SemaEnumEntry accEntry = pe.asEnumEntry()
                 SemaType accTy = SemaBuiltin.getStringType()
-                if accValue { accTy = SemaBuiltin.getIntType() }
+                if accValue {
+                    accTy = SemaBuiltin.getIntType()
+                }
                 // var slot stays null: codegen reads NON-entry receivers through
                 // the accessor's parent expr (narrowing to SemaVar would need a
                 // new base virtual — the bootstrap mis-dispatches those)
@@ -383,7 +439,9 @@ public class ResolverExpr {
                 // non-literal receivers (locals, params, field chains like
                 // `this.kind`) travel as the accessor's parent expr; codegen
                 // gens the parent for the runtime i32 value
-                if accEntry == null { acc.setParent(pe) }
+                if accEntry == null {
+                    acc.setParent(pe)
+                }
                 r.setCurrentExpr(acc)
                 return
             }
@@ -393,7 +451,10 @@ public class ResolverExpr {
         }
 
         SemaClassType pcls = pt.asClass()
-        if pcls == null { r.setCurrentExpr(null)  return }
+        if pcls == null {
+            r.setCurrentExpr(null)
+            return
+        }
         SemaClassAttribute attr = pcls.LookupAttribute(node.getName())
         if attr == null {
             r.diagStr(node.getLoc(), DiagID.err_sema_unknown_member, node.getName())
@@ -409,7 +470,9 @@ public class ResolverExpr {
             SemaClassType owner = attr.getClass()
             if classMayAccess(r, owner) == false {
                 string on = "?"
-                if owner != null { on = owner.getName() }
+                if owner != null {
+                    on = owner.getName()
+                }
                 r.diagStr2(node.getLoc(), DiagID.err_sema_symbol_not_accessible, node.getName(), on)
                 r.setCurrentExpr(null)
                 return
@@ -426,10 +489,14 @@ public class ResolverExpr {
             if cfn != null {
                 SemaClassMethod cm = cfn.asClassMethod()
                 if cm != null {
-                    if cm.isConstructor() { inOwnCtor = classMayAccess(r, attr.getClass()) }
+                    if cm.isConstructor() {
+                        inOwnCtor = classMayAccess(r, attr.getClass())
+                    }
                 }
             }
-            if inOwnCtor == false { mem.setConstVar(true) }
+            if inOwnCtor == false {
+                mem.setConstVar(true)
+            }
         }
         r.setCurrentExpr(mem)
     }
@@ -444,7 +511,9 @@ public class ResolverExpr {
         SemaType exp = r.getExpectedType()
         if exp != null {
             SemaArrayType ea = exp.asArray()
-            if ea != null { expectedEl = ea.getElementType() }
+            if ea != null {
+                expectedEl = ea.getElementType()
+            }
         }
         List<ASTExpr> asts = node.getValues()
         List<SemaExpr> vals = new List<SemaExpr>()
@@ -459,7 +528,9 @@ public class ResolverExpr {
             SemaExpr ev = r.getCurrentExpr()
             if ev != null {
                 vals.add(ev)
-                if elemT == null { elemT = ev.getType() }
+                if elemT == null {
+                    elemT = ev.getType()
+                }
             }
             i = i + 1
         }
@@ -478,10 +549,14 @@ public class ResolverExpr {
     public static void structValue(const Resolver r, const ASTStructValue node) {
         SemaType exp = r.getExpectedType()
         SemaClassType ct = null
-        if exp != null { ct = exp.asClass() }
+        if exp != null {
+            ct = exp.asClass()
+        }
         bool ok = false
         if ct != null {
-            if ct.getClassKind() == SemaClassKind.STRUCT { ok = true }
+            if ct.getClassKind() == SemaClassKind.STRUCT {
+                ok = true
+            }
         }
         if ok == false {
             r.diagStr(node.getLoc(), DiagID.err_sema_not_supported,
@@ -520,7 +595,11 @@ public class ResolverExpr {
 // promoteNumberTypes — rank-based widening (1:1 with C++ Resolver::PromoteNumberTypes):
 // the operand with the higher (or equal) rank wins.
 public SemaType promoteNumberTypes(const SemaType left, const SemaType right) {
-    if left.getRank() >= right.getRank() { return left } else { return right }
+    if left.getRank() >= right.getRank() {
+        return left
+    } else {
+        return right
+    }
 }
 
 // checkAssignTypes — kind-level assignment compatibility, the reference
@@ -532,10 +611,18 @@ public SemaType promoteNumberTypes(const SemaType left, const SemaType right) {
 // (already diagnosed), or a null/unset literal, which carries no type — as are
 // generic type variables (substituted at monomorphization).
 public void checkAssignTypes(const Resolver r, const SourceLocation loc, const SemaType lhs, const SemaType rhs) {
-    if lhs == null { return }
-    if rhs == null { return }
-    if lhs.getKind() == SemaKind.TYPE_PARAM { return }
-    if rhs.getKind() == SemaKind.TYPE_PARAM { return }
+    if lhs == null {
+        return
+    }
+    if rhs == null {
+        return
+    }
+    if lhs.getKind() == SemaKind.TYPE_PARAM {
+        return
+    }
+    if rhs.getKind() == SemaKind.TYPE_PARAM {
+        return
+    }
     bool ok = true
     if lhs.isNumber() {
         // class handles are pointer-sized: class → long/pointer stays legal
@@ -570,26 +657,42 @@ public void checkAssignTypes(const Resolver r, const SourceLocation loc, const S
 // accepts across the whole numeric group. A `bool` target is not a number and is
 // left to checkAssignTypes, as in the reference.
 public void checkNarrowing(const Resolver r, const SourceLocation loc, const SemaType lhs, const SemaExpr rhsExpr) {
-    if lhs == null { return }
-    if rhsExpr == null { return }
+    if lhs == null {
+        return
+    }
+    if rhsExpr == null {
+        return
+    }
     SemaType rhs = rhsExpr.getType()
-    if rhs == null { return }
-    if lhs.isNumber() == false { return }
-    if rhs.isNumber() == false { return }
+    if rhs == null {
+        return
+    }
+    if lhs.isNumber() == false {
+        return
+    }
+    if rhs.isNumber() == false {
+        return
+    }
     int lr = lhs.getRank()
     int rr = rhs.getRank()
-    if lr >= rr { return }
+    if lr >= rr {
+        return
+    }
 
     bool bothInt = lhs.isInteger() && rhs.isInteger()
     if bothInt {
         if rhsExpr == r.getLitExpr() {
-            if intLiteralFits(r.getLitRaw(), r.isLitNeg(), lr) { return }
+            if intLiteralFits(r.getLitRaw(), r.isLitNeg(), lr) {
+                return
+            }
         }
     } else {
         if rhsExpr.getKind() == SemaKind.VALUE {
             bool lFloat = lhs.isInteger() == false
             bool rFloat = rhs.isInteger() == false
-            if lFloat && rFloat { return }
+            if lFloat && rFloat {
+                return
+            }
         }
     }
     r.diagStr2(loc, DiagID.err_sema_narrowing, rhs.getName(), lhs.getName())
@@ -603,8 +706,12 @@ public void checkNarrowing(const Resolver r, const SourceLocation loc, const Sem
 public bool intLiteralFits(const string raw, const bool neg, const int rank) {
     bool isUnsigned = rank % 2 == 0
     int bits = rank
-    if isUnsigned == false { bits = rank + 1 }
-    if bits >= 64 { return true }
+    if isUnsigned == false {
+        bits = rank + 1
+    }
+    if bits >= 64 {
+        return true
+    }
 
     long mag = 0
     bool huge = false
@@ -613,30 +720,48 @@ public bool intLiteralFits(const string raw, const bool neg, const int rank) {
     while i < n {
         byte b = str.byteAt(raw, i)
         int c = b
-        if c < 48 { return true }
-        if c > 57 { return true }
+        if c < 48 {
+            return true
+        }
+        if c > 57 {
+            return true
+        }
         if huge == false {
             long d = c - 48
             mag = mag * 10 + d
-            if mag > 4294967296 { huge = true }
+            if mag > 4294967296 {
+                huge = true
+            }
         }
         i = i + 1
     }
-    if huge { return false }
+    if huge {
+        return false
+    }
 
     long max = 255
-    if bits == 16 { max = 65535 }
-    if bits == 32 { max = 4294967295 }
+    if bits == 16 {
+        max = 65535
+    }
+    if bits == 32 {
+        max = 4294967295
+    }
     if isUnsigned {
         // a negative constant never fits an unsigned type (zero does)
-        if neg { return mag == 0 }
+        if neg {
+            return mag == 0
+        }
         return mag <= max
     }
     // signed: the positive range is half the unsigned one, the negative range
     // reaches one further (-32768, -2147483648)
     long smax = 32767
-    if bits == 32 { smax = 2147483647 }
-    if neg { return mag <= smax + 1 }
+    if bits == 32 {
+        smax = 2147483647
+    }
+    if neg {
+        return mag <= smax + 1
+    }
     return mag <= smax
 }
 
@@ -654,34 +779,56 @@ public bool intLiteralFits(const string raw, const bool neg, const int rank) {
 // `unset` literal, which carries no type — as are generic type variables, which
 // only take their real type at monomorphization.
 public void checkCastTypes(const Resolver r, const SourceLocation loc, const SemaType fromType, const SemaType toType) {
-    if fromType == null { return }
-    if toType == null { return }
-    if fromType.getKind() == SemaKind.TYPE_PARAM { return }
-    if toType.getKind() == SemaKind.TYPE_PARAM { return }
+    if fromType == null {
+        return
+    }
+    if toType == null {
+        return
+    }
+    if fromType.getKind() == SemaKind.TYPE_PARAM {
+        return
+    }
+    if toType.getKind() == SemaKind.TYPE_PARAM {
+        return
+    }
 
     // identity: the same type is always castable to itself
-    if fromType.isEquals(toType) { return }
+    if fromType.isEquals(toType) {
+        return
+    }
 
     // numeric group: bool / integer / float convert freely among themselves
     bool fromNum = fromType.isBool() || fromType.isNumber()
     bool toNum = toType.isBool() || toType.isNumber()
-    if fromNum && toNum { return }
+    if fromNum && toNum {
+        return
+    }
 
     // same-kind identity casts (string, complex, array)
-    if fromType.isString() && toType.isString() { return }
-    if fromType.isComplex() && toType.isComplex() { return }
-    if fromType.isArray() && toType.isArray() { return }
+    if fromType.isString() && toType.isString() {
+        return
+    }
+    if fromType.isComplex() && toType.isComplex() {
+        return
+    }
+    if fromType.isArray() && toType.isArray() {
+        return
+    }
 
     // class / enum: allow an upcast or the same derivation
     SemaClassType fromCls = fromType.asClass()
     SemaClassType toCls = toType.asClass()
     if fromCls != null && toCls != null {
-        if fromCls.isDerivedOrEquals(toCls) { return }
+        if fromCls.isDerivedOrEquals(toCls) {
+            return
+        }
     }
     SemaEnumType fromEnum = fromType.asEnum()
     SemaEnumType toEnum = toType.asEnum()
     if fromEnum != null && toEnum != null {
-        if fromEnum.isDerivedOrEquals(toEnum) { return }
+        if fromEnum.isDerivedOrEquals(toEnum) {
+            return
+        }
     }
 
     // every other combination is invalid
@@ -695,12 +842,22 @@ public void checkCastTypes(const Resolver r, const SourceLocation loc, const Sem
 // type was diagnosed where it failed to resolve; a generic type variable only
 // takes its real type at monomorphization.
 public void checkCondition(const Resolver r, const SourceLocation loc, const SemaExpr cond) {
-    if cond == null { return }
+    if cond == null {
+        return
+    }
     SemaType t = cond.getType()
-    if t == null { return }
-    if t.isBool() { return }
-    if t.isError() { return }
-    if t.getKind() == SemaKind.TYPE_PARAM { return }
+    if t == null {
+        return
+    }
+    if t.isBool() {
+        return
+    }
+    if t.isError() {
+        return
+    }
+    if t.getKind() == SemaKind.TYPE_PARAM {
+        return
+    }
     r.diagStr(loc, DiagID.err_sema_condition_not_bool, t.getName())
 }
 
@@ -711,8 +868,14 @@ public void checkCondition(const Resolver r, const SourceLocation loc, const Sem
 // copies, but a member inherited into one may still name the template.
 public bool classMayAccess(const Resolver r, const SemaClassType owner) {
     SemaClassType here = r.getCurrentClass()
-    if here == null { return false }
-    if owner == null { return false }
-    if here == owner { return true }
+    if here == null {
+        return false
+    }
+    if owner == null {
+        return false
+    }
+    if here == owner {
+        return true
+    }
     return str.equals(here.getName(), owner.getName())
 }

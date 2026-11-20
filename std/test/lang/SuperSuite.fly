@@ -23,9 +23,16 @@ import fly.assert
 class Base {
     int k
     int v
-    public Base(const int a, const int b) { this.k = a  this.v = b }
-    public int sum() { return this.k + this.v }
-    public int first() { return this.k }
+    public Base(const int a, const int b) {
+        this.k = a
+        this.v = b
+    }
+    public int sum() {
+        return this.k + this.v
+    }
+    public int first() {
+        return this.k
+    }
 }
 
 class Add : Base {
@@ -34,7 +41,9 @@ class Add : Base {
         super(a, b)                  // super first
         this.e = c
     }
-    public int r() { return this.sum() + this.e }
+    public int r() {
+        return this.sum() + this.e
+    }
 }
 
 class Mul : Base {
@@ -43,7 +52,9 @@ class Mul : Base {
         this.e = c                   // super need NOT come first
         super(a, b)
     }
-    public int r() { return this.sum() * this.e }
+    public int r() {
+        return this.sum() * this.e
+    }
 }
 
 // Several statements before super, including one that reads the field it set.
@@ -55,19 +66,25 @@ class Late : Base {
         this.f = this.e * 2
         super(a, b)
     }
-    public int r() { return this.sum() + this.e + this.f }
+    public int r() {
+        return this.sum() + this.e + this.f
+    }
 }
 
 // A derived class that adds no fields of its own.
 class Plain : Base {
-    public Plain(const int a, const int b) { super(a, b) }
+    public Plain(const int a, const int b) {
+        super(a, b)
+    }
 }
 
 // ── default parameter values ─────────────────────────────────────────────────
 // A free function, a method and a constructor, each with defaulted trailing
 // params: omitting an argument uses the default, supplying one overrides it.
 
-int addDef(const int a, const int b = 100) { return a + b }
+int addDef(const int a, const int b = 100) {
+    return a + b
+}
 
 // Every parameter defaulted → constructible with NO arguments, which also means
 // this class needs no separately declared no-arg constructor.
@@ -77,9 +94,13 @@ class Defaulted : Base {
         super(a, b)
         this.e = c
     }
-    public int r() { return this.sum() + this.e }
+    public int r() {
+        return this.sum() + this.e
+    }
     // a defaulted METHOD param, on a class that also has a defaulted ctor
-    public int scaled(const int k = 3) { return this.r() * k }
+    public int scaled(const int k = 3) {
+        return this.r() * k
+    }
 }
 
 // Reaching the base defaults THROUGH super: `super()` takes all three,
@@ -90,11 +111,15 @@ class SuperAllDefault : Defaulted {
         super()
         this.g = d
     }
-    public int total() { return this.r() + this.g }
+    public int total() {
+        return this.r() + this.g
+    }
 }
 
 class SuperPartialDefault : Defaulted {
-    public SuperPartialDefault(const int a) { super(a) }
+    public SuperPartialDefault(const int a) {
+        super(a)
+    }
 }
 
 // Two levels, each calling its own immediate base.
@@ -104,7 +129,9 @@ class Level2 : Add {
         super(a, b, c)
         this.g = d
     }
-    public int total() { return this.r() + this.g }
+    public int total() {
+        return this.r() + this.g
+    }
 }
 
 suite SuperSuite {
@@ -196,7 +223,9 @@ suite SuperSuite {
             int i = 0
             while i < 50 {
                 Add a = new Add(i, i, i)
-                if a.r() != i * 3 { bad = i }
+                if a.r() != i * 3 {
+                    bad = i
+                }
                 i = i + 1
             }
             assert.assertEqI(bad, 0 - 1, 408)

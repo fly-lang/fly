@@ -5,6 +5,7 @@
 # -----------------------------------------------------------------------------
 set -u
 cd "$(dirname "$0")/../.."
+. ci/linux/platform.sh
 
 STAGE="${STAGE:-2}"
 EXE="build/stage$STAGE/bin/fly-lsp"
@@ -100,7 +101,7 @@ SESSION="$D/session.bin"
 } > "$SESSION"
 
 OUT="$D/out.bin"
-timeout 120 "$EXE" < "$SESSION" > "$OUT"
+with_timeout 120 "$EXE" < "$SESSION" > "$OUT"
 RC=$?
 
 failed=0

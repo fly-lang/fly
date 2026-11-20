@@ -23,7 +23,9 @@ import fly.assert
 // keeps `\"` raw). Free helpers, not `this.` methods (suite `this` is invalid).
 // ─────────────────────────────────────────────────────────────────────────────
 
-string qb(const string v) { return str.concat(driver.dq(), str.concat(v, driver.dq())) }
+string qb(const string v) {
+    return str.concat(driver.dq(), str.concat(v, driver.dq()))
+}
 
 suite BuilderSuite {
 
@@ -79,13 +81,19 @@ suite BuilderSuite {
             // stage1.ps1, when only the downloaded bootstrap exists).
             string bin = str.concat(repo, "/build/stage2/bin")
             bool have = fs.exists(str.concat(bin, "/fly"))
-            if have == false { have = fs.exists(str.concat(bin, "/fly.exe")) }
+            if have == false {
+                have = fs.exists(str.concat(bin, "/fly.exe"))
+            }
             if have == false {
                 bin = str.concat(repo, "/build/stage1/bin")
                 have = fs.exists(str.concat(bin, "/fly"))
-                if have == false { have = fs.exists(str.concat(bin, "/fly.exe")) }
+                if have == false {
+                    have = fs.exists(str.concat(bin, "/fly.exe"))
+                }
             }
-            if have == false { bin = str.concat(repo, "/build/stage0/bin") }
+            if have == false {
+                bin = str.concat(repo, "/build/stage0/bin")
+            }
             env.set("FLYLANG_BIN", bin)
 
             // The scratch project lives OUTSIDE the repo (OS temp dir): a leftover
@@ -93,8 +101,12 @@ suite BuilderSuite {
             // (--src-dir . in build_compiler) and abort the monolithic stage1 build
             // with "multiple main()".
             string tmp = env.get("TMPDIR")
-            if str.isEmpty(tmp) { tmp = env.get("TEMP") }
-            if str.isEmpty(tmp) { tmp = "/tmp" }
+            if str.isEmpty(tmp) {
+                tmp = env.get("TEMP")
+            }
+            if str.isEmpty(tmp) {
+                tmp = "/tmp"
+            }
             string proj = path.join(tmp, "bld_suite_proj")
             fs.dirDeleteAll(proj)     // stale leftover from a previous failed run
             fs.dirCreateAll(str.concat(proj, "/src"), 493)
@@ -136,7 +148,9 @@ suite BuilderSuite {
             bool ok = b.buildAll()                     // execs fly to compile src/main.fly
             // the emitted binary (Windows appends .exe; POSIX doesn't)
             bool built = fs.exists("target/debug/hello.exe")
-            if built == false { built = fs.exists("target/debug/hello") }
+            if built == false {
+                built = fs.exists("target/debug/hello")
+            }
 
             // restore + clean up BEFORE asserting: a failing assert aborts the
             // case, and the scratch project must never survive a failed run
@@ -157,18 +171,28 @@ suite BuilderSuite {
             string repo = env.cwdGet()
             string bin = str.concat(repo, "/build/stage2/bin")
             bool have = fs.exists(str.concat(bin, "/fly"))
-            if have == false { have = fs.exists(str.concat(bin, "/fly.exe")) }
+            if have == false {
+                have = fs.exists(str.concat(bin, "/fly.exe"))
+            }
             if have == false {
                 bin = str.concat(repo, "/build/stage1/bin")
                 have = fs.exists(str.concat(bin, "/fly"))
-                if have == false { have = fs.exists(str.concat(bin, "/fly.exe")) }
+                if have == false {
+                    have = fs.exists(str.concat(bin, "/fly.exe"))
+                }
             }
-            if have == false { bin = str.concat(repo, "/build/stage0/bin") }
+            if have == false {
+                bin = str.concat(repo, "/build/stage0/bin")
+            }
             env.set("FLYLANG_BIN", bin)
 
             string tmp = env.get("TMPDIR")
-            if str.isEmpty(tmp) { tmp = env.get("TEMP") }
-            if str.isEmpty(tmp) { tmp = "/tmp" }
+            if str.isEmpty(tmp) {
+                tmp = env.get("TEMP")
+            }
+            if str.isEmpty(tmp) {
+                tmp = "/tmp"
+            }
             string proj = path.join(tmp, "bld_suite_incr")
             fs.dirDeleteAll(proj)
             fs.dirCreateAll(str.concat(proj, "/src"), 493)

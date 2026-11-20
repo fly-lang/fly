@@ -16,6 +16,7 @@
 set -uo pipefail
 # Scripts live in ci/linux/; operate from the project root (two levels up).
 cd "$(dirname "$0")/../.."
+. ci/linux/platform.sh
 
 # Scratch for per-test binaries/logs; under build/ but outside the stage dirs.
 OUT=build/test
@@ -52,10 +53,7 @@ if [ -d build/llvm/lib ]; then
         *":$PWD/build/llvm/lib:"*) ;;
         *) export LIBRARY_PATH="$PWD/build/llvm/lib:${LIBRARY_PATH:-}" ;;
     esac
-    case ":${LD_LIBRARY_PATH:-}:" in
-        *":$PWD/build/llvm/lib:"*) ;;
-        *) export LD_LIBRARY_PATH="$PWD/build/llvm/lib:${LD_LIBRARY_PATH:-}" ;;
-    esac
+    prepend_loader_path "$PWD/build/llvm/lib"
 fi
 case "$FLY" in
     /*) ;;                    # absolute — keep as given

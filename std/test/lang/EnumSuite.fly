@@ -25,12 +25,21 @@ enum Status { PENDING, ACTIVE, DONE, FAILED }
 class Tagged {
     Color c
     int n
-    public Tagged(const Color c, const int n) { this.c = c  this.n = n }
-    public Color kind() { return this.c }
-    public int nameLen() { return str.len(this.c.name) }
+    public Tagged(const Color c, const int n) {
+        this.c = c
+        this.n = n
+    }
+    public Color kind() {
+        return this.c
+    }
+    public int nameLen() {
+        return str.len(this.c.name)
+    }
 }
 
-int rank(const Status s) { return s.value }
+int rank(const Status s) {
+    return s.value
+}
 
 suite EnumSuite {
 
@@ -116,9 +125,15 @@ suite EnumSuite {
             int seen = 0
             int v = 1
             while v <= 3 {
-                if v == Color.RED.value { seen = seen + 1 }
-                if v == Color.GREEN.value { seen = seen + 1 }
-                if v == Color.BLUE.value { seen = seen + 1 }
+                if v == Color.RED.value {
+                    seen = seen + 1
+                }
+                if v == Color.GREEN.value {
+                    seen = seen + 1
+                }
+                if v == Color.BLUE.value {
+                    seen = seen + 1
+                }
                 v = v + 1
             }
             assert.assertEqI(seen, 3, 306)

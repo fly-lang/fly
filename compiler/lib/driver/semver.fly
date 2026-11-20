@@ -23,9 +23,15 @@ public class SemVer {
         this.patch = pa
     }
 
-    public int getMajor() { return this.major }
-    public int getMinor() { return this.minor }
-    public int getPatch() { return this.patch }
+    public int getMajor() {
+        return this.major
+    }
+    public int getMinor() {
+        return this.minor
+    }
+    public int getPatch() {
+        return this.patch
+    }
 
     // fully-qualified: inside a method named `str` the short prefix is shadowed
     public string str() {
@@ -40,22 +46,44 @@ public class SemVer {
     // reference parser rejects `-1` in an expression). Lexicographic on the triplet.
     public int cmp(const SemVer o) {
         if this.major != o.getMajor() {
-            if this.major < o.getMajor() { return 0 } else { return 2 }
+            if this.major < o.getMajor() {
+                return 0
+            } else {
+                return 2
+            }
         }
         if this.minor != o.getMinor() {
-            if this.minor < o.getMinor() { return 0 } else { return 2 }
+            if this.minor < o.getMinor() {
+                return 0
+            } else {
+                return 2
+            }
         }
         if this.patch != o.getPatch() {
-            if this.patch < o.getPatch() { return 0 } else { return 2 }
+            if this.patch < o.getPatch() {
+                return 0
+            } else {
+                return 2
+            }
         }
         return 1
     }
 
-    public bool eq(const SemVer o)  { return this.cmp(o) == 1 }
-    public bool lt(const SemVer o)  { return this.cmp(o) == 0 }
-    public bool gt(const SemVer o)  { return this.cmp(o) == 2 }
-    public bool lte(const SemVer o) { return this.cmp(o) <= 1 }
-    public bool gte(const SemVer o) { return this.cmp(o) >= 1 }
+    public bool eq(const SemVer o) {
+        return this.cmp(o) == 1
+    }
+    public bool lt(const SemVer o) {
+        return this.cmp(o) == 0
+    }
+    public bool gt(const SemVer o) {
+        return this.cmp(o) == 2
+    }
+    public bool lte(const SemVer o) {
+        return this.cmp(o) <= 1
+    }
+    public bool gte(const SemVer o) {
+        return this.cmp(o) >= 1
+    }
 }
 
 // One atom of a range: an operator plus a version. op codes:
@@ -70,13 +98,25 @@ public class Atom {
     }
 
     public bool matches(const SemVer v) {
-        if this.op == 0 { return true }
+        if this.op == 0 {
+            return true
+        }
         int c = v.cmp(this.ver)        // 0=lt 1=eq 2=gt
-        if this.op == 1 { return c == 1 }   // Eq
-        if this.op == 2 { return c == 2 }   // Gt
-        if this.op == 3 { return c >= 1 }   // Gte
-        if this.op == 4 { return c == 0 }   // Lt
-        if this.op == 5 { return c <= 1 }   // Lte
+        if this.op == 1 { // Eq
+            return c == 1
+        }
+        if this.op == 2 { // Gt
+            return c == 2
+        }
+        if this.op == 3 { // Gte
+            return c >= 1
+        }
+        if this.op == 4 { // Lt
+            return c == 0
+        }
+        if this.op == 5 { // Lte
+            return c <= 1
+        }
         return true
     }
 }
@@ -85,10 +125,16 @@ public class Atom {
 public class SemVerRange {
     List<Atom> atoms
 
-    public SemVerRange() { this.atoms = new List<Atom>() }
+    public SemVerRange() {
+        this.atoms = new List<Atom>()
+    }
 
-    public void add(const Atom a)  { this.atoms.add(a) }
-    public bool isAny()            { return this.atoms.size() == 0 }
+    public void add(const Atom a) {
+        this.atoms.add(a)
+    }
+    public bool isAny() {
+        return this.atoms.size() == 0
+    }
 
     public bool matches(const SemVer v) {
         // `int i` (not pointer): matches the compiler-sources convention so this
@@ -97,7 +143,9 @@ public class SemVerRange {
         int i = 0
         while i < this.atoms.size() {
             Atom a = this.atoms.get(i)
-            if a.matches(v) == false { ok = false }
+            if a.matches(v) == false {
+                ok = false
+            }
             i = i + 1
         }
         return ok
@@ -114,8 +162,12 @@ public int parseUIntAt(const string s, int pos) {
     while pos < n {
         byte b = str.byteAt(s, pos)
         int c = b
-        if c < 48 { return v }
-        if c > 57 { return v }
+        if c < 48 {
+            return v
+        }
+        if c > 57 {
+            return v
+        }
         v = v * 10 + (c - 48)
         pos = pos + 1
     }
@@ -128,13 +180,17 @@ public SemVer semverParse(const string s) {
     int n = str.len(s)
     if n > 0 {
         byte b0 = str.byteAt(s, 0)
-        if b0 == 118 || b0 == 86 { pos = 1 }        // 'v' | 'V'
+        if b0 == 118 || b0 == 86 { // 'v' | 'V'
+            pos = 1
+        }
     }
     int ma = parseUIntAt(s, pos)
     // advance past the digits just consumed, then optional '.'
     while pos < n {
         byte b = str.byteAt(s, pos)
-        if b < 48 || b > 57 { break }
+        if b < 48 || b > 57 {
+            break
+        }
         pos = pos + 1
     }
     int mi = 0
@@ -146,7 +202,9 @@ public SemVer semverParse(const string s) {
             mi = parseUIntAt(s, pos)
             while pos < n {
                 byte b = str.byteAt(s, pos)
-                if b < 48 || b > 57 { break }
+                if b < 48 || b > 57 {
+                    break
+                }
                 pos = pos + 1
             }
             if pos < n {
@@ -165,8 +223,12 @@ public SemVer semverParse(const string s) {
 public SemVerRange rangeParse(const string s) {
     SemVerRange range = new SemVerRange()
     string t = str.trim(s)
-    if str.isEmpty(t) { return range }
-    if str.equals(t, "*") { return range }
+    if str.isEmpty(t) {
+        return range
+    }
+    if str.equals(t, "*") {
+        return range
+    }
 
     // split on ',' (AND) into trimmed tokens
     int n = str.len(t)
@@ -177,11 +239,15 @@ public SemVerRange rangeParse(const string s) {
         bool isComma = false
         if atEnd == false {
             byte b = str.byteAt(t, i)
-            if b == 44 { isComma = true }            // ','
+            if b == 44 { // ','
+                isComma = true
+            }
         }
         if atEnd || isComma {
             string tok = str.trim(str.substring(t, start, i))
-            if str.isEmpty(tok) == false { rangeAddAtom(range, tok) }
+            if str.isEmpty(tok) == false {
+                rangeAddAtom(range, tok)
+            }
             start = i + 1
         }
         i = i + 1

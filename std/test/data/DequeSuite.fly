@@ -154,7 +154,9 @@ suite DequeSuite {
             int bad = 0 - 99
             int expect = 0 - 3
             while expect < 3 {
-                if d.popFront() != expect { bad = expect }
+                if d.popFront() != expect {
+                    bad = expect
+                }
                 expect = expect + 1
             }
             assert.assertEqI(bad, 0 - 99, 309)
@@ -172,7 +174,9 @@ suite DequeSuite {
             int n = 0
             while n < 30 {
                 int got = d.popFront()
-                if got != n { bad = n }
+                if got != n {
+                    bad = n
+                }
                 d.pushBack(n + 6)
                 n = n + 1
             }
@@ -210,7 +214,9 @@ suite DequeSuite {
             int bad = 0 - 1
             i = 0
             while i < 40 {
-                if d.popFront() != i { bad = i }
+                if d.popFront() != i {
+                    bad = i
+                }
                 i = i + 1
             }
             assert.assertEqI(bad, 0 - 1, 404)
@@ -231,7 +237,9 @@ suite DequeSuite {
             int bad = 0 - 1
             i = 39
             while i >= 0 {
-                if d.popFront() != i { bad = i }
+                if d.popFront() != i {
+                    bad = i
+                }
                 i = i - 1
             }
             assert.assertEqI(bad, 0 - 1, 408)

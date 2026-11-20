@@ -13,8 +13,6 @@ import fly.assert
 // resolution records an error. A valid program records none (no false positives).
 // ─────────────────────────────────────────────────────────────────────────────
 
-
-
 suite DiagnosticsSuite {
 
     void unresolvedIdentifierTest() {

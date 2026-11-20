@@ -29,7 +29,9 @@ public class Stack<T> {
         }
         if this.len >= this.cap {
             pointer newcap = this.cap * 2
-            if newcap == 0 { newcap = 8 }
+            if newcap == 0 {
+                newcap = 8
+            }
             pointer ni = 0
             if this.items == 0 {
                 fly.runtime.mem_alloc(newcap * this.stride, ni)

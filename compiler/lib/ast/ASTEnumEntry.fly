@@ -19,11 +19,23 @@ public class ASTEnumEntry : ASTExpr {
         this.index = 0
     }
 
-    public ASTEnum getEnum() { return this.enumType }
-    public string getName() { return this.name }
-    public uint getIndex() { return this.index }
-    public void setIndex(const uint index) { this.index = index }
-    public ASTEnumEntry asEnumEntry() { return this }
+    public ASTEnum getEnum() {
+        return this.enumType
+    }
+    public string getName() {
+        return this.name
+    }
+    public uint getIndex() {
+        return this.index
+    }
+    public void setIndex(const uint index) {
+        this.index = index
+    }
+    public ASTEnumEntry asEnumEntry() {
+        return this
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }

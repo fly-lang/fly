@@ -18,7 +18,9 @@ import fly.data.Wrapper
 
 class Node {
     int v
-    public Node(const int v) { this.v = v }
+    public Node(const int v) {
+        this.v = v
+    }
 }
 
 struct Point {

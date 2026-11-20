@@ -11,5 +11,7 @@ public class SemaLocalVar : SemaVar {
     public SemaLocalVar(const ASTVar varAst, const SemaType type) {
         super(varAst, SemaKind.LOCAL_VAR, type)
     }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }

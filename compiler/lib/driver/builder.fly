@@ -36,13 +36,19 @@ public class Builder {
         this.force = false
     }
 
-    public void setTargetTriple(const string t) { this.targetTriple = t }
+    public void setTargetTriple(const string t) {
+        this.targetTriple = t
+    }
 
-    public void setForce(const bool f) { this.force = f }
+    public void setForce(const bool f) {
+        this.force = f
+    }
 
     // getFlyBinary — resolve lazily (a constructor cannot call a method here).
     public string getFlyBinary() {
-        if str.isEmpty(this.flyBinary) { this.flyBinary = this.resolveFly() }
+        if str.isEmpty(this.flyBinary) {
+            this.flyBinary = this.resolveFly()
+        }
         return this.flyBinary
     }
 
@@ -54,11 +60,15 @@ public class Builder {
         string binDir = env.get("FLYLANG_BIN")
         if str.isEmpty(binDir) == false {
             string exe = "fly"
-            if str.equals(env.osname(), "windows") { exe = "fly.exe" }
+            if str.equals(env.osname(), "windows") {
+                exe = "fly.exe"
+            }
             return path.join(binDir, exe)
         }
         string self = env.exePath()
-        if str.isEmpty(self) == false { return self }
+        if str.isEmpty(self) == false {
+            return self
+        }
         return "fly"
     }
 
@@ -92,7 +102,9 @@ public class Builder {
     public string profileFlags() {
         BuildProfile bp = this.activeProfile()
         string f = str.concat("-O", str.convert(bp.getOptLevel()))
-        if bp.getDebugInfo() { f = str.concat(f, " --debug-symbols") }
+        if bp.getDebugInfo() {
+            f = str.concat(f, " --debug-symbols")
+        }
         return f
     }
 
@@ -125,7 +137,9 @@ public class Builder {
         // profile: -O<n> [--debug-symbols] — same source of truth as profileFlags()
         BuildProfile bp = this.activeProfile()
         proc.argsAdd(h, str.concat("-O", str.convert(bp.getOptLevel())))
-        if bp.getDebugInfo() { proc.argsAdd(h, "--debug-symbols") }
+        if bp.getDebugInfo() {
+            proc.argsAdd(h, "--debug-symbols")
+        }
         // [link].libs → --link-lib=<name>
         int i = 0
         while i < this.manifest.linkLibCount() {
@@ -142,7 +156,9 @@ public class Builder {
         if str.isEmpty(this.targetTriple) == false {
             proc.argsAdd(h, str.concat("--target=", this.targetTriple))
         }
-        if str.isEmpty(extra) == false { proc.argsAdd(h, extra) }
+        if str.isEmpty(extra) == false {
+            proc.argsAdd(h, extra)
+        }
         proc.argsAdd(h, "-o")
         proc.argsAdd(h, output)
         // DIRECTORY CLI: no positional source — the target's directory is the
@@ -166,7 +182,9 @@ public class Builder {
     // The leading dot is what keeps them out of the way: discoverySkipsDir
     // refuses to descend into ANY dot-directory, so nothing here can ever be
     // mistaken for a project source.
-    public string fpDir() { return path.join(this.outDir(), ".fly") }
+    public string fpDir() {
+        return path.join(this.outDir(), ".fly")
+    }
 
     public string fpPath(const string key) {
         return path.join(this.fpDir(), str.concat(key, ".fp"))
@@ -183,7 +201,9 @@ public class Builder {
         h = str.concat(h, fly.driver.fpCompilerId(this.getFlyBinary()))
         h = str.concat(h, fly.driver.nl())
         string tr = this.targetTriple
-        if str.isEmpty(tr) { tr = "-" }
+        if str.isEmpty(tr) {
+            tr = "-"
+        }
         h = str.concat(h, str.concat("triple ", tr))
         h = str.concat(h, fly.driver.nl())
         h = str.concat(h, str.concat("profile ", this.profileFlags()))
@@ -195,7 +215,9 @@ public class Builder {
         string lkRaw = this.linkFlags()
         if str.isEmpty(lkRaw) == false {
             string lkTrim = str.trim(lkRaw)
-            if str.isEmpty(lkTrim) == false { lk = lkTrim }
+            if str.isEmpty(lkTrim) == false {
+                lk = lkTrim
+            }
         }
         h = str.concat(h, str.concat("link ", lk))
         h = str.concat(h, fly.driver.nl())
@@ -205,7 +227,9 @@ public class Builder {
         // same contract as loadManifest. Missing lock → "none" (and a lock
         // appearing/disappearing flips the line → rebuild).
         string lock = fly.driver.sha256File("Lock.fly")
-        if str.isEmpty(lock) { lock = "none" }
+        if str.isEmpty(lock) {
+            lock = "none"
+        }
         h = str.concat(h, str.concat("lock ", lock))
         h = str.concat(h, fly.driver.nl())
         return h
@@ -247,17 +271,23 @@ public class Builder {
             bool ok = true
             if str.equals(lib, "dynamic") || str.equals(lib, "both") {
                 string so = str.concat(od, str.concat("/lib", str.concat(t.getName(), ".so")))
-                if fs.exists(so) == false { ok = false }
+                if fs.exists(so) == false {
+                    ok = false
+                }
             }
             if str.equals(lib, "dynamic") == false {
                 string ar = str.concat(od, str.concat("/lib", str.concat(t.getName(), ".a")))
-                if fs.exists(ar) == false { ok = false }
+                if fs.exists(ar) == false {
+                    ok = false
+                }
             }
             res = ok
         } else {
             string bin = str.concat(od, str.concat("/", t.getName()))
             bool have = fs.exists(bin)
-            if have == false { have = fs.exists(str.concat(bin, ".exe")) }
+            if have == false {
+                have = fs.exists(str.concat(bin, ".exe"))
+            }
             return have
         }
         return res
@@ -267,7 +297,9 @@ public class Builder {
     // unreadable or corrupted .fp reads as ""/garbage → mismatch → rebuild
     // (never deleted; the next successful build overwrites it).
     public bool isUpToDate(const string fpFile, const string computed) {
-        if fs.exists(fpFile) == false { return false }
+        if fs.exists(fpFile) == false {
+            return false
+        }
         string stored = fs.readStr(fpFile)
         return str.equals(stored, computed)
     }
@@ -286,7 +318,9 @@ public class Builder {
     // from the driver and would now be a hard unknown-option error. Extracted so
     // BuilderSuite can pin the contract.
     public string libShapeFlag(const bool dynamicPass) {
-        if dynamicPass { return "--lib-dyn" }
+        if dynamicPass {
+            return "--lib-dyn"
+        }
         return "--lib"
     }
 
@@ -295,7 +329,9 @@ public class Builder {
         Target t = null
         while idx < this.manifest.targetCount() {
             Target cand = this.manifest.targetAt(idx)
-            if str.equals(cand.getKey(), key) { t = cand }
+            if str.equals(cand.getKey(), key) {
+                t = cand
+            }
             idx = idx + 1
         }
         if t == null {
@@ -326,7 +362,9 @@ public class Builder {
             string o = str.concat(this.outDir(), str.concat("/", t.getName()))
             ok = this.invokeFly(src, o, "")
         }
-        if ok { this.saveFp(fpFile, computed) }
+        if ok {
+            this.saveFp(fpFile, computed)
+        }
         return ok
     }
 
@@ -336,7 +374,9 @@ public class Builder {
         int i = 0
         while i < this.manifest.targetCount() {
             Target t = this.manifest.targetAt(i)
-            if this.buildTarget(t.getKey()) == false { allOk = false }
+            if this.buildTarget(t.getKey()) == false {
+                allOk = false
+            }
             i = i + 1
         }
         return allOk
@@ -345,15 +385,21 @@ public class Builder {
     // runTarget — build a bin target then execute it. Returns the child exit code
     // (or a negative build-failure marker mapped to 1).
     public int runTarget(const string key) {
-        if this.buildTarget(key) == false { return 1 }
+        if this.buildTarget(key) == false {
+            return 1
+        }
         int idx = 0
         Target t = null
         while idx < this.manifest.targetCount() {
             Target cand = this.manifest.targetAt(idx)
-            if str.equals(cand.getKey(), key) { t = cand }
+            if str.equals(cand.getKey(), key) {
+                t = cand
+            }
             idx = idx + 1
         }
-        if t == null { return 1 }
+        if t == null {
+            return 1
+        }
         string bin = str.concat(this.outDir(), str.concat("/", t.getName()))
         // Direct spawn, not `sh -c`: the shell form is dead on Windows, and there
         // is nothing here a shell was needed for.

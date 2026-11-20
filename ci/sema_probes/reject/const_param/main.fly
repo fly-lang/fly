@@ -1,2 +1,6 @@
-void f(const int n) { n = 9 }
-void main() { f(1) }
+void f(const int n) {
+    n = 9
+}
+void main() {
+    f(1)
+}

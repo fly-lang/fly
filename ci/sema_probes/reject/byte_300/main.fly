@@ -1,1 +1,3 @@
-void main() { byte b = 300 }
+void main() {
+    byte b = 300
+}

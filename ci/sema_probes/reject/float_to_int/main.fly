@@ -1,2 +1,4 @@
-void main() { double d = 3.9
- int t = d }
+void main() {
+    double d = 3.9
+ int t = d
+}

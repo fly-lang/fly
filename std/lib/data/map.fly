@@ -71,7 +71,9 @@ public class Map<K, V> {
                 if rfl == 1 {
                     int rh = 0
                     fly.llvm.slotHashAtT(this.keys, ri * this.kstride, kprobe, rh)
-                    if rh < 0 { rh = 0 - rh }
+                    if rh < 0 {
+                        rh = 0 - rh
+                    }
                     pointer rb = rh & (newcap - 1)
                     byte rnfl = 0
                     fly.llvm.ptrByteAt(nflags, rb, rnfl)
@@ -105,7 +107,9 @@ public class Map<K, V> {
         }
         int ph = 0
         fly.llvm.slotHashT(key, ph)
-        if ph < 0 { ph = 0 - ph }
+        if ph < 0 {
+            ph = 0 - ph
+        }
         pointer b = ph & (this.cap - 1)
         bool hasTs = false
         pointer ts = 0
@@ -133,7 +137,9 @@ public class Map<K, V> {
                     }
                 }
                 if fl == 0 {
-                    if hasTs { b = ts }
+                    if hasTs {
+                        b = ts
+                    }
                     fly.llvm.slotPokeT(this.keys, b * this.kstride, key)
                     fly.llvm.slotPokeT(this.vals, b * this.vstride, val)
                     fly.llvm.ptrPokeByte(this.flags, b, 1)
@@ -162,7 +168,9 @@ public class Map<K, V> {
         if this.keys != 0 {
             int gh = 0
             fly.llvm.slotHashT(key, gh)
-            if gh < 0 { gh = 0 - gh }
+            if gh < 0 {
+                gh = 0 - gh
+            }
             pointer b = gh & (this.cap - 1)
             pointer probed = 0
             while probed < this.cap {
@@ -195,7 +203,9 @@ public class Map<K, V> {
         }
         int hh = 0
         fly.llvm.slotHashT(key, hh)
-        if hh < 0 { hh = 0 - hh }
+        if hh < 0 {
+            hh = 0 - hh
+        }
         pointer b = hh & (this.cap - 1)
         pointer probed = 0
         bool found = false
@@ -223,10 +233,14 @@ public class Map<K, V> {
     }
 
     public void remove(const K key) {
-        if this.keys == 0 { return }
+        if this.keys == 0 {
+            return
+        }
         int rh = 0
         fly.llvm.slotHashT(key, rh)
-        if rh < 0 { rh = 0 - rh }
+        if rh < 0 {
+            rh = 0 - rh
+        }
         pointer b = rh & (this.cap - 1)
         pointer probed = 0
         while probed < this.cap {

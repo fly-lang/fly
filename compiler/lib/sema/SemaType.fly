@@ -50,36 +50,72 @@ public class SemaType : SemaNode {
         this.llvmType = 0
     }
 
-    public string getName() { return this.typeName }
-    public pointer getLlvmType() { return this.llvmType }
-    public void setLlvmType(const pointer t) { this.llvmType = t }
+    public string getName() {
+        return this.typeName
+    }
+    public pointer getLlvmType() {
+        return this.llvmType
+    }
+    public void setLlvmType(const pointer t) {
+        this.llvmType = t
+    }
 
     // asClass — narrow to SemaClassType without a downcast (Fly has none): the base
     // returns null; SemaClassType overrides it to return `this`.
-    public SemaClassType asClass() { return null }
+    public SemaClassType asClass() {
+        return null
+    }
 
     // asEnum — narrow to SemaEnumType (null on the base; overridden in SemaEnumType).
-    public SemaEnumType asEnum() { return null }
+    public SemaEnumType asEnum() {
+        return null
+    }
 
     // asArray — narrow to SemaArrayType (null on the base; overridden in SemaArrayType).
-    public SemaArrayType asArray() { return null }
+    public SemaArrayType asArray() {
+        return null
+    }
 
     // getRank — numeric promotion rank; non-number types have no rank (0).
     // SemaNumberType overrides this with its bit-width rank, so a SemaType-typed
     // number dispatches to the right value without a downcast.
-    public int getRank() { return 0 }
+    public int getRank() {
+        return 0
+    }
 
-    public bool isBool()    { return this.getKind() == SemaKind.TYPE_BOOL }
-    public bool isFloat()   { return this.getKind() == SemaKind.TYPE_FLOAT }
-    public bool isInteger() { return this.getKind() == SemaKind.TYPE_INTEGER }
-    public bool isNumber()  { return this.isInteger() || this.isFloat() }
-    public bool isComplex() { return this.getKind() == SemaKind.TYPE_COMPLEX }
-    public bool isArray()   { return this.getKind() == SemaKind.TYPE_ARRAY }
-    public bool isString()  { return this.getKind() == SemaKind.TYPE_STRING }
-    public bool isClass()   { return this.getKind() == SemaKind.TYPE_CLASS }
-    public bool isEnum()    { return this.getKind() == SemaKind.TYPE_ENUM }
-    public bool isError()   { return this.getKind() == SemaKind.TYPE_ERROR }
-    public bool isVoid()    { return this.getKind() == SemaKind.TYPE_VOID }
+    public bool isBool() {
+        return this.getKind() == SemaKind.TYPE_BOOL
+    }
+    public bool isFloat() {
+        return this.getKind() == SemaKind.TYPE_FLOAT
+    }
+    public bool isInteger() {
+        return this.getKind() == SemaKind.TYPE_INTEGER
+    }
+    public bool isNumber() {
+        return this.isInteger() || this.isFloat()
+    }
+    public bool isComplex() {
+        return this.getKind() == SemaKind.TYPE_COMPLEX
+    }
+    public bool isArray() {
+        return this.getKind() == SemaKind.TYPE_ARRAY
+    }
+    public bool isString() {
+        return this.getKind() == SemaKind.TYPE_STRING
+    }
+    public bool isClass() {
+        return this.getKind() == SemaKind.TYPE_CLASS
+    }
+    public bool isEnum() {
+        return this.getKind() == SemaKind.TYPE_ENUM
+    }
+    public bool isError() {
+        return this.getKind() == SemaKind.TYPE_ERROR
+    }
+    public bool isVoid() {
+        return this.getKind() == SemaKind.TYPE_VOID
+    }
 
     // isEquals — two types are equal iff they carry the same name. (Historical
     // note: this used to guard with a nested `if` under the belief that `&&`
@@ -93,11 +129,15 @@ public class SemaType : SemaNode {
         return r
     }
 
-    public string str() { return this.typeName }
+    public string str() {
+        return this.typeName
+    }
 }
 
 public class SemaBoolType : SemaType {
-    public SemaBoolType() { super(SemaKind.TYPE_BOOL, "bool") }
+    public SemaBoolType() {
+        super(SemaKind.TYPE_BOOL, "bool")
+    }
 }
 
 public class SemaNumberType : SemaType {
@@ -109,7 +149,9 @@ public class SemaNumberType : SemaType {
         this.rank = rank
     }
 
-    public int getRank() { return this.rank }
+    public int getRank() {
+        return this.rank
+    }
 }
 
 public class SemaIntType : SemaNumberType {
@@ -121,11 +163,17 @@ public class SemaIntType : SemaNumberType {
         this.intKind = intKind
     }
 
-    public SemaIntTypeKind getIntKind() { return this.intKind }
+    public SemaIntTypeKind getIntKind() {
+        return this.intKind
+    }
 
     // even bit-width = unsigned (byte/ushort/uint/ulong), odd = signed.
-    public bool isUnsigned() { return (semaIntRank(this.intKind) % 2) == 0 }
-    public bool isSigned()   { return this.isUnsigned() == false }
+    public bool isUnsigned() {
+        return (semaIntRank(this.intKind) % 2) == 0
+    }
+    public bool isSigned() {
+        return this.isUnsigned() == false
+    }
 }
 
 public class SemaFloatType : SemaNumberType {
@@ -137,23 +185,33 @@ public class SemaFloatType : SemaNumberType {
         this.floatKind = floatKind
     }
 
-    public SemaFloatTypeKind getFloatKind() { return this.floatKind }
+    public SemaFloatTypeKind getFloatKind() {
+        return this.floatKind
+    }
 }
 
 public class SemaComplexType : SemaType {
-    public SemaComplexType() { super(SemaKind.TYPE_COMPLEX, "complex") }
+    public SemaComplexType() {
+        super(SemaKind.TYPE_COMPLEX, "complex")
+    }
 }
 
 public class SemaStringType : SemaType {
-    public SemaStringType() { super(SemaKind.TYPE_STRING, "string") }
+    public SemaStringType() {
+        super(SemaKind.TYPE_STRING, "string")
+    }
 }
 
 public class SemaVoidType : SemaType {
-    public SemaVoidType() { super(SemaKind.TYPE_VOID, "void") }
+    public SemaVoidType() {
+        super(SemaKind.TYPE_VOID, "void")
+    }
 }
 
 public class SemaErrorType : SemaType {
-    public SemaErrorType() { super(SemaKind.TYPE_ERROR, "error") }
+    public SemaErrorType() {
+        super(SemaKind.TYPE_ERROR, "error")
+    }
 }
 
 public class SemaArrayType : SemaType {
@@ -168,12 +226,24 @@ public class SemaArrayType : SemaType {
         this.size = size
     }
 
-    public SemaArrayType asArray() { return this }
-    public SemaType getElementType() { return this.elementType }
-    public void setElementType(const SemaType elementType) { this.elementType = elementType }
-    public long getSize() { return this.size }
-    public SemaExpr getSizeExpr() { return this.sizeExpr }
-    public void setSizeExpr(const SemaExpr sizeExpr) { this.sizeExpr = sizeExpr }
+    public SemaArrayType asArray() {
+        return this
+    }
+    public SemaType getElementType() {
+        return this.elementType
+    }
+    public void setElementType(const SemaType elementType) {
+        this.elementType = elementType
+    }
+    public long getSize() {
+        return this.size
+    }
+    public SemaExpr getSizeExpr() {
+        return this.sizeExpr
+    }
+    public void setSizeExpr(const SemaExpr sizeExpr) {
+        this.sizeExpr = sizeExpr
+    }
 }
 
 // SemaTypeParam — a generic type variable (T, U) with an optional upper bound.
@@ -186,7 +256,13 @@ public class SemaTypeParam : SemaType {
         super(SemaKind.TYPE_PARAM, typeName)
     }
 
-    public SemaType getBound() { return this.bound }
-    public void setBound(const SemaType bound) { this.bound = bound }
-    public bool isClass() { return false }
+    public SemaType getBound() {
+        return this.bound
+    }
+    public void setBound(const SemaType bound) {
+        this.bound = bound
+    }
+    public bool isClass() {
+        return false
+    }
 }

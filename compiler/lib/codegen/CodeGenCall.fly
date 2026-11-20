@@ -76,7 +76,11 @@ public class CodeGenCall {
         // LLVM signature (which crashes inside libLLVM at buildCall).
         List<SemaLocalVar> outVars = node.getOutVars()
         int outCount = (int)outVars.size()
-        if hasOut { if outCount == 0 { outCount = 1 } }
+        if hasOut {
+            if outCount == 0 {
+                outCount = 1
+            }
+        }
         int realCount = (int)args.size() - outCount
 
         // (2) actual arguments — fresh temp per arg, store the rvalue, pass &temp. The
@@ -113,7 +117,9 @@ public class CodeGenCall {
                 if i < calleeParams.size() {
                     SemaParam cp2 = calleeParams.get(i)
                     SemaType cpt = cp2.getType()
-                    if cpt != null { pTy = cpt }
+                    if cpt != null {
+                        pTy = cpt
+                    }
                     cpConst = cp2.isConstant()
                 }
                 // Reference ABI: a CONST CLASS/INTERFACE/STRUCT argument is passed BY
@@ -130,12 +136,18 @@ public class CodeGenCall {
                 // so callee writes reach the caller. Mirrors the callee split in
                 // CodeGenModule.genBody / CodeGenClass.genMethodBody.
                 SemaClassType pcls = null
-                if pTy != null { pcls = pTy.asClass() }
+                if pTy != null {
+                    pcls = pTy.asClass()
+                }
                 bool byValHandle = false
                 if cpConst {
-                    if pcls != null { byValHandle = true }
+                    if pcls != null {
+                        byValHandle = true
+                    }
                 }
-                if cpConst { CodeGenExprOps.noteArgTemp(argTemps, a, av) }
+                if cpConst {
+                    CodeGenExprOps.noteArgTemp(argTemps, a, av)
+                }
                 if byValHandle {
                     argAddrs.add(av)
                 } else {
@@ -165,7 +177,9 @@ public class CodeGenCall {
             int oi = 0
             while oi < outCount {
                 SemaLocalVar ov = outVar
-                if oi < outVars.size() { ov = outVars.get(oi) }
+                if oi < outVars.size() {
+                    ov = outVars.get(oi)
+                }
                 SemaType ot = ov.getType()
                 pointer oty = cge.lowerType(ot)
                 pointer slot
@@ -177,7 +191,9 @@ public class CodeGenCall {
                 // a fallible function assigned `out` before failing; there is no
                 // way to say that any more, so the default belongs here.
                 SemaClassType oc = null
-                if ot != null { oc = ot.asClass() }
+                if ot != null {
+                    oc = ot.asClass()
+                }
                 if oc == null {
                     pointer zeroOut
                     llvm.constNull(oty, zeroOut)
@@ -197,7 +213,9 @@ public class CodeGenCall {
                 }
                 ov.setLlvmAlloca(slot)
                 argAddrs.add(slot)
-                if oi == 0 { outPtr = slot }
+                if oi == 0 {
+                    outPtr = slot
+                }
                 oi = oi + 1
             }
         }

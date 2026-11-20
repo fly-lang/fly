@@ -16,19 +16,30 @@ import fly.compiler.sema.SemaFloatTypeKind
 
 public int semaIntRank(const SemaIntTypeKind k) {
     int r = 0
-    if k == SemaIntTypeKind.TYPE_BYTE      { r = 8 }
-    elsif k == SemaIntTypeKind.TYPE_USHORT { r = 16 }
-    elsif k == SemaIntTypeKind.TYPE_UINT   { r = 32 }
-    elsif k == SemaIntTypeKind.TYPE_ULONG  { r = 64 }
-    elsif k == SemaIntTypeKind.TYPE_SHORT  { r = 15 }
-    elsif k == SemaIntTypeKind.TYPE_INT    { r = 31 }
-    elsif k == SemaIntTypeKind.TYPE_LONG   { r = 63 }
-    elsif k == SemaIntTypeKind.TYPE_POINTER { r = 64 }  // unsigned, ptr-sized; rank == ulong
+    if k == SemaIntTypeKind.TYPE_BYTE {
+        r = 8
+    } elsif k == SemaIntTypeKind.TYPE_USHORT {
+        r = 16
+    } elsif k == SemaIntTypeKind.TYPE_UINT {
+        r = 32
+    } elsif k == SemaIntTypeKind.TYPE_ULONG {
+        r = 64
+    } elsif k == SemaIntTypeKind.TYPE_SHORT {
+        r = 15
+    } elsif k == SemaIntTypeKind.TYPE_INT {
+        r = 31
+    } elsif k == SemaIntTypeKind.TYPE_LONG {
+        r = 63
+    } elsif k == SemaIntTypeKind.TYPE_POINTER { // unsigned, ptr-sized; rank == ulong
+        r = 64
+    }
     return r
 }
 
 public int semaFloatRank(const SemaFloatTypeKind k) {
     int r = 320
-    if k == SemaFloatTypeKind.TYPE_DOUBLE { r = 640 }
+    if k == SemaFloatTypeKind.TYPE_DOUBLE {
+        r = 640
+    }
     return r
 }

@@ -40,25 +40,51 @@ public class FetchResult {
         this.ok = false
         this.errMsg = ""
     }
-    public string getRev()      { return this.rev }
-    public string getVersion()  { return this.version }
-    public string getLocalPath() { return this.localPath }
-    public string getChecksum() { return this.checksum }
-    public bool getOk()         { return this.ok }
-    public string getErrMsg()   { return this.errMsg }
+    public string getRev() {
+        return this.rev
+    }
+    public string getVersion() {
+        return this.version
+    }
+    public string getLocalPath() {
+        return this.localPath
+    }
+    public string getChecksum() {
+        return this.checksum
+    }
+    public bool getOk() {
+        return this.ok
+    }
+    public string getErrMsg() {
+        return this.errMsg
+    }
 
-    public void setRev(const string v)       { this.rev = v }
-    public void setVersion(const string v)   { this.version = v }
-    public void setLocalPath(const string v) { this.localPath = v }
-    public void setChecksum(const string v)  { this.checksum = v }
-    public void setOk(const bool v)          { this.ok = v }
-    public void setError(const string v)     { this.errMsg = v }
+    public void setRev(const string v) {
+        this.rev = v
+    }
+    public void setVersion(const string v) {
+        this.version = v
+    }
+    public void setLocalPath(const string v) {
+        this.localPath = v
+    }
+    public void setChecksum(const string v) {
+        this.checksum = v
+    }
+    public void setOk(const bool v) {
+        this.ok = v
+    }
+    public void setError(const string v) {
+        this.errMsg = v
+    }
 }
 
 public class GitFetcher {
     Cache cache
 
-    public GitFetcher(const Cache c) { this.cache = c }
+    public GitFetcher(const Cache c) {
+        this.cache = c
+    }
 
     // fetch — resolve dep.ref to a commit, store the tree in the cache. On any
     // git/network failure returns a FetchResult with ok=false + an error message.
@@ -69,7 +95,9 @@ public class GitFetcher {
         string refVal = dep.getRefValue()
 
         string tmpdir = env.get("TMPDIR")
-        if str.isEmpty(tmpdir) { tmpdir = "/tmp" }
+        if str.isEmpty(tmpdir) {
+            tmpdir = "/tmp"
+        }
         string bare = str.concat(tmpdir, str.concat("/fly-bare-", name))
         fs.dirDeleteAll(bare)
 
@@ -156,7 +184,9 @@ public class GitFetcher {
             // not extractTarGz. readBytes, not readStr: the file is binary.
             int xe = 0
             bool xok = targz.extractTar(fs.readBytes(tarTmp), entry, xe)
-            if xok == false { arc = 1 }
+            if xok == false {
+                arc = 1
+            }
         }
         fs.delete(tarTmp)
         fs.dirDeleteAll(bare)
@@ -234,7 +264,9 @@ public class GitFetcher {
         int rc = 0
         string raw = fly.driver.captureArgs("git", la, rc)
         proc.argsFree(la)
-        if str.isEmpty(raw) { return "" }
+        if str.isEmpty(raw) {
+            return ""
+        }
 
         string nl = fly.driver.nl()
         string res = ""
@@ -244,7 +276,9 @@ public class GitFetcher {
         while go && pos < n {
             int e = str.indexOf(str.substring(raw, pos, n), nl)
             int stop = n
-            if e >= 0 { stop = pos + e }
+            if e >= 0 {
+                stop = pos + e
+            }
             string line = str.substring(raw, pos, stop)
             // field 2 is whatever follows the first tab (git separates hash and ref
             // with a tab; a space-tolerant split would also swallow ref names).
@@ -260,7 +294,11 @@ public class GitFetcher {
                     }
                 }
             }
-            if e < 0 { go = false } else { pos = stop + 1 }
+            if e < 0 {
+                go = false
+            } else {
+                pos = stop + 1
+            }
         }
         return res
     }

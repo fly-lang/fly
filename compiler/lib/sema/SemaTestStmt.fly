@@ -15,7 +15,13 @@ public class SemaTestStmt : SemaStmt {
         super(SemaKind.STMT_TEST, ast)
     }
 
-    public SemaBlockStmt getBody() { return this.body }
-    public void setBody(const SemaBlockStmt body) { this.body = body }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public SemaBlockStmt getBody() {
+        return this.body
+    }
+    public void setBody(const SemaBlockStmt body) {
+        this.body = body
+    }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }

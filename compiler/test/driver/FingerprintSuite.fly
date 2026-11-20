@@ -20,8 +20,12 @@ import fly.assert
 // fpsTempDir — <OS temp>/<name>, mirroring BuilderSuite's temp resolution.
 string fpsTempDir(const string name) {
     string tmp = env.get("TMPDIR")
-    if str.isEmpty(tmp) { tmp = env.get("TEMP") }
-    if str.isEmpty(tmp) { tmp = "/tmp" }
+    if str.isEmpty(tmp) {
+        tmp = env.get("TEMP")
+    }
+    if str.isEmpty(tmp) {
+        tmp = "/tmp"
+    }
     return path.join(tmp, name)
 }
 

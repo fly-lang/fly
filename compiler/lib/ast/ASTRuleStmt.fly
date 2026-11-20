@@ -15,10 +15,20 @@ public class ASTRuleStmt : ASTStmt {
         super(loc, kind)
     }
 
-    public ASTExpr getExpr() { return this.expr }
-    public ASTStmt getStmt() { return this.stmt }
-    public void setExpr(const ASTExpr expr) { this.expr = expr }
-    public void setStmt(const ASTStmt stmt) { this.stmt = stmt }
+    public ASTExpr getExpr() {
+        return this.expr
+    }
+    public ASTStmt getStmt() {
+        return this.stmt
+    }
+    public void setExpr(const ASTExpr expr) {
+        this.expr = expr
+    }
+    public void setStmt(const ASTStmt stmt) {
+        this.stmt = stmt
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }

@@ -22,8 +22,6 @@ import fly.test.util.*
 // CGClassExtendsInterface, super calls.
 // ─────────────────────────────────────────────────────────────────────────────
 
-
-
 suite CodeGenInheritanceSuite {
 
     void overrideTest() {

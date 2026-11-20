@@ -49,7 +49,9 @@ public class SymbolTable {
                     if es.getKind() == SymbolKind.FUNCTION {
                         List<SemaType> esig = es.getParamTypes()
                         if newSig != null && esig != null {
-                            if signaturesEqual(esig, newSig) { dup = true }
+                            if signaturesEqual(esig, newSig) {
+                                dup = true
+                            }
                         }
                     }
                     i = i + 1
@@ -74,16 +76,24 @@ public class SymbolTable {
     }
 
     // getAllSymbols — every symbol stored directly in THIS scope (insertion order).
-    public List<Symbol> getAllSymbols() { return this.allSyms }
+    public List<Symbol> getAllSymbols() {
+        return this.allSyms
+    }
 
-    public void addChild(const SymbolTable child) { this.children.add(child) }
+    public void addChild(const SymbolTable child) {
+        this.children.add(child)
+    }
 
-    public int size() { return (int)this.table.size() }
+    public int size() {
+        return (int)this.table.size()
+    }
 
     // lookup — symbols for Name in THIS scope only (null if none).
     public List<Symbol> lookup(const string name) {
         List<Symbol> r = null
-        if this.table.has(name) { r = this.table.get(name) }
+        if this.table.has(name) {
+            r = this.table.get(name)
+        }
         return r
     }
 
@@ -115,7 +125,9 @@ public class SymbolTable {
                 }
                 i = i + 1
             }
-            if hasType { r = here }
+            if hasType {
+                r = here
+            }
         }
         if r == null && this.parent != null {
             r = this.parent.lookupTypeInParents(name)
@@ -132,7 +144,9 @@ public class SymbolTable {
             int i = 0
             while i < this.children.size() && r == null {
                 SymbolTable c = this.children.get(i)
-                if c != null { r = c.lookupInChildren(name) }
+                if c != null {
+                    r = c.lookupInChildren(name)
+                }
                 i = i + 1
             }
         }
@@ -146,6 +160,10 @@ public class SymbolTable {
         return child
     }
 
-    public SymbolTable getParent() { return this.parent }
-    public List<SymbolTable> getChildren() { return this.children }
+    public SymbolTable getParent() {
+        return this.parent
+    }
+    public List<SymbolTable> getChildren() {
+        return this.children
+    }
 }

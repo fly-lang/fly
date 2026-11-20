@@ -1,0 +1,329 @@
+namespace fly.driver
+
+import fly.compiler.parser.Parser
+import fly.compiler.basic.*
+import fly.compiler.ast.*
+import fly.data.List
+import fly.str
+import fly.os.io
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Formatter — the passes of `fly fmt` (see Format.fly), as methods: whether the
+// source parsed is the object's state, not an out-parameter, because the seed
+// still reads a function's last parameter as its return slot in some shapes and
+// would not compile a `string f(…, bool ok)` at stage 1. New helpers go here as
+// methods too: one more top-level function in Format.fly made the seed (0.13.19)
+// lose the overloads of the functions already there ("no overload of 'lineEnding'
+// accepts these arguments"), whichever function it was.
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class Formatter {
+
+    bool ok
+
+    public Formatter() {
+        this.ok = true
+    }
+
+    public bool isOk() {
+        return this.ok
+    }
+
+    // format — the formatted text of `src`; `ok` false (and `src` returned)
+    // when it does not parse. Layout passes repeat until nothing moves: a pass only
+    // touches the OUTERMOST blocks that need it, so a one-liner nested in another
+    // is laid out by the next pass, from the indentation the first one gave it.
+    public string format(const string src) {
+        this.ok = true
+        // The lexer never sees a CR (the frontend reads sources in text mode), so
+        // the layout works on LF text and a CRLF file gets its CRLFs back at the end.
+        string crlfEol = crlfStr()
+        string lfEol = nl()
+        bool crlf = str.equals(lineEnding(src), crlfEol)
+        string cur = str.replace(src, crlfEol, lfEol)
+        int pass = 0
+        while pass < 16 {
+            string next = this.layoutPass(cur)
+            if this.ok == false {
+                return src
+            }
+            if str.equals(next, cur) {
+                break
+            }
+            cur = next
+            pass = pass + 1
+        }
+        // the seams the layout leaves where one-liners were expanded
+        int tpass = 0
+        while tpass < 8 {
+            string next = this.tidyPass(cur)
+            if this.ok == false {
+                return src
+            }
+            if str.equals(next, cur) {
+                break
+            }
+            cur = next
+            tpass = tpass + 1
+        }
+        cur = this.wrapPass(cur)
+        if this.ok == false {
+            return src
+        }
+        string tidy = tidyLines(cur)
+        if crlf {
+            return str.replace(tidy, lfEol, crlfEol)
+        }
+        return tidy
+    }
+
+    // layoutPass — one pass of statement placement (see format).
+    public string layoutPass(const string src) {
+        Parser p = new Parser(src)
+        p.setRecordBlocks(true)
+        p.parseModule("<fmt>")
+        if p.isSuccess() == false {
+            // say why: line:col and message of each parse error
+            StoringDiagnosticConsumer sink = p.getSink()
+            int di = 0
+            while di < sink.count() {
+                string at = str.concat(sink.getLine(di), str.concat(":", sink.getCol(di)))
+                io.printErrLn(str.concat(str.concat("  ", at), str.concat(": ", sink.getText(di))))
+                di = di + 1
+            }
+            this.ok = false
+            return src
+        }
+        List<ASTBlockStmt> blocks = p.getBlocks()
+        List<int> starts = p.getStmtStarts()
+        List<ASTBlockStmt> owners = p.getStmtBlocks()
+
+        // the blocks that need a line break somewhere
+        List<ASTBlockStmt> todo = new List<ASTBlockStmt>()
+        int bi = 0
+        while bi < blocks.size() {
+            ASTBlockStmt b = blocks.get(bi)
+            if blockNeedsLayout(src, b, starts, owners) {
+                todo.add(b)
+            }
+            bi = bi + 1
+        }
+
+        // edits of the outermost ones only: (offset, indent) — a line break, then
+        // `indent`, replacing the blanks just before `offset`
+        List<int> offs = new List<int>()
+        List<string> indents = new List<string>()
+        int ti = 0
+        while ti < todo.size() {
+            ASTBlockStmt b = todo.get(ti)
+            if isNestedIn(b, todo) == false {
+                int lb = b.getLoc().getOffset()
+                string base = lineIndent(src, lb)
+                string inner = str.concat(base, "    ")
+                int ci = 0
+                while ci < starts.size() {
+                    if owners.get(ci) == b {
+                        int so = starts.get(ci)
+                        if isFirstOnLine(src, so) == false {
+                            offs.add(so)
+                            indents.add(inner)
+                        }
+                    }
+                    ci = ci + 1
+                }
+                int rb = b.getEndLoc().getOffset()
+                if isFirstOnLine(src, rb) == false {
+                    offs.add(rb)
+                    indents.add(base)
+                }
+            }
+            ti = ti + 1
+        }
+        if offs.size() == 0 {
+            return src
+        }
+        return applyBreaks(src, offs, indents, lineEnding(src))
+    }
+
+    // tidyPass — fix, around every block, what expanding a one-liner leaves behind:
+    //   `}  // why`       the comment that ended the one-liner moves to the end of
+    //                     the `{` line (when that line ends with the `{`);
+    //   `}` / `elsif …`   an `elsif`/`else` alone after a `}` line joins it: `} elsif …`;
+    //   `f()    {`        the spaces that aligned one-liners collapse to one.
+    // Offsets come from the parsed blocks, so nothing inside a string literal moves.
+    // One edit per seam and pass; format repeats the pass until nothing changes.
+    public string tidyPass(const string src) {
+        Parser p = new Parser(src)
+        p.setRecordBlocks(true)
+        p.parseModule("<fmt>")
+        if p.isSuccess() == false {
+            this.ok = false
+            return src
+        }
+        List<ASTBlockStmt> blocks = p.getBlocks()
+        List<int> starts = new List<int>()
+        List<int> ends = new List<int>()
+        List<string> texts = new List<string>()
+        int bi = 0
+        while bi < blocks.size() {
+            ASTBlockStmt b = blocks.get(bi)
+            int lb = b.getLoc().getOffset()
+            int rb = b.getEndLoc().getOffset()
+            if this.byteIs(src, lb, 123) && this.byteIs(src, rb, 125) {
+                this.tidyBlock(src, lb, rb, starts, ends, texts)
+            }
+            bi = bi + 1
+        }
+        if starts.size() == 0 {
+            return src
+        }
+        return this.applyEdits(starts, ends, texts, src)
+    }
+
+    // tidyBlock — the edits tidyPass makes around the block `{` at lb, `}` at rb.
+    public void tidyBlock(const string src, const int lb, const int rb, const List<int> starts,
+            const List<int> ends, const List<string> texts) {
+        int n = str.len(src)
+        // spaces before `{`, on a line that has something before them
+        int ws = lb
+        while ws > 0 && isBlankAt(src, ws - 1, false) {
+            ws = ws - 1
+        }
+        if lb - ws > 1 && ws > 0 {
+            if this.byteIs(src, ws - 1, 10) == false {
+                starts.add(ws)
+                ends.add(lb)
+                texts.add(" ")
+            }
+        }
+        if isFirstOnLine(src, rb) == false {
+            return
+        }
+        int a = rb + 1
+        while a < n && isBlankAt(src, a, false) {
+            a = a + 1
+        }
+        if this.byteIs(src, a, 47) && this.byteIs(src, a + 1, 47) {
+            // `}  // why`: only when the `{` line ends with the `{`
+            int lbEnd = lineEndOf(src, lb)
+            int t = lb + 1
+            while t < lbEnd && isBlankAt(src, t, true) {
+                t = t + 1
+            }
+            if t == lbEnd {
+                int ce = lineEndOf(src, a)
+                string comment = str.substring(src, a, ce)
+                starts.add(rb + 1)
+                ends.add(ce)
+                texts.add("")
+                starts.add(lb + 1)
+                ends.add(lb + 1)
+                texts.add(str.concat(" ", comment))
+            }
+        } elsif this.byteIs(src, a, 10) {
+            // `}` then a line that starts with `elsif` / `else`
+            int w = a + 1
+            while w < n && isBlankAt(src, w, false) {
+                w = w + 1
+            }
+            if this.wordAt(src, w, "elsif") || this.wordAt(src, w, "else") {
+                starts.add(rb + 1)
+                ends.add(w)
+                texts.add(" ")
+            }
+        }
+    }
+
+    // wrapPass — break the parameter list of every declaration whose line is longer
+    // than 120 columns: after a comma, continuation indented 8 more than the line;
+    // if two lines are not enough, one parameter per line. Lists already spread over
+    // several lines are left as they are, and so is anything that is not a parameter
+    // list (a long call or string stays: breaking those is a judgement call).
+    public string wrapPass(const string src) {
+        Parser p = new Parser(src)
+        p.setRecordBlocks(true)
+        p.parseModule("<fmt>")
+        if p.isSuccess() == false {
+            this.ok = false
+            return src
+        }
+        List<int> starts = p.getParamStarts()
+        List<int> groups = p.getParamGroups()
+        List<int> offs = new List<int>()
+        List<string> indents = new List<string>()
+        int n = (int)starts.size()
+        int i = 0
+        while i < n {
+            int g = groups.get(i)
+            int j = i
+            while j < n && groups.get(j) == g {
+                j = j + 1
+            }
+            wrapParamList(src, starts, i, j, offs, indents)
+            i = j
+        }
+        if offs.size() == 0 {
+            return src
+        }
+        return applyBreaks(src, offs, indents, nl())
+    }
+
+    // byteIs — `s` has the byte `c` at `i` (false out of range).
+    public bool byteIs(const string s, const int i, const int c) {
+        if i < 0 || i >= str.len(s) {
+            return false
+        }
+        return (str.byteAt(s, i) & 255) == c
+    }
+
+    // wordAt — the keyword `word` starts at `off`: followed by a blank, `{` or a line
+    // end, so `elsif` is not `elsifx`.
+    public bool wordAt(const string s, const int off, const string word) {
+        int wl = str.len(word)
+        if off < 0 || off + wl > str.len(s) {
+            return false
+        }
+        if str.equals(str.substring(s, off, off + wl), word) == false {
+            return false
+        }
+        if off + wl == str.len(s) {
+            return true
+        }
+        int c = str.byteAt(s, off + wl) & 255
+        return c == 32 || c == 9 || c == 10 || c == 13 || c == 123
+    }
+
+    // applyEdits — replace src[starts[i], ends[i]) with texts[i] for every edit (any
+    // order in, none overlapping), highest start first so no edit shifts another.
+    // `src` comes LAST: the seed reads the last parameter of a `string f(…, List x)`
+    // as the hidden return slot (see Formatter), so a class type may not end the list.
+    public string applyEdits(const List<int> starts, const List<int> ends, const List<string> texts, const string src) {
+        int n = (int)starts.size()
+        List<bool> done = new List<bool>()
+        int k = 0
+        while k < n {
+            done.add(false)
+            k = k + 1
+        }
+        string out = src
+        int step = 0
+        while step < n {
+            int best = 0 - 1
+            int bestStart = 0 - 1
+            int j = 0
+            while j < n {
+                if done.get(j) == false && starts.get(j) > bestStart {
+                    best = j
+                    bestStart = starts.get(j)
+                }
+                j = j + 1
+            }
+            done.set(best, true)
+            string head = str.substring(out, 0, bestStart)
+            string tail = str.substring(out, ends.get(best), str.len(out))
+            out = str.concat(str.concat(head, texts.get(best)), tail)
+            step = step + 1
+        }
+        return out
+    }
+}

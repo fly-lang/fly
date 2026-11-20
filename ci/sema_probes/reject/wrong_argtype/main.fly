@@ -1,2 +1,6 @@
-int f(const int a) { return a }
-void main() { int x = f("s") }
+int f(const int a) {
+    return a
+}
+void main() {
+    int x = f("s")
+}

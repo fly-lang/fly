@@ -227,8 +227,12 @@ suite RegistryHandlerSuite {
             bool sawTwo = false
             int i = 0
             while i < names.size() {
-                if str.equals(names.get(i), "one.txt") { sawOne = true }
-                if str.equals(names.get(i), "two.txt") { sawTwo = true }
+                if str.equals(names.get(i), "one.txt") {
+                    sawOne = true
+                }
+                if str.equals(names.get(i), "two.txt") {
+                    sawTwo = true
+                }
                 i = i + 1
             }
             assert.assertTrue(sawOne, 602)

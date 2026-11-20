@@ -18,7 +18,13 @@ public class SemaUnary : SemaExpr {
         this.expr = expr
     }
 
-    public ASTUnary getAST() { return this.unaryAst }
-    public SemaExpr getExpr() { return this.expr }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public ASTUnary getAST() {
+        return this.unaryAst
+    }
+    public SemaExpr getExpr() {
+        return this.expr
+    }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }

@@ -63,17 +63,23 @@ public class RegResponse {
 // no '/', '\', NUL, no leading '.', and not '..'.
 public bool safeSegment(const string s) {
     int n = str.len(s)
-    if n == 0 { return false }
+    if n == 0 {
+        return false
+    }
     byte f = str.byteAt(s, 0)
     int fi = f
     fi = fi & 255
-    if fi == 46 { return false }             // leading '.'
+    if fi == 46 { // leading '.'
+        return false
+    }
     int i = 0
     while i < n {
         byte b = str.byteAt(s, i)
         int c = b
         c = c & 255
-        if c == 47 || c == 92 || c == 0 { return false }
+        if c == 47 || c == 92 || c == 0 {
+            return false
+        }
         i = i + 1
     }
     return true
@@ -84,7 +90,9 @@ public bool safeSegment(const string s) {
 public string urlDecode(const string s) {
     int e = 0
     string dec = codec.percentDecode(s, e)
-    if e != 0 { dec = s }
+    if e != 0 {
+        dec = s
+    }
     return str.replace(dec, "+", " ")
 }
 
@@ -98,7 +106,9 @@ public string jsonStringArray(const List<string> xs) {
     string s = "["
     int i = 0
     while i < xs.size() {
-        if i > 0 { s = str.concat(s, ",") }
+        if i > 0 {
+            s = str.concat(s, ",")
+        }
         s = str.concat(s, str.concat(q,
             str.concat(json.escape(xs.get(i)), q)))
         i = i + 1
@@ -111,7 +121,9 @@ public bool strLess(const string a, const string b) {
     int na = str.len(a)
     int nb = str.len(b)
     int n = na
-    if nb < n { n = nb }
+    if nb < n {
+        n = nb
+    }
     int i = 0
     while i < n {
         byte ba = 0
@@ -122,7 +134,9 @@ public bool strLess(const string a, const string b) {
         int cb = bb
         ca = ca & 255
         cb = cb & 255
-        if ca != cb { return ca < cb }
+        if ca != cb {
+            return ca < cb
+        }
         i = i + 1
     }
     return na < nb
@@ -137,7 +151,9 @@ public List<string> dirNames(const string dir) {
     List<string> names = new List<string>()
     fly.os.fs.DirEntries de = fs.dirRead(dir)
     pointer items = de.items
-    if items == 0 { return names }
+    if items == 0 {
+        return names
+    }
     long lenL = (long)de.len
     int n = 0
     fly.llvm.longToInt(lenL, n)
@@ -167,8 +183,12 @@ public class RegistryHandler {
         fs.dirCreateAll(storage, 493)
     }
 
-    public string getStorage() { return this.storage }
-    public bool requiresAuth() { return str.isEmpty(this.token) == false }
+    public string getStorage() {
+        return this.storage
+    }
+    public bool requiresAuth() {
+        return str.isEmpty(this.token) == false
+    }
 
     // ── storage layout ───────────────────────────────────────────────────────
 
@@ -187,8 +207,12 @@ public class RegistryHandler {
     // ── auth ─────────────────────────────────────────────────────────────────
 
     bool checkAuth(const string authHeader) {
-        if str.isEmpty(this.token) { return true }
-        if str.startsWith(authHeader, "Bearer ") == false { return false }
+        if str.isEmpty(this.token) {
+            return true
+        }
+        if str.startsWith(authHeader, "Bearer ") == false {
+            return false
+        }
         string got = str.substring(authHeader, 7, str.len(authHeader))
         return str.equals(got, this.token)
     }
@@ -202,26 +226,38 @@ public class RegistryHandler {
     // then answers 404, same as the reference.
     void extractManifest(const string name, const string version) {
         string tb = this.tarballPath(name, version)
-        if fs.exists(tb) == false { return }
+        if fs.exists(tb) == false {
+            return
+        }
         string raw = fs.readBytes(tb)
         int ge = 0
         string tarBytes = targz.gunzip(raw, ge)
-        if ge != 0 { return }
+        if ge != 0 {
+            return
+        }
         pointer h = targz.tarOpen(tarBytes)
-        if h == 0 { return }
+        if h == 0 {
+            return
+        }
         string found = ""
         bool go = true
         while go {
-            if targz.tarNext(h) == false { go = false } else {
+            if targz.tarNext(h) == false {
+                go = false
+            } else {
                 if targz.tarIsFile(h) {
                     string nm = targz.tarName(h)
                     bool hit = str.equals(nm, "Manifest.fly")
-                    if hit == false { hit = str.equals(nm, "./Manifest.fly") }
+                    if hit == false {
+                        hit = str.equals(nm, "./Manifest.fly")
+                    }
                     if hit == false {
                         // one component deep: <dir>/Manifest.fly
                         if str.endsWith(nm, "/Manifest.fly") {
                             int slashes = str.count(nm, "/")
-                            if slashes == 1 { hit = true }
+                            if slashes == 1 {
+                                hit = true
+                            }
                         }
                     }
                     if hit {
@@ -232,7 +268,9 @@ public class RegistryHandler {
             }
         }
         targz.tarFree(h)
-        if str.isEmpty(found) { return }
+        if str.isEmpty(found) {
+            return
+        }
         string vdir = path.join(this.pkgDir(name), version)
         fs.dirCreateAll(vdir, 493)
         fs.writeBytes(this.manifestPath(name, version), found, 420)
@@ -319,8 +357,12 @@ public class RegistryHandler {
                 string nm = entries.get(i)
                 if path.isDir(path.join(this.storage, nm)) {
                     bool take = str.isEmpty(query)
-                    if take == false { take = str.contains(nm, query) }
-                    if take { matches.add(nm) }
+                    if take == false {
+                        take = str.contains(nm, query)
+                    }
+                    if take {
+                        matches.add(nm)
+                    }
                 }
                 i = i + 1
             }
@@ -338,7 +380,9 @@ public class RegistryHandler {
             int best = i
             int k = i + 1
             while k < n {
-                if strLess(xs.get(k), xs.get(best)) { best = k }
+                if strLess(xs.get(k), xs.get(best)) {
+                    best = k
+                }
                 k = k + 1
             }
             if best != i {
@@ -364,7 +408,9 @@ public class RegistryHandler {
                 if pos >= 0 {
                     string tail = str.substring(query, pos + 2, str.len(query))
                     int amp = str.indexOf(tail, "&")
-                    if amp >= 0 { tail = str.substring(tail, 0, amp) }
+                    if amp >= 0 {
+                        tail = str.substring(tail, 0, amp)
+                    }
                     q = urlDecode(tail)
                 }
                 return this.search(q)
@@ -404,14 +450,20 @@ public class RegistryHandler {
             }
         }
         bool actionOk = str.isEmpty(action)
-        if actionOk == false { actionOk = str.equals(action, "download") }
+        if actionOk == false {
+            actionOk = str.equals(action, "download")
+        }
         if actionOk == false {
             return new RegResponse(404, "text/plain", "not found")
         }
 
         if str.equals(method, "GET") {
-            if str.isEmpty(version) { return this.listVersions(name) }
-            if str.isEmpty(action) { return this.getMetadata(name, version) }
+            if str.isEmpty(version) {
+                return this.listVersions(name)
+            }
+            if str.isEmpty(action) {
+                return this.getMetadata(name, version)
+            }
             return this.download(name, version)
         }
         if str.equals(method, "POST") {

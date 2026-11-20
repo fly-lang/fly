@@ -58,14 +58,18 @@ public void tls_recv(const pointer ctx, const pointer buf, const int n, long out
 // DECLARATION and the link would fail with "undefined symbol: tls_shutdown".
 // Every void primitive in this file therefore carries a real statement.
 public void tls_shutdown(const pointer ctx) {
-    if ctx == 0 { return }
+    if ctx == 0 {
+        return
+    }
 }
 
 // tls_free — release the session. Idempotent; ignores a null context. Does NOT
 // close the underlying socket, which belongs to the caller. (Non-empty body for
 // the same reason as tls_shutdown.)
 public void tls_free(const pointer ctx) {
-    if ctx == 0 { return }
+    if ctx == 0 {
+        return
+    }
 }
 
 // tls_last_error — the backend's last error code for this context, 0 when none.

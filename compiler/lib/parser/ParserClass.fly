@@ -21,17 +21,27 @@ public class ParserClass {
     public static ASTClass parse(const Parser p, const List<ASTModifier> mods) {
         SourceLocation loc = p.curLoc()
         ASTClassKind kind = ASTClassKind.CLASS
-        if p.curIsKw("interface") { kind = ASTClassKind.INTERFACE }
-        elsif p.curIsKw("struct") { kind = ASTClassKind.STRUCT }
-        elsif p.curIsKw("suite")  { kind = ASTClassKind.SUITE }
+        if p.curIsKw("interface") {
+            kind = ASTClassKind.INTERFACE
+        } elsif p.curIsKw("struct") {
+            kind = ASTClassKind.STRUCT
+        } elsif p.curIsKw("suite") {
+            kind = ASTClassKind.SUITE
+        }
         p.bump()  // class kind keyword
         string nm = ""
         SourceLocation nloc = p.curLoc()      // the NAME token, for setNameLoc
-        if p.curIsNamePart() { nm = p.curText()  p.bump() }
-        else { p.reportErr(DiagID.err_parser_identifier_expected) }
+        if p.curIsNamePart() {
+            nm = p.curText()
+            p.bump()
+        } else {
+            p.reportErr(DiagID.err_parser_identifier_expected)
+        }
         // generic type parameters: `class Box<T, U : Bound>`
         List<ASTType> typeParams = new List<ASTType>()
-        if p.curIsPunct("<") { typeParams = p.parseTypeParams() }
+        if p.curIsPunct("<") {
+            typeParams = p.parseTypeParams()
+        }
         // bases: ': Base (, Base)*'
         List<ASTType> bases = new List<ASTType>()
         if p.curIsPunct(":") {
@@ -40,20 +50,28 @@ public class ParserClass {
             while gb {
                 ASTType b = p.parseType()
                 bases.add(b)
-                if p.curIsPunct(",") { p.bump() }
-                else { gb = false }
+                if p.curIsPunct(",") {
+                    p.bump()
+                } else {
+                    gb = false
+                }
             }
         }
         ASTClass c = ASTBuilder.CreateClass(p.getModule(), loc, kind, nm, mods, bases)
         c.setNameLoc(nloc)
         List<ASTType> ctp = c.getTypeParams()
         int ti = 0
-        while ti < typeParams.size() { ctp.add(typeParams.get(ti))  ti = ti + 1 }
+        while ti < typeParams.size() {
+            ctp.add(typeParams.get(ti))
+            ti = ti + 1
+        }
         p.expectPunct("{")
         bool go = p.curIsPunct("}") == false && p.hadErr() == false
         while go {
             ParserClass.parseMember(p, c, nm)
-            if p.curIsPunct("}") || p.curIsEof() || p.hadErr() { go = false }
+            if p.curIsPunct("}") || p.curIsEof() || p.hadErr() {
+                go = false
+            }
         }
         // The closing brace, BEFORE consuming it: with getLoc() it delimits the
         // class's own text, which HeaderGen slices to ship a generic template.
@@ -72,7 +90,9 @@ public class ParserClass {
             List<ASTParam> params = p.parseParams()
             ASTBlockStmt cbody = null
             p.beginBody()
-            if p.curIsPunct("{") { cbody = p.parseBlock() }
+            if p.curIsPunct("{") {
+                cbody = p.parseBlock()
+            }
             ASTMethod ctor = ASTBuilder.CreateClassMethod(loc, c, className, mmods, params, cbody)
             p.endBody(ctor)
             return
@@ -81,13 +101,20 @@ public class ParserClass {
         ASTType ty = p.parseType()
         string nm = ""
         SourceLocation nloc = p.curLoc()      // the NAME token, for setNameLoc
-        if p.curIsNamePart() { nm = p.curText()  p.bump() }
-        else { p.reportErr(DiagID.err_parser_identifier_expected)  return }
+        if p.curIsNamePart() {
+            nm = p.curText()
+            p.bump()
+        } else {
+            p.reportErr(DiagID.err_parser_identifier_expected)
+            return
+        }
         if p.curIsPunct("(") {
             List<ASTParam> params = p.parseParams()
             ASTBlockStmt mbody = null
             p.beginBody()
-            if p.curIsPunct("{") { mbody = p.parseBlock() }
+            if p.curIsPunct("{") {
+                mbody = p.parseBlock()
+            }
             ASTMethod meth = ASTBuilder.CreateClassMethod(loc, c, nm, mmods, params, mbody)
             p.endBody(meth)
             meth.setReturnType(ty)

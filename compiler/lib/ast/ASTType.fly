@@ -42,17 +42,27 @@ public class ASTType : ASTNode {
         this.typeKind = typeKind
     }
 
-    public ASTTypeKind getTypeKind() { return this.typeKind }
+    public ASTTypeKind getTypeKind() {
+        return this.typeKind
+    }
 
     // asTypeParam — narrow to ASTTypeParam without a downcast: the base returns
     // null; ASTTypeParam overrides it to return `this`.
-    public ASTTypeParam asTypeParam() { return null }
+    public ASTTypeParam asTypeParam() {
+        return null
+    }
     // asBuiltinType / asNamedType — same narrowing pattern, used by the header generator
     // to print a type (builtin keyword vs qualified name + generic args).
-    public ASTBuiltinType asBuiltinType() { return null }
-    public ASTNamedType asNamedType() { return null }
+    public ASTBuiltinType asBuiltinType() {
+        return null
+    }
+    public ASTNamedType asNamedType() {
+        return null
+    }
     // Appended LAST so existing vtable slots do not shift.
-    public ASTArrayType asArrayType() { return null }
+    public ASTArrayType asArrayType() {
+        return null
+    }
 }
 
 public class ASTBuiltinType : ASTType {
@@ -64,10 +74,16 @@ public class ASTBuiltinType : ASTType {
         this.builtinKind = builtinKind
     }
 
-    public ASTBuiltinTypeKind getBuiltinKind() { return this.builtinKind }
-    public ASTBuiltinType asBuiltinType() { return this }
+    public ASTBuiltinTypeKind getBuiltinKind() {
+        return this.builtinKind
+    }
+    public ASTBuiltinType asBuiltinType() {
+        return this
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }
 
 public class ASTNamedType : ASTType {
@@ -81,12 +97,22 @@ public class ASTNamedType : ASTType {
         this.typeArgs = new List<ASTType>()
     }
 
-    public List<ASTName> getNames() { return this.names }
-    public List<ASTType> getTypeArgs() { return this.typeArgs }
-    public void addTypeArg(const ASTType t) { this.typeArgs.add(t) }
-    public ASTNamedType asNamedType() { return this }
+    public List<ASTName> getNames() {
+        return this.names
+    }
+    public List<ASTType> getTypeArgs() {
+        return this.typeArgs
+    }
+    public void addTypeArg(const ASTType t) {
+        this.typeArgs.add(t)
+    }
+    public ASTNamedType asNamedType() {
+        return this
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }
 
 public class ASTTypeParam : ASTType {
@@ -99,12 +125,20 @@ public class ASTTypeParam : ASTType {
         this.name = name
     }
 
-    public string getName() { return this.name }
-    public ASTType getBound() { return this.bound }
+    public string getName() {
+        return this.name
+    }
+    public ASTType getBound() {
+        return this.bound
+    }
 
-    public ASTTypeParam asTypeParam() { return this }
+    public ASTTypeParam asTypeParam() {
+        return this
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }
 
 public class ASTArrayType : ASTType {
@@ -118,9 +152,17 @@ public class ASTArrayType : ASTType {
         this.size = size
     }
 
-    public ASTType getElementType() { return this.elementType }
-    public ASTExpr getSizeExpr() { return this.size }
-    public ASTArrayType asArrayType() { return this }
+    public ASTType getElementType() {
+        return this.elementType
+    }
+    public ASTExpr getSizeExpr() {
+        return this.size
+    }
+    public ASTArrayType asArrayType() {
+        return this
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }

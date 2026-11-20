@@ -43,8 +43,15 @@ serve_one() {
         tries=$((tries+1))
     done
     if [ "$port" -eq 0 ]; then kill "$pid" 2>/dev/null; echo "  FAIL  server never reported a port"; failed=1; return 1; fi
-    # nc talks raw bytes both ways; -q1 closes after EOF on stdin.
-    nc -q1 127.0.0.1 "$port" < "$reqf" > "$respf"
+    # nc talks raw bytes both ways. Debian's netcat needs -q1 to close after EOF
+    # on stdin; macOS's has no -q, and needs none: the request says
+    # `Connection: close`, so nc exits when the server closes. If nc fails, the
+    # --once server never gets its request: kill it rather than wait forever.
+    local ncq="-q1"
+    [ "$(uname -s)" = "Darwin" ] && ncq=""
+    if ! nc $ncq 127.0.0.1 "$port" < "$reqf" > "$respf"; then
+        kill "$pid" 2>/dev/null
+    fi
     wait "$pid" 2>/dev/null
     return 0
 }

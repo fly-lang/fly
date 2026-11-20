@@ -32,7 +32,9 @@ public class ResolverDecl {
             while gi < gtp.size() {
                 ASTType gt = gtp.get(gi)
                 ASTTypeParam gp = gt.asTypeParam()
-                if gp != null { fn.addTypeParam(new SemaTypeParam(gp.getName())) }
+                if gp != null {
+                    fn.addTypeParam(new SemaTypeParam(gp.getName()))
+                }
                 gi = gi + 1
             }
             Registry regg = r.getReg()
@@ -83,7 +85,11 @@ public class ResolverDecl {
                 SymbolTable fscope = fb.getSymbols()
                 List<Symbol> already = fscope.lookupInParents(ftp.getName())
                 bool have = false
-                if already != null { if already.size() > 0 { have = true } }
+                if already != null {
+                    if already.size() > 0 {
+                        have = true
+                    }
+                }
                 if have == false {
                     SemaTypeParam fsp = new SemaTypeParam(ftp.getName())
                     Symbol fpsym = new Symbol(ftp.getName(), SymbolKind.CLASS, fsp)
@@ -113,7 +119,9 @@ public class ResolverDecl {
             SemaType rtt = r.getCurrentType()
             fb.setReturnType(rtt)
             bool isVoidRet = false
-            if rtt != null { isVoidRet = rtt.isVoid() }
+            if rtt != null {
+                isVoidRet = rtt.isVoid()
+            }
             // `main` is the entry point and must be `void main()`: its exit code is
             // decided by the error protocol — 0 when the program ends clean, the
             // unhandled error's code otherwise — never by `out`. Giving it a return
@@ -123,7 +131,9 @@ public class ResolverDecl {
             // test suites) walks that half-built signature straight into an AV.
             bool mainBadRet = false
             if isVoidRet == false {
-                if str.equals(node.getName(), "main") { mainBadRet = true }
+                if str.equals(node.getName(), "main") {
+                    mainBadRet = true
+                }
             }
             if mainBadRet {
                 r.diag(node.getLoc(), DiagID.err_sema_main_with_return)
@@ -153,7 +163,9 @@ public class ResolverDecl {
             // diagnose and fall through rather than returning.
             bool mainMulti = false
             if rts.size() > 0 {
-                if str.equals(node.getName(), "main") { mainMulti = true }
+                if str.equals(node.getName(), "main") {
+                    mainMulti = true
+                }
             }
             if mainMulti {
                 r.diag(node.getLoc(), DiagID.err_sema_main_with_return)
@@ -178,7 +190,9 @@ public class ResolverDecl {
         }
 
         Symbol sym = fb.getDeclSymbol()
-        if sym != null { sym.setParamTypes(fb.getParamTypes()) }
+        if sym != null {
+            sym.setParamTypes(fb.getParamTypes())
+        }
     }
 
     // ── NRVO ─────────────────────────────────────────────────────────────────
@@ -189,9 +203,13 @@ public class ResolverDecl {
     // second walk over the tree is needed; the name must be declared exactly once,
     // so no shadowed declaration can be mistaken for it.
     public static string findNrvoName(const SemaFunctionBase fb) {
-        if fb.getOutParamCount() != 1 { return "" }
+        if fb.getOutParamCount() != 1 {
+            return ""
+        }
         SemaType rt = fb.getReturnType()
-        if rt == null { return "" }
+        if rt == null {
+            return ""
+        }
         // STRUCT and STRING are the two shapes a callee fills in place. A class
         // return travels as a handle the caller allocates, an array carries a
         // reference count, and a primitive gains nothing from the binding.
@@ -199,24 +217,38 @@ public class ResolverDecl {
         if eligible == false {
             SemaClassType ct = rt.asClass()
             if ct != null {
-                if ct.getClassKind() == SemaClassKind.STRUCT { eligible = true }
+                if ct.getClassKind() == SemaClassKind.STRUCT {
+                    eligible = true
+                }
             }
         }
-        if eligible == false { return "" }
+        if eligible == false {
+            return ""
+        }
 
         ASTFunction af = fb.getAST()
-        if af == null { return "" }
+        if af == null {
+            return ""
+        }
         List<ASTReturnStmt> returns = af.getReturnStmts()
-        if returns.size() == 0 { return "" }
+        if returns.size() == 0 {
+            return ""
+        }
 
         string name = ""
         int i = 0
         while i < returns.size() {
             List<ASTExpr> values = returns.get(i).getExprs()
-            if values.size() != 1 { return "" }
+            if values.size() != 1 {
+                return ""
+            }
             ASTIdentifier id = values.get(0).asIdentifier()
-            if id == null { return "" }
-            if id.getParent() != null { return "" }
+            if id == null {
+                return ""
+            }
+            if id.getParent() != null {
+                return ""
+            }
             if str.equals(name, "") {
                 name = id.getName()
             } elsif str.equals(name, id.getName()) == false {
@@ -231,10 +263,14 @@ public class ResolverDecl {
         int seen = 0
         int j = 0
         while j < locals.size() {
-            if str.equals(locals.get(j), name) { seen = seen + 1 }
+            if str.equals(locals.get(j), name) {
+                seen = seen + 1
+            }
             j = j + 1
         }
-        if seen != 1 { return "" }
+        if seen != 1 {
+            return ""
+        }
         return name
     }
 
@@ -254,14 +290,18 @@ public class ResolverDecl {
             SemaClassType mc = m.getClass()
             if mc != null {
                 SemaModule cm = mc.getModule()
-                if cm != null { r.setCurrentModule(cm) }
+                if cm != null {
+                    r.setCurrentModule(cm)
+                }
             }
         } else {
             r.setCurrentClass(null)
             SemaFunction ff = fb.asFunction()
             if ff != null {
                 SemaModule fm = ff.getModule()
-                if fm != null { r.setCurrentModule(fm) }
+                if fm != null {
+                    r.setCurrentModule(fm)
+                }
             }
         }
         ASTFunction af = fb.getAST()

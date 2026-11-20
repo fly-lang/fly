@@ -28,20 +28,40 @@ public class TextDiagnosticBuffer : DiagnosticConsumer {
         string text = diag.getRendered()
         this.all.add(text)
         DiagLevel level = diag.getLevel()
-        if level == DiagLevel.Error || level == DiagLevel.Fatal { this.errors.add(text) }
-        elsif level == DiagLevel.Warning { this.warnings.add(text) }
-        elsif level == DiagLevel.Note { this.notes.add(text) }
+        if level == DiagLevel.Error || level == DiagLevel.Fatal {
+            this.errors.add(text)
+        } elsif level == DiagLevel.Warning {
+            this.warnings.add(text)
+        } elsif level == DiagLevel.Note {
+            this.notes.add(text)
+        }
     }
 
     // flushTo — replay every buffered diagnostic to another consumer (the C++
     // FlushDiagnostics drives a DiagnosticsEngine; we forward the stored Diagnostics'
     // rendered text). Kept minimal: replays nothing structurally, callers read lists.
-    public int errorCount()   { return (int)this.errors.size() }
-    public int warningCount() { return (int)this.warnings.size() }
-    public int noteCount()    { return (int)this.notes.size() }
-    public int count()        { return (int)this.all.size() }
-    public string getError(const int i)   { return this.errors.get(i) }
-    public string getWarning(const int i) { return this.warnings.get(i) }
-    public string getNote(const int i)    { return this.notes.get(i) }
-    public string get(const int i)        { return this.all.get(i) }
+    public int errorCount() {
+        return (int)this.errors.size()
+    }
+    public int warningCount() {
+        return (int)this.warnings.size()
+    }
+    public int noteCount() {
+        return (int)this.notes.size()
+    }
+    public int count() {
+        return (int)this.all.size()
+    }
+    public string getError(const int i) {
+        return this.errors.get(i)
+    }
+    public string getWarning(const int i) {
+        return this.warnings.get(i)
+    }
+    public string getNote(const int i) {
+        return this.notes.get(i)
+    }
+    public string get(const int i) {
+        return this.all.get(i)
+    }
 }

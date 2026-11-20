@@ -55,8 +55,12 @@ public bool equalsIgnoreCase(const string a, const string b) {
         fly.llvm.strByteAt(b, i, bb)
         int ica = ba
         int icb = bb
-        if ica >= 65 && ica <= 90 { ica = ica + 32 }
-        if icb >= 65 && icb <= 90 { icb = icb + 32 }
+        if ica >= 65 && ica <= 90 {
+            ica = ica + 32
+        }
+        if icb >= 65 && icb <= 90 {
+            icb = icb + 32
+        }
         if ica != icb {
             eq = false
             i = sa
@@ -177,7 +181,9 @@ public int lastIndexOf(const string src, const string sub) {
             }
             j = j + 1
         }
-        if match { found = i }
+        if match {
+            found = i
+        }
         i = i + 1
     }
     return found
@@ -267,7 +273,9 @@ public string toUpper(const string src) {
         byte b = 0
         fly.llvm.strByteAt(src, i, b)
         int ib = b
-        if ib >= 97 && ib <= 122 { ib = ib - 32 }
+        if ib >= 97 && ib <= 122 {
+            ib = ib - 32
+        }
         fly.llvm.strPoke(buf, i, ib)
         i = i + 1
     }
@@ -286,7 +294,9 @@ public string toLower(const string src) {
         byte b = 0
         fly.llvm.strByteAt(src, i, b)
         int ib = b
-        if ib >= 65 && ib <= 90 { ib = ib + 32 }
+        if ib >= 65 && ib <= 90 {
+            ib = ib + 32
+        }
         fly.llvm.strPoke(buf, i, ib)
         i = i + 1
     }
@@ -303,16 +313,22 @@ public string trim(const string src) {
     byte b = 0
     // guard the first read like trimLeft/trimRight: an EMPTY heap string may
     // have no readable byte 0, and an unguarded strByteAt segfaults on it
-    if lo < hi { fly.llvm.strByteAt(src, lo, b) }
+    if lo < hi {
+        fly.llvm.strByteAt(src, lo, b)
+    }
     while lo < hi && (b == 32 || b == 9 || b == 10 || b == 13) {
         lo = lo + 1
-        if lo < hi { fly.llvm.strByteAt(src, lo, b) }
+        if lo < hi {
+            fly.llvm.strByteAt(src, lo, b)
+        }
     }
     if hi > lo {
         fly.llvm.strByteAt(src, hi - 1, b)
         while hi > lo && (b == 32 || b == 9 || b == 10 || b == 13) {
             hi = hi - 1
-            if hi > lo { fly.llvm.strByteAt(src, hi - 1, b) }
+            if hi > lo {
+                fly.llvm.strByteAt(src, hi - 1, b)
+            }
         }
     }
     int len = hi - lo
@@ -334,10 +350,14 @@ public string trimLeft(const string src) {
     fly.llvm.strSize(src, size)
     int lo = 0
     byte b = 0
-    if lo < size { fly.llvm.strByteAt(src, lo, b) }
+    if lo < size {
+        fly.llvm.strByteAt(src, lo, b)
+    }
     while lo < size && (b == 32 || b == 9 || b == 10 || b == 13) {
         lo = lo + 1
-        if lo < size { fly.llvm.strByteAt(src, lo, b) }
+        if lo < size {
+            fly.llvm.strByteAt(src, lo, b)
+        }
     }
     int len = size - lo
     pointer buf = 0
@@ -362,7 +382,9 @@ public string trimRight(const string src) {
         fly.llvm.strByteAt(src, hi - 1, b)
         while hi > 0 && (b == 32 || b == 9 || b == 10 || b == 13) {
             hi = hi - 1
-            if hi > 0 { fly.llvm.strByteAt(src, hi - 1, b) }
+            if hi > 0 {
+                fly.llvm.strByteAt(src, hi - 1, b)
+            }
         }
     }
     pointer buf = 0
@@ -383,9 +405,15 @@ public string substring(const string src, const int start, const int end) {
     fly.llvm.strSize(src, size)
     int s = start
     int e = end
-    if s < 0 { s = 0 }
-    if e > size { e = size }
-    if s > e { s = e }
+    if s < 0 {
+        s = 0
+    }
+    if e > size {
+        e = size
+    }
+    if s > e {
+        s = e
+    }
     int len = e - s
     pointer buf = 0
     fly.runtime.mem_alloc(len, buf)
@@ -418,7 +446,9 @@ public string repeat(const string src, const int count) {
     // computed in int it wrapped to a small or negative size — a short buffer
     // the copy loop below then overran. Empty is the answer, not a crash.
     long total = (long)size * (long)count
-    if total > 2147483647 { return res }
+    if total > 2147483647 {
+        return res
+    }
     int newSize = (int)total
     pointer buf = 0
     fly.runtime.mem_alloc(newSize, buf)
@@ -487,7 +517,9 @@ public string replace(const string src, const string from, const string to) {
     byte b = 0
     while ri < ss {
         bool match = true
-        if ri + fs > ss { match = false }
+        if ri + fs > ss {
+            match = false
+        }
         if match {
             int j = 0
             while j < fs {
@@ -531,7 +563,9 @@ public string convert(const int src) {
     // fit an int, so negating a negative input first left INT_MIN unchanged, the
     // digit loop never ran and the result was a bare "-".
     int n = src
-    if n > 0 { n = 0 - n }
+    if n > 0 {
+        n = 0 - n
+    }
     // One buffer, filled back to front and handed to the string as it is: the old
     // scratch-then-copy version leaked the scratch on every call.
     pointer buf = 0
@@ -575,7 +609,9 @@ public string convertL(const long src) {
     // Same scheme as convert: a negative accumulator (LONG_MIN has no positive
     // counterpart) and a single buffer that becomes the string.
     long n = src
-    if n > 0 { n = 0 - n }
+    if n > 0 {
+        n = 0 - n
+    }
     pointer buf = 0
     fly.runtime.mem_alloc(21, buf)                    // "-9223372036854775808" is 20 bytes
     int len = 0

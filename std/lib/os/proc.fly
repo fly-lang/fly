@@ -65,7 +65,9 @@ public pointer argsNew() {
 
 // argsAdd — append a copy of 'a' to the ArgList, growing if needed.
 public void argsAdd(const pointer h, const string a) {
-    if h == 0 { return }
+    if h == 0 {
+        return
+    }
     pointer items = mem.readPtr(h, 0)
     int count = mem.readInt(h, 8)
     int cap = mem.readInt(h, 12)
@@ -176,13 +178,17 @@ public int execCapture(const string path, const pointer h, const string outPath)
 
 // argsFree — release an ArgList and every C-string it owns.
 public void argsFree(const pointer h) {
-    if h == 0 { return }
+    if h == 0 {
+        return
+    }
     pointer items = mem.readPtr(h, 0)
     int count = mem.readInt(h, 8)
     int i = 0
     while i < count {
         pointer cs = mem.readPtr(items, i * 8)
-        if cs != 0 { fly.runtime.mem_free(cs, 0) }
+        if cs != 0 {
+            fly.runtime.mem_free(cs, 0)
+        }
         i = i + 1
     }
     fly.runtime.mem_free(items, 0)

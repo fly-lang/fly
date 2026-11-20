@@ -33,8 +33,12 @@ import fly.llvm
 // tmpPath — a fresh temporary file path under the platform temp dir.
 public string tmpPath(const string tag) {
     string tmpdir = env.get("TMPDIR")
-    if str.isEmpty(tmpdir) { tmpdir = env.get("TEMP") }
-    if str.isEmpty(tmpdir) { tmpdir = "." }
+    if str.isEmpty(tmpdir) {
+        tmpdir = env.get("TEMP")
+    }
+    if str.isEmpty(tmpdir) {
+        tmpdir = "."
+    }
     string d = fs.tempDir(tmpdir, tag)
     return str.concat(d, "/out")
 }
@@ -63,18 +67,21 @@ public int runArgs(const string prog, const pointer h) {
 // trimTrailingNewline — drop a single trailing '\n'/'\r\n' (command output tidy).
 public string trimTrailingNewline(const string s) {
     int n = str.len(s)
-    if n == 0 { return s }
+    if n == 0 {
+        return s
+    }
     byte last = str.byteAt(s, n - 1)
     if last == 10 {
         n = n - 1
         if n > 0 {
             byte prev = str.byteAt(s, n - 1)
-            if prev == 13 { n = n - 1 }
+            if prev == 13 {
+                n = n - 1
+            }
         }
     }
     return str.substring(s, 0, n)
 }
-
 
 // ── checksum — forwarders to fly.hash ─────────────────────────────────────────
 // The SHA-256 implementation MOVED to std/lib/hash.fly. It only ever lived here
@@ -127,4 +134,3 @@ public string nl() {
     fly.llvm.strMake(buf, 1, s)
     return s
 }
-

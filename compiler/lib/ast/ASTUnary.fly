@@ -25,9 +25,17 @@ public class ASTUnary : ASTExpr {
         this.expr = expr
     }
 
-    public SourceLocation getOpLocation() { return this.getLoc() }
-    public ASTUnaryKind getOpKind() { return this.opKind }
-    public ASTExpr getExpr() { return this.expr }
+    public SourceLocation getOpLocation() {
+        return this.getLoc()
+    }
+    public ASTUnaryKind getOpKind() {
+        return this.opKind
+    }
+    public ASTExpr getExpr() {
+        return this.expr
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }

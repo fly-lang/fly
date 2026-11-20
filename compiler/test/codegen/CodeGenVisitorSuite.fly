@@ -18,16 +18,27 @@ import fly.assert
 public class Probe : SemaVisitor {
     bool declSeen
     bool intSeen
-    public Probe() { this.declSeen = false  this.intSeen = false }
-    public bool getDeclSeen() { return this.declSeen }
-    public bool getIntSeen() { return this.intSeen }
+    public Probe() {
+        this.declSeen = false
+        this.intSeen = false
+    }
+    public bool getDeclSeen() {
+        return this.declSeen
+    }
+    public bool getIntSeen() {
+        return this.intSeen
+    }
 
     public void visit(const SemaDeclStmt node) {
         this.declSeen = true
         SemaExpr e = node.getExpr()
-        if e != null { e.accept(this) }
+        if e != null {
+            e.accept(this)
+        }
     }
-    public void visit(const SemaIntValue node) { this.intSeen = true }
+    public void visit(const SemaIntValue node) {
+        this.intSeen = true
+    }
 
     public void visit(const SemaBlockStmt node) { }
     public void visit(const SemaExprStmt node) { }

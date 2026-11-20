@@ -38,17 +38,23 @@ public class ResolverStmt {
                 r.diag(s.getLoc(), DiagID.err_sema_unreachable_code)
                 afterReturn = false
             }
-            if s.getStmtKind() == ASTStmtKind.STMT_RETURN { afterReturn = true }
+            if s.getStmtKind() == ASTStmtKind.STMT_RETURN {
+                afterReturn = true
+            }
             r.setStmtExits(false)
             s.accept(r)
-            if r.getStmtExits() { anyExit = true }
+            if r.getStmtExits() {
+                anyExit = true
+            }
             // A bare nested `{ }` block (scoping block, braced switch-case body)
             // resolves into r.lastBlock but attaches itself NOWHERE — every other
             // statement kind appends to currentSemaBlock in its own visit. Adopt
             // it here, or its statements silently vanish (B021).
             if s.getStmtKind() == ASTStmtKind.STMT_BLOCK {
                 SemaBlockStmt child = r.getLastBlock()
-                if child != null { blk.addContent(child) }
+                if child != null {
+                    blk.addContent(child)
+                }
             }
             i = i + 1
         }
@@ -65,7 +71,9 @@ public class ResolverStmt {
         SemaLocalVar slv = r.getCurrentLocalVar()
         // NRVO: this is the local every return hands back, so it lives in the
         // caller's return slot instead of a stack slot of its own.
-        if str.equals(r.getNrvoName(), lv.getName()) { slv.setReturnSlot(true) }
+        if str.equals(r.getNrvoName(), lv.getName()) {
+            slv.setReturnSlot(true)
+        }
         Symbol sym = new Symbol(lv.getName(), SymbolKind.LOCAL_VAR, slv)
         sym.setExprRef(slv)
         // An explicit declaration may shadow an OUTER scope, never redeclare a
@@ -116,7 +124,9 @@ public class ResolverStmt {
                         // takes its elements from the literal.
                         SemaType det = dat.getElementType()
                         SemaClassType dec = null
-                        if det != null { dec = det.asClass() }
+                        if det != null {
+                            dec = det.asClass()
+                        }
                         if dec != null {
                             if dec.getClassKind() != SemaClassKind.STRUCT {
                                 if dec.getDefaultConstructor() == null {
@@ -166,16 +176,22 @@ public class ResolverStmt {
         // An NRVO local owns nothing: its storage IS the caller's return slot, so
         // the buffer it ends up holding belongs to the caller. Registering it for
         // scope-exit free would release the value we just returned.
-        if slv.isReturnSlot() { svt = null }
+        if slv.isReturnSlot() {
+            svt = null
+        }
         if svt != null {
-            if svt.isString() { blk.addAlloc(slv) }
+            if svt.isString() {
+                blk.addAlloc(slv)
+            }
             // An ARRAY local is an OWNER of its reference-counted buffer: register
             // it for a scope-exit release. Independent of the initializer, exactly
             // like a string — an uninitialized array is {null,0} and the release is
             // null-guarded. Binding another array retains (CodeGenStmt.decl /
             // CodeGenExprOps.assign), so two names mean a count of two and two
             // releases; the buffer goes back when the last one leaves.
-            if svt.isArray() { blk.addAlloc(slv) }
+            if svt.isArray() {
+                blk.addAlloc(slv)
+            }
         }
     }
 
@@ -242,12 +258,16 @@ public class ResolverStmt {
     public static List<SemaParam> returnParamsOf(const Resolver r) {
         List<SemaParam> res = new List<SemaParam>()
         SemaFunctionBase fn = r.getCurrentFunction()
-        if fn == null { return res }
+        if fn == null {
+            return res
+        }
         List<SemaParam> params = fn.getParams()
         int i = 0
         while i < params.size() {
             SemaParam p = params.get(i)
-            if p.isSynthetic() { res.add(p) }
+            if p.isSynthetic() {
+                res.add(p)
+            }
             i = i + 1
         }
         return res
@@ -257,10 +277,16 @@ public class ResolverStmt {
     // body hands back, and that local was bound to the return slot.
     public static bool isNrvoName(const Resolver r, const ASTExpr value) {
         string nrvo = r.getNrvoName()
-        if str.equals(nrvo, "") { return false }
+        if str.equals(nrvo, "") {
+            return false
+        }
         ASTIdentifier id = value.asIdentifier()
-        if id == null { return false }
-        if id.getParent() != null { return false }
+        if id == null {
+            return false
+        }
+        if id.getParent() != null {
+            return false
+        }
         return str.equals(id.getName(), nrvo)
     }
 
@@ -310,7 +336,9 @@ public class ResolverStmt {
             checkCondition(r, ec.getLoc(), ecExpr)
             ASTStmt eStmt = e.getStmt()
             SemaBlockStmt eBlk = ResolverStmt.resolveBlock(r, eStmt)
-            if r.getStmtExits() == false { allExit = false }
+            if r.getStmtExits() == false {
+                allExit = false
+            }
             sif.addElsif(ecExpr, eBlk)
             i = i + 1
         }
@@ -320,12 +348,16 @@ public class ResolverStmt {
             allExit = false
         } else {
             SemaBlockStmt elseBlk = ResolverStmt.resolveBlock(r, elseAst)
-            if r.getStmtExits() == false { allExit = false }
+            if r.getStmtExits() == false {
+                allExit = false
+            }
             sif.setElse(elseBlk)
         }
 
         SemaBlockStmt blk = r.getCurrentSemaBlock()
-        if blk != null { blk.addContent(sif) }
+        if blk != null {
+            blk.addContent(sif)
+        }
         r.setStmtExits(allExit)
     }
 
@@ -356,7 +388,9 @@ public class ResolverStmt {
                 ssw.addCase(cExpr, null)
             } else {
                 SemaBlockStmt cBlk = ResolverStmt.resolveBlock(r, cs)
-                if r.getStmtExits() == false { allExit = false }
+                if r.getStmtExits() == false {
+                    allExit = false
+                }
                 ssw.addCase(cExpr, cBlk)
             }
             i = i + 1
@@ -367,13 +401,17 @@ public class ResolverStmt {
             allExit = false
         } else {
             SemaBlockStmt dBlk = ResolverStmt.resolveBlock(r, def)
-            if r.getStmtExits() == false { allExit = false }
+            if r.getStmtExits() == false {
+                allExit = false
+            }
             ssw.setDefault(dBlk)
         }
 
         r.exitSwitch()
         SemaBlockStmt blk = r.getCurrentSemaBlock()
-        if blk != null { blk.addContent(ssw) }
+        if blk != null {
+            blk.addContent(ssw)
+        }
         r.setSawBreak(prevBreak)
         r.setStmtExits(allExit)
     }
@@ -388,12 +426,20 @@ public class ResolverStmt {
         SemaBlockStmt initCap = ResolverStmt.captureStmts(r, init)
         List<SemaStmt> initC = initCap.getContent()
         int i = 0
-        while i < initC.size() { slp.addInit(initC.get(i))  i = i + 1 }
+        while i < initC.size() {
+            slp.addInit(initC.get(i))
+            i = i + 1
+        }
 
         ASTExpr ce = node.getExpr()
         SemaExpr cond = null
-        if ce != null { ce.accept(r)  cond = r.getCurrentExpr() }
-        if ce != null { checkCondition(r, ce.getLoc(), cond) }
+        if ce != null {
+            ce.accept(r)
+            cond = r.getCurrentExpr()
+        }
+        if ce != null {
+            checkCondition(r, ce.getLoc(), cond)
+        }
         slp.setCond(cond)
 
         // An endless loop with no `break` of its own never falls through — the
@@ -403,7 +449,9 @@ public class ResolverStmt {
         ASTStmt body = node.getLoop()
         SemaBlockStmt bodyBlk = ResolverStmt.resolveBlock(r, body)
         bool loopExits = false
-        if node.hasEndlessCond() { loopExits = r.getSawBreak() == false }
+        if node.hasEndlessCond() {
+            loopExits = r.getSawBreak() == false
+        }
         r.setSawBreak(prevBreak)
         slp.setBody(bodyBlk)
 
@@ -411,12 +459,17 @@ public class ResolverStmt {
         SemaBlockStmt postCap = ResolverStmt.captureStmts(r, post)
         List<SemaStmt> postC = postCap.getContent()
         int j = 0
-        while j < postC.size() { slp.addPost(postC.get(j))  j = j + 1 }
+        while j < postC.size() {
+            slp.addPost(postC.get(j))
+            j = j + 1
+        }
 
         r.exitScope()
         r.exitLoop()
         SemaBlockStmt blk = r.getCurrentSemaBlock()
-        if blk != null { blk.addContent(slp) }
+        if blk != null {
+            blk.addContent(slp)
+        }
         r.setStmtExits(loopExits)
     }
 
@@ -442,7 +495,9 @@ public class ResolverStmt {
         ASTExpr lst = node.getList()
         lst.accept(r)
         SemaExpr listE = r.getCurrentExpr()
-        if listE == null { return }
+        if listE == null {
+            return
+        }
         SemaType lt = listE.getType()
 
         // A native array `T[]` iterates directly (no get()/size() methods) via a
@@ -456,10 +511,14 @@ public class ResolverStmt {
         }
 
         SemaClassType cls = null
-        if lt != null { cls = lt.asClass() }
+        if lt != null {
+            cls = lt.asClass()
+        }
         if cls == null {
             string tn = "unknown"
-            if lt != null { tn = lt.getName() }
+            if lt != null {
+                tn = lt.getName()
+            }
             r.diagStr(loc, DiagID.err_sema_forin_not_iterable, tn)
             return
         }
@@ -477,7 +536,9 @@ public class ResolverStmt {
             SemaParam gp0 = gps.get(0)
             SemaType gpt = gp0.getType()
             if gpt != null {
-                if str.equals(gpt.getName(), "pointer") { idxOk = true }
+                if str.equals(gpt.getName(), "pointer") {
+                    idxOk = true
+                }
             }
         }
         if idxOk == false {
@@ -521,8 +582,10 @@ public class ResolverStmt {
 
         // 4) cond: __forin_b < __forin_a.size()   (synthetic AST, resolved normally)
         List<ASTExpr> noArgs = new List<ASTExpr>()
-        ASTExpr sizeCall = ASTBuilder.CreateCall(loc, "size", noArgs, ASTCallKind.CALL_DIRECT, ASTBuilder.CreateIdentifier(loc, xsName, null))
-        ASTExpr condAst = ASTBuilder.CreateBinary(loc, ASTBinaryKind.OP_BINARY_COMPARE_LT, ASTBuilder.CreateIdentifier(loc, ivName, null), sizeCall)
+        ASTExpr sizeCall = ASTBuilder.CreateCall(loc, "size", noArgs, ASTCallKind.CALL_DIRECT,
+                ASTBuilder.CreateIdentifier(loc, xsName, null))
+        ASTExpr condAst = ASTBuilder.CreateBinary(loc, ASTBinaryKind.OP_BINARY_COMPARE_LT,
+                ASTBuilder.CreateIdentifier(loc, ivName, null), sizeCall)
         condAst.accept(r)
         slp.setCond(r.getCurrentExpr())
 
@@ -535,7 +598,8 @@ public class ResolverStmt {
         r.addSymbol(itSym)
         List<ASTExpr> getArgs = new List<ASTExpr>()
         getArgs.add(ASTBuilder.CreateIdentifier(loc, ivName, null))
-        ASTExpr getCall = ASTBuilder.CreateCall(loc, "get", getArgs, ASTCallKind.CALL_DIRECT, ASTBuilder.CreateIdentifier(loc, xsName, null))
+        ASTExpr getCall = ASTBuilder.CreateCall(loc, "get", getArgs, ASTCallKind.CALL_DIRECT,
+                ASTBuilder.CreateIdentifier(loc, xsName, null))
         getCall.accept(r)
         SemaDeclStmt itDecl = SemaBuilder.CreateDeclStmt(node, itVar, r.getCurrentExpr())
 
@@ -548,25 +612,33 @@ public class ResolverStmt {
 
         // 7) post: __forin_b = __forin_b + 1
         ASTExprStmt postStmt = new ASTExprStmt(loc)
-        ASTExpr incr = ASTBuilder.CreateBinary(loc, ASTBinaryKind.OP_BINARY_ARITH_ADD, ASTBuilder.CreateIdentifier(loc, ivName, null), ASTBuilder.CreateNumberValue(loc, "1"))
-        postStmt.setExpr(ASTBuilder.CreateBinary(loc, ASTBinaryKind.OP_BINARY_ASSIGN, ASTBuilder.CreateIdentifier(loc, ivName, null), incr))
+        ASTExpr incr = ASTBuilder.CreateBinary(loc, ASTBinaryKind.OP_BINARY_ARITH_ADD,
+                ASTBuilder.CreateIdentifier(loc, ivName, null), ASTBuilder.CreateNumberValue(loc, "1"))
+        postStmt.setExpr(ASTBuilder.CreateBinary(loc, ASTBinaryKind.OP_BINARY_ASSIGN,
+                ASTBuilder.CreateIdentifier(loc, ivName, null), incr))
         List<ASTStmt> postList = new List<ASTStmt>()
         postList.add(postStmt)
         SemaBlockStmt postCap = ResolverStmt.captureStmts(r, postList)
         List<SemaStmt> postC = postCap.getContent()
         int j = 0
-        while j < postC.size() { slp.addPost(postC.get(j))  j = j + 1 }
+        while j < postC.size() {
+            slp.addPost(postC.get(j))
+            j = j + 1
+        }
 
         r.exitScope()
         r.exitLoop()
         SemaBlockStmt blk = r.getCurrentSemaBlock()
-        if blk != null { blk.addContent(slp) }
+        if blk != null {
+            blk.addContent(slp)
+        }
     }
 
     // loopInArray — `for item in arr` over a native `T[]`. The item local is
     // declared ONCE in the enclosing block (its alloca is reused each iteration),
     // then a SemaLoopInStmt (lowered by CodeGenArray.loopIn) drives index/load/store.
-    public static void loopInArray(const Resolver r, const ASTLoopInStmt node, const SemaExpr listE, const SemaArrayType at) {
+    public static void loopInArray(const Resolver r, const ASTLoopInStmt node, const SemaExpr listE,
+            const SemaArrayType at) {
         SourceLocation loc = node.getLoc()
         ASTIdentifier itemId = node.getItem().asIdentifier()
         if itemId == null {
@@ -587,7 +659,9 @@ public class ResolverStmt {
         itSym.setExprRef(itVar)
         r.addSymbol(itSym)
         SemaDeclStmt itDecl = SemaBuilder.CreateDeclStmt(node, itVar, null)
-        if blk != null { blk.addContent(itDecl) }
+        if blk != null {
+            blk.addContent(itDecl)
+        }
 
         SemaBlockStmt bodyBlk = ResolverStmt.resolveBlock(r, node.getStmt())
 
@@ -595,26 +669,43 @@ public class ResolverStmt {
         r.exitLoop()
 
         SemaLoopInStmt slp = SemaBuilder.CreateLoopInStmt(node, itVar, listE, bodyBlk)
-        if blk != null { blk.addContent(slp) }
+        if blk != null {
+            blk.addContent(slp)
+        }
     }
 
     // fail — sets the enclosing function fallible when not inside a handle block.
     public static void failStmt(const Resolver r, const ASTFailStmt node) {
         SemaFunctionBase fn = r.getCurrentFunction()
-        if fn == null { return }
-        if r.getHandleDepth() == 0 { fn.setFallible(true) }
+        if fn == null {
+            return
+        }
+        if r.getHandleDepth() == 0 {
+            fn.setFallible(true)
+        }
         SemaFailStmt sf = SemaBuilder.CreateFailStmt(node)
         ASTExpr first = node.getFirstExpr()
-        if first != null { first.accept(r)  sf.setFirst(r.getCurrentExpr()) }
+        if first != null {
+            first.accept(r)
+            sf.setFirst(r.getCurrentExpr())
+        }
         ASTExpr second = node.getSecondExpr()
-        if second != null { second.accept(r)  sf.setSecond(r.getCurrentExpr()) }
+        if second != null {
+            second.accept(r)
+            sf.setSecond(r.getCurrentExpr())
+        }
         ASTExpr third = node.getThirdExpr()
-        if third != null { third.accept(r)  sf.setThird(r.getCurrentExpr()) }
+        if third != null {
+            third.accept(r)
+            sf.setThird(r.getCurrentExpr())
+        }
         ResolverStmt.escapeFailOperand(sf.getFirst())
         ResolverStmt.escapeFailOperand(sf.getSecond())
         ResolverStmt.escapeFailOperand(sf.getThird())
         SemaBlockStmt blk = r.getCurrentSemaBlock()
-        if blk != null { blk.addContent(sf) }
+        if blk != null {
+            blk.addContent(sf)
+        }
         // `fail` writes the error struct and returns — not stack unwinding, but
         // from this function's point of view control is gone.
         r.setStmtExits(true)
@@ -625,12 +716,22 @@ public class ResolverStmt {
     // Strings are copied into the error and arrays are refcounted: neither
     // escapes (the same exceptions as a call argument, ResolverCall).
     public static void escapeFailOperand(const SemaExpr e) {
-        if e == null { return }
-        if e.isVarExpr() == false { return }
+        if e == null {
+            return
+        }
+        if e.isVarExpr() == false {
+            return
+        }
         SemaType t = e.getType()
-        if t == null { return }
-        if t.isString() { return }
-        if t.isArray() { return }
+        if t == null {
+            return
+        }
+        if t.isString() {
+            return
+        }
+        if t.isArray() {
+            return
+        }
         e.setEscaped(true)
     }
 
@@ -645,7 +746,9 @@ public class ResolverStmt {
         SemaBlockStmt hblk = ResolverStmt.resolveBlock(r, hb)
         sh.setHandle(hblk)
         SemaBlockStmt blk = r.getCurrentSemaBlock()
-        if blk != null { blk.addContent(sh) }
+        if blk != null {
+            blk.addContent(sh)
+        }
         r.exitHandle()
     }
 
@@ -653,14 +756,20 @@ public class ResolverStmt {
     // mode (zero IR); otherwise the body resolves in its own scope/block into a
     // SemaTestStmt (reference Resolver::visit(ASTTestStmt)).
     public static void testStmt(const Resolver r, const ASTTestStmt node) {
-        if r.isTestMode() == false { return }
+        if r.isTestMode() == false {
+            return
+        }
         ASTBlockStmt bodyAst = node.getBody()
-        if bodyAst == null { return }
+        if bodyAst == null {
+            return
+        }
         SemaBlockStmt body = ResolverStmt.resolveBlock(r, bodyAst)
         SemaTestStmt st = new SemaTestStmt(node)
         st.setBody(body)
         SemaBlockStmt blk = r.getCurrentSemaBlock()
-        if blk != null { blk.addContent(st) }
+        if blk != null {
+            blk.addContent(st)
+        }
     }
 
     // case — standalone `case "label": { body }`: only valid inside a suite
@@ -674,7 +783,9 @@ public class ResolverStmt {
         if cc != null {
             if cf != null {
                 if cc.getClassKind() == SemaClassKind.SUITE {
-                    if str.endsWith(cf.getName(), "Test") { inSuiteTest = true }
+                    if str.endsWith(cf.getName(), "Test") {
+                        inSuiteTest = true
+                    }
                 }
             }
         }
@@ -692,7 +803,9 @@ public class ResolverStmt {
         }
         SemaCaseStmt sc = new SemaCaseStmt(node, node.getLabel(), body)
         SemaBlockStmt blk = r.getCurrentSemaBlock()
-        if blk != null { blk.addContent(sc) }
+        if blk != null {
+            blk.addContent(sc)
+        }
     }
 
     // delete — the parser rejects `delete` today, so this only fires for AST
@@ -717,7 +830,9 @@ public class ResolverStmt {
         // `break` leaves the innermost loop or switch; with neither around it has
         // nowhere to go, and codegen would branch to a block that does not exist.
         if r.getLoopDepth() == 0 {
-            if r.getSwitchDepth() == 0 { r.diag(node.getLoc(), DiagID.err_sema_break_outside_loop) }
+            if r.getSwitchDepth() == 0 {
+                r.diag(node.getLoc(), DiagID.err_sema_break_outside_loop)
+            }
         }
         r.setSawBreak(true)
         SemaBlockStmt blk = r.getCurrentSemaBlock()
@@ -728,7 +843,9 @@ public class ResolverStmt {
     }
 
     public static void continueStmt(const Resolver r, const ASTContinueStmt node) {
-        if r.getLoopDepth() == 0 { r.diag(node.getLoc(), DiagID.err_sema_continue_outside_loop) }
+        if r.getLoopDepth() == 0 {
+            r.diag(node.getLoc(), DiagID.err_sema_continue_outside_loop)
+        }
         SemaBlockStmt blk = r.getCurrentSemaBlock()
         if blk != null {
             SemaContinueStmt sc = SemaBuilder.CreateContinueStmt(node)
@@ -739,8 +856,12 @@ public class ResolverStmt {
     // rule — a bare conditional rule: resolve its expression and statement.
     public static void ruleStmt(const Resolver r, const ASTRuleStmt node) {
         ASTExpr e = node.getExpr()
-        if e != null { e.accept(r) }
+        if e != null {
+            e.accept(r)
+        }
         ASTStmt s = node.getStmt()
-        if s != null { s.accept(r) }
+        if s != null {
+            s.accept(r)
+        }
     }
 }

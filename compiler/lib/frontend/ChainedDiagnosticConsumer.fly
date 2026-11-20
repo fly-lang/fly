@@ -19,10 +19,18 @@ public class ChainedDiagnosticConsumer : DiagnosticConsumer {
     }
 
     public void handleDiagnostic(const Diagnostic diag) {
-        if this.primary != null   { this.primary.handleDiagnostic(diag) }
-        if this.secondary != null { this.secondary.handleDiagnostic(diag) }
+        if this.primary != null {
+            this.primary.handleDiagnostic(diag)
+        }
+        if this.secondary != null {
+            this.secondary.handleDiagnostic(diag)
+        }
     }
 
-    public DiagnosticConsumer getPrimary()   { return this.primary }
-    public DiagnosticConsumer getSecondary() { return this.secondary }
+    public DiagnosticConsumer getPrimary() {
+        return this.primary
+    }
+    public DiagnosticConsumer getSecondary() {
+        return this.secondary
+    }
 }

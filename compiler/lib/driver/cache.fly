@@ -22,9 +22,15 @@ public class UrlParts {
         this.owner = o
         this.repo = r
     }
-    public string getHost()  { return this.host }
-    public string getOwner() { return this.owner }
-    public string getRepo()  { return this.repo }
+    public string getHost() {
+        return this.host
+    }
+    public string getOwner() {
+        return this.owner
+    }
+    public string getRepo() {
+        return this.repo
+    }
 }
 
 // parseUrl — split a git URL into host/owner/repo. Handles https://, http://,
@@ -88,7 +94,9 @@ public class Cache {
         fs.dirCreateAll(this.root, 493)      // 0755
     }
 
-    public string getRoot() { return this.root }
+    public string getRoot() {
+        return this.root
+    }
 
     // entryPath — <root>/<host>/<owner>/<repo>/<rev40>
     public string entryPath(const string gitUrl, const string rev40) {

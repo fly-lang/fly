@@ -19,15 +19,24 @@ public class SemaArrayAccess : SemaExpr {
     SemaExpr base
     SemaExpr index
 
-    public SemaArrayAccess(const ASTArrayAccess accessAst, const SemaExpr base, const SemaExpr index, const SemaType type) {
+    public SemaArrayAccess(const ASTArrayAccess accessAst, const SemaExpr base, const SemaExpr index,
+            const SemaType type) {
         super(SemaKind.ARRAY_ACCESS, type)
         this.accessAst = accessAst
         this.base = base
         this.index = index
     }
 
-    public ASTArrayAccess getAST() { return this.accessAst }
-    public SemaExpr getBase() { return this.base }
-    public SemaExpr getIndex() { return this.index }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public ASTArrayAccess getAST() {
+        return this.accessAst
+    }
+    public SemaExpr getBase() {
+        return this.base
+    }
+    public SemaExpr getIndex() {
+        return this.index
+    }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }

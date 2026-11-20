@@ -25,8 +25,42 @@ mkdir -p "$OUT" "$LIB"
 # compiler's generic instantiations that caused the `fly build` UAF crash.
 [ -f "$LIB/fly_std_lib.a" ] && [ -f "$LIB/fly_runtime_lib.a" ] || { echo "error: std/runtime missing in $LIB — run build_runtime.sh + build_std.sh first." >&2; exit 1; }
 
-# ── Toolchain: the fork's ld.lld + the host C runtime objects. ────────────────
+. ci/linux/platform.sh
 FORK_LLVM=build/llvm
+
+# ── macOS: ld64.lld + libSystem; the bundle is libLLVM.dylib + the debugger ───
+# The fork installs its dylibs with an @rpath install name, so copying them into
+# lib/ next to bin/ (rpath @loader_path/../lib) is all the bundling there is. No
+# compiler-rt is shipped: libSystem re-exports the builtins on macOS.
+if is_macos; then
+    LLD64="$FORK_LLVM/bin/ld64.lld"
+    if [ ! -f "$FORK_LLVM/lib/libLLVM.dylib" ] || [ ! -x "$LLD64" ]; then
+        echo "error: fork LLVM not found at $FORK_LLVM/ — run ci/linux/stage0.sh." >&2
+        exit 1
+    fi
+    if [ "${FLY_BUNDLE_LLVM:-0}" = "1" ]; then
+        cp -f "$FORK_LLVM/lib/libLLVM.dylib" "$LIB/libLLVM.dylib"
+        cp -fL "$LLD64" "$OUT/ld64.lld"
+        # lldb, lldb-dap, lldb-argdumper and, when the fork built it, debugserver
+        # (macOS lldb launches local processes through it), under their original
+        # names; liblldb goes into lib/ like libLLVM.
+        for dbg in lldb lldb-dap lldb-argdumper debugserver dsymutil; do
+            [ -e "$FORK_LLVM/bin/$dbg" ] && cp -fL "$FORK_LLVM/bin/$dbg" "$OUT/$dbg"
+        done
+        for l in "$FORK_LLVM"/lib/liblldb*.dylib; do
+            [ -e "$l" ] && cp -fL "$l" "$LIB/$(basename "$l")"
+        done
+        RPATH="$EXE_RPATH"
+    else
+        RPATH="$(cd "$FORK_LLVM/lib" && pwd)"
+    fi
+    echo "stage$STAGE: linking $OUT/fly ..."
+    FLY_LINK_RPATH="$RPATH" ci/linux/link_bin.sh "$OBJ" "$OUT/fly" --with-llvm
+    echo "stage$STAGE: fly -> $OUT/fly (libs from $LIB)"
+    exit 0
+fi
+
+# ── Linux: the fork's ld.lld + the host C runtime objects. ────────────────────
 LLD="$FORK_LLVM/bin/ld.lld"
 if [ ! -f "$FORK_LLVM/lib/libLLVM.so" ] || [ ! -x "$LLD" ]; then
     echo "error: fork LLVM not found at $FORK_LLVM/ — run ci/linux/stage0.sh." >&2

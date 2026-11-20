@@ -237,9 +237,13 @@ suite ManifestSuite {
             m.dependencies = {runtime}
             m.devDependencies = {dev}
             string a = ""
-            for d in m.dependencies { a = str.concat(a, d.name) }
+            for d in m.dependencies {
+                a = str.concat(a, d.name)
+            }
             string b = ""
-            for d in m.devDependencies { b = str.concat(b, d.name) }
+            for d in m.devDependencies {
+                b = str.concat(b, d.name)
+            }
             assert.assertStr(a, "runtime-dep", 212)
             assert.assertStr(b, "dev-dep", 213)
         }
@@ -261,7 +265,9 @@ suite ManifestSuite {
             }
             assert.assertEqI(levels, 3, 214)
             string regs = ""
-            for reg in m.repositories { regs = str.concat(regs, reg.name) }
+            for reg in m.repositories {
+                regs = str.concat(regs, reg.name)
+            }
             assert.assertStr(regs, "default", 215)
         }
     }

@@ -11,5 +11,7 @@ public class SemaError : SemaVar {
     public SemaError(const ASTVar varAst) {
         super(varAst, SemaKind.ERROR_VAR, null)
     }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }

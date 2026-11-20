@@ -78,15 +78,24 @@ public void tls_available(int out) {
 // Chain validation alone accepts any valid certificate from any CA for any name,
 // which is textbook-broken TLS. Both, or the feature is security theatre.
 public void tls_connect(const long sock, const pointer sniHost, const int verify, pointer out) {
-    if sock < 0 { out = 0  return }
+    if sock < 0 {
+        out = 0
+        return
+    }
     int irc = 0
     fly.runtime.OPENSSL_init_ssl(0, 0, irc)
     pointer method = 0
     fly.runtime.TLS_client_method(method)
-    if method == 0 { out = 0  return }
+    if method == 0 {
+        out = 0
+        return
+    }
     pointer sslCtx = 0
     fly.runtime.SSL_CTX_new(method, sslCtx)
-    if sslCtx == 0 { out = 0  return }
+    if sslCtx == 0 {
+        out = 0
+        return
+    }
     int vp = 0
     fly.runtime.SSL_CTX_set_default_verify_paths(sslCtx, vp)
     pointer ssl = 0
@@ -146,12 +155,18 @@ public void tls_connect(const long sock, const pointer sniHost, const int verify
 }
 
 public void tls_send(const pointer ctx, const pointer buf, const int n, long out) {
-    if ctx == 0 { out = 0 - 1  return }
+    if ctx == 0 {
+        out = 0 - 1
+        return
+    }
     long sslL = 0
     fly.llvm.ptrReadLong(ctx, 0, sslL)
     pointer ssl = 0
     ssl = sslL
-    if ssl == 0 { out = 0 - 1  return }
+    if ssl == 0 {
+        out = 0 - 1
+        return
+    }
     int w = 0
     fly.runtime.SSL_write(ssl, buf, n, w)
     if w <= 0 {
@@ -168,35 +183,53 @@ public void tls_send(const pointer ctx, const pointer buf, const int n, long out
 // behave like recv(). A non-positive return with SSL_ERROR_ZERO_RETURN (6) is a
 // CLEAN end of session, reported as 0; anything else is an error.
 public void tls_recv(const pointer ctx, const pointer buf, const int n, long out) {
-    if ctx == 0 { out = 0 - 1  return }
+    if ctx == 0 {
+        out = 0 - 1
+        return
+    }
     long sslL = 0
     fly.llvm.ptrReadLong(ctx, 0, sslL)
     pointer ssl = 0
     ssl = sslL
-    if ssl == 0 { out = 0 - 1  return }
+    if ssl == 0 {
+        out = 0 - 1
+        return
+    }
     int r = 0
     fly.runtime.SSL_read(ssl, buf, n, r)
-    if r > 0 { out = r  return }
+    if r > 0 {
+        out = r
+        return
+    }
     int se = 0
     fly.runtime.SSL_get_error(ssl, r, se)
     fly.llvm.ptrPokeInt(ctx, 16, se)
-    if se == 6 { out = 0  return }                          // SSL_ERROR_ZERO_RETURN
+    if se == 6 { // SSL_ERROR_ZERO_RETURN
+        out = 0
+        return
+    }
     out = 0 - 1
 }
 
 public void tls_shutdown(const pointer ctx) {
-    if ctx == 0 { return }
+    if ctx == 0 {
+        return
+    }
     long sslL = 0
     fly.llvm.ptrReadLong(ctx, 0, sslL)
     pointer ssl = 0
     ssl = sslL
-    if ssl == 0 { return }
+    if ssl == 0 {
+        return
+    }
     int rc = 0
     fly.runtime.SSL_shutdown(ssl, rc)
 }
 
 public void tls_free(const pointer ctx) {
-    if ctx == 0 { return }
+    if ctx == 0 {
+        return
+    }
     long sslL = 0
     fly.llvm.ptrReadLong(ctx, 0, sslL)
     long ctxL = 0
@@ -205,14 +238,21 @@ public void tls_free(const pointer ctx) {
     ssl = sslL
     pointer sslCtx = 0
     sslCtx = ctxL
-    if ssl != 0 { fly.runtime.SSL_free(ssl) }
-    if sslCtx != 0 { fly.runtime.SSL_CTX_free(sslCtx) }
+    if ssl != 0 {
+        fly.runtime.SSL_free(ssl)
+    }
+    if sslCtx != 0 {
+        fly.runtime.SSL_CTX_free(sslCtx)
+    }
     fly.llvm.ptrPokeLong(ctx, 0, 0)
     fly.llvm.ptrPokeLong(ctx, 8, 0)
     fly.runtime.CRYPTO_free(ctx, 0, 0)
 }
 
 public void tls_last_error(const pointer ctx, int out) {
-    if ctx == 0 { out = 0  return }
+    if ctx == 0 {
+        out = 0
+        return
+    }
     fly.llvm.ptrReadInt(ctx, 16, out)
 }

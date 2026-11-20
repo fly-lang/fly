@@ -1,4 +1,8 @@
 class A { public const int v
- public A() { this.v = 1 } }
-void main() { A a = new A()
- a.v = 5 }
+ public A() {
+     this.v = 1
+ } }
+void main() {
+    A a = new A()
+ a.v = 5
+}

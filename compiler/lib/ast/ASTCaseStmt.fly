@@ -21,12 +21,26 @@ public class ASTCaseStmt : ASTStmt {
         this.label = ""
     }
 
-    public ASTExpr getExpr() { return this.expr }
-    public ASTBlockStmt getStmt() { return this.stmt }
-    public string getLabel() { return this.label }
-    public void setExpr(const ASTExpr expr) { this.expr = expr }
-    public void setStmt(const ASTBlockStmt stmt) { this.stmt = stmt }
-    public void setLabel(const string label) { this.label = label }
+    public ASTExpr getExpr() {
+        return this.expr
+    }
+    public ASTBlockStmt getStmt() {
+        return this.stmt
+    }
+    public string getLabel() {
+        return this.label
+    }
+    public void setExpr(const ASTExpr expr) {
+        this.expr = expr
+    }
+    public void setStmt(const ASTBlockStmt stmt) {
+        this.stmt = stmt
+    }
+    public void setLabel(const string label) {
+        this.label = label
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }

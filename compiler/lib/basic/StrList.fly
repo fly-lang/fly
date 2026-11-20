@@ -9,7 +9,9 @@ import fly.str
 // which the self-host miscompiles).
 
 // segCount — number of elements in the ";"-delimited list.
-public int segCount(const string s) { return str.count(s, ";") - 1 }
+public int segCount(const string s) {
+    return str.count(s, ";") - 1
+}
 
 // segAt — the element at index `idx`.
 public string segAt(const string s, const int idx) {

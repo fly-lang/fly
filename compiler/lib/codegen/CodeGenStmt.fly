@@ -80,7 +80,8 @@ public class CodeGenStmt {
                 // Sema decided NRVO and dropped the assignment at `return name`,
                 // so a body emitted without its slot bound would hand back
                 // nothing. Say so instead of miscompiling in silence.
-                io.printErrLn(str.concat("error: internal: return slot not bound for NRVO local '", str.concat(v.getName(), "'")))
+                io.printErrLn(str.concat("error: internal: return slot not bound for NRVO local '",
+                        str.concat(v.getName(), "'")))
             }
         }
         if useNrvo {
@@ -90,9 +91,13 @@ public class CodeGenStmt {
             // every write lands there — which is what the old out parameter did.
             bool nrvoStruct = false
             SemaClassType nct = null
-            if vt != null { nct = vt.asClass() }
+            if vt != null {
+                nct = vt.asClass()
+            }
             if nct != null {
-                if nct.getClassKind() == SemaClassKind.STRUCT { nrvoStruct = true }
+                if nct.getClassKind() == SemaClassKind.STRUCT {
+                    nrvoStruct = true
+                }
             }
             if nrvoStruct {
                 pointer nrvoCell
@@ -168,10 +173,14 @@ public class CodeGenStmt {
                 // storage, and cloneIfStruct covers the with-initializer case.
                 pointer sdataTy = 0
                 SemaClassType dct = null
-                if vt != null { dct = vt.asClass() }
+                if vt != null {
+                    dct = vt.asClass()
+                }
                 if dct != null {
                     if dct.getClassKind() == SemaClassKind.STRUCT {
-                        if dct.getLlvmStructType() == 0 { CodeGenClass.declareStruct(cge.getCgm(), dct) }
+                        if dct.getLlvmStructType() == 0 {
+                            CodeGenClass.declareStruct(cge.getCgm(), dct)
+                        }
                         sdataTy = dct.getLlvmStructType()
                     }
                 }
@@ -200,9 +209,13 @@ public class CodeGenStmt {
     // ret — bare `return`: any attached value-assignment is gen'd, then ret void
     // (the out-param model already stored the result via an `out = …` assignment).
     public static void ret(const CodeGenExpr cge, const SemaReturnStmt node) {
-        if cge.isTerminated() { return }
+        if cge.isTerminated() {
+            return
+        }
         SemaExpr e = node.getExpr()
-        if e != null { pointer ignore = cge.gen(e) }
+        if e != null {
+            pointer ignore = cge.gen(e)
+        }
         // The value is already in the return slot (strings cloned, arrays
         // retained, the returned handle spared), so every scope's locals can go.
         cge.emitReturnCleanup()
@@ -235,7 +248,9 @@ public class CodeGenStmt {
         cge.setTerminated(true)
 
         cge.position(thenBB)
-        if thenS != null { thenS.accept(cge) }
+        if thenS != null {
+            thenS.accept(cge)
+        }
         cge.br(mergeBB)
 
         cge.position(nextBB)
@@ -244,10 +259,14 @@ public class CodeGenStmt {
             // The elsif condition belongs to the elsif's own line; its block
             // opens with `{` on that line (expressions carry no location).
             CodeGenDebug dbg = cge.getCgm().getDebug()
-            if dbg != null { dbg.atStmt(r.getStmt()) }
+            if dbg != null {
+                dbg.atStmt(r.getStmt())
+            }
             emitIfChain(cge, r.getExpr(), r.getStmt(), elsifs, idx + 1, elseS, mergeBB)
         } else {
-            if elseS != null { elseS.accept(cge) }
+            if elseS != null {
+                elseS.accept(cge)
+            }
             cge.br(mergeBB)
         }
     }
@@ -273,13 +292,19 @@ public class CodeGenStmt {
         pointer exitBB = cge.newBlock("loopexit")
 
         bool atEnd = node.hasVerifyConditionAtEnd()
-        if atEnd { cge.br(bodyBB) } else { cge.br(condBB) }
+        if atEnd {
+            cge.br(bodyBB)
+        } else {
+            cge.br(condBB)
+        }
 
         // cond — reached again from the end of the body, so give it back the
         // loop's own line rather than the last body statement's.
         cge.position(condBB)
         CodeGenDebug ldbg = cge.getCgm().getDebug()
-        if ldbg != null { ldbg.atStmt(node) }
+        if ldbg != null {
+            ldbg.atStmt(node)
+        }
         SemaExpr cond = node.getCond()
         if cond != null {
             pointer cv = cge.gen(cond)
@@ -301,7 +326,9 @@ public class CodeGenStmt {
         cge.setContinueDepth(cge.getFrameDepth())
         cge.position(bodyBB)
         SemaStmt body = node.getBody()
-        if body != null { body.accept(cge) }
+        if body != null {
+            body.accept(cge)
+        }
         cge.br(postBB)
         cge.setBreakTarget(savedBreak)
         cge.setContinueTarget(savedCont)
@@ -340,7 +367,9 @@ public class CodeGenStmt {
         pointer exitBB = cge.newBlock("swexit")
         pointer defaultBB = exitBB
         SemaStmt defS = node.getDefault()
-        if defS != null { defaultBB = cge.newBlock("swdefault") }
+        if defS != null {
+            defaultBB = cge.newBlock("swdefault")
+        }
 
         pointer sw
         llvm.buildSwitch(b, sel, defaultBB, n, sw)
@@ -378,8 +407,12 @@ public class CodeGenStmt {
             // last case. br() is a no-op when the body already terminated (break/
             // return/fail), so only OPEN bodies fall through (B023).
             pointer nextBB = defaultBB
-            if i + 1 < n { nextBB = caseBBs.get(i + 1) }
-            if cs != null { cs.accept(cge) }
+            if i + 1 < n {
+                nextBB = caseBBs.get(i + 1)
+            }
+            if cs != null {
+                cs.accept(cge)
+            }
             cge.br(nextBB)
             i = i + 1
         }
@@ -399,12 +432,16 @@ public class CodeGenStmt {
     // opened since the loop/switch began), then branch to the innermost exit /
     // post block.
     public static void breakStmt(const CodeGenExpr cge, const SemaBreakStmt node) {
-        if cge.isTerminated() { return }
+        if cge.isTerminated() {
+            return
+        }
         cge.emitCleanup(cge.getFrameDepth() - cge.getBreakDepth())
         cge.br(cge.getBreakTarget())
     }
     public static void continueStmt(const CodeGenExpr cge, const SemaContinueStmt node) {
-        if cge.isTerminated() { return }
+        if cge.isTerminated() {
+            return
+        }
         cge.emitCleanup(cge.getFrameDepth() - cge.getContinueDepth())
         cge.br(cge.getContinueTarget())
     }

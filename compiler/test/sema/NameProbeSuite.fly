@@ -19,9 +19,16 @@ import fly.assert
 public class NameProbe : ASTVisitor {
     string fnName
     int paramCount
-    public NameProbe() { this.fnName = ""  this.paramCount = 0 }
-    public string getFnName() { return this.fnName }
-    public int getParamCount() { return this.paramCount }
+    public NameProbe() {
+        this.fnName = ""
+        this.paramCount = 0
+    }
+    public string getFnName() {
+        return this.fnName
+    }
+    public int getParamCount() {
+        return this.paramCount
+    }
 
     public void visit(const ASTFunction node) {
         this.fnName = node.getName()

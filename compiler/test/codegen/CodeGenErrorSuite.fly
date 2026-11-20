@@ -24,8 +24,6 @@ import fly.test.util.*
 // here instead).
 // ─────────────────────────────────────────────────────────────────────────────
 
-
-
 suite CodeGenErrorSuite {
 
     void failHandleTest() {

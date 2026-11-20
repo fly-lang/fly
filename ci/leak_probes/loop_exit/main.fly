@@ -9,11 +9,19 @@ int scan(const int n) {
     while true {
         string head = mk(i)
         i = i + 1
-        if i % 2 == 0 { continue }
-        if i > n { break }
+        if i % 2 == 0 {
+            continue
+        }
+        if i > n {
+            break
+        }
         string tail = head + "!"
-        if tail == "" { return -1 }
-        if i == 3 { return 3 }
+        if tail == "" {
+            return -1
+        }
+        if i == 3 {
+            return 3
+        }
     }
     return 0
 }

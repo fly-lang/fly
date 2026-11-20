@@ -27,15 +27,33 @@ public class ASTValue : ASTExpr {
         this.valueKind = valueKind
     }
 
-    public ASTValueKind getValueKind() { return this.valueKind }
-    public bool isBool() { return this.valueKind == ASTValueKind.VAL_BOOL }
-    public bool isNumber() { return this.valueKind == ASTValueKind.VAL_NUMBER }
-    public bool isString() { return this.valueKind == ASTValueKind.VAL_STRING }
-    public bool isArray() { return this.valueKind == ASTValueKind.VAL_ARRAY }
-    public bool isStruct() { return this.valueKind == ASTValueKind.VAL_STRUCT }
-    public bool isNull() { return this.valueKind == ASTValueKind.VAL_NULL }
-    public bool isDefault() { return this.valueKind == ASTValueKind.VAL_DEFAULT }
-    public bool isUnset() { return this.valueKind == ASTValueKind.VAL_UNSET }
+    public ASTValueKind getValueKind() {
+        return this.valueKind
+    }
+    public bool isBool() {
+        return this.valueKind == ASTValueKind.VAL_BOOL
+    }
+    public bool isNumber() {
+        return this.valueKind == ASTValueKind.VAL_NUMBER
+    }
+    public bool isString() {
+        return this.valueKind == ASTValueKind.VAL_STRING
+    }
+    public bool isArray() {
+        return this.valueKind == ASTValueKind.VAL_ARRAY
+    }
+    public bool isStruct() {
+        return this.valueKind == ASTValueKind.VAL_STRUCT
+    }
+    public bool isNull() {
+        return this.valueKind == ASTValueKind.VAL_NULL
+    }
+    public bool isDefault() {
+        return this.valueKind == ASTValueKind.VAL_DEFAULT
+    }
+    public bool isUnset() {
+        return this.valueKind == ASTValueKind.VAL_UNSET
+    }
 }
 
 public class ASTBoolValue : ASTValue {
@@ -47,9 +65,13 @@ public class ASTBoolValue : ASTValue {
         this.value = value
     }
 
-    public bool getValue() { return this.value }
+    public bool getValue() {
+        return this.value
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }
 
 public class ASTNumberValue : ASTValue {
@@ -61,10 +83,16 @@ public class ASTNumberValue : ASTValue {
         this.value = value
     }
 
-    public string getValue() { return this.value }
-    public ASTNumberValue asNumberValue() { return this }
+    public string getValue() {
+        return this.value
+    }
+    public ASTNumberValue asNumberValue() {
+        return this
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }
 
 public class ASTStringValue : ASTValue {
@@ -76,10 +104,16 @@ public class ASTStringValue : ASTValue {
         this.value = value
     }
 
-    public string getValue() { return this.value }
-    public ASTStringValue asStringValue() { return this }
+    public string getValue() {
+        return this.value
+    }
+    public ASTStringValue asStringValue() {
+        return this
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }
 
 public class ASTArrayValue : ASTValue {
@@ -91,11 +125,19 @@ public class ASTArrayValue : ASTValue {
         this.values = new List<ASTExpr>()
     }
 
-    public List<ASTExpr> getValues() { return this.values }
-    public void setValues(const List<ASTExpr> v) { this.values = v }
-    public ASTArrayValue asArrayValue() { return this }
+    public List<ASTExpr> getValues() {
+        return this.values
+    }
+    public void setValues(const List<ASTExpr> v) {
+        this.values = v
+    }
+    public ASTArrayValue asArrayValue() {
+        return this
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }
 
 // ASTStructValue — `{name = expr, ...}` struct literal (B029): parallel
@@ -112,14 +154,20 @@ public class ASTStructValue : ASTValue {
         this.exprs = new List<ASTExpr>()
     }
 
-    public List<string> getNames() { return this.names }
-    public List<ASTExpr> getExprs() { return this.exprs }
+    public List<string> getNames() {
+        return this.names
+    }
+    public List<ASTExpr> getExprs() {
+        return this.exprs
+    }
     public void addField(const string name, const ASTExpr e) {
         this.names.add(name)
         this.exprs.add(e)
     }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }
 
 public class ASTNullValue : ASTValue {
@@ -128,7 +176,9 @@ public class ASTNullValue : ASTValue {
         super(ASTValueKind.VAL_NULL, loc)
     }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }
 
 public class ASTUnsetValue : ASTValue {
@@ -137,5 +187,7 @@ public class ASTUnsetValue : ASTValue {
         super(ASTValueKind.VAL_UNSET, loc)
     }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }

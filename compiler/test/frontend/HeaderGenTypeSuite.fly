@@ -18,8 +18,12 @@ import fly.assert
 // tmpBase — the OS temp dir (TMPDIR/TEMP, `/tmp` fallback) for scratch files.
 string tmpBase() {
     string tmp = env.get("TMPDIR")
-    if str.isEmpty(tmp) { tmp = env.get("TEMP") }
-    if str.isEmpty(tmp) { tmp = "/tmp" }
+    if str.isEmpty(tmp) {
+        tmp = env.get("TEMP")
+    }
+    if str.isEmpty(tmp) {
+        tmp = "/tmp"
+    }
     return tmp
 }
 
@@ -57,9 +61,13 @@ string genInto(const string name, const string src) {
     // this build. That is exactly how the `.fly` companion, gone from the
     // generator, kept passing its own removal.
     string stale = str.concat(odir, "/m.fly")
-    if fs.exists(stale) { fs.delete(stale) }
+    if fs.exists(stale) {
+        fs.delete(stale)
+    }
     string staleH = str.concat(odir, "/m.fly.h")
-    if fs.exists(staleH) { fs.delete(staleH) }
+    if fs.exists(staleH) {
+        fs.delete(staleH)
+    }
     Parser p = new Parser(fs.readStr(mpath))
     ASTModule m = p.parseModule(mpath)
     string written = HeaderGen.generate(m, odir, null)

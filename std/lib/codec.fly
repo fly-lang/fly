@@ -44,7 +44,9 @@ private int byteOf(const string s, const int i) {
 // hexEncode, where lowercase is the convention for digests and dumps.
 private int hexDigitOf(const int n) {
     int d = n & 15
-    if d < 10 { return 48 + d }
+    if d < 10 {
+        return 48 + d
+    }
     return 87 + d
 }
 
@@ -53,15 +55,23 @@ private int hexDigitOf(const int n) {
 // so the two encoders deliberately disagree on case.
 private int hexDigitUpperOf(const int n) {
     int d = n & 15
-    if d < 10 { return 48 + d }
+    if d < 10 {
+        return 48 + d
+    }
     return 55 + d
 }
 
 // hexValOf — 0..15 for a hex character, -1 for anything else.
 private int hexValOf(const int c) {
-    if c >= 48 && c <= 57 { return c - 48 }
-    if c >= 97 && c <= 102 { return c - 87 }
-    if c >= 65 && c <= 70 { return c - 55 }
+    if c >= 48 && c <= 57 {
+        return c - 48
+    }
+    if c >= 97 && c <= 102 {
+        return c - 87
+    }
+    if c >= 65 && c <= 70 {
+        return c - 55
+    }
     return 0 - 1
 }
 
@@ -70,24 +80,48 @@ private int hexValOf(const int c) {
 // section 4 and section 5.
 private int b64CharOf(const int v, const bool urlSafe) {
     int i = v & 63
-    if i < 26 { return 65 + i }              // A-Z
-    if i < 52 { return 97 + (i - 26) }       // a-z
-    if i < 62 { return 48 + (i - 52) }       // 0-9
-    if i == 62 {
-        if urlSafe { return 45 } else { return 43 }   // - or +
+    if i < 26 { // A-Z
+        return 65 + i
     }
-    if urlSafe { return 95 } else { return 47 }       // _ or /
+    if i < 52 { // a-z
+        return 97 + (i - 26)
+    }
+    if i < 62 { // 0-9
+        return 48 + (i - 52)
+    }
+    if i == 62 {
+        if urlSafe {
+            return 45
+        } else { // - or +
+            return 43
+        }
+    }
+    if urlSafe {
+        return 95
+    } else { // _ or /
+        return 47
+    }
 }
 
 // b64ValOf — the 6-bit value for a Base64 character, -1 for anything else. Both
 // alphabets are accepted on DECODE regardless of which was asked for: a decoder
 // that rejects the other variant's two characters only creates work for callers.
 private int b64ValOf(const int c) {
-    if c >= 65 && c <= 90 { return c - 65 }          // A-Z
-    if c >= 97 && c <= 122 { return c - 97 + 26 }    // a-z
-    if c >= 48 && c <= 57 { return c - 48 + 52 }     // 0-9
-    if c == 43 || c == 45 { return 62 }              // + or -
-    if c == 47 || c == 95 { return 63 }              // / or _
+    if c >= 65 && c <= 90 { // A-Z
+        return c - 65
+    }
+    if c >= 97 && c <= 122 { // a-z
+        return c - 97 + 26
+    }
+    if c >= 48 && c <= 57 { // 0-9
+        return c - 48 + 52
+    }
+    if c == 43 || c == 45 { // + or -
+        return 62
+    }
+    if c == 47 || c == 95 { // / or _
+        return 63
+    }
     return 0 - 1
 }
 
@@ -98,7 +132,9 @@ private int b64ValOf(const int c) {
 private string b64Encode(const string s, const bool urlSafe, const bool pad) {
     string res = ""
     int n = str.len(s)
-    if n == 0 { return res }
+    if n == 0 {
+        return res
+    }
     int groups = (n + 2) / 3
     int cap = groups * 4
     pointer buf = 0
@@ -110,8 +146,14 @@ private string b64Encode(const string s, const bool urlSafe, const bool pad) {
         int b1 = 0
         int b2 = 0
         int have = 1
-        if i + 1 < n { b1 = byteOf(s, i + 1)  have = 2 }
-        if i + 2 < n { b2 = byteOf(s, i + 2)  have = 3 }
+        if i + 1 < n {
+            b1 = byteOf(s, i + 1)
+            have = 2
+        }
+        if i + 2 < n {
+            b2 = byteOf(s, i + 2)
+            have = 3
+        }
         int trip = (b0 << 16) | (b1 << 8) | b2
         fly.llvm.strPoke(buf, o, (byte)b64CharOf(trip >> 18, urlSafe))
         fly.llvm.strPoke(buf, o + 1, (byte)b64CharOf(trip >> 12, urlSafe))
@@ -145,12 +187,18 @@ private string b64Decode(const string s, int errOut) {
     string res = ""
     errOut = 0
     int n = str.len(s)
-    if n == 0 { return res }
+    if n == 0 {
+        return res
+    }
     // strip trailing padding
     int end = n
     bool trimming = true
     while trimming {
-        if end > 0 && byteOf(s, end - 1) == 61 { end = end - 1 } else { trimming = false }
+        if end > 0 && byteOf(s, end - 1) == 61 {
+            end = end - 1
+        } else {
+            trimming = false
+        }
     }
     // The impossible-length check happens AFTER the scan, not before: for an
     // input like "Zm9v!" the real problem is the '!', and reporting "bad length"
@@ -232,7 +280,9 @@ public string base64UrlDecode(const string s, int errOut) {
 private string pctEncode(const string s, const bool keepPathChars) {
     string res = ""
     int n = str.len(s)
-    if n == 0 { return res }
+    if n == 0 {
+        return res
+    }
     pointer buf = 0
     fly.runtime.mem_alloc(n * 3, buf)
     int o = 0
@@ -240,19 +290,29 @@ private string pctEncode(const string s, const bool keepPathChars) {
     while i < n {
         int c = byteOf(s, i)
         bool safe = false
-        if c >= 65 && c <= 90 { safe = true }               // A-Z
-        elsif c >= 97 && c <= 122 { safe = true }           // a-z
-        elsif c >= 48 && c <= 57 { safe = true }            // 0-9
-        elsif c == 45 || c == 46 || c == 95 || c == 126 { safe = true }   // - . _ ~
-        elsif keepPathChars {
+        if c >= 65 && c <= 90 { // A-Z
+            safe = true
+        } elsif c >= 97 && c <= 122 { // a-z
+            safe = true
+        } elsif c >= 48 && c <= 57 { // 0-9
+            safe = true
+        } elsif c == 45 || c == 46 || c == 95 || c == 126 { // - . _ ~
+            safe = true
+        } elsif keepPathChars {
             // The RFC 3986 unreserved set plus the delimiters that carry meaning
             // in a path or URL. Deliberately NOT escaped, so a whole path or URL
             // survives the round trip unchanged.
-            if c == 47 || c == 58 { safe = true }           // / :
-            elsif c == 63 || c == 35 || c == 91 || c == 93 { safe = true }   // ? # [ ]
-            elsif c == 64 || c == 33 || c == 36 || c == 38 { safe = true }   // @ ! $ &
-            elsif c == 39 || c == 40 || c == 41 || c == 42 { safe = true }   // ' ( ) *
-            elsif c == 43 || c == 44 || c == 59 || c == 61 { safe = true }   // + , ; =
+            if c == 47 || c == 58 { // / :
+                safe = true
+            } elsif c == 63 || c == 35 || c == 91 || c == 93 { // ? # [ ]
+                safe = true
+            } elsif c == 64 || c == 33 || c == 36 || c == 38 { // @ ! $ &
+                safe = true
+            } elsif c == 39 || c == 40 || c == 41 || c == 42 { // ' ( ) *
+                safe = true
+            } elsif c == 43 || c == 44 || c == 59 || c == 61 { // + , ; =
+                safe = true
+            }
         }
         if safe {
             fly.llvm.strPoke(buf, o, (byte)c)
@@ -294,7 +354,9 @@ public string percentDecode(const string s, int errOut) {
     string res = ""
     errOut = 0
     int n = str.len(s)
-    if n == 0 { return res }
+    if n == 0 {
+        return res
+    }
     pointer buf = 0
     fly.runtime.mem_alloc(n, buf)
     int o = 0
@@ -337,7 +399,9 @@ public string percentDecode(const string s, int errOut) {
 public string hexEncode(const string s) {
     string res = ""
     int n = str.len(s)
-    if n == 0 { return res }
+    if n == 0 {
+        return res
+    }
     pointer buf = 0
     fly.runtime.mem_alloc(n * 2, buf)
     int i = 0
@@ -357,9 +421,14 @@ public string hexDecode(const string s, int errOut) {
     string res = ""
     errOut = 0
     int n = str.len(s)
-    if n == 0 { return res }
+    if n == 0 {
+        return res
+    }
     int odd = n % 2
-    if odd != 0 { errOut = 2  return res }
+    if odd != 0 {
+        errOut = 2
+        return res
+    }
     int half = n / 2
     pointer buf = 0
     fly.runtime.mem_alloc(half, buf)

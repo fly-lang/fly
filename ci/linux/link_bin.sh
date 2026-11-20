@@ -25,11 +25,43 @@ WITH_LLVM=0
 STAGE="${STAGE:-1}"
 LIB="build/stage$STAGE/lib"
 mkdir -p "$(dirname "$OUTBIN")"
+. ci/linux/platform.sh
 
 [ -f "$OBJ" ] || { echo "error: $OBJ missing." >&2; exit 1; }
 [ -f "$LIB/fly_std_lib.a" ] && [ -f "$LIB/fly_runtime_lib.a" ] || { echo "error: std/runtime missing in $LIB — run build_runtime.sh + build_std.sh first." >&2; exit 1; }
 
 FORK_LLVM=build/llvm
+
+# ── macOS: ld64.lld, libSystem, no C start-up objects ────────────────────────
+# What clang would pass to Apple's ld: the architecture, the platform with its
+# minimum version (13.0, as everything else in the release) and the SDK root
+# holding libSystem's .tbd stubs. libSystem is libc, libm, pthreads and the
+# compiler-rt builtins at once. ld64.lld signs arm64 output ad hoc by itself.
+# TLS: only the stub — there is no OpenSSL on a stock Mac.
+if is_macos; then
+    LLD64="$FORK_LLVM/bin/ld64.lld"
+    [ -x "$LLD64" ] || { echo "error: fork ld64.lld not found at $LLD64 — run ci/linux/stage0.sh." >&2; exit 1; }
+    SDK="$(xcrun --show-sdk-path 2>/dev/null || true)"
+    [ -d "$SDK" ] || SDK=/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+    [ -d "$SDK" ] || { echo "error: no macOS SDK (xcode-select --install)." >&2; exit 1; }
+    MAC_ARGS=()
+    [ -f "$LIB/fly_tls_stub.a" ] && MAC_ARGS+=("$LIB/fly_tls_stub.a")
+    if [ "$WITH_LLVM" = "1" ]; then
+        [ -f "$FORK_LLVM/lib/libLLVM.dylib" ] || { echo "error: $FORK_LLVM/lib/libLLVM.dylib not found." >&2; exit 1; }
+        if [ -n "${FLY_LINK_RPATH:-}" ]; then
+            RUNPATH="$FLY_LINK_RPATH"
+        elif [ "${FLY_BUNDLE_LLVM:-0}" = "1" ]; then
+            RUNPATH="$EXE_RPATH"
+        else
+            RUNPATH="$(cd "$FORK_LLVM/lib" && pwd)"
+        fi
+        MAC_ARGS+=(-L"$FORK_LLVM/lib" -lLLVM -rpath "$RUNPATH")
+    fi
+    "$LLD64" -arch arm64 -platform_version macos 13.0 13.0 -syslibroot "$SDK" \
+        -o "$OUTBIN" "$OBJ" "$LIB/fly_std_lib.a" "$LIB/fly_runtime_lib.a" \
+        ${MAC_ARGS[@]+"${MAC_ARGS[@]}"} -lSystem
+    exit 0
+fi
 LLD="$FORK_LLVM/bin/ld.lld"
 [ -x "$LLD" ] || { echo "error: fork ld.lld not found at $LLD — run ci/linux/stage0.sh." >&2; exit 1; }
 MULTIARCH=/usr/lib/x86_64-linux-gnu

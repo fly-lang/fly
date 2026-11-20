@@ -179,137 +179,369 @@ public class CodeGenOptions {
     }
 
     // ── flag accessors ──
-    public bool getStatic()       { return this.isStatic }
-    public void setStatic(const bool b) { this.isStatic = b }
-    public bool getShared()       { return this.isShared }
-    public void setShared(const bool b) { this.isShared = b }
-    public bool getTestMode()     { return this.testMode }
-    public void setTestMode(const bool b) { this.testMode = b }
-    public string getSuiteName()  { return this.suiteName }
-    public void setSuiteName(const string s) { this.suiteName = s }
-    public string getTestFilter() { return this.testFilter }
-    public void setTestFilter(const string s) { this.testFilter = s }
-    public bool getRDynamic()     { return this.rdynamic }
-    public void setRDynamic(const bool b) { this.rdynamic = b }
-    public bool getPIE()          { return this.pie }
-    public void setPie(const bool b) { this.pie = b }
-    public bool getStaticPIE()    { return this.staticPie }
-    public void setStaticPie(const bool b) { this.staticPie = b }
-    public bool getDebugSymbols() { return this.debugSymbols }
-    public void setDebugSymbols(const bool b) { this.debugSymbols = b }
-    public bool getTraceCalls() { return this.traceCalls }
-    public void setTraceCalls(const bool b) { this.traceCalls = b }
-    public bool getEnableTls() { return this.enableTls }
-    public void setEnableTls(const bool b) { this.enableTls = b }
+    public bool getStatic() {
+        return this.isStatic
+    }
+    public void setStatic(const bool b) {
+        this.isStatic = b
+    }
+    public bool getShared() {
+        return this.isShared
+    }
+    public void setShared(const bool b) {
+        this.isShared = b
+    }
+    public bool getTestMode() {
+        return this.testMode
+    }
+    public void setTestMode(const bool b) {
+        this.testMode = b
+    }
+    public string getSuiteName() {
+        return this.suiteName
+    }
+    public void setSuiteName(const string s) {
+        this.suiteName = s
+    }
+    public string getTestFilter() {
+        return this.testFilter
+    }
+    public void setTestFilter(const string s) {
+        this.testFilter = s
+    }
+    public bool getRDynamic() {
+        return this.rdynamic
+    }
+    public void setRDynamic(const bool b) {
+        this.rdynamic = b
+    }
+    public bool getPIE() {
+        return this.pie
+    }
+    public void setPie(const bool b) {
+        this.pie = b
+    }
+    public bool getStaticPIE() {
+        return this.staticPie
+    }
+    public void setStaticPie(const bool b) {
+        this.staticPie = b
+    }
+    public bool getDebugSymbols() {
+        return this.debugSymbols
+    }
+    public void setDebugSymbols(const bool b) {
+        this.debugSymbols = b
+    }
+    public bool getTraceCalls() {
+        return this.traceCalls
+    }
+    public void setTraceCalls(const bool b) {
+        this.traceCalls = b
+    }
+    public bool getEnableTls() {
+        return this.enableTls
+    }
+    public void setEnableTls(const bool b) {
+        this.enableTls = b
+    }
 
     // ── scalar / string accessors ──
-    public int getOptLevel()      { return this.optLevel }
-    public void setOptLevel(const int n) { this.optLevel = n }
-    public int getJobs()          { return this.jobs }
-    public void setJobs(const int n) { this.jobs = n }
-    public string getBBSections() { return this.bbSections }
-    public void setBBSections(const string s) { this.bbSections = s }
-    public string getCodeModel()  { return this.codeModel }
-    public void setCodeModel(const string s) { this.codeModel = s }
-    public string getRuntimeLibDir()   { return this.runtimeLibDir }
-    public void setRuntimeLibDir(const string d)   { this.runtimeLibDir = d }
-    public string getToolchainLibDir() { return this.toolchainLibDir }
-    public void setToolchainLibDir(const string d) { this.toolchainLibDir = d }
-    public string getMingwSysrootDir() { return this.mingwSysrootDir }
-    public void setMingwSysrootDir(const string d) { this.mingwSysrootDir = d }
-    public string getLlvmLibDir()      { return this.llvmLibDir }
-    public void setLlvmLibDir(const string d)      { this.llvmLibDir = d }
-    public string getCoverageDataFile()  { return this.coverageDataFile }
-    public void setCoverageDataFile(const string s) { this.coverageDataFile = s }
-    public string getCoverageNotesFile() { return this.coverageNotesFile }
-    public void setCoverageNotesFile(const string s) { this.coverageNotesFile = s }
-    public string getProfileFilterFiles() { return this.profileFilterFiles }
-    public void setProfileFilterFiles(const string s) { this.profileFilterFiles = s }
-    public string getProfileExcludeFiles() { return this.profileExcludeFiles }
-    public void setProfileExcludeFiles(const string s) { this.profileExcludeFiles = s }
-    public string getCoverageVersion() { return this.coverageVersion }
-    public void setCoverageVersion(const string s) { this.coverageVersion = s }
-    public string getDebugPass()  { return this.debugPass }
-    public void setDebugPass(const string s) { this.debugPass = s }
-    public string getDebugCompilationDir() { return this.debugCompilationDir }
-    public void setDebugCompilationDir(const string s) { this.debugCompilationDir = s }
-    public string getDwarfDebugFlags() { return this.dwarfDebugFlags }
-    public void setDwarfDebugFlags(const string s) { this.dwarfDebugFlags = s }
-    public string getRecordCommandLine() { return this.recordCommandLine }
-    public void setRecordCommandLine(const string s) { this.recordCommandLine = s }
-    public string getDebugPrefixMap() { return this.debugPrefixMap }
-    public void setDebugPrefixMap(const string pairs) { this.debugPrefixMap = pairs }
+    public int getOptLevel() {
+        return this.optLevel
+    }
+    public void setOptLevel(const int n) {
+        this.optLevel = n
+    }
+    public int getJobs() {
+        return this.jobs
+    }
+    public void setJobs(const int n) {
+        this.jobs = n
+    }
+    public string getBBSections() {
+        return this.bbSections
+    }
+    public void setBBSections(const string s) {
+        this.bbSections = s
+    }
+    public string getCodeModel() {
+        return this.codeModel
+    }
+    public void setCodeModel(const string s) {
+        this.codeModel = s
+    }
+    public string getRuntimeLibDir() {
+        return this.runtimeLibDir
+    }
+    public void setRuntimeLibDir(const string d) {
+        this.runtimeLibDir = d
+    }
+    public string getToolchainLibDir() {
+        return this.toolchainLibDir
+    }
+    public void setToolchainLibDir(const string d) {
+        this.toolchainLibDir = d
+    }
+    public string getMingwSysrootDir() {
+        return this.mingwSysrootDir
+    }
+    public void setMingwSysrootDir(const string d) {
+        this.mingwSysrootDir = d
+    }
+    public string getLlvmLibDir() {
+        return this.llvmLibDir
+    }
+    public void setLlvmLibDir(const string d) {
+        this.llvmLibDir = d
+    }
+    public string getCoverageDataFile() {
+        return this.coverageDataFile
+    }
+    public void setCoverageDataFile(const string s) {
+        this.coverageDataFile = s
+    }
+    public string getCoverageNotesFile() {
+        return this.coverageNotesFile
+    }
+    public void setCoverageNotesFile(const string s) {
+        this.coverageNotesFile = s
+    }
+    public string getProfileFilterFiles() {
+        return this.profileFilterFiles
+    }
+    public void setProfileFilterFiles(const string s) {
+        this.profileFilterFiles = s
+    }
+    public string getProfileExcludeFiles() {
+        return this.profileExcludeFiles
+    }
+    public void setProfileExcludeFiles(const string s) {
+        this.profileExcludeFiles = s
+    }
+    public string getCoverageVersion() {
+        return this.coverageVersion
+    }
+    public void setCoverageVersion(const string s) {
+        this.coverageVersion = s
+    }
+    public string getDebugPass() {
+        return this.debugPass
+    }
+    public void setDebugPass(const string s) {
+        this.debugPass = s
+    }
+    public string getDebugCompilationDir() {
+        return this.debugCompilationDir
+    }
+    public void setDebugCompilationDir(const string s) {
+        this.debugCompilationDir = s
+    }
+    public string getDwarfDebugFlags() {
+        return this.dwarfDebugFlags
+    }
+    public void setDwarfDebugFlags(const string s) {
+        this.dwarfDebugFlags = s
+    }
+    public string getRecordCommandLine() {
+        return this.recordCommandLine
+    }
+    public void setRecordCommandLine(const string s) {
+        this.recordCommandLine = s
+    }
+    public string getDebugPrefixMap() {
+        return this.debugPrefixMap
+    }
+    public void setDebugPrefixMap(const string pairs) {
+        this.debugPrefixMap = pairs
+    }
     public void addDebugPrefixMap(const string pair) {
         this.debugPrefixMap = str.concat(this.debugPrefixMap, str.concat(pair, ";"))
     }
-    public string getFloatABI()   { return this.floatABI }
-    public void setFloatABI(const string s) { this.floatABI = s }
-    public string getFPDenormalMode()   { return this.fpDenormalMode }
-    public void setFPDenormalMode(const string s) { this.fpDenormalMode = s }
-    public string getFP32DenormalMode() { return this.fp32DenormalMode }
-    public void setFP32DenormalMode(const string s) { this.fp32DenormalMode = s }
-    public string getLimitFloatPrecision() { return this.limitFloatPrecision }
-    public void setLimitFloatPrecision(const string s) { this.limitFloatPrecision = s }
-    public string getMainFileName() { return this.mainFileName }
-    public void setMainFileName(const string s) { this.mainFileName = s }
-    public string getSplitDwarfFile()   { return this.splitDwarfFile }
-    public void setSplitDwarfFile(const string s) { this.splitDwarfFile = s }
-    public string getSplitDwarfOutput() { return this.splitDwarfOutput }
-    public void setSplitDwarfOutput(const string s) { this.splitDwarfOutput = s }
-    public string getRelocationModel()  { return this.relocationModel }
-    public void setRelocationModel(const string s) { this.relocationModel = s }
-    public string getThreadModel() { return this.threadModel }
-    public void setThreadModel(const string s) { this.threadModel = s }
-    public string getTrapFuncName() { return this.trapFuncName }
-    public void setTrapFuncName(const string s) { this.trapFuncName = s }
-    public string getInstrProfileOutput() { return this.instrProfileOutput }
-    public void setInstrProfileOutput(const string s) { this.instrProfileOutput = s }
-    public string getSampleProfileFile() { return this.sampleProfileFile }
-    public void setSampleProfileFile(const string s) { this.sampleProfileFile = s }
-    public string getProfileInstrumentUsePath() { return this.profileInstrumentUsePath }
-    public void setProfileInstrumentUsePath(const string s) { this.profileInstrumentUsePath = s }
-    public string getProfileRemappingFile() { return this.profileRemappingFile }
-    public void setProfileRemappingFile(const string s) { this.profileRemappingFile = s }
-    public string getThinLTOIndexFile() { return this.thinLTOIndexFile }
-    public void setThinLTOIndexFile(const string s) { this.thinLTOIndexFile = s }
-    public string getThinLinkBitcodeFile() { return this.thinLinkBitcodeFile }
-    public void setThinLinkBitcodeFile(const string s) { this.thinLinkBitcodeFile = s }
-    public string getSaveTempsFilePrefix() { return this.saveTempsFilePrefix }
-    public void setSaveTempsFilePrefix(const string s) { this.saveTempsFilePrefix = s }
-    public string getCudaGpuBinaryFileName() { return this.cudaGpuBinaryFileName }
-    public void setCudaGpuBinaryFileName(const string s) { this.cudaGpuBinaryFileName = s }
-    public string getOptRecordFile()   { return this.optRecordFile }
-    public void setOptRecordFile(const string s) { this.optRecordFile = s }
-    public string getOptRecordPasses() { return this.optRecordPasses }
-    public void setOptRecordPasses(const string s) { this.optRecordPasses = s }
-    public string getOptRecordFormat() { return this.optRecordFormat }
-    public void setOptRecordFormat(const string s) { this.optRecordFormat = s }
-    public string getSymbolPartition() { return this.symbolPartition }
-    public void setSymbolPartition(const string s) { this.symbolPartition = s }
-    public string getPreferVectorWidth() { return this.preferVectorWidth }
-    public void setPreferVectorWidth(const string s) { this.preferVectorWidth = s }
-    public string getArgv0()      { return this.argv0 }
-    public void setArgv0(const string s) { this.argv0 = s }
-    public string getCmdArgs()    { return this.cmdArgs }
-    public void setCmdArgs(const string s) { this.cmdArgs = s }
-    public string getOptimizationRemarkPattern() { return this.optimizationRemarkPattern }
-    public void setOptimizationRemarkPattern(const string s) { this.optimizationRemarkPattern = s }
-    public string getOptimizationRemarkMissedPattern() { return this.optimizationRemarkMissedPattern }
-    public void setOptimizationRemarkMissedPattern(const string s) { this.optimizationRemarkMissedPattern = s }
-    public string getOptimizationRemarkAnalysisPattern() { return this.optimizationRemarkAnalysisPattern }
-    public void setOptimizationRemarkAnalysisPattern(const string s) { this.optimizationRemarkAnalysisPattern = s }
+    public string getFloatABI() {
+        return this.floatABI
+    }
+    public void setFloatABI(const string s) {
+        this.floatABI = s
+    }
+    public string getFPDenormalMode() {
+        return this.fpDenormalMode
+    }
+    public void setFPDenormalMode(const string s) {
+        this.fpDenormalMode = s
+    }
+    public string getFP32DenormalMode() {
+        return this.fp32DenormalMode
+    }
+    public void setFP32DenormalMode(const string s) {
+        this.fp32DenormalMode = s
+    }
+    public string getLimitFloatPrecision() {
+        return this.limitFloatPrecision
+    }
+    public void setLimitFloatPrecision(const string s) {
+        this.limitFloatPrecision = s
+    }
+    public string getMainFileName() {
+        return this.mainFileName
+    }
+    public void setMainFileName(const string s) {
+        this.mainFileName = s
+    }
+    public string getSplitDwarfFile() {
+        return this.splitDwarfFile
+    }
+    public void setSplitDwarfFile(const string s) {
+        this.splitDwarfFile = s
+    }
+    public string getSplitDwarfOutput() {
+        return this.splitDwarfOutput
+    }
+    public void setSplitDwarfOutput(const string s) {
+        this.splitDwarfOutput = s
+    }
+    public string getRelocationModel() {
+        return this.relocationModel
+    }
+    public void setRelocationModel(const string s) {
+        this.relocationModel = s
+    }
+    public string getThreadModel() {
+        return this.threadModel
+    }
+    public void setThreadModel(const string s) {
+        this.threadModel = s
+    }
+    public string getTrapFuncName() {
+        return this.trapFuncName
+    }
+    public void setTrapFuncName(const string s) {
+        this.trapFuncName = s
+    }
+    public string getInstrProfileOutput() {
+        return this.instrProfileOutput
+    }
+    public void setInstrProfileOutput(const string s) {
+        this.instrProfileOutput = s
+    }
+    public string getSampleProfileFile() {
+        return this.sampleProfileFile
+    }
+    public void setSampleProfileFile(const string s) {
+        this.sampleProfileFile = s
+    }
+    public string getProfileInstrumentUsePath() {
+        return this.profileInstrumentUsePath
+    }
+    public void setProfileInstrumentUsePath(const string s) {
+        this.profileInstrumentUsePath = s
+    }
+    public string getProfileRemappingFile() {
+        return this.profileRemappingFile
+    }
+    public void setProfileRemappingFile(const string s) {
+        this.profileRemappingFile = s
+    }
+    public string getThinLTOIndexFile() {
+        return this.thinLTOIndexFile
+    }
+    public void setThinLTOIndexFile(const string s) {
+        this.thinLTOIndexFile = s
+    }
+    public string getThinLinkBitcodeFile() {
+        return this.thinLinkBitcodeFile
+    }
+    public void setThinLinkBitcodeFile(const string s) {
+        this.thinLinkBitcodeFile = s
+    }
+    public string getSaveTempsFilePrefix() {
+        return this.saveTempsFilePrefix
+    }
+    public void setSaveTempsFilePrefix(const string s) {
+        this.saveTempsFilePrefix = s
+    }
+    public string getCudaGpuBinaryFileName() {
+        return this.cudaGpuBinaryFileName
+    }
+    public void setCudaGpuBinaryFileName(const string s) {
+        this.cudaGpuBinaryFileName = s
+    }
+    public string getOptRecordFile() {
+        return this.optRecordFile
+    }
+    public void setOptRecordFile(const string s) {
+        this.optRecordFile = s
+    }
+    public string getOptRecordPasses() {
+        return this.optRecordPasses
+    }
+    public void setOptRecordPasses(const string s) {
+        this.optRecordPasses = s
+    }
+    public string getOptRecordFormat() {
+        return this.optRecordFormat
+    }
+    public void setOptRecordFormat(const string s) {
+        this.optRecordFormat = s
+    }
+    public string getSymbolPartition() {
+        return this.symbolPartition
+    }
+    public void setSymbolPartition(const string s) {
+        this.symbolPartition = s
+    }
+    public string getPreferVectorWidth() {
+        return this.preferVectorWidth
+    }
+    public void setPreferVectorWidth(const string s) {
+        this.preferVectorWidth = s
+    }
+    public string getArgv0() {
+        return this.argv0
+    }
+    public void setArgv0(const string s) {
+        this.argv0 = s
+    }
+    public string getCmdArgs() {
+        return this.cmdArgs
+    }
+    public void setCmdArgs(const string s) {
+        this.cmdArgs = s
+    }
+    public string getOptimizationRemarkPattern() {
+        return this.optimizationRemarkPattern
+    }
+    public void setOptimizationRemarkPattern(const string s) {
+        this.optimizationRemarkPattern = s
+    }
+    public string getOptimizationRemarkMissedPattern() {
+        return this.optimizationRemarkMissedPattern
+    }
+    public void setOptimizationRemarkMissedPattern(const string s) {
+        this.optimizationRemarkMissedPattern = s
+    }
+    public string getOptimizationRemarkAnalysisPattern() {
+        return this.optimizationRemarkAnalysisPattern
+    }
+    public void setOptimizationRemarkAnalysisPattern(const string s) {
+        this.optimizationRemarkAnalysisPattern = s
+    }
 
     // ── linker options (consumed by the ToolChain port) ──
     public void addLinkerOption(const string flag) {
         this.linkerOptions = str.concat(this.linkerOptions, str.concat(flag, ";"))
     }
-    public string getLinkerOptions() { return this.linkerOptions }
+    public string getLinkerOptions() {
+        return this.linkerOptions
+    }
 
     // ── -fno-builtin-<name> functions ──
     public void addNoBuiltinFunc(const string name) {
         this.noBuiltinFuncs = str.concat(this.noBuiltinFuncs, str.concat(name, ";"))
     }
-    public string getNoBuiltinFuncs() { return this.noBuiltinFuncs }
+    public string getNoBuiltinFuncs() {
+        return this.noBuiltinFuncs
+    }
     // isNoBuiltinFunc — is this a libc/libm function no longer treated as a
     // builtin because a -fno-builtin-* option named it?
     public bool isNoBuiltinFunc(const string name) {
@@ -322,41 +554,61 @@ public class CodeGenOptions {
     public void addDependentLibrary(const string s) {
         this.dependentLibraries = str.concat(this.dependentLibraries, str.concat(s, ";"))
     }
-    public string getDependentLibraries() { return this.dependentLibraries }
+    public string getDependentLibraries() {
+        return this.dependentLibraries
+    }
     public void addLinkBitcodeFile(const string s) {
         this.linkBitcodeFiles = str.concat(this.linkBitcodeFiles, str.concat(s, ";"))
     }
-    public string getLinkBitcodeFiles() { return this.linkBitcodeFiles }
+    public string getLinkBitcodeFiles() {
+        return this.linkBitcodeFiles
+    }
     public void addRewriteMapFile(const string s) {
         this.rewriteMapFiles = str.concat(this.rewriteMapFiles, str.concat(s, ";"))
     }
-    public string getRewriteMapFiles() { return this.rewriteMapFiles }
+    public string getRewriteMapFiles() {
+        return this.rewriteMapFiles
+    }
     public void addReciprocal(const string s) {
         this.reciprocals = str.concat(this.reciprocals, str.concat(s, ";"))
     }
-    public string getReciprocals() { return this.reciprocals }
+    public string getReciprocals() {
+        return this.reciprocals
+    }
     public void addDefaultFunctionAttr(const string s) {
         this.defaultFunctionAttrs = str.concat(this.defaultFunctionAttrs, str.concat(s, ";"))
     }
-    public string getDefaultFunctionAttrs() { return this.defaultFunctionAttrs }
+    public string getDefaultFunctionAttrs() {
+        return this.defaultFunctionAttrs
+    }
     public void addPassPlugin(const string s) {
         this.passPlugins = str.concat(this.passPlugins, str.concat(s, ";"))
     }
-    public string getPassPlugins() { return this.passPlugins }
+    public string getPassPlugins() {
+        return this.passPlugins
+    }
     public void addSanitizeCoverageAllowlistFile(const string s) {
         this.sanitizeCoverageAllowlistFiles = str.concat(this.sanitizeCoverageAllowlistFiles, str.concat(s, ";"))
     }
-    public string getSanitizeCoverageAllowlistFiles() { return this.sanitizeCoverageAllowlistFiles }
+    public string getSanitizeCoverageAllowlistFiles() {
+        return this.sanitizeCoverageAllowlistFiles
+    }
     public void addSanitizeCoverageBlocklistFile(const string s) {
         this.sanitizeCoverageBlocklistFiles = str.concat(this.sanitizeCoverageBlocklistFiles, str.concat(s, ";"))
     }
-    public string getSanitizeCoverageBlocklistFiles() { return this.sanitizeCoverageBlocklistFiles }
+    public string getSanitizeCoverageBlocklistFiles() {
+        return this.sanitizeCoverageBlocklistFiles
+    }
     public void addSanitizeRecover(const string s) {
         this.sanitizeRecover = str.concat(this.sanitizeRecover, str.concat(s, ";"))
     }
-    public string getSanitizeRecover() { return this.sanitizeRecover }
+    public string getSanitizeRecover() {
+        return this.sanitizeRecover
+    }
     public void addSanitizeTrap(const string s) {
         this.sanitizeTrap = str.concat(this.sanitizeTrap, str.concat(s, ";"))
     }
-    public string getSanitizeTrap() { return this.sanitizeTrap }
+    public string getSanitizeTrap() {
+        return this.sanitizeTrap
+    }
 }

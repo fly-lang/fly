@@ -38,20 +38,48 @@ public class SemaEnumType : SemaType {
         this.entries = new Map<string, SemaEnumEntry>()
     }
 
-    public SemaEnumType asEnum() { return this }
-    public ASTEnum getAST() { return this.enumAst }
-    public SemaModule getModule() { return this.module }
-    public SymbolTable getSymbols() { return this.symbols }
-    public List<SemaNode> getNodes() { return this.nodes }
-    public List<SemaEnumType> getBaseEnums() { return this.superEnums }
-    public void addBaseEnum(const SemaEnumType base) { this.superEnums.add(base) }
-    public SemaVisibilityKind getVisibility() { return this.visibility }
-    public void setVisibility(const SemaVisibilityKind visibility) { this.visibility = visibility }
-    public bool isConstant() { return this.constantFlag }
-    public void setConstant(const bool constantFlag) { this.constantFlag = constantFlag }
-    public Map<string, SemaEnumEntry> getEntries() { return this.entries }
-    public SemaComment getComment() { return this.comment }
-    public void setComment(const SemaComment comment) { this.comment = comment }
+    public SemaEnumType asEnum() {
+        return this
+    }
+    public ASTEnum getAST() {
+        return this.enumAst
+    }
+    public SemaModule getModule() {
+        return this.module
+    }
+    public SymbolTable getSymbols() {
+        return this.symbols
+    }
+    public List<SemaNode> getNodes() {
+        return this.nodes
+    }
+    public List<SemaEnumType> getBaseEnums() {
+        return this.superEnums
+    }
+    public void addBaseEnum(const SemaEnumType base) {
+        this.superEnums.add(base)
+    }
+    public SemaVisibilityKind getVisibility() {
+        return this.visibility
+    }
+    public void setVisibility(const SemaVisibilityKind visibility) {
+        this.visibility = visibility
+    }
+    public bool isConstant() {
+        return this.constantFlag
+    }
+    public void setConstant(const bool constantFlag) {
+        this.constantFlag = constantFlag
+    }
+    public Map<string, SemaEnumEntry> getEntries() {
+        return this.entries
+    }
+    public SemaComment getComment() {
+        return this.comment
+    }
+    public void setComment(const SemaComment comment) {
+        this.comment = comment
+    }
 
     public void addEntry(const SemaEnumEntry entry) {
         this.nodes.add(entry)
@@ -60,7 +88,9 @@ public class SemaEnumType : SemaType {
 
     public SemaEnumEntry LookupEntry(const string name) {
         SemaEnumEntry r = null
-        if this.entries.has(name) { r = this.entries.get(name) }
+        if this.entries.has(name) {
+            r = this.entries.get(name)
+        }
         return r
     }
 

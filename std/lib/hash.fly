@@ -33,7 +33,9 @@ import fly.os.fs
 // PLATFORM-DEPENDENT (sign-extends on Linux, zero-extends on Windows), so every
 // byte read is masked `& 255` before it enters a 32-bit word.
 
-uint sha256Rotr(const uint x, const uint n) { return (x >> n) | (x << (32 - n)) }
+uint sha256Rotr(const uint x, const uint n) {
+    return (x >> n) | (x << (32 - n))
+}
 
 uint sha256LoadU(const pointer p, const int off) {
     int v = 0
@@ -47,22 +49,70 @@ void sha256StoreU(const pointer p, const int off, const uint v) {
 // sha256FillK — the 64 round constants (frac parts of cube roots of the first 64
 // primes), decimal because Fly has no hex literals.
 void sha256FillK(const pointer K) {
-    sha256StoreU(K, 0, 1116352408)   sha256StoreU(K, 4, 1899447441)   sha256StoreU(K, 8, 3049323471)   sha256StoreU(K, 12, 3921009573)
-    sha256StoreU(K, 16, 961987163)   sha256StoreU(K, 20, 1508970993)  sha256StoreU(K, 24, 2453635748)  sha256StoreU(K, 28, 2870763221)
-    sha256StoreU(K, 32, 3624381080)  sha256StoreU(K, 36, 310598401)   sha256StoreU(K, 40, 607225278)   sha256StoreU(K, 44, 1426881987)
-    sha256StoreU(K, 48, 1925078388)  sha256StoreU(K, 52, 2162078206)  sha256StoreU(K, 56, 2614888103)  sha256StoreU(K, 60, 3248222580)
-    sha256StoreU(K, 64, 3835390401)  sha256StoreU(K, 68, 4022224774)  sha256StoreU(K, 72, 264347078)   sha256StoreU(K, 76, 604807628)
-    sha256StoreU(K, 80, 770255983)   sha256StoreU(K, 84, 1249150122)  sha256StoreU(K, 88, 1555081692)  sha256StoreU(K, 92, 1996064986)
-    sha256StoreU(K, 96, 2554220882)  sha256StoreU(K, 100, 2821834349) sha256StoreU(K, 104, 2952996808) sha256StoreU(K, 108, 3210313671)
-    sha256StoreU(K, 112, 3336571891) sha256StoreU(K, 116, 3584528711) sha256StoreU(K, 120, 113926993)  sha256StoreU(K, 124, 338241895)
-    sha256StoreU(K, 128, 666307205)  sha256StoreU(K, 132, 773529912)  sha256StoreU(K, 136, 1294757372) sha256StoreU(K, 140, 1396182291)
-    sha256StoreU(K, 144, 1695183700) sha256StoreU(K, 148, 1986661051) sha256StoreU(K, 152, 2177026350) sha256StoreU(K, 156, 2456956037)
-    sha256StoreU(K, 160, 2730485921) sha256StoreU(K, 164, 2820302411) sha256StoreU(K, 168, 3259730800) sha256StoreU(K, 172, 3345764771)
-    sha256StoreU(K, 176, 3516065817) sha256StoreU(K, 180, 3600352804) sha256StoreU(K, 184, 4094571909) sha256StoreU(K, 188, 275423344)
-    sha256StoreU(K, 192, 430227734)  sha256StoreU(K, 196, 506948616)  sha256StoreU(K, 200, 659060556)  sha256StoreU(K, 204, 883997877)
-    sha256StoreU(K, 208, 958139571)  sha256StoreU(K, 212, 1322822218) sha256StoreU(K, 216, 1537002063) sha256StoreU(K, 220, 1747873779)
-    sha256StoreU(K, 224, 1955562222) sha256StoreU(K, 228, 2024104815) sha256StoreU(K, 232, 2227730452) sha256StoreU(K, 236, 2361852424)
-    sha256StoreU(K, 240, 2428436474) sha256StoreU(K, 244, 2756734187) sha256StoreU(K, 248, 3204031479) sha256StoreU(K, 252, 3329325298)
+    sha256StoreU(K, 0, 1116352408)
+    sha256StoreU(K, 4, 1899447441)
+    sha256StoreU(K, 8, 3049323471)
+    sha256StoreU(K, 12, 3921009573)
+    sha256StoreU(K, 16, 961987163)
+    sha256StoreU(K, 20, 1508970993)
+    sha256StoreU(K, 24, 2453635748)
+    sha256StoreU(K, 28, 2870763221)
+    sha256StoreU(K, 32, 3624381080)
+    sha256StoreU(K, 36, 310598401)
+    sha256StoreU(K, 40, 607225278)
+    sha256StoreU(K, 44, 1426881987)
+    sha256StoreU(K, 48, 1925078388)
+    sha256StoreU(K, 52, 2162078206)
+    sha256StoreU(K, 56, 2614888103)
+    sha256StoreU(K, 60, 3248222580)
+    sha256StoreU(K, 64, 3835390401)
+    sha256StoreU(K, 68, 4022224774)
+    sha256StoreU(K, 72, 264347078)
+    sha256StoreU(K, 76, 604807628)
+    sha256StoreU(K, 80, 770255983)
+    sha256StoreU(K, 84, 1249150122)
+    sha256StoreU(K, 88, 1555081692)
+    sha256StoreU(K, 92, 1996064986)
+    sha256StoreU(K, 96, 2554220882)
+    sha256StoreU(K, 100, 2821834349)
+    sha256StoreU(K, 104, 2952996808)
+    sha256StoreU(K, 108, 3210313671)
+    sha256StoreU(K, 112, 3336571891)
+    sha256StoreU(K, 116, 3584528711)
+    sha256StoreU(K, 120, 113926993)
+    sha256StoreU(K, 124, 338241895)
+    sha256StoreU(K, 128, 666307205)
+    sha256StoreU(K, 132, 773529912)
+    sha256StoreU(K, 136, 1294757372)
+    sha256StoreU(K, 140, 1396182291)
+    sha256StoreU(K, 144, 1695183700)
+    sha256StoreU(K, 148, 1986661051)
+    sha256StoreU(K, 152, 2177026350)
+    sha256StoreU(K, 156, 2456956037)
+    sha256StoreU(K, 160, 2730485921)
+    sha256StoreU(K, 164, 2820302411)
+    sha256StoreU(K, 168, 3259730800)
+    sha256StoreU(K, 172, 3345764771)
+    sha256StoreU(K, 176, 3516065817)
+    sha256StoreU(K, 180, 3600352804)
+    sha256StoreU(K, 184, 4094571909)
+    sha256StoreU(K, 188, 275423344)
+    sha256StoreU(K, 192, 430227734)
+    sha256StoreU(K, 196, 506948616)
+    sha256StoreU(K, 200, 659060556)
+    sha256StoreU(K, 204, 883997877)
+    sha256StoreU(K, 208, 958139571)
+    sha256StoreU(K, 212, 1322822218)
+    sha256StoreU(K, 216, 1537002063)
+    sha256StoreU(K, 220, 1747873779)
+    sha256StoreU(K, 224, 1955562222)
+    sha256StoreU(K, 228, 2024104815)
+    sha256StoreU(K, 232, 2227730452)
+    sha256StoreU(K, 236, 2361852424)
+    sha256StoreU(K, 240, 2428436474)
+    sha256StoreU(K, 244, 2756734187)
+    sha256StoreU(K, 248, 3204031479)
+    sha256StoreU(K, 252, 3329325298)
 }
 
 // sha256HexU — a uint as 8 lowercase hex digits, big-endian.
@@ -73,8 +123,11 @@ string sha256HexU(const uint v) {
         uint shift = (uint)((7 - i) * 4)
         uint nib = (v >> shift) & 15
         byte c = 0
-        if nib < 10 { c = (byte)(48 + nib) }
-        else { c = (byte)(87 + nib) }
+        if nib < 10 {
+            c = (byte)(48 + nib)
+        } else {
+            c = (byte)(87 + nib)
+        }
         fly.llvm.strPoke(buf, i, c)
         i = i + 1
     }
@@ -87,7 +140,9 @@ string sha256HexU(const uint v) {
 string sha256Digest(const string data) {
     int msgLen = str.len(data)
     int padLen = msgLen + 1
-    while padLen % 64 != 56 { padLen = padLen + 1 }
+    while padLen % 64 != 56 {
+        padLen = padLen + 1
+    }
     int totalLen = padLen + 8
 
     pointer m = mem.alloc(totalLen)
@@ -216,7 +271,6 @@ string sha256Digest(const string data) {
     return r
 }
 
-
 // ── Public entry points ───────────────────────────────────────────────────────
 
 // sha256Hex — the bare 64-character lowercase hex digest of a string's bytes.
@@ -238,7 +292,9 @@ public string sha256String(const string data) {
 // which is precisely the case that matters, since the callers hash downloaded
 // package tarballs to decide whether to trust them.
 public string sha256File(const string path) {
-    if fs.exists(path) == false { return "" }
+    if fs.exists(path) == false {
+        return ""
+    }
     string data = fs.readBytes(path)
     return str.concat("sha256:", sha256Digest(data))
 }

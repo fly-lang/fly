@@ -28,7 +28,9 @@ import fly.data.List
 // through the original handle must be visible through the one read back.
 class Cell {
     int v
-    public Cell(const int v) { this.v = v }
+    public Cell(const int v) {
+        this.v = v
+    }
 }
 
 suite ListSuite {
@@ -182,7 +184,9 @@ suite ListSuite {
             int bad = 0 - 1
             i = 0
             while i < 100 {
-                if l.get(i) != i { bad = i }
+                if l.get(i) != i {
+                    bad = i
+                }
                 i = i + 1
             }
             assert.assertEqI(bad, 0 - 1, 307)

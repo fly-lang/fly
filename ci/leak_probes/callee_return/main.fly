@@ -6,7 +6,9 @@ string mk(const int i) {
 }
 int f(const int i) {
     string t = mk(i)
-    if i < 0 { return 0 }
+    if i < 0 {
+        return 0
+    }
     return 1
 }
 void main() {

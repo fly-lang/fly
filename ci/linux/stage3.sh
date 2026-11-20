@@ -35,6 +35,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 cd "$(dirname "$0")/../.."
+. ci/linux/platform.sh
 
 FLY2=build/stage2/bin/fly
 OBJ2=build/stage2/driver/Driver.o
@@ -60,8 +61,8 @@ build_driver() {
     fi
     mv -f "$dir/Driver" "$dir/Driver.o"
 }
-sha() { sha256sum "$1" | cut -d' ' -f1; }
-size() { stat -c %s "$1"; }
+sha() { sha256_of "$1"; }
+size() { wc -c < "$1" | tr -d ' '; }
 
 echo "stage3: compiling driver + compiler with the stage2 fly (fixpoint check) ...${DBG:+ (+debug-symbols)}"
 start=$SECONDS

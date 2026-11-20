@@ -388,7 +388,9 @@ suite TreeSuite {
             i = 0
             while i < 100 {
                 long k = (i * 37) % 101
-                if t.get(k) != k * 3 { bad = k }
+                if t.get(k) != k * 3 {
+                    bad = k
+                }
                 i = i + 1
             }
             assert.assertEqL(bad, 0 - 1, 502)
@@ -399,13 +401,17 @@ suite TreeSuite {
             long i = 0
             while i < 60 {
                 t.put(i, i)
-                if i % 3 == 0 { t.remove(i / 3) }
+                if i % 3 == 0 {
+                    t.remove(i / 3)
+                }
                 i = i + 1
             }
             long bad = 0 - 2
             i = 0
             while i < 20 {
-                if t.has(i) { bad = i }                // 0..19 were all removed
+                if t.has(i) { // 0..19 were all removed
+                    bad = i
+                }
                 i = i + 1
             }
             assert.assertEqL(bad, 0 - 2, 503)
@@ -422,7 +428,9 @@ suite TreeSuite {
             }
             i = 0
             while i < 40 {
-                if i % 2 == 0 { t.remove(i) }
+                if i % 2 == 0 {
+                    t.remove(i)
+                }
                 i = i + 1
             }
             t.free()                                   // stack must fit the rest
@@ -524,7 +532,9 @@ suite TreeSuite {
             int bad = 0 - 1
             i = 0
             while i < 60 {
-                if t.get(str.concat("key", str.convert(i))) != i { bad = i }
+                if t.get(str.concat("key", str.convert(i))) != i {
+                    bad = i
+                }
                 i = i + 1
             }
             assert.assertEqI(bad, 0 - 1, 630)

@@ -50,45 +50,105 @@ public class SemaFunctionBase : SemaNode {
     // out-param model, so getParamTypes() can drop exactly those. Set by
     // ResolverDecl.resolveSignature / resolveMethodSignature as it appends them:
     // 0 for void, 1 for a single return, N for `A,B,…` multi-return.
-    public int getOutParamCount() { return this.outParamCount }
-    public void setOutParamCount(const int n) { this.outParamCount = n }
+    public int getOutParamCount() {
+        return this.outParamCount
+    }
+    public void setOutParamCount(const int n) {
+        this.outParamCount = n
+    }
 
-    public pointer getLlvmFn() { return this.llvmFn }
-    public void setLlvmFn(const pointer f) { this.llvmFn = f }
-    public pointer getLlvmFnType() { return this.llvmFnType }
-    public void setLlvmFnType(const pointer t) { this.llvmFnType = t }
+    public pointer getLlvmFn() {
+        return this.llvmFn
+    }
+    public void setLlvmFn(const pointer f) {
+        this.llvmFn = f
+    }
+    public pointer getLlvmFnType() {
+        return this.llvmFnType
+    }
+    public void setLlvmFnType(const pointer t) {
+        this.llvmFnType = t
+    }
 
-    public SemaFunctionBase asFunctionBase() { return this }
+    public SemaFunctionBase asFunctionBase() {
+        return this
+    }
 
-    public SymbolTable getSymbols() { return this.scope }
-    public string getName() { return this.funcAst.getName() }
-    public SemaType getReturnType() { return this.returnType }
-    public void setReturnType(const SemaType returnType) { this.returnType = returnType }
-    public string getNamespaceName() { return this.namespaceName }
-    public void setNamespaceName(const string namespaceName) { this.namespaceName = namespaceName }
-    public List<SemaParam> getParams() { return this.params }
-    public void addParam(const SemaParam param) { this.params.add(param) }
-    public ASTFunction getAST() { return this.funcAst }
-    public List<SemaLocalVar> getLocalVars() { return this.localVars }
-    public void addLocalVar(const SemaLocalVar localVar) { this.localVars.add(localVar) }
-    public SemaError getErrorHandler() { return this.errorHandler }
-    public void setErrorHandler(const SemaError errorHandler) { this.errorHandler = errorHandler }
-    public bool isFallible() { return this.fallible }
-    public void setFallible(const bool fallible) { this.fallible = fallible }
-    public bool isFromHeader() { return this.fromHeader }
+    public SymbolTable getSymbols() {
+        return this.scope
+    }
+    public string getName() {
+        return this.funcAst.getName()
+    }
+    public SemaType getReturnType() {
+        return this.returnType
+    }
+    public void setReturnType(const SemaType returnType) {
+        this.returnType = returnType
+    }
+    public string getNamespaceName() {
+        return this.namespaceName
+    }
+    public void setNamespaceName(const string namespaceName) {
+        this.namespaceName = namespaceName
+    }
+    public List<SemaParam> getParams() {
+        return this.params
+    }
+    public void addParam(const SemaParam param) {
+        this.params.add(param)
+    }
+    public ASTFunction getAST() {
+        return this.funcAst
+    }
+    public List<SemaLocalVar> getLocalVars() {
+        return this.localVars
+    }
+    public void addLocalVar(const SemaLocalVar localVar) {
+        this.localVars.add(localVar)
+    }
+    public SemaError getErrorHandler() {
+        return this.errorHandler
+    }
+    public void setErrorHandler(const SemaError errorHandler) {
+        this.errorHandler = errorHandler
+    }
+    public bool isFallible() {
+        return this.fallible
+    }
+    public void setFallible(const bool fallible) {
+        this.fallible = fallible
+    }
+    public bool isFromHeader() {
+        return this.fromHeader
+    }
 
     // asClassMethod — narrow to SemaClassMethod (null on the base; the method
     // subclass overrides). Used by body resolution to restore the class context.
-    public SemaClassMethod asClassMethod() { return null }
+    public SemaClassMethod asClassMethod() {
+        return null
+    }
     // asFunction — narrow to SemaFunction (a free function). Null on the base +
     // SemaClassMethod; SemaFunction overrides to `this`. Codegen uses it to detect a
     // generic-function specialization (getGenericTemplate != null) for weak linkage.
-    public SemaFunction asFunction() { return null }
-    public void setFromHeader(const bool fromHeader) { this.fromHeader = fromHeader }
-    public Symbol getDeclSymbol() { return this.declSymbol }
-    public void setDeclSymbol(const Symbol declSymbol) { this.declSymbol = declSymbol }
-    public SemaBlockStmt getBody() { return this.body }
-    public void setBody(const SemaBlockStmt body) { this.body = body }
+    public SemaFunction asFunction() {
+        return null
+    }
+    public void setFromHeader(const bool fromHeader) {
+        this.fromHeader = fromHeader
+    }
+    public Symbol getDeclSymbol() {
+        return this.declSymbol
+    }
+    public void setDeclSymbol(const Symbol declSymbol) {
+        this.declSymbol = declSymbol
+    }
+    public SemaBlockStmt getBody() {
+        return this.body
+    }
+    public void setBody(const SemaBlockStmt body) {
+        this.body = body
+    }
 
     // getParamTypes — the EXPLICIT parameter types (excludes the synthetic trailing
     // 'out' param a non-void function carries). Overrides SemaNode.getParamTypes so
@@ -97,7 +157,9 @@ public class SemaFunctionBase : SemaNode {
         List<SemaType> r = new List<SemaType>()
         int n = (int)this.params.size()
         int explicitCount = n - this.outParamCount
-        if explicitCount < 0 { explicitCount = 0 }
+        if explicitCount < 0 {
+            explicitCount = 0
+        }
         int i = 0
         while i < explicitCount {
             SemaParam p = this.params.get(i)

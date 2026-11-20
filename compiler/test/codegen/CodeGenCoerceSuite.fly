@@ -22,8 +22,6 @@ import fly.test.util.*
 // caught B2 in the wild.
 // ─────────────────────────────────────────────────────────────────────────────
 
-
-
 suite CodeGenCoerceSuite {
 
     void declInitTest() {

@@ -12,8 +12,6 @@ import fly.assert
 // specialization's get() returns int, not the type parameter.
 // ─────────────────────────────────────────────────────────────────────────────
 
-
-
 suite GenericsSuite {
 
     void monomorphizeTest() {

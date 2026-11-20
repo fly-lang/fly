@@ -1,11 +1,20 @@
 import fly.os.io
 import fly.str
 class P { private int v
- public P() { this.v = 3 }
- public int get() { return this.v } }
-int f(const int a) { return a }
-int f(const string a) { return 1 }
-void main() { byte b = 200
+ public P() {
+     this.v = 3
+ }
+ public int get() {
+     return this.v
+ } }
+int f(const int a) {
+    return a
+}
+int f(const string a) {
+    return 1
+}
+void main() {
+    byte b = 200
  short s = -5
  uint u = 3144134277
  float fl = 1.5
@@ -15,11 +24,26 @@ void main() { byte b = 200
  int n = (int)l
  const int k = 4
  int t = k > 3 ? 1 : 2
- for int i = 0; i < 3; i++ { if i == 1 { continue }
-  if i == 2 { break } }
- { int x2 = 1 }
- { int x2 = 2 }
- if x > 1 { int inner = 1 } else { int inner = 2 }
+ for int i = 0; i < 3; i++ {
+     if i == 1 {
+         continue
+     }
+  if i == 2 {
+      break
+  }
+ }
+ {
+     int x2 = 1
+ }
+ {
+     int x2 = 2
+ }
+ if x > 1 {
+     int inner = 1
+ } else {
+     int inner = 2
+ }
  P p = new P()
  string c = "a" + "b"
- io.printLn(str.convert(p.get() + n + t + f(1) + f("z"))) }
+ io.printLn(str.convert(p.get() + n + t + f(1) + f("z")))
+}

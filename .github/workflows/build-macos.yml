@@ -1,0 +1,118 @@
+name: Build macOS
+
+# The staged bootstrap on Apple Silicon (macos-latest is arm64). The same scripts
+# as Linux — ci/linux/*.sh branch on the host through ci/linux/platform.sh — and
+# the same order: stage 0 (seed + fork LLVM for macOS arm64), stage 1, the stage-1
+# suites, stage 2, the stage-2 suites, stage 3. The seed is 0.13.19, the first one
+# released with a macOS arm64 archive next to the Linux and Windows ones.
+
+on:
+  workflow_call:
+    inputs:
+      debug_symbols:
+        description: '"1" embeds DWARF (crash → source line); "0" for lean release artifacts.'
+        required: false
+        type: string
+        default: "1"
+  push:
+    paths-ignore:
+      - '.github/workflows/**'
+    branches:
+      - release/*
+  workflow_dispatch:
+
+jobs:
+
+  build-macos:
+    runs-on: macos-latest
+    # A full run takes minutes; a hung step (a test waiting on a process that
+    # never exits) must fail the job, not hold the runner for the 6-hour default.
+    timeout-minutes: 60
+    env:
+      FLY_DEBUG_SYMBOLS: ${{ inputs.debug_symbols == '0' && '0' || '1' }}
+      # Everything the release ships targets this macOS version or later.
+      MACOSX_DEPLOYMENT_TARGET: '13.0'
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The fork LLVM for macOS arm64 (build/llvm). Same rule as Linux: bump the
+      # -vN suffix whenever stage0.sh extracts a different file set.
+      - name: Cache fork LLVM
+        uses: actions/cache@v4
+        with:
+          path: build/llvm
+          key: fly-llvm-20.1.8-macos-arm64-v1
+
+      - name: Stage 0 (bootstrap fly + fork LLVM)
+        env:
+          FLY_BUNDLE_LLVM: "1"
+        run: chmod +x ./ci/linux/*.sh && ./ci/linux/stage0.sh
+
+      - name: Stage 1 (bootstrap builds the self-host)
+        env:
+          FLY_BUNDLE_LLVM: "1"
+          FLY_STAGE1_TESTS: "0"
+        run: ./ci/linux/stage1.sh
+
+      - name: Test stage 1 (self-host built by the reference)
+        env:
+          STAGE: "1"
+        run: |
+          ./ci/linux/test_runtime.sh
+          ./ci/linux/test_std.sh
+          ./ci/linux/test_compiler.sh
+
+      - name: Stage 2 (self-host rebuilds the shipped artifacts)
+        env:
+          FLY_BUNDLE_LLVM: "1"
+        run: ./ci/linux/stage2.sh
+
+      - name: Test runtime
+        env:
+          STAGE: "2"
+        run: ./ci/linux/test_runtime.sh
+
+      - name: Test std
+        env:
+          STAGE: "2"
+        run: ./ci/linux/test_std.sh
+
+      - name: Test self-host compiler
+        env:
+          STAGE: "2"
+        run: ./ci/linux/test_compiler.sh
+
+      - name: Stage 3 (fixpoint check)
+        run: ./ci/linux/stage3.sh
+
+      # What ships must run on a Mac without Homebrew or the build tree.
+      - name: Check the bundle is self-contained
+        run: |
+          bad=""
+          for f in build/stage2/bin/* build/stage2/lib/*.dylib; do
+            [ -f "$f" ] || continue
+            file "$f" | grep -q Mach-O || continue
+            deps=$(otool -L "$f" | tail -n +2 | grep -E '/opt/homebrew|/usr/local|/Users/|build/llvm' || true)
+            [ -n "$deps" ] && bad="$bad$f:\n$deps\n"
+          done
+          if [ -n "$bad" ]; then printf "non-portable dependencies:\n$bad"; exit 1; fi
+          echo "bundle resolves only system libraries and @rpath"
+
+      - name: Set artifact name
+        id: artifact
+        run: |
+          BRANCH="${{ github.ref_name }}"
+          echo "artifact_name=macos-artifact-${BRANCH//\//-}" >> $GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.artifact_name }}
+          path: |
+            build/stage2/bin
+            build/stage2/lib
+          if-no-files-found: error
+          overwrite: true

@@ -22,10 +22,16 @@ public class Box {
         this.total = (long)r.a + r.b
         this.label = r.tag
     }
-    public long getTotal() { return this.total }
-    public string getLabel() { return this.label }
+    public long getTotal() {
+        return this.total
+    }
+    public string getLabel() {
+        return this.label
+    }
     // const STRUCT param on a METHOD (the CodeGenClass.methodCall arg path)
-    public long weigh(const Rec r) { return this.total + (long)r.a + r.b }
+    public long weigh(const Rec r) {
+        return this.total + (long)r.a + r.b
+    }
 }
 
 // make — the struct producer. A struct built field by field and handed back is
@@ -39,18 +45,28 @@ public Rec make(const int a, const long b, const string tag) {
 }
 
 // const STRUCT param: passed BY VALUE (the object pointer itself).
-public long sum2(const Rec r) { return (long)r.a + r.b }
+public long sum2(const Rec r) {
+    return (long)r.a + r.b
+}
 
 // ...and the same struct reached for a non-first field, so an offset slip shows.
-public string tagOf(const Rec r) { return r.tag }
+public string tagOf(const Rec r) {
+    return r.tag
+}
 
 // NON-const STRUCT param: passed BY POINTER, so the write reaches the caller.
-public void bumpA(Rec r) { r.a = r.a + 1 }
+public void bumpA(Rec r) {
+    r.a = r.a + 1
+}
 
 // const CLASS handle param: the by-value-handle rule the struct case shares a
 // code path with — here to catch a re-regression of either half.
-public long sumVia(const Box b) { return b.getTotal() }
+public long sumVia(const Box b) {
+    return b.getTotal()
+}
 
 // A const STRUCT followed by a scalar: a by-value struct that consumed the wrong
 // number of argument slots would shift everything after it.
-public long weighted(const Rec r, const int extra) { return (long)r.a + r.b + (long)extra }
+public long weighted(const Rec r, const int extra) {
+    return (long)r.a + r.b + (long)extra
+}

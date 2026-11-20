@@ -13,7 +13,11 @@ public struct fly_rng {
 // ── Base ──────────────────────────────────────────────────────────────────────
 
 public long absI(const long x) {
-    if x < 0 { return 0 - x } else { return x }
+    if x < 0 {
+        return 0 - x
+    } else {
+        return x
+    }
 }
 
 public double absF(const double x) {
@@ -33,7 +37,11 @@ public int sign(const double x) {
 }
 
 public long minI(const long a, const long b) {
-    if a < b { return a } else { return b }
+    if a < b {
+        return a
+    } else {
+        return b
+    }
 }
 
 public double minF(const double a, const double b) {
@@ -43,7 +51,11 @@ public double minF(const double a, const double b) {
 }
 
 public long maxI(const long a, const long b) {
-    if a > b { return a } else { return b }
+    if a > b {
+        return a
+    } else {
+        return b
+    }
 }
 
 public double maxF(const double a, const double b) {
@@ -54,8 +66,12 @@ public double maxF(const double a, const double b) {
 
 public long clampI(const long x, const long lo, const long hi) {
     long v = x
-    if v < lo { v = lo }
-    if v > hi { v = hi }
+    if v < lo {
+        v = lo
+    }
+    if v > hi {
+        v = hi
+    }
     return v
 }
 
@@ -70,8 +86,12 @@ public double clampF(const double x, const double lo, const double hi) {
 public long gcd(const long a, const long b) {
     long u = a
     long v = b
-    if u < 0 { u = 0 - u }
-    if v < 0 { v = 0 - v }
+    if u < 0 {
+        u = 0 - u
+    }
+    if v < 0 {
+        v = 0 - v
+    }
     while v != 0 {
         long t = v
         v = u % v
@@ -87,8 +107,12 @@ public long lcm(const long a, const long b) {
     }
     long av = a
     long bv = b
-    if av < 0 { av = 0 - av }
-    if bv < 0 { bv = 0 - bv }
+    if av < 0 {
+        av = 0 - av
+    }
+    if bv < 0 {
+        bv = 0 - bv
+    }
     return (av / g) * bv
 }
 
@@ -99,17 +123,17 @@ public void divmod(const long a, const long b, long out_q, long out_r) {
 
 // ── Trigonometry ─────────────────────────────────────────────────────────────
 
-public double sin(const double x)  {
+public double sin(const double x) {
     double res
     fly.llvm.sin(x, res)
     return res
 }
-public double cos(const double x)  {
+public double cos(const double x) {
     double res
     fly.llvm.cos(x, res)
     return res
 }
-public double tan(const double x)  {
+public double tan(const double x) {
     double res
     fly.llvm.tan(x, res)
     return res
@@ -136,17 +160,17 @@ public double atan2(const double y, const double x) {
     return res
 }
 
-public double sinh(const double x)  {
+public double sinh(const double x) {
     double res
     fly.runtime.sinh(x, res)
     return res
 }
-public double cosh(const double x)  {
+public double cosh(const double x) {
     double res
     fly.runtime.cosh(x, res)
     return res
 }
-public double tanh(const double x)  {
+public double tanh(const double x) {
     double res
     fly.runtime.tanh(x, res)
     return res
@@ -168,7 +192,7 @@ public double hypot(const double a, const double b) {
 
 // ── Exponential & Logarithms ─────────────────────────────────────────────────
 
-public double sqrt(const double x)  {
+public double sqrt(const double x) {
     double res
     fly.llvm.sqrt(x, res)
     return res
@@ -180,7 +204,9 @@ public double cbrt(const double x) {
     fly.llvm.fabs(x, v)
     double third = 0.3333333333333333
     fly.llvm.pow(v, third, res)
-    if x < 0.0 { return 0.0 - res }
+    if x < 0.0 {
+        return 0.0 - res
+    }
     return res
 }
 
@@ -190,22 +216,22 @@ public double pow(const double base, const double exp) {
     return res
 }
 
-public double exp(const double x)   {
+public double exp(const double x) {
     double res
     fly.llvm.exp(x, res)
     return res
 }
-public double exp2(const double x)  {
+public double exp2(const double x) {
     double res
     fly.llvm.exp2(x, res)
     return res
 }
-public double log(const double x)   {
+public double log(const double x) {
     double res
     fly.llvm.log(x, res)
     return res
 }
-public double log2(const double x)  {
+public double log2(const double x) {
     double res
     fly.llvm.log2(x, res)
     return res
@@ -231,7 +257,7 @@ public double floor(const double x) {
     fly.llvm.floor(x, res)
     return res
 }
-public double ceil(const double x)  {
+public double ceil(const double x) {
     double res
     fly.llvm.ceil(x, res)
     return res
@@ -413,7 +439,9 @@ public long randInt(fly_rng rng, const long a, const long b) {
     ulong r_u = fly.math.rngNext(rng)
     long r = 0
     fly.llvm.ulongToLong(r_u, r)
-    if r < 0 { r = 0 - r }
+    if r < 0 {
+        r = 0 - r
+    }
     if range == 0 {
         return r
     } else {
@@ -424,7 +452,9 @@ public long randInt(fly_rng rng, const long a, const long b) {
 public double randNormal(fly_rng rng, const double mu, const double sigma) {
     double u1 = fly.math.randFloat(rng)
     double u2 = fly.math.randFloat(rng)
-    if u1 <= 0.0 { u1 = 2.2250738585072014e-308 }
+    if u1 <= 0.0 {
+        u1 = 2.2250738585072014e-308
+    }
     double lu1 = 0.0
     fly.llvm.log(u1, lu1)
     double sq = 0.0
@@ -488,7 +518,9 @@ public long comb(const long n, const long k) {
     if kv > nv {
         return 0
     }
-    if kv > nv - kv { kv = nv - kv }
+    if kv > nv - kv {
+        kv = nv - kv
+    }
     long r = 1
     long i = 0
     while i < kv {
@@ -516,32 +548,32 @@ public long perm(const long n, const long k) {
     return r
 }
 
-public double erf(const double x)    {
+public double erf(const double x) {
     double res
     fly.runtime.erf(x, res)
     return res
 }
-public double erfc(const double x)   {
+public double erfc(const double x) {
     double res
     fly.runtime.erfc(x, res)
     return res
 }
-public double gamma(const double x)  {
+public double gamma(const double x) {
     double res
     fly.runtime.tgamma(x, res)
     return res
 }
-public double asinh(const double x)  {
+public double asinh(const double x) {
     double res
     fly.runtime.asinh(x, res)
     return res
 }
-public double acosh(const double x)  {
+public double acosh(const double x) {
     double res
     fly.runtime.acosh(x, res)
     return res
 }
-public double atanh(const double x)  {
+public double atanh(const double x) {
     double res
     fly.runtime.atanh(x, res)
     return res

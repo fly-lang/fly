@@ -36,8 +36,12 @@ public class CodeGenBridge {
     // (SemaNameSpace nodes hold only the leaf segment; classNsFlat rebuilds the
     // dotted path flattened with '_'). No downcasts, no new virtuals.
     public static bool isCLangClass(const SemaClassType cls) {
-        if cls == null { return false }
-        if str.equals(cls.getName(), "CLang") == false { return false }
+        if cls == null {
+            return false
+        }
+        if str.equals(cls.getName(), "CLang") == false {
+            return false
+        }
         return str.equals(SemaBuilder.classNsFlat(cls), "fly_bridge")
     }
 
@@ -45,12 +49,20 @@ public class CodeGenBridge {
     // to the archive stub (which is an empty body).
     public static bool isBridgeCall(const SemaCall node) {
         SemaFunctionBase fn = node.getFunction()
-        if fn == null { return false }
-        if str.equals(fn.getName(), "call") == false { return false }
+        if fn == null {
+            return false
+        }
+        if str.equals(fn.getName(), "call") == false {
+            return false
+        }
         SemaExpr parent = node.getParent()
-        if parent == null { return false }
+        if parent == null {
+            return false
+        }
         SemaType pt = parent.getType()
-        if pt == null { return false }
+        if pt == null {
+            return false
+        }
         return CodeGenBridge.isCLangClass(pt.asClass())
     }
 
@@ -59,14 +71,24 @@ public class CodeGenBridge {
     // gen of arg 0 recorded its text in cge.lastStrLit).
     public static void captureCtorLib(const CodeGenExpr cge, const SemaCall node) {
         List<SemaExpr> args = node.getArgs()
-        if args.size() == 0 { return }
+        if args.size() == 0 {
+            return
+        }
         SemaExpr a0 = args.get(0)
-        if a0.getKind() != SemaKind.VALUE { return }
+        if a0.getKind() != SemaKind.VALUE {
+            return
+        }
         SemaType t0 = a0.getType()
-        if t0 == null { return }
-        if t0.isString() == false { return }
+        if t0 == null {
+            return
+        }
+        if t0.isString() == false {
+            return
+        }
         string lib = cge.getLastStrLit()
-        if str.isEmpty(lib) { return }
+        if str.isEmpty(lib) {
+            return
+        }
         CodeGenModule cgm = cge.getCgm()
         cgm.addLinkerOption(CodeGenBridge.normalizeLibFlag(lib))
     }
@@ -75,11 +97,17 @@ public class CodeGenBridge {
     // absolute path as-is; `.a` archive → -l:<name>; else strip the extension
     // and the `lib` prefix → -l<name> ("libm.so.6" → "-lm").
     public static string normalizeLibFlag(const string lib) {
-        if str.startsWith(lib, "/") { return lib }
-        if str.endsWith(lib, ".a") { return str.concat("-l:", lib) }
+        if str.startsWith(lib, "/") {
+            return lib
+        }
+        if str.endsWith(lib, ".a") {
+            return str.concat("-l:", lib)
+        }
         string name = lib
         int dot = str.indexOf(name, ".")
-        if dot >= 0 { name = str.substring(name, 0, dot) }
+        if dot >= 0 {
+            name = str.substring(name, 0, dot)
+        }
         if str.startsWith(name, "lib") {
             int L = str.len(name)
             name = str.substring(name, 3, L)
@@ -225,7 +253,9 @@ public class CodeGenBridge {
             llvm.addFunction(cgm.getModule(), sym, fty2, fnDecl)
         }
         string resName = "bcr"
-        if isVoid { resName = "" }
+        if isVoid {
+            resName = ""
+        }
         pointer cres
         cg.buildCallN(b, fty2, fnDecl, cargs, resName, cres)
 

@@ -86,7 +86,9 @@ suite PollSuite {
     // ── add / set / remove bookkeeping ───────────────────────────────────────
     void bookkeepingTest() {
         case "add returns the index and records the socket": {
-            if skipSockets() { assert.assertTrue(true, 201) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 201)
+            } else {
                 pointer ps = net.pollNew()
                 long a = net.socket()
                 long b = net.socket()
@@ -108,7 +110,9 @@ suite PollSuite {
             net.pollFree(ps)
         }
         case "the set grows past its initial capacity of 8": {
-            if skipSockets() { assert.assertTrue(true, 209) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 209)
+            } else {
                 pointer ps = net.pollNew()
                 long first = net.socket()
                 int i = 0
@@ -123,7 +127,9 @@ suite PollSuite {
             }
         }
         case "set changes what an entry watches": {
-            if skipSockets() { assert.assertTrue(true, 211) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 211)
+            } else {
                 pointer ps = net.pollNew()
                 long s = net.socket()
                 net.pollAdd(ps, s, net.pollRead())
@@ -137,7 +143,9 @@ suite PollSuite {
         case "remove moves the LAST entry into the hole": {
             // Indices are not stable across a removal; this pins that contract
             // so nobody writes a forward loop that skips an entry.
-            if skipSockets() { assert.assertTrue(true, 214) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 214)
+            } else {
                 pointer ps = net.pollNew()
                 long a = net.socket()
                 long b = net.socket()
@@ -169,7 +177,9 @@ suite PollSuite {
     // ── readiness: the translation layer under test ──────────────────────────
     void readinessTest() {
         case "a socket with data pending reports read-ready": {
-            if skipSockets() { assert.assertTrue(true, 301) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 301)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = net.socket()
@@ -196,7 +206,9 @@ suite PollSuite {
             // The negative half of the pair above. If the event translation were
             // wrong in the "everything is ready" direction, only this case
             // would catch it.
-            if skipSockets() { assert.assertTrue(true, 305) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 305)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = net.socket()
@@ -221,7 +233,9 @@ suite PollSuite {
             }
         }
         case "a fresh connected socket is write-ready immediately": {
-            if skipSockets() { assert.assertTrue(true, 310) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 310)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = net.socket()
@@ -242,7 +256,9 @@ suite PollSuite {
         }
         case "a listening socket with a pending connection is read-ready": {
             // This is the accept-loop shape a server actually uses.
-            if skipSockets() { assert.assertTrue(true, 313) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 313)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
 
@@ -272,7 +288,9 @@ suite PollSuite {
             // Two watched sockets, one with data: the count must be 1 and the
             // right index must carry the bit. A stride mistake in the native
             // array shows up here as the wrong entry lighting up.
-            if skipSockets() { assert.assertTrue(true, 318) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 318)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cliA = net.socket()
@@ -309,7 +327,9 @@ suite PollSuite {
             // 0), while Winsock sets POLLHUP and does NOT set POLLRDNORM. So the
             // portable contract is "read OR hup OR err", and a caller that wants
             // to detect EOF must attempt the read rather than trust one bit.
-            if skipSockets() { assert.assertTrue(true, 323) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 323)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = net.socket()
@@ -337,7 +357,9 @@ suite PollSuite {
     // ── timeouts and degenerate waits ────────────────────────────────────────
     void timeoutTest() {
         case "a zero timeout polls and returns at once": {
-            if skipSockets() { assert.assertTrue(true, 401) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 401)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 pointer ps = net.pollNew()
                 net.pollAdd(ps, srv, net.pollRead())
@@ -351,7 +373,9 @@ suite PollSuite {
         }
         case "revents is cleared between waits": {
             // A stale revents would make a one-shot readiness look permanent.
-            if skipSockets() { assert.assertTrue(true, 403) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 403)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = net.socket()

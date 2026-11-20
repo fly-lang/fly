@@ -4,6 +4,7 @@ import fly.mem
 import fly.os.env
 import fly.os.time
 import fly.os.time.Time
+import fly.os.time.Duration
 import fly.assert
 
 // elapsedMs — milliseconds between two monotonic readings.
@@ -111,7 +112,9 @@ suite NetSuite {
             assert.assertEqI(net.resolve("10.0.0.7"), net.ipv4(10, 0, 0, 7), 202)
         }
         case "localhost resolves to a 127.x address": {
-            if skipSockets() { assert.assertTrue(true, 203) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 203)
+            } else {
                 int a = net.resolve("localhost")
                 assert.assertNeI(a, 0, 203)
                 // Some hosts list ::1 first; when an A record comes back at all
@@ -120,7 +123,9 @@ suite NetSuite {
             }
         }
         case "an unknown host and an empty name both fail with 0": {
-            if skipSockets() { assert.assertTrue(true, 205) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 205)
+            } else {
                 assert.assertEqI(net.resolve("fly-no-such-host-xyzabc.invalid"), 0, 205)
             }
             assert.assertEqI(net.resolve(""), 0, 206)
@@ -130,7 +135,9 @@ suite NetSuite {
     // ── socket lifecycle ─────────────────────────────────────────────────────
     void lifecycleTest() {
         case "a fresh socket is a non-negative handle": {
-            if skipSockets() { assert.assertTrue(true, 301) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 301)
+            } else {
                 long s = net.socket()
                 assert.assertTrue(s >= 0, 301)
                 net.close(s)
@@ -141,7 +148,9 @@ suite NetSuite {
             assert.assertTrue(true, 302)
         }
         case "listenOn with port 0 gets a real ephemeral port": {
-            if skipSockets() { assert.assertTrue(true, 303) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 303)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 assert.assertTrue(srv >= 0, 303)
                 int port = net.localPort(srv)
@@ -150,7 +159,9 @@ suite NetSuite {
             }
         }
         case "two ephemeral binds get different ports": {
-            if skipSockets() { assert.assertTrue(true, 305) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 305)
+            } else {
                 long a = net.listenOn(net.loopback(), 0, 4)
                 long b = net.listenOn(net.loopback(), 0, 4)
                 int pa = net.localPort(a)
@@ -173,7 +184,9 @@ suite NetSuite {
             assert.assertEmpty(net.recvAll(0 - 1), 315)
         }
         case "bind and listen can also be driven step by step": {
-            if skipSockets() { assert.assertTrue(true, 316) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 316)
+            } else {
                 long s = net.socket()
                 assert.assertTrue(net.reuseAddr(s), 316)
                 assert.assertTrue(net.bind(s, net.loopback(), 0), 317)
@@ -187,7 +200,9 @@ suite NetSuite {
     // ── loopback round-trip ──────────────────────────────────────────────────
     void roundTripTest() {
         case "a self-connected pair exchanges bytes in both directions": {
-            if skipSockets() { assert.assertTrue(true, 401) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 401)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 assert.assertTrue(srv >= 0, 401)
                 int port = net.localPort(srv)
@@ -217,7 +232,9 @@ suite NetSuite {
             }
         }
         case "recv returns 0, not an error, once the peer closes": {
-            if skipSockets() { assert.assertTrue(true, 408) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 408)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = net.socket()
@@ -231,12 +248,16 @@ suite NetSuite {
                     assert.assertEqL(n, 0, 408)
                     mem.free(buf, 64)
                     net.close(acc)
-                } else { net.close(cli) }
+                } else {
+                    net.close(cli)
+                }
                 net.close(srv)
             }
         }
         case "a 4 KiB payload survives sendAll intact": {
-            if skipSockets() { assert.assertTrue(true, 409) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 409)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = net.socket()
@@ -260,7 +281,9 @@ suite NetSuite {
             }
         }
         case "recvUpTo stops at its limit": {
-            if skipSockets() { assert.assertTrue(true, 413) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 413)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = net.socket()
@@ -278,7 +301,9 @@ suite NetSuite {
             }
         }
         case "sending an empty string is a successful no-op": {
-            if skipSockets() { assert.assertTrue(true, 414) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 414)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = net.socket()
@@ -294,7 +319,9 @@ suite NetSuite {
             }
         }
         case "connectTo resolves and connects in one call": {
-            if skipSockets() { assert.assertTrue(true, 415) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 415)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = net.connectTo("127.0.0.1", port)
@@ -315,7 +342,9 @@ suite NetSuite {
     // ── error paths ──────────────────────────────────────────────────────────
     void errorTest() {
         case "connecting to a port nobody listens on fails": {
-            if skipSockets() { assert.assertTrue(true, 501) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 501)
+            } else {
                 // A guaranteed-dead port: bind one, read it, then drop the listener.
                 long tmp = net.listenOn(net.loopback(), 0, 1)
                 int dead = net.localPort(tmp)
@@ -327,7 +356,9 @@ suite NetSuite {
             }
         }
         case "connectTo fails on an unresolvable host": {
-            if skipSockets() { assert.assertTrue(true, 502) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 502)
+            } else {
                 assert.assertTrue(net.connectTo("fly-no-such-host-xyzabc.invalid", 80) < 0, 502)
             }
         }
@@ -336,7 +367,9 @@ suite NetSuite {
             // gone away raises SIGPIPE and terminates the process unless the
             // runtime passes MSG_NOSIGNAL (macOS: SO_NOSIGPIPE). If that is ever
             // dropped, this case does not fail — the whole suite vanishes.
-            if skipSockets() { assert.assertTrue(true, 503) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 503)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = net.socket()
@@ -347,18 +380,31 @@ suite NetSuite {
                     net.close(acc)
                 }
                 net.close(srv)
-                // The first send may still be accepted into the local buffer; the
-                // RST arrives before the second. Neither may kill us.
-                net.sendStr(cli, blob(256))
-                net.sendStr(cli, blob(256))
-                bool third = net.sendStr(cli, blob(256))
-                assert.assertFalse(third, 503)
+                // The first sends may still be accepted into the local buffer
+                // until the peer's RST is processed: on Linux before the third,
+                // on macOS a little later. So keep sending (10 ms apart, 2 s at
+                // most) until one fails. None may kill us.
+                bool failed = false
+                int tries = 0
+                Duration pause = new Duration()
+                pause.nsec = 10000000
+                while failed == false && tries < 200 {
+                    if net.sendStr(cli, blob(256)) == false {
+                        failed = true
+                    } else {
+                        time.sleep(pause)
+                    }
+                    tries = tries + 1
+                }
+                assert.assertTrue(failed, 503)
 
                 net.close(cli)
             }
         }
         case "binding a port that is already bound fails": {
-            if skipSockets() { assert.assertTrue(true, 504) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 504)
+            } else {
                 long a = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(a)
                 long b = net.socket()
@@ -369,7 +415,9 @@ suite NetSuite {
             }
         }
         case "receiving on a closed socket reports an error": {
-            if skipSockets() { assert.assertTrue(true, 505) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 505)
+            } else {
                 long s = net.socket()
                 net.close(s)
                 pointer buf = mem.alloc(16)
@@ -395,7 +443,9 @@ suite NetSuite {
     // not a latency benchmark, and a loaded CI box must not turn it red.
     void optionTest() {
         case "every setter succeeds on a real socket": {
-            if skipSockets() { assert.assertTrue(true, 601) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 601)
+            } else {
                 long s = net.socket()
                 assert.assertTrue(s >= 0, 601)
                 assert.assertTrue(net.setNoDelay(s, true), 602)
@@ -426,7 +476,9 @@ suite NetSuite {
             assert.assertEqI(net.sockError(0 - 1), 0 - 1, 623)
         }
         case "a fresh socket has no pending error": {
-            if skipSockets() { assert.assertTrue(true, 624) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 624)
+            } else {
                 long s = net.socket()
                 assert.assertEqI(net.sockError(s), 0, 624)
                 net.close(s)
@@ -438,7 +490,9 @@ suite NetSuite {
             // Linux and macOS treat it as a plain socket-level flag and accept
             // it. The difference is pinned here rather than papered over; the
             // meaningful positive case belongs with UDP, in a later phase.
-            if skipSockets() { assert.assertTrue(true, 625) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 625)
+            } else {
                 long s = net.socket()
                 bool r = net.setBroadcast(s, true)
                 if str.equals(env.osname(), "windows") {
@@ -455,7 +509,9 @@ suite NetSuite {
             // regression here shows up as a HUNG suite, which is why the
             // elapsed-time assertion is worth having: it proves the recv came
             // back because of the timeout, not because of a stray byte.
-            if skipSockets() { assert.assertTrue(true, 626) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 626)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = net.socket()
@@ -480,7 +536,9 @@ suite NetSuite {
             }
         }
         case "a non-blocking recv returns immediately with nothing to read": {
-            if skipSockets() { assert.assertTrue(true, 631) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 631)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = net.socket()
@@ -503,7 +561,9 @@ suite NetSuite {
             }
         }
         case "recvExact fills the whole buffer when the data is there": {
-            if skipSockets() { assert.assertTrue(true, 635) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 635)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = net.socket()
@@ -525,7 +585,9 @@ suite NetSuite {
             }
         }
         case "recvExact reports a short count when the peer closes early": {
-            if skipSockets() { assert.assertTrue(true, 639) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 639)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = net.socket()
@@ -563,7 +625,9 @@ suite NetSuite {
             net.addrFree(h)
         }
         case "resolveAll of localhost yields at least one 127.x address": {
-            if skipSockets() { assert.assertTrue(true, 704) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 704)
+            } else {
                 pointer h = net.resolveAll("localhost")
                 assert.assertNotNull(h, 704)
                 int n = net.addrCount(h)
@@ -574,7 +638,9 @@ suite NetSuite {
             }
         }
         case "an unresolvable name yields a null list": {
-            if skipSockets() { assert.assertTrue(true, 707) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 707)
+            } else {
                 assert.assertNull(net.resolveAll("fly-no-such-host-xyzabc.invalid"), 707)
             }
             assert.assertNull(net.resolveAll(""), 708)
@@ -591,7 +657,9 @@ suite NetSuite {
         case "reverse DNS of an address with no PTR record is empty, not an error": {
             // 192.0.2.0/24 is TEST-NET-1 (RFC 5737): reserved for documentation
             // and guaranteed to have no PTR record anywhere.
-            if skipSockets() { assert.assertTrue(true, 713) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 713)
+            } else {
                 assert.assertEmpty(net.reverseDns(net.ipv4(192, 0, 2, 1)), 713)
             }
         }
@@ -600,7 +668,9 @@ suite NetSuite {
             // learn where it came from. Both ends are on loopback here, so both
             // addresses are known exactly; the client's PORT is ephemeral, so
             // only its non-zero-ness is asserted.
-            if skipSockets() { assert.assertTrue(true, 714) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 714)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = net.socket()
@@ -620,7 +690,9 @@ suite NetSuite {
             }
         }
         case "an unconnected socket has no peer": {
-            if skipSockets() { assert.assertTrue(true, 719) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 719)
+            } else {
                 long s = net.socket()
                 assert.assertEqI(net.peerAddr(s), 0, 719)
                 assert.assertEqI(net.peerPort(s), 0 - 1, 720)
@@ -639,7 +711,9 @@ suite NetSuite {
     // is used all over the 4xx band, its two-direction sibling never was.
     void rawSendShutdownTest() {
         case "sendAll delivers a raw buffer byte for byte": {
-            if skipSockets() { assert.assertTrue(true, 801) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 801)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = net.socket()
@@ -683,7 +757,9 @@ suite NetSuite {
             mem.free(b, 4)
         }
         case "after shutdownBoth the peer sees EOF and sends fail": {
-            if skipSockets() { assert.assertTrue(true, 806) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 806)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = net.socket()

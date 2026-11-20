@@ -14,21 +14,37 @@ public class ResolverType {
     public static void builtin(const Resolver r, const ASTBuiltinType node) {
         ASTBuiltinTypeKind k = node.getBuiltinKind()
         SemaType t = SemaBuiltin.getIntType()
-        if k == ASTBuiltinTypeKind.TYPE_VOID { t = SemaBuiltin.getVoidType() }
-        elsif k == ASTBuiltinTypeKind.TYPE_BOOL { t = SemaBuiltin.getBoolType() }
-        elsif k == ASTBuiltinTypeKind.TYPE_BYTE { t = SemaBuiltin.getByteType() }
-        elsif k == ASTBuiltinTypeKind.TYPE_SHORT { t = SemaBuiltin.getShortType() }
-        elsif k == ASTBuiltinTypeKind.TYPE_INT { t = SemaBuiltin.getIntType() }
-        elsif k == ASTBuiltinTypeKind.TYPE_LONG { t = SemaBuiltin.getLongType() }
-        elsif k == ASTBuiltinTypeKind.TYPE_USHORT { t = SemaBuiltin.getUShortType() }
-        elsif k == ASTBuiltinTypeKind.TYPE_UINT { t = SemaBuiltin.getUIntType() }
-        elsif k == ASTBuiltinTypeKind.TYPE_ULONG { t = SemaBuiltin.getULongType() }
-        elsif k == ASTBuiltinTypeKind.TYPE_POINTER { t = SemaBuiltin.getPtrSizeType() }
-        elsif k == ASTBuiltinTypeKind.TYPE_FLOAT { t = SemaBuiltin.getFloatType() }
-        elsif k == ASTBuiltinTypeKind.TYPE_DOUBLE { t = SemaBuiltin.getDoubleType() }
-        elsif k == ASTBuiltinTypeKind.TYPE_COMPLEX { t = SemaBuiltin.getComplexType() }
-        elsif k == ASTBuiltinTypeKind.TYPE_STRING { t = SemaBuiltin.getStringType() }
-        elsif k == ASTBuiltinTypeKind.TYPE_ERROR { t = SemaBuiltin.getErrorType() }
+        if k == ASTBuiltinTypeKind.TYPE_VOID {
+            t = SemaBuiltin.getVoidType()
+        } elsif k == ASTBuiltinTypeKind.TYPE_BOOL {
+            t = SemaBuiltin.getBoolType()
+        } elsif k == ASTBuiltinTypeKind.TYPE_BYTE {
+            t = SemaBuiltin.getByteType()
+        } elsif k == ASTBuiltinTypeKind.TYPE_SHORT {
+            t = SemaBuiltin.getShortType()
+        } elsif k == ASTBuiltinTypeKind.TYPE_INT {
+            t = SemaBuiltin.getIntType()
+        } elsif k == ASTBuiltinTypeKind.TYPE_LONG {
+            t = SemaBuiltin.getLongType()
+        } elsif k == ASTBuiltinTypeKind.TYPE_USHORT {
+            t = SemaBuiltin.getUShortType()
+        } elsif k == ASTBuiltinTypeKind.TYPE_UINT {
+            t = SemaBuiltin.getUIntType()
+        } elsif k == ASTBuiltinTypeKind.TYPE_ULONG {
+            t = SemaBuiltin.getULongType()
+        } elsif k == ASTBuiltinTypeKind.TYPE_POINTER {
+            t = SemaBuiltin.getPtrSizeType()
+        } elsif k == ASTBuiltinTypeKind.TYPE_FLOAT {
+            t = SemaBuiltin.getFloatType()
+        } elsif k == ASTBuiltinTypeKind.TYPE_DOUBLE {
+            t = SemaBuiltin.getDoubleType()
+        } elsif k == ASTBuiltinTypeKind.TYPE_COMPLEX {
+            t = SemaBuiltin.getComplexType()
+        } elsif k == ASTBuiltinTypeKind.TYPE_STRING {
+            t = SemaBuiltin.getStringType()
+        } elsif k == ASTBuiltinTypeKind.TYPE_ERROR {
+            t = SemaBuiltin.getErrorType()
+        }
         r.setCurrentType(t)
     }
 
@@ -44,9 +60,15 @@ public class ResolverType {
             // needed. Fall back to a scope lookup of the last component (unqualified
             // types, or names brought into scope by an import).
             Symbol sym = null
-            if names.size() > 1 { sym = reg.LookupQualifiedType(names) }
-            if sym == null { sym = reg.LookupNamedType(last.getName(), r.getCurrentScope()) }
-            if sym != null { t = sym.getTypeRef() }
+            if names.size() > 1 {
+                sym = reg.LookupQualifiedType(names)
+            }
+            if sym == null {
+                sym = reg.LookupNamedType(last.getName(), r.getCurrentScope())
+            }
+            if sym != null {
+                t = sym.getTypeRef()
+            }
         }
 
         // Generic instantiation: Wrapper<int> → resolve type args, get-or-create the
@@ -54,7 +76,10 @@ public class ResolverType {
         List<ASTType> targs = node.getTypeArgs()
         if targs.size() > 0 {
             SemaClassType spec = ResolverType.instantiate(r, t, targs)
-            if spec != null { r.setCurrentType(spec)  return }
+            if spec != null {
+                r.setCurrentType(spec)
+                return
+            }
             // Type args were written but no specialization exists (non-generic
             // base, arity mismatch, or unresolved arg). Falling through with the
             // raw template used to codegen a null struct type → libLLVM crash.
@@ -82,10 +107,16 @@ public class ResolverType {
     // instantiate — build (or fetch) the specialization of generic `t` for `targs`;
     // null if `t` is not an instantiable generic class or a type arg fails to resolve.
     public static SemaClassType instantiate(const Resolver r, const SemaType t, const List<ASTType> targs) {
-        if t == null { return null }
+        if t == null {
+            return null
+        }
         SemaClassType template = t.asClass()
-        if template == null { return null }
-        if template.isGeneric() == false { return null }
+        if template == null {
+            return null
+        }
+        if template.isGeneric() == false {
+            return null
+        }
 
         List<SemaType> typeArgs = new List<SemaType>()
         bool okAll = true
@@ -94,13 +125,19 @@ public class ResolverType {
             ASTType ta = targs.get(i)
             ta.accept(r)
             SemaType tas = r.getCurrentType()
-            if tas == null { okAll = false }
+            if tas == null {
+                okAll = false
+            }
             typeArgs.add(tas)
             i = i + 1
         }
-        if okAll == false { return null }
+        if okAll == false {
+            return null
+        }
         List<SemaTypeParam> tparams = template.getTypeParams()
-        if typeArgs.size() != tparams.size() { return null }
+        if typeArgs.size() != tparams.size() {
+            return null
+        }
 
         // A template whose methods have no bodies cannot be monomorphized: the
         // specialization re-walks the template's AST, so with nothing to walk it

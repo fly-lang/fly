@@ -106,7 +106,9 @@ private int stErr(const pointer st) {
 // every later symbol is garbage too, and the first code is the one that says
 // what actually went wrong.
 private void setErr(const pointer st, const int e) {
-    if mem.readInt(st, 40) == 0 { mem.writeInt(st, 40, e) }
+    if mem.readInt(st, 40) == 0 {
+        mem.writeInt(st, 40, e)
+    }
 }
 
 // getBits — the next n bits, LSB first. Running off the end of the input is
@@ -147,7 +149,9 @@ private void putByte(const pointer st, const int b) {
     int cap = mem.readInt(st, 36)
     if len >= cap {
         int newCap = cap * 2
-        if newCap < 1024 { newCap = 1024 }
+        if newCap < 1024 {
+            newCap = 1024
+        }
         pointer grown = mem.realloc(mem.readPtr(st, 24), newCap)
         mem.writePtr(st, 24, grown)
         mem.writeInt(st, 36, newCap)
@@ -189,7 +193,9 @@ private pointer huftNew(const pointer lengths, const int n) {
         len = len + 1
     }
     int symBytes = n * 4
-    if symBytes < 4 { symBytes = 4 }
+    if symBytes < 4 {
+        symBytes = 4
+    }
     pointer sym = mem.alloc(symBytes)
     int j = 0
     while j < n {
@@ -210,10 +216,14 @@ private pointer huftNew(const pointer lengths, const int n) {
 }
 
 private void huftFree(const pointer h) {
-    if h == 0 { return }
+    if h == 0 {
+        return
+    }
     int n = mem.readInt(h, 16)
     int symBytes = n * 4
-    if symBytes < 4 { symBytes = 4 }
+    if symBytes < 4 {
+        symBytes = 4
+    }
     mem.free(mem.readPtr(h, 0), 16 * 4)
     mem.free(mem.readPtr(h, 8), symBytes)
     mem.free(h, 24)
@@ -231,7 +241,9 @@ private int huftDecode(const pointer st, const pointer h) {
     int res = 0 - 1
     while len <= 15 {
         int bit = getBits(st, 1)
-        if stErr(st) != 0 { len = 16 } else {
+        if stErr(st) != 0 {
+            len = 16
+        } else {
             code = code | bit
             int count = mem.readInt(cnt, len * 4)
             int diff = code - first
@@ -247,7 +259,9 @@ private int huftDecode(const pointer st, const pointer h) {
             }
         }
     }
-    if res < 0 { setErr(st, 5) }
+    if res < 0 {
+        setErr(st, 5)
+    }
     return res
 }
 
@@ -260,14 +274,20 @@ private int huftDecode(const pointer st, const pointer h) {
 // typo in a table like this produces silent corruption, not an error.
 
 private int lenExtraOf(const int i) {
-    if i >= 28 { return 0 }
+    if i >= 28 {
+        return 0
+    }
     int e = 0
-    if i >= 8 { e = (i - 4) / 4 }
+    if i >= 8 {
+        e = (i - 4) / 4
+    }
     return e
 }
 
 private int lenBaseOf(const int i) {
-    if i >= 28 { return 258 }        // symbol 285 is the odd one out
+    if i >= 28 { // symbol 285 is the odd one out
+        return 258
+    }
     int b = 3
     int k = 0
     while k < i {
@@ -279,7 +299,9 @@ private int lenBaseOf(const int i) {
 
 private int distExtraOf(const int i) {
     int e = 0
-    if i >= 2 { e = (i - 2) / 2 }
+    if i >= 2 {
+        e = (i - 2) / 2
+    }
     return e
 }
 
@@ -302,13 +324,19 @@ private void storedBlock(const pointer st) {
     mem.writeInt(st, 20, 0)
     int pos = mem.readInt(st, 12)
     int srcLen = mem.readInt(st, 8)
-    if pos + 4 > srcLen { setErr(st, 1)  return }
+    if pos + 4 > srcLen {
+        setErr(st, 1)
+        return
+    }
     pointer src = mem.readPtr(st, 0)
     int lo = byteOfBuf(src, pos)
     int hi = byteOfBuf(src, pos + 1)
     int n = lo | (hi << 8)
     pos = pos + 4
-    if pos + n > srcLen { setErr(st, 1)  return }
+    if pos + n > srcLen {
+        setErr(st, 1)
+        return
+    }
     int i = 0
     while i < n {
         putByte(st, byteOfBuf(src, pos + i))
@@ -322,18 +350,35 @@ private void codes(const pointer st, const pointer lenH, const pointer distH) {
     bool go = true
     while go {
         int s = huftDecode(st, lenH)
-        if stErr(st) != 0 { go = false } else {
-            if s < 256 { putByte(st, s) } else {
-                if s == 256 { go = false } else {
+        if stErr(st) != 0 {
+            go = false
+        } else {
+            if s < 256 {
+                putByte(st, s)
+            } else {
+                if s == 256 {
+                    go = false
+                } else {
                     int li = s - 257
-                    if li >= 29 { setErr(st, 5)  go = false } else {
+                    if li >= 29 {
+                        setErr(st, 5)
+                        go = false
+                    } else {
                         int length = lenBaseOf(li) + getBits(st, lenExtraOf(li))
                         int ds = huftDecode(st, distH)
-                        if ds < 0 { go = false } else {
-                            if ds >= 30 { setErr(st, 5)  go = false } else {
+                        if ds < 0 {
+                            go = false
+                        } else {
+                            if ds >= 30 {
+                                setErr(st, 5)
+                                go = false
+                            } else {
                                 int dist = distBaseOf(ds) + getBits(st, distExtraOf(ds))
                                 int outLen = mem.readInt(st, 32)
-                                if dist > outLen { setErr(st, 6)  go = false } else {
+                                if dist > outLen {
+                                    setErr(st, 6)
+                                    go = false
+                                } else {
                                     int from = outLen - dist
                                     int c = 0
                                     while c < length {
@@ -348,7 +393,9 @@ private void codes(const pointer st, const pointer lenH, const pointer distH) {
                                 }
                             }
                         }
-                        if stErr(st) != 0 { go = false }
+                        if stErr(st) != 0 {
+                            go = false
+                        }
                     }
                 }
             }
@@ -362,9 +409,15 @@ private void fixedBlock(const pointer st) {
     int i = 0
     while i < 288 {
         int v = 8
-        if i >= 144 { v = 9 }
-        if i >= 256 { v = 7 }
-        if i >= 280 { v = 8 }
+        if i >= 144 {
+            v = 9
+        }
+        if i >= 256 {
+            v = 7
+        }
+        if i >= 280 {
+            v = 8
+        }
         mem.writeInt(ll, i * 4, v)
         i = i + 1
     }
@@ -389,9 +442,17 @@ private void dynamicBlock(const pointer st) {
     int hlit = getBits(st, 5) + 257
     int hdist = getBits(st, 5) + 1
     int hclen = getBits(st, 4) + 4
-    if stErr(st) != 0 { return }
-    if hlit > 286 { setErr(st, 5)  return }
-    if hdist > 30 { setErr(st, 5)  return }
+    if stErr(st) != 0 {
+        return
+    }
+    if hlit > 286 {
+        setErr(st, 5)
+        return
+    }
+    if hdist > 30 {
+        setErr(st, 5)
+        return
+    }
 
     // The scrambled order of RFC 1951 §3.2.7 — the one genuinely arbitrary table
     // in DEFLATE.
@@ -433,7 +494,9 @@ private void dynamicBlock(const pointer st) {
     int k = 0
     while k < total {
         int s = huftDecode(st, clH)
-        if s < 0 { k = total } else {
+        if s < 0 {
+            k = total
+        } else {
             if s < 16 {
                 mem.writeInt(lens, k * 4, s)
                 k = k + 1
@@ -441,15 +504,25 @@ private void dynamicBlock(const pointer st) {
                 int rep = 0
                 int val = 0
                 if s == 16 {
-                    if k == 0 { setErr(st, 5)  k = total } else {
+                    if k == 0 {
+                        setErr(st, 5)
+                        k = total
+                    } else {
                         val = mem.readInt(lens, (k - 1) * 4)
                         rep = 3 + getBits(st, 2)
                     }
                 } else {
-                    if s == 17 { rep = 3 + getBits(st, 3) } else { rep = 11 + getBits(st, 7) }
+                    if s == 17 {
+                        rep = 3 + getBits(st, 3)
+                    } else {
+                        rep = 11 + getBits(st, 7)
+                    }
                 }
                 if rep > 0 {
-                    if k + rep > total { setErr(st, 5)  k = total } else {
+                    if k + rep > total {
+                        setErr(st, 5)
+                        k = total
+                    } else {
                         int r = 0
                         while r < rep {
                             mem.writeInt(lens, (k + r) * 4, val)
@@ -460,7 +533,9 @@ private void dynamicBlock(const pointer st) {
                 }
             }
         }
-        if stErr(st) != 0 { k = total }
+        if stErr(st) != 0 {
+            k = total
+        }
     }
     huftFree(clH)
     mem.free(clen, 19 * 4)
@@ -496,7 +571,9 @@ private string inflateRange(const string data, const int start, const int end, i
         return res
     }
     int span = end - start
-    if span < 0 { span = 0 }
+    if span < 0 {
+        span = 0
+    }
 
     pointer st = mem.alloc(48)
     mem.zero(st, 48)
@@ -504,20 +581,34 @@ private string inflateRange(const string data, const int start, const int end, i
     mem.writeInt(st, 8, end)
     mem.writeInt(st, 12, start)
     int cap = span * 4
-    if cap < 1024 { cap = 1024 }
+    if cap < 1024 {
+        cap = 1024
+    }
     mem.writePtr(st, 24, mem.alloc(cap))
     mem.writeInt(st, 36, cap)
 
     bool last = false
     while last == false {
-        if stErr(st) != 0 { last = true } else {
+        if stErr(st) != 0 {
+            last = true
+        } else {
             int bfinal = getBits(st, 1)
             int btype = getBits(st, 2)
-            if bfinal == 1 { last = true }
-            if stErr(st) != 0 { last = true } else {
-                if btype == 0 { storedBlock(st) } else {
-                    if btype == 1 { fixedBlock(st) } else {
-                        if btype == 2 { dynamicBlock(st) } else {
+            if bfinal == 1 {
+                last = true
+            }
+            if stErr(st) != 0 {
+                last = true
+            } else {
+                if btype == 0 {
+                    storedBlock(st)
+                } else {
+                    if btype == 1 {
+                        fixedBlock(st)
+                    } else {
+                        if btype == 2 {
+                            dynamicBlock(st)
+                        } else {
                             setErr(st, 4)
                             last = true
                         }
@@ -554,7 +645,9 @@ public string inflate(const string data, int errOut) {
 // isGzip — true when data starts with the gzip magic 0x1F 0x8B and names DEFLATE
 // as its method. Cheap enough to use as a dispatch test.
 public bool isGzip(const string data) {
-    if str.len(data) < 3 { return false }
+    if str.len(data) < 3 {
+        return false
+    }
     byte b0 = 0
     byte b1 = 0
     byte b2 = 0
@@ -580,7 +673,10 @@ public string gunzip(const string data, int errOut) {
     string res = ""
     errOut = 0
     int n = str.len(data)
-    if n < 18 { errOut = 1  return res }
+    if n < 18 {
+        errOut = 1
+        return res
+    }
     if isGzip(data) == false {
         // Distinguish "not gzip at all" from "gzip but a method we cannot read".
         byte m0 = 0
@@ -591,7 +687,11 @@ public string gunzip(const string data, int errOut) {
         int v1 = m1
         v0 = v0 & 255
         v1 = v1 & 255
-        if v0 == 31 && v1 == 139 { errOut = 3 } else { errOut = 2 }
+        if v0 == 31 && v1 == 139 {
+            errOut = 3
+        } else {
+            errOut = 2
+        }
         return res
     }
 
@@ -613,7 +713,9 @@ public string gunzip(const string data, int errOut) {
     bool bad = false
     bool hasExtra = flagSet(flg, 4)
     if hasExtra {                               // FEXTRA
-        if pos + 2 > n { bad = true } else {
+        if pos + 2 > n {
+            bad = true
+        } else {
             int xlen = byteOfBuf(buf, pos) | (byteOfBuf(buf, pos + 1) << 8)
             pos = pos + 2 + xlen
         }
@@ -623,10 +725,15 @@ public string gunzip(const string data, int errOut) {
         if hasName {                            // FNAME, NUL terminated
             bool go = true
             while go {
-                if pos >= n { go = false  bad = true } else {
+                if pos >= n {
+                    go = false
+                    bad = true
+                } else {
                     int c = byteOfBuf(buf, pos)
                     pos = pos + 1
-                    if c == 0 { go = false }
+                    if c == 0 {
+                        go = false
+                    }
                 }
             }
         }
@@ -636,20 +743,29 @@ public string gunzip(const string data, int errOut) {
         if hasComment {                         // FCOMMENT, NUL terminated
             bool go2 = true
             while go2 {
-                if pos >= n { go2 = false  bad = true } else {
+                if pos >= n {
+                    go2 = false
+                    bad = true
+                } else {
                     int c2 = byteOfBuf(buf, pos)
                     pos = pos + 1
-                    if c2 == 0 { go2 = false }
+                    if c2 == 0 {
+                        go2 = false
+                    }
                 }
             }
         }
     }
     bool hasHcrc = flagSet(flg, 2)
     if bad == false {
-        if hasHcrc { pos = pos + 2 }            // FHCRC
+        if hasHcrc { // FHCRC
+            pos = pos + 2
+        }
     }
     int end = n - 8
-    if pos > end { bad = true }
+    if pos > end {
+        bad = true
+    }
     long wantCrcL = 0
     long wantSize = 0
     if bad == false {
@@ -657,16 +773,31 @@ public string gunzip(const string data, int errOut) {
         wantSize = le32(buf, end + 4)
     }
     mem.free(buf, nb + 1)
-    if bad { errOut = 1  return res }
+    if bad {
+        errOut = 1
+        return res
+    }
 
     int ie = 0
     res = inflateRange(data, pos, end, ie)
-    if ie != 0 { errOut = ie  res = ""  return res }
+    if ie != 0 {
+        errOut = ie
+        res = ""
+        return res
+    }
 
     long gotSize = str.len(res)
-    if gotSize != wantSize { errOut = 8  res = ""  return res }
+    if gotSize != wantSize {
+        errOut = 8
+        res = ""
+        return res
+    }
     uint want = (uint)wantCrcL
-    if hash.crc32(res) != want { errOut = 7  res = ""  return res }
+    if hash.crc32(res) != want {
+        errOut = 7
+        res = ""
+        return res
+    }
     return res
 }
 
@@ -698,14 +829,20 @@ private long octalAt(const pointer buf, const int off, const int n) {
     int i = 0
     bool go = true
     while go {
-        if i >= n { go = false } else {
+        if i >= n {
+            go = false
+        } else {
             int c = byteOfBuf(buf, off + i)
-            if c == 32 { i = i + 1 } else {
+            if c == 32 {
+                i = i + 1
+            } else {
                 bool digit = c >= 48 && c <= 55
                 if digit {
                     v = v * 8 + (long)(c - 48)
                     i = i + 1
-                } else { go = false }
+                } else {
+                    go = false
+                }
             }
         }
     }
@@ -717,7 +854,12 @@ private bool blockIsZero(const pointer buf, const int off) {
     int i = 0
     bool zero = true
     while i < 512 {
-        if byteOfBuf(buf, off + i) != 0 { zero = false  i = 512 } else { i = i + 1 }
+        if byteOfBuf(buf, off + i) != 0 {
+            zero = false
+            i = 512
+        } else {
+            i = i + 1
+        }
     }
     return zero
 }
@@ -732,7 +874,11 @@ private bool hdrChecksumOk(const pointer buf, const int off) {
     while i < 512 {
         int c = 0
         bool inField = i >= 148 && i < 156
-        if inField { c = 32 } else { c = byteOfBuf(buf, off + i) }
+        if inField {
+            c = 32
+        } else {
+            c = byteOfBuf(buf, off + i)
+        }
         sum = sum + (long)c
         i = i + 1
     }
@@ -744,8 +890,14 @@ private int cstrLen(const pointer buf, const int off, const int max) {
     int i = 0
     bool go = true
     while go {
-        if i >= max { go = false } else {
-            if byteOfBuf(buf, off + i) == 0 { go = false } else { i = i + 1 }
+        if i >= max {
+            go = false
+        } else {
+            if byteOfBuf(buf, off + i) == 0 {
+                go = false
+            } else {
+                i = i + 1
+            }
         }
     }
     return i
@@ -757,8 +909,12 @@ private pointer entryName(const pointer buf, const int off, int lenOut) {
     int nameLen = cstrLen(buf, off, 100)
     int preLen = cstrLen(buf, off + 345, 155)
     int total = nameLen
-    if preLen > 0 { total = preLen + 1 + nameLen }
-    if total < 1 { total = 1 }
+    if preLen > 0 {
+        total = preLen + 1 + nameLen
+    }
+    if total < 1 {
+        total = 1
+    }
     pointer nb = mem.alloc(total)
     int w = 0
     if preLen > 0 {
@@ -788,7 +944,9 @@ private pointer entryName(const pointer buf, const int off, int lenOut) {
 // hold even one header. The reader owns its own copy of the data.
 public pointer tarOpen(const string data) {
     int n = str.len(data)
-    if n < 512 { return 0 }
+    if n < 512 {
+        return 0
+    }
     int nb = 0
     pointer buf = strToBuf(data, nb)
     pointer h = mem.alloc(64)
@@ -802,15 +960,21 @@ public pointer tarOpen(const string data) {
 // (check tarErr to tell them apart). GNU long-name and pax extension records are
 // consumed here rather than reported, so a caller only ever sees real entries.
 public bool tarNext(const pointer h) {
-    if h == 0 { return false }
+    if h == 0 {
+        return false
+    }
     pointer data = mem.readPtr(h, 0)
     int len = mem.readInt(h, 8)
     bool done = false
     bool found = false
     while done == false {
         int pos = mem.readInt(h, 12)
-        if pos + 512 > len { done = true } else {
-            if blockIsZero(data, pos) { done = true } else {
+        if pos + 512 > len {
+            done = true
+        } else {
+            if blockIsZero(data, pos) {
+                done = true
+            } else {
                 if hdrChecksumOk(data, pos) == false {
                     mem.writeInt(h, 44, 9)
                     done = true
@@ -821,7 +985,9 @@ public bool tarNext(const pointer h) {
                     long blocks = (sz + 511) / 512
                     int padded = (int)blocks * 512
                     int next = dataOff + padded
-                    if next > len { next = len }
+                    if next > len {
+                        next = len
+                    }
                     mem.writeInt(h, 12, next)
                     // A malformed size can make `padded` overflow and send `next`
                     // BACKWARDS. Left unchecked that is not a wrong answer, it is
@@ -838,7 +1004,9 @@ public bool tarNext(const pointer h) {
                         // that follows, which is how names longer than the 100
                         // byte field are carried.
                         pointer old = mem.readPtr(h, 48)
-                        if old != 0 { mem.free(old, mem.readInt(h, 56)) }
+                        if old != 0 {
+                            mem.free(old, mem.readInt(h, 56))
+                        }
                         // Cleared at once: a zero-size record used to leave the
                         // freed pointer here, for the next entry to adopt as its
                         // name and free a second time.
@@ -865,7 +1033,9 @@ public bool tarNext(const pointer h) {
                         bool pax = ty == 120 || ty == 103
                         if pax == false {
                             pointer oldName = mem.readPtr(h, 16)
-                            if oldName != 0 { mem.free(oldName, mem.readInt(h, 24)) }
+                            if oldName != 0 {
+                                mem.free(oldName, mem.readInt(h, 24))
+                            }
                             pointer pend = mem.readPtr(h, 48)
                             if pend != 0 {
                                 mem.writePtr(h, 16, pend)
@@ -895,9 +1065,13 @@ public bool tarNext(const pointer h) {
 // tarName — the current entry's path, "" before the first tarNext.
 public string tarName(const pointer h) {
     string s = ""
-    if h == 0 { return s }
+    if h == 0 {
+        return s
+    }
     int n = mem.readInt(h, 24)
-    if n <= 0 { return s }
+    if n <= 0 {
+        return s
+    }
     pointer src = mem.readPtr(h, 16)
     pointer cp = mem.alloc(n)
     mem.copy(cp, src, n)
@@ -907,7 +1081,9 @@ public string tarName(const pointer h) {
 
 // tarSize — the current entry's size in bytes.
 public long tarSize(const pointer h) {
-    if h == 0 { return 0 }
+    if h == 0 {
+        return 0
+    }
     return mem.readLong(h, 32)
 }
 
@@ -915,7 +1091,9 @@ public long tarSize(const pointer h) {
 // directory, 50 ('2') for a symlink. isFile/isDir below spare the caller the
 // ASCII codes.
 public int tarType(const pointer h) {
-    if h == 0 { return 0 }
+    if h == 0 {
+        return 0
+    }
     return mem.readInt(h, 28)
 }
 
@@ -934,13 +1112,19 @@ public bool tarIsDir(const pointer h) {
 // tarData — the current entry's contents.
 public string tarData(const pointer h) {
     string s = ""
-    if h == 0 { return s }
+    if h == 0 {
+        return s
+    }
     long sz = mem.readLong(h, 32)
     int n = (int)sz
-    if n <= 0 { return s }
+    if n <= 0 {
+        return s
+    }
     int off = mem.readInt(h, 40)
     int len = mem.readInt(h, 8)
-    if off + n > len { return s }
+    if off + n > len {
+        return s
+    }
     pointer data = mem.readPtr(h, 0)
     pointer cp = mem.alloc(n)
     mem.copy(cp, data + off, n)
@@ -951,20 +1135,30 @@ public string tarData(const pointer h) {
 // tarErr — 0 while the archive reads cleanly, 9 once a header failed its
 // checksum. tarNext returning false means "end of archive" only when this is 0.
 public int tarErr(const pointer h) {
-    if h == 0 { return 0 }
+    if h == 0 {
+        return 0
+    }
     return mem.readInt(h, 44)
 }
 
 // tarFree — release the reader and everything it owns.
 public void tarFree(const pointer h) {
-    if h == 0 { return }
+    if h == 0 {
+        return
+    }
     pointer data = mem.readPtr(h, 0)
     int len = mem.readInt(h, 8)
-    if data != 0 { mem.free(data, len + 1) }
+    if data != 0 {
+        mem.free(data, len + 1)
+    }
     pointer nm = mem.readPtr(h, 16)
-    if nm != 0 { mem.free(nm, mem.readInt(h, 24)) }
+    if nm != 0 {
+        mem.free(nm, mem.readInt(h, 24))
+    }
     pointer pend = mem.readPtr(h, 48)
-    if pend != 0 { mem.free(pend, mem.readInt(h, 56)) }
+    if pend != 0 {
+        mem.free(pend, mem.readInt(h, 56))
+    }
     mem.free(h, 64)
 }
 
@@ -976,18 +1170,26 @@ public void tarFree(const pointer h) {
 // the network from a package registry, and without this check a hostile — or
 // merely careless — tarball can drop a file anywhere the compiler can write.
 public bool safeName(const string name) {
-    if str.isEmpty(name) { return false }
+    if str.isEmpty(name) {
+        return false
+    }
     int n = str.len(name)
     byte f = str.byteAt(name, 0)
     int fi = f
     fi = fi & 255
-    if fi == 47 { return false }             // '/'
-    if fi == 92 { return false }             // '\'
+    if fi == 47 { // '/'
+        return false
+    }
+    if fi == 92 { // '\'
+        return false
+    }
     if n >= 2 {
         byte c1 = str.byteAt(name, 1)
         int ci = c1
         ci = ci & 255
-        if ci == 58 { return false }         // "X:"
+        if ci == 58 { // "X:"
+            return false
+        }
     }
     // Any ".." bounded by separators or by the ends of the string.
     int i = 0
@@ -1021,7 +1223,10 @@ public bool safeName(const string name) {
                     rightOk = sep2
                 }
                 if leftOk {
-                    if rightOk { ok = false  i = n }
+                    if rightOk {
+                        ok = false
+                        i = n
+                    }
                 }
             }
         }
@@ -1035,12 +1240,17 @@ public bool safeName(const string name) {
 public bool extractTar(const string data, const string destDir, int errOut) {
     errOut = 0
     pointer h = tarOpen(data)
-    if h == 0 { errOut = 1  return false }
+    if h == 0 {
+        errOut = 1
+        return false
+    }
     fs.dirCreateAll(destDir, 493)
     bool ok = true
     bool go = true
     while go {
-        if tarNext(h) == false { go = false } else {
+        if tarNext(h) == false {
+            go = false
+        } else {
             string nm = tarName(h)
             if safeName(nm) == false {
                 errOut = 11
@@ -1083,10 +1293,16 @@ public bool extractTar(const string data, const string destDir, int errOut) {
 // destDir. This is the whole of what `tar -xzf` was being spawned for.
 public bool extractTarGz(const string archivePath, const string destDir, int errOut) {
     errOut = 0
-    if fs.exists(archivePath) == false { errOut = 1  return false }
+    if fs.exists(archivePath) == false {
+        errOut = 1
+        return false
+    }
     string raw = fs.readBytes(archivePath)
     int ge = 0
     string tarBytes = gunzip(raw, ge)
-    if ge != 0 { errOut = ge  return false }
+    if ge != 0 {
+        errOut = ge
+        return false
+    }
     return extractTar(tarBytes, destDir, errOut)
 }

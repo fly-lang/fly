@@ -204,7 +204,9 @@ suite SetSuite {
             }
             k = 0
             while k < 24 {
-                if k % 2 == 0 { s.remove(k) }
+                if k % 2 == 0 {
+                    s.remove(k)
+                }
                 k = k + 1
             }
             assert.assertEqI(s.size(), 12, 411)
@@ -212,9 +214,13 @@ suite SetSuite {
             k = 0
             while k < 24 {
                 if k % 2 == 0 {
-                    if s.has(k) { bad = k }
+                    if s.has(k) {
+                        bad = k
+                    }
                 } else {
-                    if s.has(k) == false { bad = k }
+                    if s.has(k) == false {
+                        bad = k
+                    }
                 }
                 k = k + 1
             }
@@ -236,7 +242,9 @@ suite SetSuite {
             long bad = 0 - 1
             i = 0
             while i < 200 {
-                if s.has(i) == false { bad = i }
+                if s.has(i) == false {
+                    bad = i
+                }
                 i = i + 1
             }
             assert.assertEqL(bad, 0 - 1, 502)
@@ -248,7 +256,9 @@ suite SetSuite {
             long i = 0
             while i < 120 {
                 s.add(i)
-                if i % 3 == 0 { s.remove(i) }
+                if i % 3 == 0 {
+                    s.remove(i)
+                }
                 i = i + 1
             }
             assert.assertEqI(s.size(), 80, 504)
@@ -256,9 +266,13 @@ suite SetSuite {
             i = 0
             while i < 120 {
                 if i % 3 == 0 {
-                    if s.has(i) { bad = i }
+                    if s.has(i) {
+                        bad = i
+                    }
                 } else {
-                    if s.has(i) == false { bad = i }
+                    if s.has(i) == false {
+                        bad = i
+                    }
                 }
                 i = i + 1
             }
@@ -276,7 +290,9 @@ suite SetSuite {
             long bad = 0 - 1
             i = 0
             while i < 40 {
-                if s.has(i * 8) == false { bad = i }
+                if s.has(i * 8) == false {
+                    bad = i
+                }
                 i = i + 1
             }
             assert.assertEqL(bad, 0 - 1, 507)
@@ -374,7 +390,9 @@ suite SetSuite {
             int bad = 0 - 1
             i = 0
             while i < 60 {
-                if s.has(str.concat("k", str.convert(i))) == false { bad = i }
+                if s.has(str.concat("k", str.convert(i))) == false {
+                    bad = i
+                }
                 i = i + 1
             }
             assert.assertEqI(bad, 0 - 1, 617)

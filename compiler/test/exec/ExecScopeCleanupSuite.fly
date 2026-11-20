@@ -16,8 +16,12 @@ import fly.str
 
 class ExecScBox {
     public int v
-    public ExecScBox(const int v) { this.v = v }
-    public string label() { return "box" + str.convert(this.v) }
+    public ExecScBox(const int v) {
+        this.v = v
+    }
+    public string label() {
+        return "box" + str.convert(this.v)
+    }
 }
 
 string execScMake(const int n) {
@@ -33,7 +37,9 @@ string execScMake(const int n) {
 // early returns from nested scopes, each with string locals of its own
 string execScPick(const int k) {
     string a = execScMake(1)
-    if k == 0 { return a }
+    if k == 0 {
+        return a
+    }
     string b = execScMake(2)
     if k == 1 {
         string inner = b + "!"
@@ -42,7 +48,9 @@ string execScPick(const int k) {
     int i = 0
     while i < 3 {
         string t = execScMake(i)
-        if i == k - 2 { return t + a }
+        if i == k - 2 {
+            return t + a
+        }
         i = i + 1
     }
     return b
@@ -62,8 +70,12 @@ int execScLoop(const int stopAt) {
     while i < 10 {
         string head = execScMake(i)
         i = i + 1
-        if i % 2 == 0 { continue }
-        if i > stopAt { break }
+        if i % 2 == 0 {
+            continue
+        }
+        if i > stopAt {
+            break
+        }
         string tail = head + "y"
         total = total + str.len(tail)
     }
@@ -74,8 +86,12 @@ int execScForIn(const int[] xs) {
     int total = 0
     for x in xs {
         string s = execScMake(x)
-        if x == 2 { continue }
-        if x == 9 { break }
+        if x == 2 {
+            continue
+        }
+        if x == 9 {
+            break
+        }
         total = total + str.len(s)
     }
     return total
@@ -84,14 +100,18 @@ int execScForIn(const int[] xs) {
 // fail frees the failing frame's locals; the error still reaches the caller
 void execScFail(const int n) {
     string s = execScMake(n)
-    if str.len(s) > 2 { fail 42 }
+    if str.len(s) > 2 {
+        fail 42
+    }
 }
 
 // the returned handle survives; the other owned handle is freed
 ExecScBox execScPickBox(const int v) {
     ExecScBox keep = new ExecScBox(v)
     ExecScBox other = new ExecScBox(v + 1)
-    if v > 100 { return other }
+    if v > 100 {
+        return other
+    }
     int unused = other.v
     return keep
 }

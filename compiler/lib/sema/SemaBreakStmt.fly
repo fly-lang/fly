@@ -10,5 +10,7 @@ public class SemaBreakStmt : SemaStmt {
     public SemaBreakStmt(const ASTStmt ast) {
         super(SemaKind.STMT_BREAK, ast)
     }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }

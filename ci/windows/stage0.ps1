@@ -1,7 +1,7 @@
 # -----------------------------------------------------------------------------
 # stage0.ps1 - set up stage 0 of the staged bootstrap on Windows:
 #
-#   * the fork LLVM pieces (fly-lang/llvm-project release) -> build\llvm
+#   * the LLVM pieces (fly-lang/llvm release, built from upstream llvm/llvm-project) -> build\llvm
 #     LLVM-C.lib (link import lib) + LLVM-C.dll (runtime) + lld-link.exe (the
 #     COFF linker the release bundles). No package manager; the MSVC toolchain
 #     + Windows SDK come from ilammy/msvc-dev-cmd in the workflow.
@@ -22,7 +22,7 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\gnu_common.ps1"        # $FLY_WIN_TARGET, sysroot paths, Assert-LdLld, MINGW_VERSION
 
 # LLVM the self-host compiler links against: the project's own LLVM build
-# (fly-lang/llvm-project release) rather than the stock LLVM installer. Only that
+# (fly-lang/llvm release) rather than the stock LLVM installer. Only that
 # build ships an LLVM-C.dll exporting the per-target LLVMInitialize* symbols the
 # generated code references (the official/choco LLVM-C.dll omits them).
 #
@@ -54,7 +54,9 @@ $LLVM_VERSION = if ($env:LLVM_VERSION) { $env:LLVM_VERSION } else { "20.1.8" }
 # is the same; what changed is the surface syntax, plus two rules the seed now
 # enforces: a value function must return on every path, and a struct local that
 # every return hands back is built directly in the caller's slot (NRVO).
-$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.18" }
+# 0.13.19 adds macOS arm64 (the language and the ABI are those of 0.13.18): the
+# first seed published for all three platforms.
+$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.19" }
 
 # Resolve everything against the PROJECT ROOT (this script lives in ci\windows\,
 # two levels down) so the downloads land next to the build regardless of the
@@ -118,7 +120,7 @@ if (-not (Test-Path "$llvmLib\LLVM-C.lib") -or -not (Test-Path "$llvmBin\LLVM-C.
     -not (Test-Path "$llvmBin\lld-link.exe") -or -not (Test-Path "$llvmBin\ld.lld.exe") -or
     -not (Test-Path "$llvmBin\lldb.exe") -or -not (Test-Path "$llvmBin\liblldb.dll") -or
     -not (Test-Path "$llvmBin\lldb-dap.exe") -or -not (Test-Path "$llvmBin\lldb-argdumper.exe")) {
-    $url = "https://github.com/fly-lang/llvm-project/releases/download/v$LLVM_VERSION-win-x64/llvm-$LLVM_VERSION-win-x64.zip"
+    $url = "https://github.com/fly-lang/llvm/releases/download/v$LLVM_VERSION-win-x64/llvm-$LLVM_VERSION-win-x64.zip"
     New-Item -ItemType Directory -Force $llvmLib, $llvmBin | Out-Null
     $zipPath = Join-Path $buildDir 'llvm.zip'
     Invoke-WebRequest -Uri $url -OutFile $zipPath -MaximumRetryCount 6 -RetryIntervalSec 15
@@ -213,8 +215,11 @@ Assert-LdLld                                   # build\llvm\bin\ld.lld.exe (extr
 # published release asset (GitHub records the same digest):
 #   0.13.18  fly-0.13.18-win-x64.zip, released 2026-09-20 from the `bootstrap`
 #            branch at 32528a0bf (sources = release/0.13.X df0b20f0c)
+#   0.13.19  fly-0.13.19-win-x64.zip, released 2026-11-20 from the `bootstrap`
+#            branch at fb2a6cb12 (sources = release/0.13.X 7ff8a1789)
 $SEED_SHA256_TABLE = @{
     '0.13.18' = 'fa0f7507f60e34905e502a593ede54e56624b41d9c0ebf404112ad4e77e748ab'
+    '0.13.19' = '60d8d6ed6b91fb02b215604c837fbfe031e4136eaa6ccf5850972545822fb091'
 }
 # FLY_SEED_SHA256 overrides the table: the hash of a candidate seed under test,
 # or `none` to skip verification (testing only - never set it in CI).

@@ -15,8 +15,14 @@ public class ASTMember : ASTExpr {
         this.name = name
     }
 
-    public string getName() { return this.name }
-    public ASTMember asMember() { return this }
+    public string getName() {
+        return this.name
+    }
+    public ASTMember asMember() {
+        return this
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }

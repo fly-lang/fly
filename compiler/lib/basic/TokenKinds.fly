@@ -140,10 +140,14 @@ public enum TokenKind {
 }
 
 // getTokenName — the enum constant's name (e.g. "kw_namespace", "l_paren").
-public string getTokenName(const TokenKind k) { return k.name }
+public string getTokenName(const TokenKind k) {
+    return k.name
+}
 
 // isKeywordKind — true for any kw_* kind.
-public bool isKeywordKind(const TokenKind k) { return str.startsWith(k.name, "kw_") }
+public bool isKeywordKind(const TokenKind k) {
+    return str.startsWith(k.name, "kw_")
+}
 
 // isLiteralKind — true for a literal token (number / string / char).
 public bool isLiteralKind(const TokenKind k) {
@@ -154,168 +158,460 @@ public bool isLiteralKind(const TokenKind k) {
 // getKeywordKind — the kw_* kind for a reserved-word spelling, or `identifier`
 // if the spelling is not a keyword.
 public TokenKind getKeywordKind(const string w) {
-    if w == "abstract"  { return TokenKind.kw_abstract }
-    if w == "as"        { return TokenKind.kw_as }
-    if w == "bool"      { return TokenKind.kw_bool }
-    if w == "break"     { return TokenKind.kw_break }
-    if w == "byte"      { return TokenKind.kw_byte }
-    if w == "case"      { return TokenKind.kw_case }
-    if w == "char"      { return TokenKind.kw_char }
-    if w == "class"     { return TokenKind.kw_class }
-    if w == "complex"   { return TokenKind.kw_complex }
-    if w == "const"     { return TokenKind.kw_const }
-    if w == "continue"  { return TokenKind.kw_continue }
-    if w == "default"   { return TokenKind.kw_default }
-    if w == "double"    { return TokenKind.kw_double }
-    if w == "elsif"     { return TokenKind.kw_elsif }
-    if w == "else"      { return TokenKind.kw_else }
-    if w == "enum"      { return TokenKind.kw_enum }
-    if w == "error"     { return TokenKind.kw_error }
-    if w == "fail"      { return TokenKind.kw_fail }
-    if w == "false"     { return TokenKind.kw_false }
-    if w == "final"     { return TokenKind.kw_final }
-    if w == "float"     { return TokenKind.kw_float }
-    if w == "for"       { return TokenKind.kw_for }
-    if w == "handle"    { return TokenKind.kw_handle }
-    if w == "if"        { return TokenKind.kw_if }
-    if w == "import"    { return TokenKind.kw_import }
-    if w == "interface" { return TokenKind.kw_interface }
-    if w == "in"        { return TokenKind.kw_in }
-    if w == "int"       { return TokenKind.kw_int }
-    if w == "long"      { return TokenKind.kw_long }
-    if w == "namespace" { return TokenKind.kw_namespace }
-    if w == "new"       { return TokenKind.kw_new }
-    if w == "null"      { return TokenKind.kw_null }
-    if w == "private"   { return TokenKind.kw_private }
-    if w == "protected" { return TokenKind.kw_protected }
-    if w == "public"    { return TokenKind.kw_public }
-    if w == "return"    { return TokenKind.kw_return }
-    if w == "short"     { return TokenKind.kw_short }
-    if w == "static"    { return TokenKind.kw_static }
-    if w == "string"    { return TokenKind.kw_string }
-    if w == "struct"    { return TokenKind.kw_struct }
-    if w == "suite"     { return TokenKind.kw_suite }
-    if w == "switch"    { return TokenKind.kw_switch }
-    if w == "test"      { return TokenKind.kw_test }
-    if w == "true"      { return TokenKind.kw_true }
-    if w == "uint"      { return TokenKind.kw_uint }
-    if w == "ulong"     { return TokenKind.kw_ulong }
-    if w == "unset"     { return TokenKind.kw_unset }
-    if w == "ushort"    { return TokenKind.kw_ushort }
-    if w == "pointer"   { return TokenKind.kw_pointer }
-    if w == "void"      { return TokenKind.kw_void }
-    if w == "while"     { return TokenKind.kw_while }
+    if w == "abstract" {
+        return TokenKind.kw_abstract
+    }
+    if w == "as" {
+        return TokenKind.kw_as
+    }
+    if w == "bool" {
+        return TokenKind.kw_bool
+    }
+    if w == "break" {
+        return TokenKind.kw_break
+    }
+    if w == "byte" {
+        return TokenKind.kw_byte
+    }
+    if w == "case" {
+        return TokenKind.kw_case
+    }
+    if w == "char" {
+        return TokenKind.kw_char
+    }
+    if w == "class" {
+        return TokenKind.kw_class
+    }
+    if w == "complex" {
+        return TokenKind.kw_complex
+    }
+    if w == "const" {
+        return TokenKind.kw_const
+    }
+    if w == "continue" {
+        return TokenKind.kw_continue
+    }
+    if w == "default" {
+        return TokenKind.kw_default
+    }
+    if w == "double" {
+        return TokenKind.kw_double
+    }
+    if w == "elsif" {
+        return TokenKind.kw_elsif
+    }
+    if w == "else" {
+        return TokenKind.kw_else
+    }
+    if w == "enum" {
+        return TokenKind.kw_enum
+    }
+    if w == "error" {
+        return TokenKind.kw_error
+    }
+    if w == "fail" {
+        return TokenKind.kw_fail
+    }
+    if w == "false" {
+        return TokenKind.kw_false
+    }
+    if w == "final" {
+        return TokenKind.kw_final
+    }
+    if w == "float" {
+        return TokenKind.kw_float
+    }
+    if w == "for" {
+        return TokenKind.kw_for
+    }
+    if w == "handle" {
+        return TokenKind.kw_handle
+    }
+    if w == "if" {
+        return TokenKind.kw_if
+    }
+    if w == "import" {
+        return TokenKind.kw_import
+    }
+    if w == "interface" {
+        return TokenKind.kw_interface
+    }
+    if w == "in" {
+        return TokenKind.kw_in
+    }
+    if w == "int" {
+        return TokenKind.kw_int
+    }
+    if w == "long" {
+        return TokenKind.kw_long
+    }
+    if w == "namespace" {
+        return TokenKind.kw_namespace
+    }
+    if w == "new" {
+        return TokenKind.kw_new
+    }
+    if w == "null" {
+        return TokenKind.kw_null
+    }
+    if w == "private" {
+        return TokenKind.kw_private
+    }
+    if w == "protected" {
+        return TokenKind.kw_protected
+    }
+    if w == "public" {
+        return TokenKind.kw_public
+    }
+    if w == "return" {
+        return TokenKind.kw_return
+    }
+    if w == "short" {
+        return TokenKind.kw_short
+    }
+    if w == "static" {
+        return TokenKind.kw_static
+    }
+    if w == "string" {
+        return TokenKind.kw_string
+    }
+    if w == "struct" {
+        return TokenKind.kw_struct
+    }
+    if w == "suite" {
+        return TokenKind.kw_suite
+    }
+    if w == "switch" {
+        return TokenKind.kw_switch
+    }
+    if w == "test" {
+        return TokenKind.kw_test
+    }
+    if w == "true" {
+        return TokenKind.kw_true
+    }
+    if w == "uint" {
+        return TokenKind.kw_uint
+    }
+    if w == "ulong" {
+        return TokenKind.kw_ulong
+    }
+    if w == "unset" {
+        return TokenKind.kw_unset
+    }
+    if w == "ushort" {
+        return TokenKind.kw_ushort
+    }
+    if w == "pointer" {
+        return TokenKind.kw_pointer
+    }
+    if w == "void" {
+        return TokenKind.kw_void
+    }
+    if w == "while" {
+        return TokenKind.kw_while
+    }
     return TokenKind.identifier
 }
 
 // getPunctKind — the punctuator kind for a spelling, or `unknown` if not one.
 public TokenKind getPunctKind(const string p) {
-    if p == "["   { return TokenKind.l_square }
-    if p == "]"   { return TokenKind.r_square }
-    if p == "("   { return TokenKind.l_paren }
-    if p == ")"   { return TokenKind.r_paren }
-    if p == "{"   { return TokenKind.l_brace }
-    if p == "}"   { return TokenKind.r_brace }
-    if p == "."   { return TokenKind.period }
-    if p == "&&"  { return TokenKind.ampamp }
-    if p == "&="  { return TokenKind.ampequal }
-    if p == "&"   { return TokenKind.amp }
-    if p == "*="  { return TokenKind.starequal }
-    if p == "*"   { return TokenKind.star }
-    if p == "++"  { return TokenKind.plusplus }
-    if p == "+="  { return TokenKind.plusequal }
-    if p == "+"   { return TokenKind.plus }
-    if p == "--"  { return TokenKind.minusminus }
-    if p == "-="  { return TokenKind.minusequal }
-    if p == "-"   { return TokenKind.minus }
-    if p == "!="  { return TokenKind.exclaimequal }
-    if p == "!"   { return TokenKind.exclaim }
-    if p == "/="  { return TokenKind.slashequal }
-    if p == "/"   { return TokenKind.slash }
-    if p == "%="  { return TokenKind.percentequal }
-    if p == "%"   { return TokenKind.percent }
-    if p == "<<=" { return TokenKind.lesslessequal }
-    if p == "<<"  { return TokenKind.lessless }
-    if p == "<="  { return TokenKind.lessequal }
-    if p == "<"   { return TokenKind.less }
-    if p == ">>=" { return TokenKind.greatergreaterequal }
-    if p == ">>"  { return TokenKind.greatergreater }
-    if p == ">="  { return TokenKind.greaterequal }
-    if p == ">"   { return TokenKind.greater }
-    if p == "^="  { return TokenKind.caretequal }
-    if p == "^"   { return TokenKind.caret }
-    if p == "||"  { return TokenKind.pipepipe }
-    if p == "|="  { return TokenKind.pipeequal }
-    if p == "|"   { return TokenKind.pipe }
-    if p == "?"   { return TokenKind.question }
-    if p == ":"   { return TokenKind.colon }
-    if p == ";"   { return TokenKind.semi }
-    if p == "=="  { return TokenKind.equalequal }
-    if p == "="   { return TokenKind.equal }
-    if p == ","   { return TokenKind.comma }
-    if p == "@"   { return TokenKind.at }
+    if p == "[" {
+        return TokenKind.l_square
+    }
+    if p == "]" {
+        return TokenKind.r_square
+    }
+    if p == "(" {
+        return TokenKind.l_paren
+    }
+    if p == ")" {
+        return TokenKind.r_paren
+    }
+    if p == "{" {
+        return TokenKind.l_brace
+    }
+    if p == "}" {
+        return TokenKind.r_brace
+    }
+    if p == "." {
+        return TokenKind.period
+    }
+    if p == "&&" {
+        return TokenKind.ampamp
+    }
+    if p == "&=" {
+        return TokenKind.ampequal
+    }
+    if p == "&" {
+        return TokenKind.amp
+    }
+    if p == "*=" {
+        return TokenKind.starequal
+    }
+    if p == "*" {
+        return TokenKind.star
+    }
+    if p == "++" {
+        return TokenKind.plusplus
+    }
+    if p == "+=" {
+        return TokenKind.plusequal
+    }
+    if p == "+" {
+        return TokenKind.plus
+    }
+    if p == "--" {
+        return TokenKind.minusminus
+    }
+    if p == "-=" {
+        return TokenKind.minusequal
+    }
+    if p == "-" {
+        return TokenKind.minus
+    }
+    if p == "!=" {
+        return TokenKind.exclaimequal
+    }
+    if p == "!" {
+        return TokenKind.exclaim
+    }
+    if p == "/=" {
+        return TokenKind.slashequal
+    }
+    if p == "/" {
+        return TokenKind.slash
+    }
+    if p == "%=" {
+        return TokenKind.percentequal
+    }
+    if p == "%" {
+        return TokenKind.percent
+    }
+    if p == "<<=" {
+        return TokenKind.lesslessequal
+    }
+    if p == "<<" {
+        return TokenKind.lessless
+    }
+    if p == "<=" {
+        return TokenKind.lessequal
+    }
+    if p == "<" {
+        return TokenKind.less
+    }
+    if p == ">>=" {
+        return TokenKind.greatergreaterequal
+    }
+    if p == ">>" {
+        return TokenKind.greatergreater
+    }
+    if p == ">=" {
+        return TokenKind.greaterequal
+    }
+    if p == ">" {
+        return TokenKind.greater
+    }
+    if p == "^=" {
+        return TokenKind.caretequal
+    }
+    if p == "^" {
+        return TokenKind.caret
+    }
+    if p == "||" {
+        return TokenKind.pipepipe
+    }
+    if p == "|=" {
+        return TokenKind.pipeequal
+    }
+    if p == "|" {
+        return TokenKind.pipe
+    }
+    if p == "?" {
+        return TokenKind.question
+    }
+    if p == ":" {
+        return TokenKind.colon
+    }
+    if p == ";" {
+        return TokenKind.semi
+    }
+    if p == "==" {
+        return TokenKind.equalequal
+    }
+    if p == "=" {
+        return TokenKind.equal
+    }
+    if p == "," {
+        return TokenKind.comma
+    }
+    if p == "@" {
+        return TokenKind.at
+    }
     return TokenKind.unknown
 }
 
 // getPunctuatorSpelling — the spelling for a punctuator kind, or "" if not one.
 public string getPunctuatorSpelling(const TokenKind k) {
-    if k == TokenKind.l_square            { return "[" }
-    if k == TokenKind.r_square            { return "]" }
-    if k == TokenKind.l_paren             { return "(" }
-    if k == TokenKind.r_paren             { return ")" }
-    if k == TokenKind.l_brace             { return "{" }
-    if k == TokenKind.r_brace             { return "}" }
-    if k == TokenKind.period              { return "." }
-    if k == TokenKind.amp                 { return "&" }
-    if k == TokenKind.ampamp              { return "&&" }
-    if k == TokenKind.ampequal            { return "&=" }
-    if k == TokenKind.star                { return "*" }
-    if k == TokenKind.starequal           { return "*=" }
-    if k == TokenKind.plus                { return "+" }
-    if k == TokenKind.plusplus            { return "++" }
-    if k == TokenKind.plusequal           { return "+=" }
-    if k == TokenKind.minus               { return "-" }
-    if k == TokenKind.minusminus          { return "--" }
-    if k == TokenKind.minusequal          { return "-=" }
-    if k == TokenKind.exclaim             { return "!" }
-    if k == TokenKind.exclaimequal        { return "!=" }
-    if k == TokenKind.slash               { return "/" }
-    if k == TokenKind.slashequal          { return "/=" }
-    if k == TokenKind.percent             { return "%" }
-    if k == TokenKind.percentequal        { return "%=" }
-    if k == TokenKind.less                { return "<" }
-    if k == TokenKind.lessless            { return "<<" }
-    if k == TokenKind.lessequal           { return "<=" }
-    if k == TokenKind.lesslessequal       { return "<<=" }
-    if k == TokenKind.greater             { return ">" }
-    if k == TokenKind.greatergreater      { return ">>" }
-    if k == TokenKind.greaterequal        { return ">=" }
-    if k == TokenKind.greatergreaterequal { return ">>=" }
-    if k == TokenKind.caret               { return "^" }
-    if k == TokenKind.caretequal          { return "^=" }
-    if k == TokenKind.pipe                { return "|" }
-    if k == TokenKind.pipepipe            { return "||" }
-    if k == TokenKind.pipeequal           { return "|=" }
-    if k == TokenKind.question            { return "?" }
-    if k == TokenKind.colon               { return ":" }
-    if k == TokenKind.semi                { return ";" }
-    if k == TokenKind.equal               { return "=" }
-    if k == TokenKind.equalequal          { return "==" }
-    if k == TokenKind.comma               { return "," }
-    if k == TokenKind.at                  { return "@" }
+    if k == TokenKind.l_square {
+        return "["
+    }
+    if k == TokenKind.r_square {
+        return "]"
+    }
+    if k == TokenKind.l_paren {
+        return "("
+    }
+    if k == TokenKind.r_paren {
+        return ")"
+    }
+    if k == TokenKind.l_brace {
+        return "{"
+    }
+    if k == TokenKind.r_brace {
+        return "}"
+    }
+    if k == TokenKind.period {
+        return "."
+    }
+    if k == TokenKind.amp {
+        return "&"
+    }
+    if k == TokenKind.ampamp {
+        return "&&"
+    }
+    if k == TokenKind.ampequal {
+        return "&="
+    }
+    if k == TokenKind.star {
+        return "*"
+    }
+    if k == TokenKind.starequal {
+        return "*="
+    }
+    if k == TokenKind.plus {
+        return "+"
+    }
+    if k == TokenKind.plusplus {
+        return "++"
+    }
+    if k == TokenKind.plusequal {
+        return "+="
+    }
+    if k == TokenKind.minus {
+        return "-"
+    }
+    if k == TokenKind.minusminus {
+        return "--"
+    }
+    if k == TokenKind.minusequal {
+        return "-="
+    }
+    if k == TokenKind.exclaim {
+        return "!"
+    }
+    if k == TokenKind.exclaimequal {
+        return "!="
+    }
+    if k == TokenKind.slash {
+        return "/"
+    }
+    if k == TokenKind.slashequal {
+        return "/="
+    }
+    if k == TokenKind.percent {
+        return "%"
+    }
+    if k == TokenKind.percentequal {
+        return "%="
+    }
+    if k == TokenKind.less {
+        return "<"
+    }
+    if k == TokenKind.lessless {
+        return "<<"
+    }
+    if k == TokenKind.lessequal {
+        return "<="
+    }
+    if k == TokenKind.lesslessequal {
+        return "<<="
+    }
+    if k == TokenKind.greater {
+        return ">"
+    }
+    if k == TokenKind.greatergreater {
+        return ">>"
+    }
+    if k == TokenKind.greaterequal {
+        return ">="
+    }
+    if k == TokenKind.greatergreaterequal {
+        return ">>="
+    }
+    if k == TokenKind.caret {
+        return "^"
+    }
+    if k == TokenKind.caretequal {
+        return "^="
+    }
+    if k == TokenKind.pipe {
+        return "|"
+    }
+    if k == TokenKind.pipepipe {
+        return "||"
+    }
+    if k == TokenKind.pipeequal {
+        return "|="
+    }
+    if k == TokenKind.question {
+        return "?"
+    }
+    if k == TokenKind.colon {
+        return ":"
+    }
+    if k == TokenKind.semi {
+        return ";"
+    }
+    if k == TokenKind.equal {
+        return "="
+    }
+    if k == TokenKind.equalequal {
+        return "=="
+    }
+    if k == TokenKind.comma {
+        return ","
+    }
+    if k == TokenKind.at {
+        return "@"
+    }
     return ""
 }
 
 // tokKindName — human-readable name for a (coarse) token kind. Retained for the
 // current Lexer/tests until the fine kinds take over in Stage 3.
 public string tokKindName(const TokenKind k) {
-    if k == TokenKind.EOF     { return "EOF" }
-    if k == TokenKind.IDENT   { return "Ident" }
-    if k == TokenKind.KEYWORD { return "Keyword" }
-    if k == TokenKind.NUMBER  { return "Number" }
-    if k == TokenKind.STRING  { return "String" }
-    if k == TokenKind.CHAR    { return "Char" }
-    if k == TokenKind.PUNCT   { return "Punct" }
+    if k == TokenKind.EOF {
+        return "EOF"
+    }
+    if k == TokenKind.IDENT {
+        return "Ident"
+    }
+    if k == TokenKind.KEYWORD {
+        return "Keyword"
+    }
+    if k == TokenKind.NUMBER {
+        return "Number"
+    }
+    if k == TokenKind.STRING {
+        return "String"
+    }
+    if k == TokenKind.CHAR {
+        return "Char"
+    }
+    if k == TokenKind.PUNCT {
+        return "Punct"
+    }
     return "Unknown"
 }
 

@@ -14,7 +14,11 @@ public class ASTComment : ASTNode {
         this.content = content
     }
 
-    public string getContent() { return this.content }
+    public string getContent() {
+        return this.content
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }

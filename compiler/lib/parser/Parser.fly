@@ -24,42 +24,94 @@ import fly.str
 // Assignment/ternary sit above this in parseAssign/parseTernary.
 public int binPrec(const string p) {
     if p == "||" || p == "&&" || p == "|" || p == "^" || p == "&"
-       || p == "<<" || p == ">>" { return 2 }
-    if p == "==" || p == "!=" || p == "<" || p == "<=" || p == ">" || p == ">=" { return 3 }
-    if p == "+" || p == "-" { return 4 }
-    if p == "*" || p == "/" || p == "%" { return 5 }
+       || p == "<<" || p == ">>" {
+           return 2
+       }
+    if p == "==" || p == "!=" || p == "<" || p == "<=" || p == ">" || p == ">=" {
+        return 3
+    }
+    if p == "+" || p == "-" {
+        return 4
+    }
+    if p == "*" || p == "/" || p == "%" {
+        return 5
+    }
     return 0
 }
 
 // binKindFor — the ASTBinaryKind for a binary operator spelling.
 public ASTBinaryKind binKindFor(const string p) {
-    if p == "||" { return ASTBinaryKind.OP_BINARY_LOGIC_OR }
-    if p == "&&" { return ASTBinaryKind.OP_BINARY_LOGIC_AND }
-    if p == "==" { return ASTBinaryKind.OP_BINARY_COMPARE_EQ }
-    if p == "!=" { return ASTBinaryKind.OP_BINARY_COMPARE_NE }
-    if p == "<"  { return ASTBinaryKind.OP_BINARY_COMPARE_LT }
-    if p == "<=" { return ASTBinaryKind.OP_BINARY_COMPARE_LTE }
-    if p == ">"  { return ASTBinaryKind.OP_BINARY_COMPARE_GT }
-    if p == ">=" { return ASTBinaryKind.OP_BINARY_COMPARE_GTE }
-    if p == "|"  { return ASTBinaryKind.OP_BINARY_ARITH_OR }
-    if p == "^"  { return ASTBinaryKind.OP_BINARY_ARITH_XOR }
-    if p == "&"  { return ASTBinaryKind.OP_BINARY_ARITH_AND }
-    if p == "<<" { return ASTBinaryKind.OP_BINARY_ARITH_SHIFT_L }
-    if p == ">>" { return ASTBinaryKind.OP_BINARY_ARITH_SHIFT_R }
-    if p == "+"  { return ASTBinaryKind.OP_BINARY_ARITH_ADD }
-    if p == "-"  { return ASTBinaryKind.OP_BINARY_ARITH_SUB }
-    if p == "*"  { return ASTBinaryKind.OP_BINARY_ARITH_MUL }
-    if p == "/"  { return ASTBinaryKind.OP_BINARY_ARITH_DIV }
+    if p == "||" {
+        return ASTBinaryKind.OP_BINARY_LOGIC_OR
+    }
+    if p == "&&" {
+        return ASTBinaryKind.OP_BINARY_LOGIC_AND
+    }
+    if p == "==" {
+        return ASTBinaryKind.OP_BINARY_COMPARE_EQ
+    }
+    if p == "!=" {
+        return ASTBinaryKind.OP_BINARY_COMPARE_NE
+    }
+    if p == "<" {
+        return ASTBinaryKind.OP_BINARY_COMPARE_LT
+    }
+    if p == "<=" {
+        return ASTBinaryKind.OP_BINARY_COMPARE_LTE
+    }
+    if p == ">" {
+        return ASTBinaryKind.OP_BINARY_COMPARE_GT
+    }
+    if p == ">=" {
+        return ASTBinaryKind.OP_BINARY_COMPARE_GTE
+    }
+    if p == "|" {
+        return ASTBinaryKind.OP_BINARY_ARITH_OR
+    }
+    if p == "^" {
+        return ASTBinaryKind.OP_BINARY_ARITH_XOR
+    }
+    if p == "&" {
+        return ASTBinaryKind.OP_BINARY_ARITH_AND
+    }
+    if p == "<<" {
+        return ASTBinaryKind.OP_BINARY_ARITH_SHIFT_L
+    }
+    if p == ">>" {
+        return ASTBinaryKind.OP_BINARY_ARITH_SHIFT_R
+    }
+    if p == "+" {
+        return ASTBinaryKind.OP_BINARY_ARITH_ADD
+    }
+    if p == "-" {
+        return ASTBinaryKind.OP_BINARY_ARITH_SUB
+    }
+    if p == "*" {
+        return ASTBinaryKind.OP_BINARY_ARITH_MUL
+    }
+    if p == "/" {
+        return ASTBinaryKind.OP_BINARY_ARITH_DIV
+    }
     return ASTBinaryKind.OP_BINARY_ARITH_MOD
 }
 
 // punctDiag — the diagnostic id for a missing/expected punctuator spelling.
 public DiagID punctDiag(const string p) {
-    if p == "{" { return DiagID.err_parser_expected_lbrace }
-    if p == ">" { return DiagID.err_parser_expected_greater }
-    if p == ")" { return DiagID.err_parser_right_paren }
-    if p == "]" { return DiagID.err_parser_unclosed_bracket }
-    if p == "}" { return DiagID.err_parser_unclosed_bracket }
+    if p == "{" {
+        return DiagID.err_parser_expected_lbrace
+    }
+    if p == ">" {
+        return DiagID.err_parser_expected_greater
+    }
+    if p == ")" {
+        return DiagID.err_parser_right_paren
+    }
+    if p == "]" {
+        return DiagID.err_parser_unclosed_bracket
+    }
+    if p == "}" {
+        return DiagID.err_parser_unclosed_bracket
+    }
     return DiagID.err_parser_syntax_error
 }
 
@@ -71,6 +123,21 @@ public class Parser {
     List<Token> pending      // lookahead buffer: tokens probed past `nxt`, re-served by bump()
     List<ASTReturnStmt> bodyReturns   // every `return` in the body being parsed
     List<string> bodyLocals           // every local name declared in that body
+    // Every block parsed, in order, for `fly fmt` (which needs where each block
+    // and each of its statements starts). Off unless asked for: compiling never
+    // needs it.
+    bool recordBlocks
+    List<ASTBlockStmt> blocks
+    // Where each statement STARTS (its first token), with the block it belongs
+    // to: a statement node's own loc is not always its first token (a
+    // `return x` is located at `x`).
+    List<int> stmtStarts
+    List<ASTBlockStmt> stmtBlocks
+    // Where each parameter starts (its modifiers included), and which parameter
+    // list it belongs to (one group id per list), for wrapping long signatures.
+    List<int> paramStarts
+    List<int> paramGroups
+    int paramGroupId
     DiagnosticsEngine diags
     StoringDiagnosticConsumer sink
     ASTModule module
@@ -86,6 +153,13 @@ public class Parser {
         this.diags = new DiagnosticsEngine(opts, this.sink, this.sm)
         this.pending = new List<Token>()
         this.bodyReturns = new List<ASTReturnStmt>()
+        this.recordBlocks = false
+        this.blocks = new List<ASTBlockStmt>()
+        this.stmtStarts = new List<int>()
+        this.stmtBlocks = new List<ASTBlockStmt>()
+        this.paramStarts = new List<int>()
+        this.paramGroups = new List<int>()
+        this.paramGroupId = 0
         this.bodyLocals = new List<string>()
         this.cur = this.lx.next()
         this.nxt = this.lx.next()
@@ -147,7 +221,9 @@ public class Parser {
                             if depth <= 0 {
                                 Token after = this.nextRaw()
                                 scanned.add(after)
-                                if after.kind == TokenKind.IDENT { isDecl = true }
+                                if after.kind == TokenKind.IDENT {
+                                    isDecl = true
+                                }
                                 go = false
                             }
                         }
@@ -209,11 +285,16 @@ public class Parser {
                             } else {
                                 bool more = false
                                 if after.kind == TokenKind.PUNCT {
-                                    if this.lx.tokenText(after) == "[" { more = true }
+                                    if this.lx.tokenText(after) == "[" {
+                                        more = true
+                                    }
                                 }
                                 // another dimension → keep balancing; otherwise decided
-                                if more { depth = 1 }
-                                else { go = false }
+                                if more {
+                                    depth = 1
+                                } else {
+                                    go = false
+                                }
                             }
                         }
                     }
@@ -242,8 +323,11 @@ public class Parser {
             if t.isEof() {
                 go = false
             } elsif expectDot == false {
-                if t.kind == TokenKind.IDENT { expectDot = true }
-                else { go = false }   // '.' not followed by an identifier → malformed
+                if t.kind == TokenKind.IDENT {
+                    expectDot = true
+                } else { // '.' not followed by an identifier → malformed
+                    go = false
+                }
             } else {
                 string tx = this.lx.tokenText(t)
                 if t.kind == TokenKind.PUNCT && str.equals(tx, ".") {
@@ -274,7 +358,9 @@ public class Parser {
                                         if depth <= 0 {
                                             Token after = this.nextRaw()
                                             scanned.add(after)
-                                            if after.kind == TokenKind.IDENT { isDecl = true }
+                                            if after.kind == TokenKind.IDENT {
+                                                isDecl = true
+                                            }
                                             ga = false
                                         }
                                     }
@@ -308,8 +394,11 @@ public class Parser {
         // nxt is the first token inside the '('; account for it before scanning past it.
         if this.nxt.kind == TokenKind.PUNCT {
             string nx = this.lx.tokenText(this.nxt)
-            if str.equals(nx, "(")      { depth = depth + 1 }
-            elsif str.equals(nx, ")")   { depth = depth - 1 }
+            if str.equals(nx, "(") {
+                depth = depth + 1
+            } elsif str.equals(nx, ")") {
+                depth = depth - 1
+            }
         }
         bool wrapped = false
         List<Token> scanned = new List<Token>()
@@ -321,17 +410,22 @@ public class Parser {
                 go = false
             } else {
                 string tx = this.lx.tokenText(t)
-                if t.kind == TokenKind.PUNCT && str.equals(tx, "(") { depth = depth + 1 }
-                elsif t.kind == TokenKind.PUNCT && str.equals(tx, ")") {
+                if t.kind == TokenKind.PUNCT && str.equals(tx, "(") {
+                    depth = depth + 1
+                } elsif t.kind == TokenKind.PUNCT && str.equals(tx, ")") {
                     depth = depth - 1
-                    if depth <= 0 { go = false }
+                    if depth <= 0 {
+                        go = false
+                    }
                 }
             }
         }
         if depth <= 0 {
             Token after = this.nextRaw()
             scanned.add(after)
-            if after.kind == TokenKind.PUNCT && str.equals(this.lx.tokenText(after), "{") { wrapped = true }
+            if after.kind == TokenKind.PUNCT && str.equals(this.lx.tokenText(after), "{") {
+                wrapped = true
+            }
         }
         int i = 0
         while i < scanned.size() {
@@ -349,33 +443,69 @@ public class Parser {
             this.reportErr(DiagID.err_parser_paren_wrapped_cond)
         }
     }
-    public bool curIsEof() { return this.cur.isEof() }
-    public string curText() { return this.lx.tokenText(this.cur) }
-    public SourceLocation curLoc() { return slGetFileLocIn(this.cur.offset(), this.sm) }
-    public int curLine() { return this.sm.getLineNumber(this.cur.getLoc()) }
-    public int prevTokenLine() { return this.prevLine }
-    public int curCol()  { return this.sm.getColumnNumber(this.cur.getLoc()) }
+    public bool curIsEof() {
+        return this.cur.isEof()
+    }
+    public string curText() {
+        return this.lx.tokenText(this.cur)
+    }
+    public SourceLocation curLoc() {
+        return slGetFileLocIn(this.cur.offset(), this.sm)
+    }
+    public int curLine() {
+        return this.sm.getLineNumber(this.cur.getLoc())
+    }
+    public int prevTokenLine() {
+        return this.prevLine
+    }
+    public int curCol() {
+        return this.sm.getColumnNumber(this.cur.getLoc())
+    }
 
     // curKind / curIs — bridge the pragmatic Lexer's coarse token to the fine-grained
     // TokenKind set, so parse methods can test precise kinds 1:1 with the C++ parser's
     // Tok.is(tok::…). Keywords/punctuators resolve via the spelling tables.
     public TokenKind curKind() {
-        if this.cur.kind == TokenKind.IDENT   { return TokenKind.identifier }
-        if this.cur.kind == TokenKind.KEYWORD { return getKeywordKind(this.curText()) }
-        if this.cur.kind == TokenKind.PUNCT   { return getPunctKind(this.curText()) }
-        if this.cur.kind == TokenKind.NUMBER  { return TokenKind.numeric_constant }
-        if this.cur.kind == TokenKind.STRING  { return TokenKind.string_literal }
-        if this.cur.kind == TokenKind.CHAR    { return TokenKind.char_constant }
-        if this.cur.kind == TokenKind.EOF     { return TokenKind.eof }
+        if this.cur.kind == TokenKind.IDENT {
+            return TokenKind.identifier
+        }
+        if this.cur.kind == TokenKind.KEYWORD {
+            return getKeywordKind(this.curText())
+        }
+        if this.cur.kind == TokenKind.PUNCT {
+            return getPunctKind(this.curText())
+        }
+        if this.cur.kind == TokenKind.NUMBER {
+            return TokenKind.numeric_constant
+        }
+        if this.cur.kind == TokenKind.STRING {
+            return TokenKind.string_literal
+        }
+        if this.cur.kind == TokenKind.CHAR {
+            return TokenKind.char_constant
+        }
+        if this.cur.kind == TokenKind.EOF {
+            return TokenKind.eof
+        }
         return TokenKind.unknown
     }
-    public bool curIs(const TokenKind k) { return this.curKind() == k }
+    public bool curIs(const TokenKind k) {
+        return this.curKind() == k
+    }
 
-    public bool curIsIdent() { return this.cur.kind == TokenKind.IDENT }
+    public bool curIsIdent() {
+        return this.cur.kind == TokenKind.IDENT
+    }
     // Coarse token-kind predicates used by the ParserExpr companion (no direct `cur` field access).
-    public bool curIsNumber()   { return this.cur.kind == TokenKind.NUMBER }
-    public bool curIsStringLit(){ return this.cur.kind == TokenKind.STRING }
-    public bool curIsAnyPunct() { return this.cur.kind == TokenKind.PUNCT }
+    public bool curIsNumber() {
+        return this.cur.kind == TokenKind.NUMBER
+    }
+    public bool curIsStringLit(){
+        return this.cur.kind == TokenKind.STRING
+    }
+    public bool curIsAnyPunct() {
+        return this.cur.kind == TokenKind.PUNCT
+    }
     public bool curIsKw(const string w) {
         return this.cur.kind == TokenKind.KEYWORD && str.equals(this.lx.tokenText(this.cur), w)
     }
@@ -399,11 +529,19 @@ public class Parser {
         this.bodyLocals = new List<string>()
     }
     public void endBody(const ASTFunction f) {
-        if f == null { return }
+        if f == null {
+            return
+        }
         int i = 0
-        while i < this.bodyReturns.size() { f.addReturnStmt(this.bodyReturns.get(i))  i = i + 1 }
+        while i < this.bodyReturns.size() {
+            f.addReturnStmt(this.bodyReturns.get(i))
+            i = i + 1
+        }
         int j = 0
-        while j < this.bodyLocals.size() { f.addLocalName(this.bodyLocals.get(j))  j = j + 1 }
+        while j < this.bodyLocals.size() {
+            f.addLocalName(this.bodyLocals.get(j))
+            j = j + 1
+        }
         this.beginBody()
     }
 
@@ -424,11 +562,59 @@ public class Parser {
     // ── diagnostics ───────────────────────────────────────────────────────────
     // Errors flow through the real DiagnosticsEngine (id-based, rendered line:col),
     // replacing the former ad-hoc hadError/errMsg.
-    public bool isSuccess() { return this.diags.hasErrorOccurred() == false }
-    public bool hadErr() { return this.diags.hasErrorOccurred() }
-    public DiagnosticsEngine getDiags() { return this.diags }
-    public StoringDiagnosticConsumer getSink() { return this.sink }
-    public ASTModule getModule() { return this.module }
+    public bool isSuccess() {
+        return this.diags.hasErrorOccurred() == false
+    }
+    public bool hadErr() {
+        return this.diags.hasErrorOccurred()
+    }
+
+    public void setRecordBlocks(const bool on) {
+        this.recordBlocks = on
+    }
+
+    public List<ASTBlockStmt> getBlocks() {
+        return this.blocks
+    }
+
+    public List<int> getStmtStarts() {
+        return this.stmtStarts
+    }
+
+    public List<ASTBlockStmt> getStmtBlocks() {
+        return this.stmtBlocks
+    }
+
+    // newParamGroup / noteParam — called by ParserFunction.parseParams; they
+    // record nothing unless blocks are being recorded.
+    public int newParamGroup() {
+        this.paramGroupId = this.paramGroupId + 1
+        return this.paramGroupId
+    }
+
+    public void noteParam(const int group) {
+        if this.recordBlocks {
+            this.paramStarts.add(this.curLoc().getOffset())
+            this.paramGroups.add(group)
+        }
+    }
+
+    public List<int> getParamStarts() {
+        return this.paramStarts
+    }
+
+    public List<int> getParamGroups() {
+        return this.paramGroups
+    }
+    public DiagnosticsEngine getDiags() {
+        return this.diags
+    }
+    public StoringDiagnosticConsumer getSink() {
+        return this.sink
+    }
+    public ASTModule getModule() {
+        return this.module
+    }
 
     public void reportErr(const DiagID id) {
         DiagnosticBuilder b = this.diags.report(this.curLoc(), id)
@@ -440,8 +626,11 @@ public class Parser {
         b.emit()
     }
     public void expectPunct(const string p) {
-        if this.curIsPunct(p) { this.bump() }
-        else { this.reportErr(punctDiag(p)) }
+        if this.curIsPunct(p) {
+            this.bump()
+        } else {
+            this.reportErr(punctDiag(p))
+        }
     }
     // leadingRun — number of leading bytes equal to `ch` (62 '>', 60 '<') in a token's
     // text, so a greedily-fused angle run (`>>`, `>>=`, `<<`) is measured char-by-char
@@ -453,7 +642,11 @@ public class Parser {
         while go && n < len {
             byte b = str.byteAt(s, n)
             int bv = (int)b
-            if bv == ch { n = n + 1 } else { go = false }
+            if bv == ch {
+                n = n + 1
+            } else {
+                go = false
+            }
         }
         return n
     }
@@ -479,8 +672,11 @@ public class Parser {
         this.reportErr(punctDiag(">"))
     }
     public void expectKw(const string w) {
-        if this.curIsKw(w) { this.bump() }
-        else { this.reportErr(DiagID.err_parser_syntax_error) }
+        if this.curIsKw(w) {
+            this.bump()
+        } else {
+            this.reportErr(DiagID.err_parser_syntax_error)
+        }
     }
 
     // ── ParseModule ───────────────────────────────────────────────────────────
@@ -506,7 +702,9 @@ public class Parser {
                 }
             } else {
                 this.parseNode(m)
-                if this.hadErr() { go = false }
+                if this.hadErr() {
+                    go = false
+                }
             }
         }
         return m
@@ -532,8 +730,11 @@ public class Parser {
                 names.add(n)
                 this.bump()
                 if this.curIsPunct(".") {
-                    if this.nxtIsPunct("*") { go = false }
-                    else { this.bump() }
+                    if this.nxtIsPunct("*") {
+                        go = false
+                    } else {
+                        this.bump()
+                    }
                 } else {
                     go = false
                 }
@@ -578,14 +779,30 @@ public class Parser {
         bool go = true
         while go {
             SourceLocation loc = this.curLoc()
-            if this.curIsKw("public")       { mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_PUBLIC))    this.bump() }
-            elsif this.curIsKw("private")   { mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_PRIVATE))   this.bump() }
-            elsif this.curIsKw("protected") { mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_PROTECTED)) this.bump() }
-            elsif this.curIsKw("const")     { mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_CONSTANT))  this.bump() }
-            elsif this.curIsKw("static")    { mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_STATIC))    this.bump() }
-            elsif this.curIsKw("abstract")  { mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_ABSTRACT))  this.bump() }
-            elsif this.curIsKw("final")     { mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_FINAL))     this.bump() }
-            else { go = false }
+            if this.curIsKw("public") {
+                mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_PUBLIC))
+                this.bump()
+            } elsif this.curIsKw("private") {
+                mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_PRIVATE))
+                this.bump()
+            } elsif this.curIsKw("protected") {
+                mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_PROTECTED))
+                this.bump()
+            } elsif this.curIsKw("const") {
+                mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_CONSTANT))
+                this.bump()
+            } elsif this.curIsKw("static") {
+                mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_STATIC))
+                this.bump()
+            } elsif this.curIsKw("abstract") {
+                mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_ABSTRACT))
+                this.bump()
+            } elsif this.curIsKw("final") {
+                mods.add(ASTBuilder.CreateModifier(loc,ASTModifierKind.MOD_FINAL))
+                this.bump()
+            } else {
+                go = false
+            }
         }
         return mods
     }
@@ -622,20 +839,62 @@ public class Parser {
 
     public ASTType parseBuiltinType() {
         SourceLocation loc = this.curLoc()
-        if this.curIsKw("void")   { this.bump()  return ASTBuilder.CreateVoidType(loc) }
-        if this.curIsKw("bool")   { this.bump()  return ASTBuilder.CreateBoolType(loc) }
-        if this.curIsKw("byte")   { this.bump()  return ASTBuilder.CreateByteType(loc) }
-        if this.curIsKw("short")  { this.bump()  return ASTBuilder.CreateShortType(loc) }
-        if this.curIsKw("ushort") { this.bump()  return ASTBuilder.CreateUShortType(loc) }
-        if this.curIsKw("int")    { this.bump()  return ASTBuilder.CreateIntType(loc) }
-        if this.curIsKw("uint")   { this.bump()  return ASTBuilder.CreateUIntType(loc) }
-        if this.curIsKw("long")   { this.bump()  return ASTBuilder.CreateLongType(loc) }
-        if this.curIsKw("ulong")  { this.bump()  return ASTBuilder.CreateULongType(loc) }
-        if this.curIsKw("pointer") { this.bump()  return ASTBuilder.CreatePtrSizeType(loc) }
-        if this.curIsKw("float")  { this.bump()  return ASTBuilder.CreateFloatType(loc) }
-        if this.curIsKw("double") { this.bump()  return ASTBuilder.CreateDoubleType(loc) }
-        if this.curIsKw("complex"){ this.bump()  return ASTBuilder.CreateComplexType(loc) }
-        if this.curIsKw("string") { this.bump()  return ASTBuilder.CreateStringType(loc) }
+        if this.curIsKw("void") {
+            this.bump()
+            return ASTBuilder.CreateVoidType(loc)
+        }
+        if this.curIsKw("bool") {
+            this.bump()
+            return ASTBuilder.CreateBoolType(loc)
+        }
+        if this.curIsKw("byte") {
+            this.bump()
+            return ASTBuilder.CreateByteType(loc)
+        }
+        if this.curIsKw("short") {
+            this.bump()
+            return ASTBuilder.CreateShortType(loc)
+        }
+        if this.curIsKw("ushort") {
+            this.bump()
+            return ASTBuilder.CreateUShortType(loc)
+        }
+        if this.curIsKw("int") {
+            this.bump()
+            return ASTBuilder.CreateIntType(loc)
+        }
+        if this.curIsKw("uint") {
+            this.bump()
+            return ASTBuilder.CreateUIntType(loc)
+        }
+        if this.curIsKw("long") {
+            this.bump()
+            return ASTBuilder.CreateLongType(loc)
+        }
+        if this.curIsKw("ulong") {
+            this.bump()
+            return ASTBuilder.CreateULongType(loc)
+        }
+        if this.curIsKw("pointer") {
+            this.bump()
+            return ASTBuilder.CreatePtrSizeType(loc)
+        }
+        if this.curIsKw("float") {
+            this.bump()
+            return ASTBuilder.CreateFloatType(loc)
+        }
+        if this.curIsKw("double") {
+            this.bump()
+            return ASTBuilder.CreateDoubleType(loc)
+        }
+        if this.curIsKw("complex"){
+            this.bump()
+            return ASTBuilder.CreateComplexType(loc)
+        }
+        if this.curIsKw("string") {
+            this.bump()
+            return ASTBuilder.CreateStringType(loc)
+        }
         this.bump()
         return ASTBuilder.CreateErrorType(loc)
     }
@@ -654,8 +913,11 @@ public class Parser {
                 while go {
                     ASTType ta = this.parseType()
                     nt.addTypeArg(ta)
-                    if this.curIsPunct(",") { this.bump() }
-                    else { go = false }
+                    if this.curIsPunct(",") {
+                        this.bump()
+                    } else {
+                        go = false
+                    }
                 }
                 this.closeTypeArgs()
             }
@@ -689,8 +951,12 @@ public class Parser {
     // ── ParseTypeParams / ParseParams ─────────────────────────────────────────
     // Delegated to the ParserFunction companion (ParserFunction.fly), mirroring
     // fly/compiler/Parser/ParserFunction.cpp.
-    public List<ASTType> parseTypeParams() { return ParserFunction.parseTypeParams(this) }
-    public List<ASTParam> parseParams() { return ParserFunction.parseParams(this) }
+    public List<ASTType> parseTypeParams() {
+        return ParserFunction.parseTypeParams(this)
+    }
+    public List<ASTParam> parseParams() {
+        return ParserFunction.parseParams(this)
+    }
 
     // ── ParseFunction ─────────────────────────────────────────────────────────
     public ASTFunction parseFunction(const List<ASTModifier> mods) {
@@ -705,7 +971,9 @@ public class Parser {
             if headerFn == false {
                 if this.nxtIsPunct("<") {
                     // `name<…>(` = generic header fn; `Name<…> ident` = return type
-                    if this.genericDeclAhead() == false { headerFn = true }
+                    if this.genericDeclAhead() == false {
+                        headerFn = true
+                    }
                 }
             }
             if headerFn {
@@ -713,16 +981,23 @@ public class Parser {
                 SourceLocation hnloc = this.curLoc()   // the NAME token
                 this.bump()
                 List<ASTType> htp = new List<ASTType>()
-                if this.curIsPunct("<") { htp = this.parseTypeParams() }
+                if this.curIsPunct("<") {
+                    htp = this.parseTypeParams()
+                }
                 List<ASTParam> hparams = this.parseParams()
                 ASTBlockStmt hbody = null
-                if this.curIsPunct("{") { hbody = this.parseBlock() }
+                if this.curIsPunct("{") {
+                    hbody = this.parseBlock()
+                }
                 ASTFunction hf = ASTBuilder.CreateFunction(this.module, loc, hn, mods, hparams, hbody)
                 hf.setNameLoc(hnloc)
                 hf.setReturnType(ASTBuilder.CreateVoidType(loc))
                 List<ASTType> hftp = hf.getTypeParams()
                 int hti = 0
-                while hti < htp.size() { hftp.add(htp.get(hti))  hti = hti + 1 }
+                while hti < htp.size() {
+                    hftp.add(htp.get(hti))
+                    hti = hti + 1
+                }
                 return hf
             }
         }
@@ -744,39 +1019,62 @@ public class Parser {
         }
         string nm = ""
         SourceLocation nloc = this.curLoc()      // the NAME token, for setNameLoc
-        if this.curIsNamePart() { nm = this.curText()  this.bump() }
-        else { this.reportErr(DiagID.err_parser_identifier_expected)  return null }
+        if this.curIsNamePart() {
+            nm = this.curText()
+            this.bump()
+        } else {
+            this.reportErr(DiagID.err_parser_identifier_expected)
+            return null
+        }
         // generic type parameters: `T identity<T>(...)`
         List<ASTType> typeParams = new List<ASTType>()
-        if this.curIsPunct("<") { typeParams = this.parseTypeParams() }
+        if this.curIsPunct("<") {
+            typeParams = this.parseTypeParams()
+        }
         List<ASTParam> params = this.parseParams()
         ASTBlockStmt body = null
         this.beginBody()
-        if this.curIsPunct("{") { body = this.parseBlock() }
+        if this.curIsPunct("{") {
+            body = this.parseBlock()
+        }
         ASTFunction f = ASTBuilder.CreateFunction(this.module, loc, nm, mods, params, body)
         this.endBody(f)
         f.setNameLoc(nloc)
         // A function ends where its body ends; a bodiless declaration keeps the
         // default (its own start), which yields an empty range rather than a wrong one.
-        if body != null { f.setEndLoc(body.getEndLoc()) }
-        if retTypes.size() == 1 { f.setReturnType(retType) }
-        else { f.setReturnTypes(retTypes) }
+        if body != null {
+            f.setEndLoc(body.getEndLoc())
+        }
+        if retTypes.size() == 1 {
+            f.setReturnType(retType)
+        } else {
+            f.setReturnTypes(retTypes)
+        }
         List<ASTType> ftp = f.getTypeParams()
         int ti = 0
-        while ti < typeParams.size() { ftp.add(typeParams.get(ti))  ti = ti + 1 }
+        while ti < typeParams.size() {
+            ftp.add(typeParams.get(ti))
+            ti = ti + 1
+        }
         return f
     }
 
     // ── ParseClass ────────────────────────────────────────────────────────────
     // parseClass — delegated to the ParserClass companion (ParserClass.fly).
-    public ASTClass parseClass(const List<ASTModifier> mods) { return ParserClass.parse(this, mods) }
+    public ASTClass parseClass(const List<ASTModifier> mods) {
+        return ParserClass.parse(this, mods)
+    }
 
     // parseClassMember — a constructor, method, or attribute.
-    public void parseClassMember(const ASTClass c, const string className) { ParserClass.parseMember(this, c, className) }
+    public void parseClassMember(const ASTClass c, const string className) {
+        ParserClass.parseMember(this, c, className)
+    }
 
     // ── ParseEnum ─────────────────────────────────────────────────────────────
     // parseEnum — delegated to the ParserEnum companion (ParserEnum.fly).
-    public ASTEnum parseEnum(const List<ASTModifier> mods) { return ParserEnum.parse(this, mods) }
+    public ASTEnum parseEnum(const List<ASTModifier> mods) {
+        return ParserEnum.parse(this, mods)
+    }
 
     // ── ParseBlock / ParseStmt ───────────────────────────────────────────────
     public ASTBlockStmt parseBlock() {
@@ -786,35 +1084,89 @@ public class Parser {
         bool go = this.curIsPunct("}") == false && this.hadErr() == false
         while go {
             this.parseStmt(block)
-            if this.curIsPunct("}") || this.curIsEof() || this.hadErr() { go = false }
+            if this.curIsPunct("}") || this.curIsEof() || this.hadErr() {
+                go = false
+            }
         }
         // The closing brace, before it is consumed: a declaration's end is its
         // body's end, and HeaderGen slices [getLoc(), getEndLoc()] to ship a
         // generic template as source.
         block.setEndLoc(this.curLoc())
         this.expectPunct("}")
+        if this.recordBlocks {
+            this.blocks.add(block)
+        }
         return block
     }
 
     public void parseStmt(const ASTBlockStmt block) {
-        if this.curIsKw("return")   { this.parseReturn(block)   return }
-        if this.curIsKw("if")       { this.parseIf(block)       return }
-        if this.curIsKw("while")    { this.parseWhile(block)    return }
-        if this.curIsKw("for")      { this.parseFor(block)      return }
-        if this.curIsKw("switch")   { this.parseSwitch(block)   return }
-        if this.curIsKw("fail")     { this.parseFail(block)     return }
-        if this.curIsKw("handle")   { this.parseHandle(block)   return }
-        if this.curIsKw("test")     { this.parseTest(block)     return }
-        if this.curIsKw("case")     { this.parseSuiteCase(block)  return }
-        if this.curIsKw("break")    { ASTBreakStmt b = ASTBuilder.CreateBreakStmt(block, this.curLoc())  this.bump()  return }
-        if this.curIsKw("continue") { ASTContinueStmt cs = ASTBuilder.CreateContinueStmt(block, this.curLoc())  this.bump()  return }
-        if this.curIsPunct("{")     { ASTBlockStmt inner = this.parseBlock()  block.addContent(inner)  return }
+        if this.recordBlocks {
+            this.stmtStarts.add(this.curLoc().getOffset())
+            this.stmtBlocks.add(block)
+        }
+        if this.curIsKw("return") {
+            this.parseReturn(block)
+            return
+        }
+        if this.curIsKw("if") {
+            this.parseIf(block)
+            return
+        }
+        if this.curIsKw("while") {
+            this.parseWhile(block)
+            return
+        }
+        if this.curIsKw("for") {
+            this.parseFor(block)
+            return
+        }
+        if this.curIsKw("switch") {
+            this.parseSwitch(block)
+            return
+        }
+        if this.curIsKw("fail") {
+            this.parseFail(block)
+            return
+        }
+        if this.curIsKw("handle") {
+            this.parseHandle(block)
+            return
+        }
+        if this.curIsKw("test") {
+            this.parseTest(block)
+            return
+        }
+        if this.curIsKw("case") {
+            this.parseSuiteCase(block)
+            return
+        }
+        if this.curIsKw("break") {
+            ASTBreakStmt b = ASTBuilder.CreateBreakStmt(block, this.curLoc())
+            this.bump()
+            return
+        }
+        if this.curIsKw("continue") {
+            ASTContinueStmt cs = ASTBuilder.CreateContinueStmt(block, this.curLoc())
+            this.bump()
+            return
+        }
+        if this.curIsPunct("{") {
+            ASTBlockStmt inner = this.parseBlock()
+            block.addContent(inner)
+            return
+        }
         // multi-assignment `q, r = f(x)` (B027): `ident ,` cannot begin any
         // other legal statement, so committing on the two-token lookahead is
         // safe (no backtracking needed).
-        if this.curIsIdent() && this.nxtIsPunct(",") { this.parseMultiAssign(block)  return }
+        if this.curIsIdent() && this.nxtIsPunct(",") {
+            this.parseMultiAssign(block)
+            return
+        }
         // declaration (Type name ...) vs expression statement
-        if this.looksLikeDecl() { this.parseDecl(block)  return }
+        if this.looksLikeDecl() {
+            this.parseDecl(block)
+            return
+        }
         this.parseExprStmt(block)
     }
 
@@ -841,13 +1193,19 @@ public class Parser {
         // (`for int i = 0, int j = 10; ...`) — doc 9.5
         ASTBlockStmt initBlock = ASTBuilder.CreateBlockStmt(loc)
         if this.curIsPunct(";") == false {
-            if this.looksLikeDecl() { this.parseDecl(initBlock) }
-            else { this.parseExprStmt(initBlock) }
+            if this.looksLikeDecl() {
+                this.parseDecl(initBlock)
+            } else {
+                this.parseExprStmt(initBlock)
+            }
             bool goInit = this.curIsPunct(",")
             while goInit {
                 this.bump()
-                if this.looksLikeDecl() { this.parseDecl(initBlock) }
-                else { this.parseExprStmt(initBlock) }
+                if this.looksLikeDecl() {
+                    this.parseDecl(initBlock)
+                } else {
+                    this.parseExprStmt(initBlock)
+                }
                 goInit = this.curIsPunct(",")
             }
         }
@@ -882,7 +1240,11 @@ public class Parser {
         int i = 0
         while i < n {
             ASTStmt st = c.get(i)
-            if isInit { dst.addInit(st) } else { dst.addPost(st) }
+            if isInit {
+                dst.addInit(st)
+            } else {
+                dst.addPost(st)
+            }
             i = i + 1
         }
     }
@@ -911,7 +1273,9 @@ public class Parser {
                 c.setStmt(cbody)
                 s.addCase(c)
             } elsif this.curIsKw("default") {
-                if sawDefault { this.reportErr(DiagID.err_parser_syntax_default_error) }
+                if sawDefault {
+                    this.reportErr(DiagID.err_parser_syntax_default_error)
+                }
                 sawDefault = true
                 this.bump()
                 this.expectPunct(":")
@@ -921,7 +1285,9 @@ public class Parser {
             } else {
                 go = false
             }
-            if this.curIsPunct("}") || this.curIsEof() || this.hadErr() { go = false }
+            if this.curIsPunct("}") || this.curIsEof() || this.hadErr() {
+                go = false
+            }
         }
         this.expectPunct("}")
         block.addContent(s)
@@ -939,7 +1305,9 @@ public class Parser {
                 this.parseStmt(body)
             }
             if this.curIsPunct("}") || this.curIsKw("case") || this.curIsKw("default")
-               || this.curIsEof() || this.hadErr() { go = false }
+               || this.curIsEof() || this.hadErr() {
+                   go = false
+               }
         }
     }
 
@@ -959,7 +1327,9 @@ public class Parser {
                     this.bump()
                     ASTExpr e3 = this.parseExpr()
                     s.setThirdExpr(e3)
-                    if this.curIsPunct(",") { this.reportErr(DiagID.err_parser_fail_too_many_expr) }
+                    if this.curIsPunct(",") {
+                        this.reportErr(DiagID.err_parser_fail_too_many_expr)
+                    }
                 }
             }
         }
@@ -1038,7 +1408,9 @@ public class Parser {
             // `{` starts an array or struct literal here — in value position it is
             // never a block, so `return {1, 2}` reads as the literal it looks like.
             bool startsValue = this.startsExpr()
-            if this.curIsPunct("{") { startsValue = true }
+            if this.curIsPunct("{") {
+                startsValue = true
+            }
             if startsValue {
                 ASTExpr first = this.parseExpr()
                 r.addExpr(first)
@@ -1092,7 +1464,9 @@ public class Parser {
         this.reportWrappedCond()
         // `while true` never falls through: record it here, where the literal is
         // still in hand, for the every-path-returns rule.
-        if this.curIsKw("true") { s.setEndlessCond(true) }
+        if this.curIsKw("true") {
+            s.setEndlessCond(true)
+        }
         ASTExpr cond = this.parseExpr()
         s.setExpr(cond)
         ASTBlockStmt body = this.parseBlockOrStmt()
@@ -1104,18 +1478,30 @@ public class Parser {
     // (builtin keyword, or `Ident name`) followed by a name, optionally prefixed
     // by `const` (B022).
     public bool looksLikeDecl() {
-        if this.curIsKw("const") { return true }
-        if this.curIsBuiltinType() { return true }
+        if this.curIsKw("const") {
+            return true
+        }
+        if this.curIsBuiltinType() {
+            return true
+        }
         if this.curIsIdent() {
-            if this.nxt.kind == TokenKind.IDENT { return true }
+            if this.nxt.kind == TokenKind.IDENT {
+                return true
+            }
             // generic-typed decl `Name<…> name` — probe past the angle brackets.
-            if this.nxtIsPunct("<") { return this.genericDeclAhead() }
+            if this.nxtIsPunct("<") {
+                return this.genericDeclAhead()
+            }
             // qualified-type decl `A.B.C name` (or `A.B.C<…> name`) — probe the chain.
-            if this.nxtIsPunct(".") { return this.qualifiedDeclAhead() }
+            if this.nxtIsPunct(".") {
+                return this.qualifiedDeclAhead()
+            }
             // array-of-named-type decl `Cell[3] cs` — probe past the brackets. The
             // same shape starts a subscript expression statement (`k[0] = 9`), so
             // the probe, not the '[', is what decides.
-            if this.nxtIsPunct("[") { return this.bracketDeclAhead() }
+            if this.nxtIsPunct("[") {
+                return this.bracketDeclAhead()
+            }
         }
         return false
     }
@@ -1137,8 +1523,13 @@ public class Parser {
         ASTType ty = this.parseType()
         string nm = ""
         SourceLocation nloc = this.curLoc()      // the NAME token, for setNameLoc
-        if this.curIsNamePart() { nm = this.curText()  this.bump() }
-        else { this.reportErr(DiagID.err_parser_identifier_expected)  return }
+        if this.curIsNamePart() {
+            nm = this.curText()
+            this.bump()
+        } else {
+            this.reportErr(DiagID.err_parser_identifier_expected)
+            return
+        }
         ASTLocalVar lv = ASTBuilder.CreateLocalVar(loc, ty, nm, mods)
         lv.setNameLoc(nloc)
         this.bodyLocals.add(nm)
@@ -1165,8 +1556,13 @@ public class Parser {
         this.bump()
         while this.curIsPunct(",") {
             this.bump()
-            if this.curIsIdent() { names.add(this.curText())  this.bump() }
-            else { this.reportErr(DiagID.err_parser_identifier_expected)  return }
+            if this.curIsIdent() {
+                names.add(this.curText())
+                this.bump()
+            } else {
+                this.reportErr(DiagID.err_parser_identifier_expected)
+                return
+            }
         }
         this.expectPunct("=")
 
@@ -1236,7 +1632,9 @@ public class Parser {
     // fly/compiler/Parser/ParserExpr.cpp. ParserExpr uses STATIC methods threading `this`
     // (no stored Parser field) to avoid the Parser<->companion instance cycle that crashes
     // codegen (task #11).
-    public ASTExpr parseExpr() { return ParserExpr.parse(this) }
+    public ASTExpr parseExpr() {
+        return ParserExpr.parse(this)
+    }
 }
 
 // newParser — convenience factory.

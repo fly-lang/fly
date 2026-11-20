@@ -11,5 +11,7 @@ public class ASTContinueStmt : ASTStmt {
         super(loc, ASTStmtKind.STMT_CONTINUE)
     }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }

@@ -10,13 +10,18 @@ import fly.data.List
 
 public class ASTMethod : ASTFunction {
 
-    public ASTMethod(const SourceLocation loc, const List<ASTModifier> modifiers, const string name, const List<ASTParam> params) {
+    public ASTMethod(const SourceLocation loc, const List<ASTModifier> modifiers, const string name,
+            const List<ASTParam> params) {
         super(loc, modifiers, name, params, ASTFunctionKind.F_METHOD)
     }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
     // Direct override (not just inherited from ASTFunction): a virtual added to a base
     // is reliably dispatched only when each LEAF re-declares it — an inherited override
     // across two levels (ASTMethod : ASTFunction : ASTNode) mis-dispatches to the base.
-    public ASTFunction asFunction() { return this }
+    public ASTFunction asFunction() {
+        return this
+    }
 }

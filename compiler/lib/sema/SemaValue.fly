@@ -32,7 +32,9 @@ public class SemaValue : SemaExpr {
         this.valueAst = valueAst
     }
 
-    public ASTValue getAST() { return this.valueAst }
+    public ASTValue getAST() {
+        return this.valueAst
+    }
 }
 
 public class SemaBoolValue : SemaValue {
@@ -44,8 +46,12 @@ public class SemaBoolValue : SemaValue {
         this.value = ast.getValue()
     }
 
-    public bool getValue() { return this.value }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public bool getValue() {
+        return this.value
+    }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }
 
 public class SemaIntValue : SemaValue {
@@ -57,8 +63,12 @@ public class SemaIntValue : SemaValue {
         this.value = value
     }
 
-    public string getValue() { return this.value }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public string getValue() {
+        return this.value
+    }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }
 
 public class SemaFloatValue : SemaValue {
@@ -70,8 +80,12 @@ public class SemaFloatValue : SemaValue {
         this.value = value
     }
 
-    public string getValue() { return this.value }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public string getValue() {
+        return this.value
+    }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }
 
 public class SemaComplexValue : SemaValue {
@@ -86,9 +100,15 @@ public class SemaComplexValue : SemaValue {
         this.imagPart = imagPart
     }
 
-    public string getReal() { return this.realPart }
-    public string getImag() { return this.imagPart }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public string getReal() {
+        return this.realPart
+    }
+    public string getImag() {
+        return this.imagPart
+    }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }
 
 public class SemaStringValue : SemaValue {
@@ -100,8 +120,12 @@ public class SemaStringValue : SemaValue {
         this.value = ast.getValue()
     }
 
-    public string getValue() { return this.value }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public string getValue() {
+        return this.value
+    }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }
 
 public class SemaArrayValue : SemaValue {
@@ -117,9 +141,15 @@ public class SemaArrayValue : SemaValue {
         this.values = new List<SemaExpr>()
     }
 
-    public List<SemaExpr> getValues() { return this.values }
-    public void addValue(const SemaExpr v) { this.values.add(v) }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public List<SemaExpr> getValues() {
+        return this.values
+    }
+    public void addValue(const SemaExpr v) {
+        this.values.add(v)
+    }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }
 
 // SemaStructValue — resolved `{name = expr, ...}` struct literal (B029):
@@ -136,25 +166,35 @@ public class SemaStructValue : SemaValue {
         this.exprs = new List<SemaExpr>()
     }
 
-    public List<string> getNames() { return this.names }
-    public List<SemaExpr> getExprs() { return this.exprs }
+    public List<string> getNames() {
+        return this.names
+    }
+    public List<SemaExpr> getExprs() {
+        return this.exprs
+    }
     public void addField(const string name, const SemaExpr v) {
         this.names.add(name)
         this.exprs.add(v)
     }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }
 
 public class SemaNullValue : SemaValue {
     public SemaNullValue(const ASTNullValue ast, const SemaType type) {
         super(ast, type)
     }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }
 
 public class SemaUnsetValue : SemaValue {
     public SemaUnsetValue(const ASTUnsetValue ast, const SemaType type) {
         super(ast, type)
     }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }

@@ -1,2 +1,4 @@
-void main() { const int k = 1
- k++ }
+void main() {
+    const int k = 1
+ k++
+}
