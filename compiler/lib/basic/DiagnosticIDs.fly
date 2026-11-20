@@ -110,6 +110,7 @@ public enum DiagID {
     err_sema_condition_not_bool,
     err_sema_duplicate_function,
     err_sema_delete_target,
+    err_sema_privileged_call,
     warn_header_private_shipped
 }
 
@@ -388,6 +389,9 @@ public string getDescription(const DiagID id) {
     }
     if id == DiagID.err_sema_condition_not_bool {
         return "a condition must be 'bool', not '%0'; compare explicitly (e.g. 'x != 0')"
+    }
+    if id == DiagID.err_sema_privileged_call {
+        return "'%0' can only be called from the standard library (namespace fly.*): use fly.mem or a std function"
     }
     if id == DiagID.err_sema_delete_target {
         return "'delete' frees an object: %0"

@@ -1,3 +1,5 @@
+namespace fly.compiler.parser.test
+
 import fly.compiler.basic.*
 import fly.compiler.ast.*
 import fly.compiler.parser.*

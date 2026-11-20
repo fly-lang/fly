@@ -846,9 +846,7 @@ public class LLVM {
                     mem.writeByte(copy, i, b)
                     i = i + 1
                 }
-                string s = ""
-                fly.llvm.strMake(copy, len, s)
-                return s
+                return str.fromBytes(copy, len)
             }
             this.disposeMessage(mp)
         }

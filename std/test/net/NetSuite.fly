@@ -1,3 +1,5 @@
+namespace fly.test.net
+
 import fly.net
 import fly.str
 import fly.mem

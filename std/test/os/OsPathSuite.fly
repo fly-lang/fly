@@ -1,3 +1,5 @@
+namespace fly.test.os
+
 import fly.os.path
 import fly.os.fs
 import fly.os.env

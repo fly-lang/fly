@@ -1,0 +1,19 @@
+import fly.mem
+import fly.data.List
+
+// What user code keeps: fly.mem for raw memory, and std generics whose template
+// bodies call fly.llvm (List<int>) — those are the std's own code, not the user's.
+void main() {
+    pointer p = mem.alloc(8)
+    mem.writeInt(p, 0, 7)
+    if mem.readInt(p, 0) != 7 {
+        fail 1, "fly.mem round-trip"
+    }
+    mem.free(p, 8)
+    List<int> l = new List<int>()
+    l.add(4)
+    if l.get(0) != 4 {
+        fail 2, "List<int> through std templates"
+    }
+    delete l
+}

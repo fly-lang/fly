@@ -1,3 +1,5 @@
+namespace fly.test.os
+
 import fly.os.io
 import fly.os.io.FileWriter
 import fly.os.io.FileReader

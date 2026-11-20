@@ -230,6 +230,8 @@ public class ResolverCall {
             return
         }
 
+        ResolverCall.checkPrivileged(r, node, sema)
+
         // Multi-assignment verification (B027): the parser lowered `q, r = f(x)`
         // to the full call form and recorded the receiver count — the matched
         // callee must expose EXACTLY that many out slots, or a same-arity
@@ -527,6 +529,37 @@ public class ResolverCall {
     // inserts the namespace SYMBOL for a plain import). Returns null when nothing
     // matches, or when the first segment resolves as a VALUE in the current
     // scope (locals shadow namespace prefixes).
+    // checkPrivileged — `fly.llvm.*` (compiler intrinsics) and `fly.runtime.*` (the
+    // operating-system primitives) are callable only from the standard library and
+    // the toolchain, i.e. from a module whose namespace is `fly` or under `fly.`
+    // (maintainer's decision for phase 2). User code reaches raw memory through
+    // `fly.mem`, and anything else through a std function that wraps it; to find
+    // the unsafe code of a program, search for its calls to `fly.mem`. A header
+    // module (a library's declarations or generic templates) is the std's own
+    // code wherever it is resolved, so it is never checked.
+    public static void checkPrivileged(const Resolver r, const ASTCall node, const SemaCall sema) {
+        SemaFunctionBase fn = sema.getFunction()
+        if fn == null {
+            return
+        }
+        string target = ""
+        if str.equals(fn.getNamespaceName(), "fly_llvm") {
+            target = "fly.llvm."
+        } elsif str.equals(fn.getNamespaceName(), "fly_runtime") {
+            target = "fly.runtime."
+        } else {
+            return
+        }
+        if r.isCurrentModuleHeader() {
+            return
+        }
+        string cur = r.currentNsFlat()
+        if str.equals(cur, "fly") || str.startsWith(cur, "fly_") {
+            return
+        }
+        r.diagStr(node.getLoc(), DiagID.err_sema_privileged_call, str.concat(target, fn.getName()))
+    }
+
     public static List<string> expandNsPath(const Resolver r, const List<string> cand) {
         if cand == null {
             return null

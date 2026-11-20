@@ -1,0 +1,3 @@
+void main() {
+    fly.runtime.proc_exit(3)
+}

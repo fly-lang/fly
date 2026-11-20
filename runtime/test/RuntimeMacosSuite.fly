@@ -1,3 +1,5 @@
+namespace fly.test.runtime
+
 import fly.mem
 import fly.runtime
 import fly.os.fs

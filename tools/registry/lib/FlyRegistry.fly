@@ -1,3 +1,5 @@
+namespace fly.registry
+
 import fly.str
 import fly.mem
 import fly.llvm
