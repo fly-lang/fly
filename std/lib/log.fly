@@ -55,21 +55,39 @@ class LogState {
 
 // parseValue — level name (case-insensitive) to its LogLevel value; 0 = unknown.
 int parseValue(const string name) {
-    if str.equalsIgnoreCase(name, LogLevel.ERROR.name) { return LogLevel.ERROR.value }
-    if str.equalsIgnoreCase(name, LogLevel.WARN.name)  { return LogLevel.WARN.value }
-    if str.equalsIgnoreCase(name, LogLevel.INFO.name)  { return LogLevel.INFO.value }
-    if str.equalsIgnoreCase(name, LogLevel.DEBUG.name) { return LogLevel.DEBUG.value }
-    if str.equalsIgnoreCase(name, LogLevel.TRACE.name) { return LogLevel.TRACE.value }
+    if str.equalsIgnoreCase(name, LogLevel.ERROR.name) {
+        return LogLevel.ERROR.value
+    }
+    if str.equalsIgnoreCase(name, LogLevel.WARN.name) {
+        return LogLevel.WARN.value
+    }
+    if str.equalsIgnoreCase(name, LogLevel.INFO.name) {
+        return LogLevel.INFO.value
+    }
+    if str.equalsIgnoreCase(name, LogLevel.DEBUG.name) {
+        return LogLevel.DEBUG.value
+    }
+    if str.equalsIgnoreCase(name, LogLevel.TRACE.name) {
+        return LogLevel.TRACE.value
+    }
     return 0
 }
 
 // levelFromValue — 1..5 back to the enum entry; anything else maps to ERROR
 // (the least verbose defined level; callers gate the 0/off case via isOff).
 LogLevel levelFromValue(const int v) {
-    if v == 2 { return LogLevel.WARN }
-    if v == 3 { return LogLevel.INFO }
-    if v == 4 { return LogLevel.DEBUG }
-    if v == 5 { return LogLevel.TRACE }
+    if v == 2 {
+        return LogLevel.WARN
+    }
+    if v == 3 {
+        return LogLevel.INFO
+    }
+    if v == 4 {
+        return LogLevel.DEBUG
+    }
+    if v == 5 {
+        return LogLevel.TRACE
+    }
     return LogLevel.ERROR
 }
 
@@ -77,10 +95,18 @@ LogLevel levelFromValue(const int v) {
 // `.name` accessor: storing an entry's .name in a local aliases the generated
 // names table, and the local's scope-exit auto-free corrupts the heap.
 string tagOf(const int v) {
-    if v == 1 { return "ERROR" }
-    if v == 2 { return "WARN" }
-    if v == 3 { return "INFO" }
-    if v == 4 { return "DEBUG" }
+    if v == 1 {
+        return "ERROR"
+    }
+    if v == 2 {
+        return "WARN"
+    }
+    if v == 3 {
+        return "INFO"
+    }
+    if v == 4 {
+        return "DEBUG"
+    }
     return "TRACE"
 }
 
@@ -123,20 +149,31 @@ string indent() {
 
 // ensureInit — lazy one-shot environment read; explicit setters preempt it.
 void ensureInit() {
-    if LogState.inited == 1 { return }
+    if LogState.inited == 1 {
+        return
+    }
     LogState.inited = 1
     LogState.level = LogLevel.INFO.value
     string v = env.get("FLY_LOG_LEVEL")
-    if str.isEmpty(v) { return }
-    if str.equalsIgnoreCase(v, "off") { LogState.level = 0  return }
+    if str.isEmpty(v) {
+        return
+    }
+    if str.equalsIgnoreCase(v, "off") {
+        LogState.level = 0
+        return
+    }
     int pv = parseValue(v)
-    if pv != 0 { LogState.level = pv }
+    if pv != 0 {
+        LogState.level = pv
+    }
 }
 
 // emit — the single sink: filter, timestamp+tag prefix, stderr, optional file.
 void emit(const int lvl, const string msg) {
     ensureInit()
-    if lvl > LogState.level { return }
+    if lvl > LogState.level {
+        return
+    }
     string tag = tagOf(lvl)
     long nowS = time.nowSec()
     string ts = time.formatSec(nowS, "2006-01-02 15:04:05")
@@ -164,8 +201,12 @@ void emitL(const LogLevel lv, const string msg) {
 // setLevel — set the threshold; messages at level.value <= it will print.
 public void setLevel(const LogLevel level) {
     int v = level.value
-    if v < 1 { return }
-    if v > 5 { return }
+    if v < 1 {
+        return
+    }
+    if v > 5 {
+        return
+    }
     LogState.level = v
     LogState.inited = 1
 }
@@ -173,9 +214,14 @@ public void setLevel(const LogLevel level) {
 // setLevelName — setLevel by name ("error".."trace", any case); "off" silences
 // everything; an unknown name is ignored.
 public void setLevelName(const string name) {
-    if str.equalsIgnoreCase(name, "off") { setOff()  return }
+    if str.equalsIgnoreCase(name, "off") {
+        setOff()
+        return
+    }
     int v = parseValue(name)
-    if v == 0 { return }
+    if v == 0 {
+        return
+    }
     LogState.level = v
     LogState.inited = 1
 }
@@ -203,7 +249,9 @@ public LogLevel getLevel() {
 // the name is one of the five entries.
 public LogLevel parseLevel(const string name) {
     int v = parseValue(name)
-    if v == 0 { return LogLevel.INFO }
+    if v == 0 {
+        return LogLevel.INFO
+    }
     return levelFromValue(v)
 }
 
@@ -216,7 +264,9 @@ public bool isLevelName(const string name) {
 // an owned buffer (see LogState).
 public void setFile(const string path) {
     int n = str.len(path)
-    if n < 1 { return }
+    if n < 1 {
+        return
+    }
     pointer buf = 0
     fly.runtime.mem_alloc(n, buf)
     int i = 0
@@ -254,21 +304,33 @@ public void reset() {
 
 // ── message API ───────────────────────────────────────────────────────────────
 
-public void trace(const string msg) { emitL(LogLevel.TRACE, msg) }
-public void debug(const string msg) { emitL(LogLevel.DEBUG, msg) }
-public void info(const string msg)  { emitL(LogLevel.INFO, msg) }
-public void warn(const string msg)  { emitL(LogLevel.WARN, msg) }
+public void trace(const string msg) {
+    emitL(LogLevel.TRACE, msg)
+}
+public void debug(const string msg) {
+    emitL(LogLevel.DEBUG, msg)
+}
+public void info(const string msg) {
+    emitL(LogLevel.INFO, msg)
+}
+public void warn(const string msg) {
+    emitL(LogLevel.WARN, msg)
+}
 
 // err — the ERROR-level message; `error` is a reserved type keyword, so the
 // io.printErr naming precedent applies.
-public void err(const string msg)   { emitL(LogLevel.ERROR, msg) }
+public void err(const string msg) {
+    emitL(LogLevel.ERROR, msg)
+}
 
 // ── function-trace hooks (ABI for --trace-calls, also callable by hand) ──────
 
 // enter — `> name` at TRACE, then one level deeper.
 public void enter(const string name) {
     ensureInit()
-    if LogState.level < 5 { return }
+    if LogState.level < 5 {
+        return
+    }
     string ind = indent()
     string p = str.concat(ind, "> ")
     string full = str.concat(p, name)
@@ -279,8 +341,12 @@ public void enter(const string name) {
 // exit — one level back up, then `< name` at TRACE.
 public void exit(const string name) {
     ensureInit()
-    if LogState.level < 5 { return }
-    if LogState.depth > 0 { LogState.depth = LogState.depth - 1 }
+    if LogState.level < 5 {
+        return
+    }
+    if LogState.depth > 0 {
+        LogState.depth = LogState.depth - 1
+    }
     string ind = indent()
     string p = str.concat(ind, "< ")
     string full = str.concat(p, name)
@@ -290,8 +356,12 @@ public void exit(const string name) {
 // exitFail — like exit but marks a function left through an unhandled `fail`.
 public void exitFail(const string name) {
     ensureInit()
-    if LogState.level < 5 { return }
-    if LogState.depth > 0 { LogState.depth = LogState.depth - 1 }
+    if LogState.level < 5 {
+        return
+    }
+    if LogState.depth > 0 {
+        LogState.depth = LogState.depth - 1
+    }
     string ind = indent()
     string p = str.concat(ind, "<! ")
     string full = str.concat(p, name)

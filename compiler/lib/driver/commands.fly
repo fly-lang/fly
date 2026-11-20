@@ -22,8 +22,12 @@ import fly.os.proc
 // exists. Every package command reads the manifest through this so both spellings
 // are accepted uniformly.
 public string manifestPath() {
-    if fs.exists("Manifest.fly") { return "Manifest.fly" }
-    if fs.exists("manifest.fly") { return "manifest.fly" }
+    if fs.exists("Manifest.fly") {
+        return "Manifest.fly"
+    }
+    if fs.exists("manifest.fly") {
+        return "manifest.fly"
+    }
     return ""
 }
 
@@ -53,9 +57,13 @@ public int cmdVersion() {
 // cmdInit — scaffold Manifest.fly + src/main.fly in the given dir (cwd if name empty).
 public int cmdInit(const string nameArg, const string versionArg) {
     string name = nameArg
-    if str.isEmpty(name) { name = "my-project" }
+    if str.isEmpty(name) {
+        name = "my-project"
+    }
     string ver = versionArg
-    if str.isEmpty(ver) { ver = "0.1.0" }
+    if str.isEmpty(ver) {
+        ver = "0.1.0"
+    }
 
     if str.isEmpty(manifestPath()) == false {
         io.printErrLn(str.concat("error: ", str.concat(manifestPath(), " already exists")))
@@ -110,7 +118,9 @@ public int cmdBuild(const string profile, const string targetKey, const bool for
         return e
     }
     string prof = profile
-    if str.isEmpty(prof) { prof = "debug" }
+    if str.isEmpty(prof) {
+        prof = "debug"
+    }
     Builder b = new Builder(m, prof, false)
     b.setForce(force)
     bool ok = false
@@ -119,7 +129,11 @@ public int cmdBuild(const string profile, const string targetKey, const bool for
     } else {
         ok = b.buildTarget(targetKey)
     }
-    if ok { return 0 } else { return 1 }
+    if ok {
+        return 0
+    } else {
+        return 1
+    }
 }
 
 // cmdRun — build a bin target then execute it (the build step honours the
@@ -127,9 +141,14 @@ public int cmdBuild(const string profile, const string targetKey, const bool for
 public int cmdRun(const string profile, const string binKey, const bool force) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  return e }
+    if e != 0 {
+        io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")
+        return e
+    }
     string prof = profile
-    if str.isEmpty(prof) { prof = "debug" }
+    if str.isEmpty(prof) {
+        prof = "debug"
+    }
     string key = binKey
     if str.isEmpty(key) && m.targetCount() > 0 {
         key = m.targetAt(0).getKey()
@@ -147,9 +166,14 @@ public int cmdRun(const string profile, const string binKey, const bool force) {
 public int cmdTest(const string profile, const bool force) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  return e }
+    if e != 0 {
+        io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")
+        return e
+    }
     string prof = profile
-    if str.isEmpty(prof) { prof = "debug" }
+    if str.isEmpty(prof) {
+        prof = "debug"
+    }
     Builder b = new Builder(m, prof, true)
     b.setForce(force)
 
@@ -190,7 +214,9 @@ public int cmdTest(const string profile, const bool force) {
         bool nl = false
         if atEnd == false {
             byte bb = str.byteAt(list, i)
-            if bb == 10 { nl = true }
+            if bb == 10 {
+                nl = true
+            }
         }
         if atEnd || nl {
             string sf = str.trim(str.substring(list, start, i))
@@ -205,7 +231,9 @@ public int cmdTest(const string profile, const bool force) {
                 string computed = b.computeFpForDir(path.dirname(sfAbs), "test", stem)
                 string fpFile = b.fpPath(stem)
                 bool exeThere = fs.exists(outp)
-                if exeThere == false { exeThere = fs.exists(str.concat(outp, ".exe")) }
+                if exeThere == false {
+                    exeThere = fs.exists(str.concat(outp, ".exe"))
+                }
                 bool fresh = false
                 if force == false {
                     fresh = b.isUpToDate(fpFile, computed) && exeThere
@@ -216,7 +244,9 @@ public int cmdTest(const string profile, const bool force) {
                 } else {
                     fs.dirCreateAll(b.outDir(), 493)
                     compiled = b.invokeFly(sfAbs, outp, "--test")
-                    if compiled { b.saveFp(fpFile, computed) }
+                    if compiled {
+                        b.saveFp(fpFile, computed)
+                    }
                 }
                 if compiled {
                     // Direct spawn: `sh -c` is dead on Windows and buys nothing.
@@ -236,7 +266,11 @@ public int cmdTest(const string profile, const bool force) {
         }
         i = i + 1
     }
-    if failures == 0 { return 0 } else { return 1 }
+    if failures == 0 {
+        return 0
+    } else {
+        return 1
+    }
 }
 
 // cmdClean — remove build artifacts (all of target/, or target/<profile>).
@@ -274,13 +308,19 @@ public class RealFetcher : ManifestFetcher {
         this.errors = new List<string>()
     }
 
-    public int errorCount() { return (int)this.errors.size() }
-    public string errorAt(const int i) { return this.errors.get(i) }
+    public int errorCount() {
+        return (int)this.errors.size()
+    }
+    public string errorAt(const int i) {
+        return this.errors.get(i)
+    }
 
     public FetchResult resultFor(const string name) {
         int i = 0
         while i < this.resNames.size() {
-            if str.equals(this.resNames.get(i), name) { return this.resList.get(i) }
+            if str.equals(this.resNames.get(i), name) {
+                return this.resList.get(i)
+            }
             i = i + 1
         }
         return null
@@ -291,7 +331,8 @@ public class RealFetcher : ManifestFetcher {
         if dep.isRegistryDep() {
             string url = this.root.getRepo(dep.getRegistryName())
             if str.isEmpty(url) {
-                this.errors.add(str.concat("unknown registry alias '", str.concat(dep.getRegistryName(), "' (declare it in [repo])")))
+                this.errors.add(str.concat("unknown registry alias '",
+                        str.concat(dep.getRegistryName(), "' (declare it in [repo])")))
                 return null
             }
             fr = this.reg.fetch(name, dep, url)
@@ -349,7 +390,9 @@ public int doLock(const Manifest root, const string tomlPath) {
         } else {
             p.setSource(str.concat("git+", rp.getGitUrl()))
         }
-        if rp.getRefKind() == 0 { p.setTag(rp.getRefValue()) }
+        if rp.getRefKind() == 0 {
+            p.setTag(rp.getRefValue())
+        }
         FetchResult fr = fetcher.resultFor(rp.getName())
         if fr != null {
             p.setRev(fr.getRev())
@@ -367,31 +410,52 @@ public int doLock(const Manifest root, const string tomlPath) {
 public int cmdLock() {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  return e }
+    if e != 0 {
+        io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")
+        return e
+    }
     return doLock(m, manifestPath())
 }
 
 // cmdAdd — add a dependency to Manifest.fly then re-lock.
-public int cmdAdd(const string name, const string gitUrl, const string tag, const string branch, const string rev, const bool dev) {
+public int cmdAdd(const string name, const string gitUrl, const string tag, const string branch, const string rev,
+        const bool dev) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  return e }
+    if e != 0 {
+        io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")
+        return e
+    }
 
     int refs = 0
-    if str.isEmpty(tag) == false { refs = refs + 1 }
-    if str.isEmpty(branch) == false { refs = refs + 1 }
-    if str.isEmpty(rev) == false { refs = refs + 1 }
+    if str.isEmpty(tag) == false {
+        refs = refs + 1
+    }
+    if str.isEmpty(branch) == false {
+        refs = refs + 1
+    }
+    if str.isEmpty(rev) == false {
+        refs = refs + 1
+    }
     if refs != 1 {
         io.printErrLn("error: specify exactly one of --tag, --branch, or --rev")
         return 3
     }
     GitDep d = new GitDep()
     d.setGitUrl(gitUrl)
-    if str.isEmpty(tag) == false { d.setRef(0, tag) }
-    elsif str.isEmpty(branch) == false { d.setRef(1, branch) }
-    else { d.setRef(2, rev) }
+    if str.isEmpty(tag) == false {
+        d.setRef(0, tag)
+    } elsif str.isEmpty(branch) == false {
+        d.setRef(1, branch)
+    } else {
+        d.setRef(2, rev)
+    }
 
-    if dev { m.addDevDep(name, d) } else { m.addDep(name, d) }
+    if dev {
+        m.addDevDep(name, d)
+    } else {
+        m.addDep(name, d)
+    }
     m.save()
     io.printLn(str.concat("added ", str.concat(name, " to Manifest.fly")))
     return doLock(m, manifestPath())
@@ -401,7 +465,10 @@ public int cmdAdd(const string name, const string gitUrl, const string tag, cons
 public int cmdRemove(const string name) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  return e }
+    if e != 0 {
+        io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")
+        return e
+    }
     if m.removeDep(name) == false {
         io.printErrLn(str.concat("error: '", str.concat(name, "' is not a dependency")))
         return 1
@@ -416,7 +483,10 @@ public int cmdRemove(const string name) {
 public int cmdWhy(const string name) {
     int e = 0
     Manifest m = loadManifest(e)
-    if e != 0 { io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")  return e }
+    if e != 0 {
+        io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")
+        return e
+    }
     int le = 0
     Lockfile lf = readLock("Lock.fly", le)
     LockedPackage p = lf.find(name)
@@ -424,7 +494,8 @@ public int cmdWhy(const string name) {
         io.printLn(str.concat(name, " is not a locked dependency of this project."))
         return 1
     }
-    io.printLn(str.concat(name, str.concat(" ", str.concat(p.getVersion(), str.concat(" (", str.concat(p.getSource(), ")"))))))
+    io.printLn(str.concat(name,
+            str.concat(" ", str.concat(p.getVersion(), str.concat(" (", str.concat(p.getSource(), ")"))))))
     return 0
 }
 

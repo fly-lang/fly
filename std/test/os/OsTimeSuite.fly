@@ -51,7 +51,9 @@ suite OsTimeSuite {
             int i = 0
             while i < 50 {
                 Time b = time.monotonic()
-                if time.unixNano(b) < a_ns { ok = false }
+                if time.unixNano(b) < a_ns {
+                    ok = false
+                }
                 i = i + 1
             }
             assert.assertTrue(ok, 107)
@@ -289,7 +291,9 @@ suite OsTimeSuite {
             while i < 40 {
                 long ts = i * 31536000                    // one year apart-ish
                 string s = time.formatSec(ts, "2006-01-02T15:04:05")
-                if time.parseToSec(s, "2006-01-02T15:04:05") != ts { bad = ts }
+                if time.parseToSec(s, "2006-01-02T15:04:05") != ts {
+                    bad = ts
+                }
                 stamps = stamps + 1
                 i = i + 1
             }

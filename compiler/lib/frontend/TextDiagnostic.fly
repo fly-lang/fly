@@ -55,10 +55,18 @@ public string backslashChar() {
 
 // diagLevelName — display name for a level ("error"/"warning"/…).
 public string diagLevelName(const DiagLevel level) {
-    if level == DiagLevel.Fatal   { return "fatal error" }
-    if level == DiagLevel.Error   { return "error" }
-    if level == DiagLevel.Warning { return "warning" }
-    if level == DiagLevel.Remark  { return "remark" }
+    if level == DiagLevel.Fatal {
+        return "fatal error"
+    }
+    if level == DiagLevel.Error {
+        return "error"
+    }
+    if level == DiagLevel.Warning {
+        return "warning"
+    }
+    if level == DiagLevel.Remark {
+        return "remark"
+    }
     return "note"
 }
 
@@ -74,9 +82,16 @@ public class TextDiagnostic {
         while go {
             int b = sm.byteAt(i)
             bool isId = (b >= 97 && b <= 122) || (b >= 65 && b <= 90) || (b >= 48 && b <= 57) || b == 95
-            if isId { len = len + 1  i = i + 1 } else { go = false }
+            if isId {
+                len = len + 1
+                i = i + 1
+            } else {
+                go = false
+            }
         }
-        if len < 1 { len = 1 }
+        if len < 1 {
+            len = 1
+        }
         return len
     }
 
@@ -94,17 +109,23 @@ public class TextDiagnostic {
     public string render(const Diagnostic diag) {
         string head = this.header(diag)
         SourceManager sm = diag.getSourceManager()
-        if sm == null { return head }
+        if sm == null {
+            return head
+        }
 
         string srcLine = sm.getSourceLine(diag.getLine())
         int col0 = diag.getColumn() - 1
-        if col0 < 0 { col0 = 0 }
+        if col0 < 0 {
+            col0 = 0
+        }
         SourceLocation dloc = diag.getLoc()
         int tokLen = this.tokenLenAt(sm, dloc.getOffset())
 
         string pad = str.repeat(" ", col0)
         string tilde = ""
-        if tokLen > 1 { tilde = str.repeat("~", tokLen - 1) }
+        if tokLen > 1 {
+            tilde = str.repeat("~", tokLen - 1)
+        }
         string underline = str.concat(pad, str.concat("^", tilde))
 
         string nl = lineFeed()

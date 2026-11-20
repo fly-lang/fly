@@ -38,7 +38,9 @@ public class CodeGenClass {
     // by this compiler. (It used to take the seed's base-subobject layout, when
     // the shipped std was compiled by the seed.)
     public static void declareStruct(const CodeGenModule cgm, const SemaClassType cls) {
-        if cls.getLlvmStructType() != 0 { return }   // already declared (recursion)
+        if cls.getLlvmStructType() != 0 { // already declared (recursion)
+            return
+        }
         CodeGenLLVM cg = cgm.getCg()
         LLVM llvm = cg.getLLVM()
         CodeGenType types = cgm.getTypes()
@@ -118,7 +120,9 @@ public class CodeGenClass {
         string nsn = ""
         if mod != null {
             SemaNameSpace ns = mod.getNameSpace()
-            if ns != null { nsn = ns.getName() }
+            if ns != null {
+                nsn = ns.getName()
+            }
         }
         int dot = str.lastIndexOf(nsn, ".")
         if dot >= 0 {
@@ -180,7 +184,9 @@ public class CodeGenClass {
         cg.functionTypeN(ptrTy, ps, false, fty)
         pointer fn
         llvm.getNamedFunction(cgm.getModule(), icName, fn)
-        if fn == 0 { llvm.addFunction(cgm.getModule(), icName, fty, fn) }
+        if fn == 0 {
+            llvm.addFunction(cgm.getModule(), icName, fty, fn)
+        }
         llvm.setLinkage(fn, 3)
         cgm.setWeakComdat(fn, icName)
 
@@ -257,7 +263,9 @@ public class CodeGenClass {
                     if own >= 0 {
                         SemaClassMethod impl = ms.get(own)
                         pointer implFn = impl.getLlvmFn()
-                        if implFn != 0 { ifn = implFn }
+                        if implFn != 0 {
+                            ifn = implFn
+                        }
                     }
                     its.add(ifn)
                     im = im + 1
@@ -336,7 +344,9 @@ public class CodeGenClass {
             h = h * 1099511628211
             i = i + 1
         }
-        if h == 0 { h = 1 }
+        if h == 0 {
+            h = 1
+        }
         return h
     }
 
@@ -345,7 +355,9 @@ public class CodeGenClass {
     public static int ifaceMethodIndex(const SemaClassType iface, const SemaFunctionBase fn) {
         List<SemaClassMethod> ims = vmethods(iface)
         int idx = indexOfMethodSig(ims, fn)
-        if idx < 0 { idx = 0 }
+        if idx < 0 {
+            idx = 0
+        }
         return idx
     }
 
@@ -367,10 +379,14 @@ public class CodeGenClass {
                 int k = 0
                 while k < acc.size() {
                     SemaClassType ak = acc.get(k)
-                    if str.equals(ak.getName(), b.getName()) { seen = true }
+                    if str.equals(ak.getName(), b.getName()) {
+                        seen = true
+                    }
                     k = k + 1
                 }
-                if seen == false { acc.add(b) }
+                if seen == false {
+                    acc.add(b)
+                }
             }
             collectInterfaces(b, acc)
             i = i + 1
@@ -400,7 +416,9 @@ public class CodeGenClass {
         llvm.appendBasicBlockInContext(cgm.getCtx(), f, "entry", entry)
         llvm.positionBuilderAtEnd(b, entry)
         CodeGenDebug dbg = cgm.getDebug()
-        if dbg != null { dbg.beginFunction(m, f, false) }
+        if dbg != null {
+            dbg.beginFunction(m, f, false)
+        }
 
         CodeGenExpr cge = new CodeGenExpr(cgm)
         pointer errParam
@@ -424,7 +442,9 @@ public class CodeGenClass {
         llvm.buildAlloca(b, ptrTy, "this", thisSlot)
         llvm.buildStore(b, thisParam, thisSlot)
         SemaClassInstance ti = m.getThis()
-        if ti != null { ti.setLlvmAlloca(thisSlot) }
+        if ti != null {
+            ti.setLlvmAlloca(thisSlot)
+        }
 
         List<SemaParam> params = m.getParams()
         int i = 0
@@ -440,8 +460,12 @@ public class CodeGenClass {
             bool byValueHandle = false
             if pm.isConstant() {
                 SemaClassType pcls = null
-                if pty != null { pcls = pty.asClass() }
-                if pcls != null { byValueHandle = true }
+                if pty != null {
+                    pcls = pty.asClass()
+                }
+                if pcls != null {
+                    byValueHandle = true
+                }
             }
             if byValueHandle {
                 pointer pslot
@@ -463,19 +487,25 @@ public class CodeGenClass {
         // slot was never bound would hand back nothing at all.
         int ri = 0
         while ri < params.size() {
-            if params.get(ri).isSynthetic() { cge.setReturnSlotArg(params.get(ri).getLlvmAlloca()) }
+            if params.get(ri).isSynthetic() {
+                cge.setReturnSlotArg(params.get(ri).getLlvmAlloca())
+            }
             ri = ri + 1
         }
         CodeGenTrace.emitEnter(cgm, cge, cls, m)
 
         SemaBlockStmt body = m.getBody()
-        if body != null { body.accept(cge) }
+        if body != null {
+            body.accept(cge)
+        }
         if cge.isTerminated() == false {
             CodeGenTrace.emitExit(cge)
             pointer ret
             llvm.buildRetVoid(b, ret)
         }
-        if dbg != null { dbg.endFunction() }
+        if dbg != null {
+            dbg.endFunction()
+        }
     }
 
     // emitDefaultInstance — one `new C()` with NO arguments, returning the object
@@ -495,7 +525,9 @@ public class CodeGenClass {
         pointer b = cge.getBuilder()
 
         pointer structTy = cls.getLlvmStructType()
-        if structTy == 0 { return 0 }
+        if structTy == 0 {
+            return 0
+        }
         SemaClassMethod ctor = cls.getDefaultConstructor()
 
         pointer obj
@@ -512,7 +544,9 @@ public class CodeGenClass {
             icParams.add(ptrTy2)
             pointer icTy
             cg.functionTypeN(ptrTy2, icParams, false, icTy)
-            if icFn == 0 { llvm.addFunction(cgm.getModule(), icName, icTy, icFn) }
+            if icFn == 0 {
+                llvm.addFunction(cgm.getModule(), icName, icTy, icFn)
+            }
             List<pointer> icArgs = new List<pointer>()
             icArgs.add(obj)
             pointer icV
@@ -565,7 +599,8 @@ public class CodeGenClass {
         // LLVMBuildMalloc segfaults inside libLLVM. Sema rejects these upstream —
         // if one still slips through, report and yield a null pointer instead.
         if structTy == 0 {
-            io.printErrLn(str.concat(str.concat("error: cannot instantiate class '", cls.getName()), "': no materialized LLVM struct type"))
+            io.printErrLn(str.concat(str.concat("error: cannot instantiate class '", cls.getName()),
+                    "': no materialized LLVM struct type"))
             pointer nullObj
             llvm.constPointerNull(cge.ptrType(), nullObj)
             node.setLlvmValue(nullObj)
@@ -580,7 +615,9 @@ public class CodeGenClass {
         // field defaults with the Itanium layout) + the mangled constructor.
         bool isStruct = cls.getClassKind() == SemaClassKind.STRUCT
         bool headerClass = false
-        if isStruct == false { headerClass = cls.isFromHeader() }
+        if isStruct == false {
+            headerClass = cls.isFromHeader()
+        }
         pointer obj
         if isStruct {
             llvm.buildAlloca(b, structTy, "sobj", obj)
@@ -627,7 +664,9 @@ public class CodeGenClass {
 
         SemaFunctionBase ctor = node.getFunction()
         if isStruct {
-            if cls.isFromHeader() { ctor = null }
+            if cls.isFromHeader() {
+                ctor = null
+            }
         }
         if ctor != null {
             pointer cf = ctor.getLlvmFn()
@@ -651,7 +690,9 @@ public class CodeGenClass {
                 if i < cparams.size() {
                     SemaParam cp = cparams.get(i)
                     SemaType cpt = cp.getType()
-                    if cpt != null { pTy = cpt }
+                    if cpt != null {
+                        pTy = cpt
+                    }
                     cpConst = cp.isConstant()
                 }
                 // A CONST CLASS/INTERFACE/STRUCT ctor arg is passed BY VALUE (the object
@@ -661,12 +702,18 @@ public class CodeGenClass {
                 // garbage, and a `const StructType` ctor param reached a seed-built ctor as
                 // a pointer to a pointer. Non-const params keep the by-pointer path.
                 SemaClassType pcls = null
-                if pTy != null { pcls = pTy.asClass() }
+                if pTy != null {
+                    pcls = pTy.asClass()
+                }
                 bool byValHandle = false
                 if cpConst {
-                    if pcls != null { byValHandle = true }
+                    if pcls != null {
+                        byValHandle = true
+                    }
                 }
-                if cpConst { CodeGenExprOps.noteArgTemp(argTemps, a, av) }
+                if cpConst {
+                    CodeGenExprOps.noteArgTemp(argTemps, a, av)
+                }
                 if byValHandle {
                     argAddrs.add(av)
                 } else {
@@ -725,8 +772,12 @@ public class CodeGenClass {
         //     buildVTable). Header-origin or not makes no difference: the
         //     archive behind a header was built by this compiler.
         bool direct = false
-        if node.isSuper() { direct = true }
-        if cls.getClassKind() == SemaClassKind.STRUCT { direct = true }
+        if node.isSuper() {
+            direct = true
+        }
+        if cls.getClassKind() == SemaClassKind.STRUCT {
+            direct = true
+        }
         pointer fnPtr
         if direct {
             fnPtr = fn.getLlvmFn()
@@ -767,7 +818,9 @@ public class CodeGenClass {
         SemaLocalVar outVar = node.getOutVar()
         bool hasOut = outVar != null
         int realCount = (int)args.size()
-        if hasOut { realCount = realCount - 1 }
+        if hasOut {
+            realCount = realCount - 1
+        }
         List<SemaParam> mParams = fn.getParams()
         List<pointer> argTemps = new List<pointer>()
         int i = 0
@@ -796,19 +849,27 @@ public class CodeGenClass {
                 if i < mParams.size() {
                     SemaParam mp2 = mParams.get(i)
                     SemaType mpt = mp2.getType()
-                    if mpt != null { pTy = mpt }
+                    if mpt != null {
+                        pTy = mpt
+                    }
                     mpConst = mp2.isConstant()
                 }
                 // A CONST CLASS/INTERFACE/STRUCT arg goes BY VALUE (the object pointer),
                 // matching the reference ABI (same rule as CodeGenCall/genNew). Non-const
                 // params keep the by-pointer path.
                 SemaClassType mpcls = null
-                if pTy != null { mpcls = pTy.asClass() }
+                if pTy != null {
+                    mpcls = pTy.asClass()
+                }
                 bool mByVal = false
                 if mpConst {
-                    if mpcls != null { mByVal = true }
+                    if mpcls != null {
+                        mByVal = true
+                    }
                 }
-                if mpConst { CodeGenExprOps.noteArgTemp(argTemps, a, av) }
+                if mpConst {
+                    CodeGenExprOps.noteArgTemp(argTemps, a, av)
+                }
                 if mByVal {
                     argAddrs.add(av)
                 } else {
@@ -830,7 +891,9 @@ public class CodeGenClass {
             // CLASS-kind results: pre-allocate the target the callee writes
             // through (reference out convention — mirrors CodeGenCall)
             SemaClassType oc2 = null
-            if ot2 != null { oc2 = ot2.asClass() }
+            if ot2 != null {
+                oc2 = ot2.asClass()
+            }
             if oc2 != null {
                 pointer sty2 = oc2.getLlvmStructType()
                 if sty2 != 0 {
@@ -873,7 +936,9 @@ public class CodeGenClass {
         SemaClassAttribute sattr = node.getStaticAttr()
         if sattr != null {
             SemaClassType scls = sattr.getClass()
-            if scls.getLlvmStructType() == 0 { declareStruct(cge.getCgm(), scls) }
+            if scls.getLlvmStructType() == 0 {
+                declareStruct(cge.getCgm(), scls)
+            }
             pointer g = sattr.getLlvmAlloca()
             if addr {
                 node.setLlvmValue(g)
@@ -953,9 +1018,13 @@ public class CodeGenClass {
                 SemaType at = a.getType()
                 bool inlineStruct = false
                 SemaClassType ac = null
-                if at != null { ac = at.asClass() }
+                if at != null {
+                    ac = at.asClass()
+                }
                 if ac != null {
-                    if ac.getClassKind() == SemaClassKind.STRUCT { inlineStruct = true }
+                    if ac.getClassKind() == SemaClassKind.STRUCT {
+                        inlineStruct = true
+                    }
                 }
                 if inlineStruct {
                     pointer fsty = ac.getLlvmStructType()
@@ -984,12 +1053,16 @@ public class CodeGenClass {
     //   STRUCT: plain position (no vtable slot).
     public static int fieldIndex(const SemaClassType cls, const string name) {
         int base = 1
-        if cls.getClassKind() == SemaClassKind.STRUCT { base = 0 }
+        if cls.getClassKind() == SemaClassKind.STRUCT {
+            base = 0
+        }
         List<SemaClassAttribute> attrs = allAttributes(cls)
         int i = 0
         while i < attrs.size() {
             SemaClassAttribute a = attrs.get(i)
-            if str.equals(a.getName(), name) { return i + base }
+            if str.equals(a.getName(), name) {
+                return i + base
+            }
             i = i + 1
         }
         return base
@@ -1001,7 +1074,9 @@ public class CodeGenClass {
     public static int methodSlot(const SemaClassType cls, const SemaFunctionBase fn) {
         List<SemaClassMethod> ms = vmethods(cls)
         int slot = indexOfMethodSig(ms, fn)
-        if slot >= 0 { return slot + 1 }
+        if slot >= 0 {
+            return slot + 1
+        }
         return 1
     }
 
@@ -1014,11 +1089,17 @@ public class CodeGenClass {
             SemaClassType base = bases.get(0)
             List<SemaClassAttribute> ba = allAttributes(base)
             int i = 0
-            while i < ba.size() { r.add(ba.get(i))  i = i + 1 }
+            while i < ba.size() {
+                r.add(ba.get(i))
+                i = i + 1
+            }
         }
         List<SemaClassAttribute> own = cls.getAttributeList()
         int j = 0
-        while j < own.size() { r.add(own.get(j))  j = j + 1 }
+        while j < own.size() {
+            r.add(own.get(j))
+            j = j + 1
+        }
         return r
     }
 
@@ -1033,7 +1114,10 @@ public class CodeGenClass {
             SemaClassType base = bases.get(0)
             List<SemaClassMethod> bm = vmethods(base)
             int i = 0
-            while i < bm.size() { r.add(bm.get(i))  i = i + 1 }
+            while i < bm.size() {
+                r.add(bm.get(i))
+                i = i + 1
+            }
         }
         List<SemaClassMethod> own = cls.getMethodList()
         int j = 0
@@ -1048,7 +1132,11 @@ public class CodeGenClass {
                 // an OVERRIDE has the same full signature; a same-name OVERLOAD
                 // (visit(A)/visit(B)) gets its OWN slot
                 int slot = indexOfMethodSig(r, m)
-                if slot >= 0 { r.set(slot, m) } else { r.add(m) }
+                if slot >= 0 {
+                    r.set(slot, m)
+                } else {
+                    r.add(m)
+                }
             }
             j = j + 1
         }
@@ -1059,7 +1147,9 @@ public class CodeGenClass {
         int i = 0
         while i < ms.size() {
             SemaClassMethod m = ms.get(i)
-            if str.equals(m.getName(), name) { return i }
+            if str.equals(m.getName(), name) {
+                return i
+            }
             i = i + 1
         }
         // -1 sentinel built through an int var: a literal `0 - 1` fold is typed
@@ -1077,19 +1167,29 @@ public class CodeGenClass {
     // compiler (compiled by the self-host) dispatched every visit to the LAST
     // overload — empty resolution, wrong probes, visitor segfaults.
     public static bool sameSignature(const SemaFunctionBase a, const SemaFunctionBase b) {
-        if str.equals(a.getName(), b.getName()) == false { return false }
+        if str.equals(a.getName(), b.getName()) == false {
+            return false
+        }
         List<SemaParam> pa = a.getParams()
         List<SemaParam> pb = b.getParams()
-        if pa.size() != pb.size() { return false }
+        if pa.size() != pb.size() {
+            return false
+        }
         int i = 0
         while i < pa.size() {
             SemaType ta = pa.get(i).getType()
             SemaType tb = pb.get(i).getType()
             string na = ""
             string nb = ""
-            if ta != null { na = ta.getName() }
-            if tb != null { nb = tb.getName() }
-            if str.equals(na, nb) == false { return false }
+            if ta != null {
+                na = ta.getName()
+            }
+            if tb != null {
+                nb = tb.getName()
+            }
+            if str.equals(na, nb) == false {
+                return false
+            }
             i = i + 1
         }
         return true
@@ -1101,7 +1201,9 @@ public class CodeGenClass {
         int i = 0
         while i < ms.size() {
             SemaClassMethod m = ms.get(i)
-            if sameSignature(m, probe) { return i }
+            if sameSignature(m, probe) {
+                return i
+            }
             i = i + 1
         }
         int notFound = 0
@@ -1114,7 +1216,9 @@ public class CodeGenClass {
     // specializations (which all share the template's simple getName()).
     public static string className(const SemaClassType cls) {
         string mn = cls.getMangledName()
-        if str.isEmpty(mn) == false { return mn }
+        if str.isEmpty(mn) == false {
+            return mn
+        }
         return cls.getName()
     }
 
@@ -1123,7 +1227,9 @@ public class CodeGenClass {
         string nsn = ""
         if mod != null {
             SemaNameSpace ns = mod.getNameSpace()
-            if ns != null { nsn = ns.getName() }
+            if ns != null {
+                nsn = ns.getName()
+            }
         }
         string a = str.concat(nsn, ".")
         return str.concat(a, className(cls))

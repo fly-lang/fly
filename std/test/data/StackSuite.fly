@@ -125,7 +125,9 @@ suite StackSuite {
             int bad = 0 - 1
             i = 49
             while i >= 0 {
-                if s.pop() != i { bad = i }
+                if s.pop() != i {
+                    bad = i
+                }
                 i = i - 1
             }
             assert.assertEqI(bad, 0 - 1, 303)

@@ -17,11 +17,25 @@ public class SemaFailStmt : SemaStmt {
         super(SemaKind.STMT_FAIL, ast)
     }
 
-    public SemaExpr getFirst() { return this.first }
-    public SemaExpr getSecond() { return this.second }
-    public SemaExpr getThird() { return this.third }
-    public void setFirst(const SemaExpr e) { this.first = e }
-    public void setSecond(const SemaExpr e) { this.second = e }
-    public void setThird(const SemaExpr e) { this.third = e }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public SemaExpr getFirst() {
+        return this.first
+    }
+    public SemaExpr getSecond() {
+        return this.second
+    }
+    public SemaExpr getThird() {
+        return this.third
+    }
+    public void setFirst(const SemaExpr e) {
+        this.first = e
+    }
+    public void setSecond(const SemaExpr e) {
+        this.second = e
+    }
+    public void setThird(const SemaExpr e) {
+        this.third = e
+    }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }

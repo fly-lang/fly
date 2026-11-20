@@ -26,7 +26,9 @@ suite ExecLoopSuite {
             int i = 0
             while true {
                 i = i + 1
-                if i == 4 { break }
+                if i == 4 {
+                    break
+                }
             }
             assert.assertEqI(i, 4, 111)
         }
@@ -35,7 +37,9 @@ suite ExecLoopSuite {
             int odd = 0
             while i < 6 {
                 i = i + 1
-                if i % 2 == 0 { continue }
+                if i % 2 == 0 {
+                    continue
+                }
                 odd = odd + 1
             }
             assert.assertEqI(odd, 3, 121)
@@ -61,7 +65,9 @@ suite ExecLoopSuite {
             int last = 0
             for int i = 0; i < 100; i++ {
                 last = i
-                if i == 3 { break }
+                if i == 3 {
+                    break
+                }
             }
             assert.assertEqI(last, 3, 221)
         }
@@ -108,7 +114,9 @@ suite ExecLoopSuite {
             int[] xs = {1, 2, 3, 4, 5}
             int sum = 0
             for x in xs {
-                if x % 2 == 0 { continue }
+                if x % 2 == 0 {
+                    continue
+                }
                 sum = sum + x
             }
             assert.assertEqI(sum, 9, 341)
@@ -117,7 +125,9 @@ suite ExecLoopSuite {
             int[] xs = {1, 2, 3, 4, 5}
             int sum = 0
             for x in xs {
-                if x == 4 { break }
+                if x == 4 {
+                    break
+                }
                 sum = sum + x
             }
             assert.assertEqI(sum, 6, 351)
@@ -144,7 +154,9 @@ suite ExecLoopSuite {
             int total = 0
             for int i = 0; i < 3; i++ {
                 for int j = 0; j < 10; j++ {
-                    if j == 2 { break }
+                    if j == 2 {
+                        break
+                    }
                     total = total + 1
                 }
             }
@@ -153,7 +165,9 @@ suite ExecLoopSuite {
         case "continue in the outer loop skips inner work": {
             int total = 0
             for int i = 0; i < 4; i++ {
-                if i % 2 == 0 { continue }
+                if i % 2 == 0 {
+                    continue
+                }
                 for int j = 0; j < 3; j++ {
                     total = total + 1
                 }

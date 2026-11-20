@@ -749,9 +749,15 @@ public class LLVM {
         bool failed = false
         lib.call("LLVMPrintModuleToFile", a, failed)
         pointer mp = mem.readPtr(buf, 0)
-        if mp != 0 { this.disposeMessage(mp) }
+        if mp != 0 {
+            this.disposeMessage(mp)
+        }
         mem.free(buf, 8)
-        if failed { ok = false } else { ok = true }
+        if failed {
+            ok = false
+        } else {
+            ok = true
+        }
     }
 
     public void writeBitcodeToFile(const pointer mod, const string path) {
@@ -785,7 +791,11 @@ public class LLVM {
         CLang lib = new CLang("libLLVM-20.so")
         bool broken = false
         lib.call("LLVMVerifyModule", vargs, broken)
-        if broken == false { ok = true } else { ok = false }
+        if broken == false {
+            ok = true
+        } else {
+            ok = false
+        }
     }
 
     // verifyModuleMsg — like verifyModule, but also RETURNS LLVM's failure reason
@@ -806,7 +816,11 @@ public class LLVM {
         lib.call("LLVMVerifyModule", vargs, broken)
         pointer mp = mem.readPtr(buf, 0)
         mem.free(buf, 8)
-        if broken == false { ok = true } else { ok = false }
+        if broken == false {
+            ok = true
+        } else {
+            ok = false
+        }
         res = ""
         if mp != 0 {
             byte zero = 0
@@ -927,7 +941,8 @@ public class LLVM {
         lib.call("LLVMArrayType", a, ty)
     }
 
-    public void functionType(const pointer retTy, const pointer paramTypes, const int paramCount, const bool isVarArg, pointer ty) {
+    public void functionType(const pointer retTy, const pointer paramTypes, const int paramCount, const bool isVarArg,
+            pointer ty) {
         // LLVMFunctionType(ReturnType, ParamTypes, ParamCount, IsVarArg)
         PtrPtrIntIntArgs a = new PtrPtrIntIntArgs()
         a.a = retTy
@@ -938,7 +953,8 @@ public class LLVM {
         lib.call("LLVMFunctionType", a, ty)
     }
 
-    public void structTypeInContext(const pointer ctx, const pointer elemTypes, const int elemCount, const bool packed, pointer ty) {
+    public void structTypeInContext(const pointer ctx, const pointer elemTypes, const int elemCount, const bool packed,
+            pointer ty) {
         // LLVMStructTypeInContext(Ctx, ElementTypes, ElementCount, Packed)
         PtrPtrIntIntArgs a = new PtrPtrIntIntArgs()
         a.a = ctx
@@ -1293,7 +1309,8 @@ public class LLVM {
     // ── Build — comparison ────────────────────────────────────────────────────
 
     // predicate: LLVMIntPredicate enum (e.g. LLVMIntEQ=32, LLVMIntNE=33, LLVMIntSLT=38, etc.)
-    public void buildICmp(const pointer b, const int pred, const pointer lhs, const pointer rhs, const string name, pointer v) {
+    public void buildICmp(const pointer b, const int pred, const pointer lhs, const pointer rhs, const string name,
+            pointer v) {
         PtrIntPtr2StrArgs a = new PtrIntPtr2StrArgs()
         a.a = b
         a.n = pred
@@ -1305,7 +1322,8 @@ public class LLVM {
     }
 
     // predicate: LLVMRealPredicate enum
-    public void buildFCmp(const pointer b, const int pred, const pointer lhs, const pointer rhs, const string name, pointer v) {
+    public void buildFCmp(const pointer b, const int pred, const pointer lhs, const pointer rhs, const string name,
+            pointer v) {
         PtrIntPtr2StrArgs a = new PtrIntPtr2StrArgs()
         a.a = b
         a.n = pred
@@ -1317,7 +1335,8 @@ public class LLVM {
     }
 
     // LLVMBuildSelect(B, If, Then, Else, Name) — ternary select instruction
-    public void buildSelect(const pointer b, const pointer ifV, const pointer thenV, const pointer elseV, const string name, pointer v) {
+    public void buildSelect(const pointer b, const pointer ifV, const pointer thenV, const pointer elseV,
+            const string name, pointer v) {
         Ptr4StrArgs a = new Ptr4StrArgs()
         a.a = b
         a.b = ifV
@@ -1346,9 +1365,13 @@ public class LLVM {
         pointer cur = 0
         this.getInsertBlock(b, cur)
         pointer fn = 0
-        if cur != 0 { this.getBasicBlockParent(cur, fn) }
+        if cur != 0 {
+            this.getBasicBlockParent(cur, fn)
+        }
         pointer entry = 0
-        if fn != 0 { this.getEntryBasicBlock(fn, entry) }
+        if fn != 0 {
+            this.getEntryBasicBlock(fn, entry)
+        }
         bool moved = false
         // Positioning BEFORE an instruction also copies that instruction's debug
         // location into the builder (LLVM's SetInsertPoint), and going back with
@@ -1360,8 +1383,11 @@ public class LLVM {
             this.getCurrentDebugLocation(b, savedLoc)
             pointer term = 0
             this.getBasicBlockTerminator(entry, term)
-            if term != 0 { this.positionBuilderBefore(b, term) }
-            else { this.positionBuilderAtEnd(b, entry) }
+            if term != 0 {
+                this.positionBuilderBefore(b, term)
+            } else {
+                this.positionBuilderAtEnd(b, entry)
+            }
             moved = true
         }
         Ptr2StrArgs a = new Ptr2StrArgs()
@@ -1378,7 +1404,8 @@ public class LLVM {
 
     public void buildLoad2(const pointer b, const pointer ty, const pointer ptr, const string name, pointer v) {
         // LLVMBuildLoad2(B, Ty, Ptr, Name) = (ptr, ptr, ptr, string) → use Ptr3 + store name in 4th
-        // We use Ptr3Args which gives [b, ty, ptr] as C args 0-2; name (4th arg) is missing but LLVM accepts "" gracefully.
+        // We use Ptr3Args which gives [b, ty, ptr] as C args 0-2; name (4th arg) is missing but
+        // LLVM accepts "" gracefully.
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = ty
@@ -1397,7 +1424,8 @@ public class LLVM {
         lib.call("LLVMBuildStore", a)
     }
 
-    public void buildGEP2(const pointer b, const pointer ty, const pointer ptr, const pointer indices, const int numIndices, const string name, pointer v) {
+    public void buildGEP2(const pointer b, const pointer ty, const pointer ptr, const pointer indices,
+            const int numIndices, const string name, pointer v) {
         // LLVMBuildGEP2(B, Ty, Ptr, Indices, NumIndices, Name) — must pass NumIndices
         // and Name (the old Ptr4Args dropped them → garbage index-count + name).
         Ptr4IntStrArgs a = new Ptr4IntStrArgs()
@@ -1434,7 +1462,8 @@ public class LLVM {
     // buildMemSet — LLVMBuildMemSet(B, Ptr, Val, Len, Align): fill Len bytes at Ptr
     // with the i8 Val. Align 0 = unspecified. Used to zero a fresh malloc so fields
     // the constructor does not assign are deterministic (Windows heap is garbage).
-    public void buildMemSet(const pointer b, const pointer ptr, const pointer val, const pointer len, const int align, pointer v) {
+    public void buildMemSet(const pointer b, const pointer ptr, const pointer val, const pointer len, const int align,
+            pointer v) {
         Ptr4IntArgs a = new Ptr4IntArgs()
         a.a = b
         a.b = ptr
@@ -1445,7 +1474,8 @@ public class LLVM {
         lib.call("LLVMBuildMemSet", a, v)
     }
 
-    public void buildStructGEP2(const pointer b, const pointer ty, const pointer ptr, const int idx, const string name, pointer v) {
+    public void buildStructGEP2(const pointer b, const pointer ty, const pointer ptr, const int idx, const string name,
+            pointer v) {
         // LLVMBuildStructGEP2(B, Ty, Pointer, Idx, Name) = (ptr, ptr, ptr, int, string)
         Ptr3IntStrArgs a = new Ptr3IntStrArgs()
         a.a = b
@@ -1457,7 +1487,8 @@ public class LLVM {
         lib.call("LLVMBuildStructGEP2", a, v)
     }
 
-    public void buildInsertValue(const pointer b, const pointer agg, const pointer elt, const int idx, const string name, pointer v) {
+    public void buildInsertValue(const pointer b, const pointer agg, const pointer elt, const int idx,
+            const string name, pointer v) {
         // LLVMBuildInsertValue(B, AggVal, EltVal, Index, Name) = (ptr, ptr, ptr, int, string)
         Ptr3IntStrArgs a = new Ptr3IntStrArgs()
         a.a = b
@@ -1601,7 +1632,8 @@ public class LLVM {
         lib.call("LLVMSetOrdering", a)
     }
 
-    public void buildAtomicCmpXchg(const pointer b, const pointer ptr, const pointer cmp, const pointer newV, const int ordering, pointer v) {
+    public void buildAtomicCmpXchg(const pointer b, const pointer ptr, const pointer cmp, const pointer newV,
+            const int ordering, pointer v) {
         Ptr4Int3Args a = new Ptr4Int3Args()
         a.a = b
         a.b = ptr
@@ -1615,7 +1647,8 @@ public class LLVM {
     }
 
     // op: 1 = add (LLVMAtomicRMWBinOpAdd)
-    public void buildAtomicRMW(const pointer b, const int op, const pointer ptr, const pointer val, const int ordering, pointer v) {
+    public void buildAtomicRMW(const pointer b, const int op, const pointer ptr, const pointer val, const int ordering,
+            pointer v) {
         PtrIntPtr2Int2Args a = new PtrIntPtr2Int2Args()
         a.a = b
         a.op = op
@@ -1657,7 +1690,8 @@ public class LLVM {
         lib.call("LLVMBuildIntToPtr", a, v)
     }
 
-    public void buildPointerCast(const pointer b, const pointer val, const pointer destTy, const string name, pointer v) {
+    public void buildPointerCast(const pointer b, const pointer val, const pointer destTy, const string name,
+            pointer v) {
         Ptr3StrArgs a = new Ptr3StrArgs()
         a.a = b
         a.b = val
@@ -1692,7 +1726,8 @@ public class LLVM {
         lib.call("LLVMBuildBr", a, v)
     }
 
-    public void buildCondBr(const pointer b, const pointer cond, const pointer thenBB, const pointer elseBB, pointer v) {
+    public void buildCondBr(const pointer b, const pointer cond, const pointer thenBB, const pointer elseBB,
+            pointer v) {
         Ptr4Args a = new Ptr4Args()
         a.a = b
         a.b = cond
@@ -1702,7 +1737,8 @@ public class LLVM {
         lib.call("LLVMBuildCondBr", a, v)
     }
 
-    public void buildSwitch(const pointer b, const pointer val, const pointer defaultBB, const int numCases, pointer v) {
+    public void buildSwitch(const pointer b, const pointer val, const pointer defaultBB, const int numCases,
+            pointer v) {
         // LLVMBuildSwitch(B, V, Else, NumCases) = (ptr, ptr, ptr, int)
         Ptr3IntArgs a = new Ptr3IntArgs()
         a.a = b
@@ -1739,7 +1775,8 @@ public class LLVM {
 
     // ── Build — call ──────────────────────────────────────────────────────────
 
-    public void buildCall2(const pointer b, const pointer fnTy, const pointer fn, const pointer args, const int numArgs, const string name, pointer v) {
+    public void buildCall2(const pointer b, const pointer fnTy, const pointer fn, const pointer args, const int numArgs,
+            const string name, pointer v) {
         // LLVMBuildCall2(B, FnTy, Fn, Args, NumArgs, Name) — must pass NumArgs and
         // Name (the old Ptr4Args dropped them → garbage arg-count + name).
         Ptr4IntStrArgs a = new Ptr4IntStrArgs()
@@ -1805,7 +1842,8 @@ public class LLVM {
         lib.call("LLVMConstPointerNull", a, v)
     }
 
-    public void constStringInContext(const pointer ctx, const string str, const int length, const bool nullTerminated, pointer v) {
+    public void constStringInContext(const pointer ctx, const string str, const int length, const bool nullTerminated,
+            pointer v) {
         // LLVMConstStringInContext(Ctx, Str, Length, DontNullTerminate). Length is
         // explicit (Fly strings aren't null-terminated C strings); DontNull=0 ADDS a
         // terminator. The old 1-int variant dropped Length → empty [0 x i8].
@@ -1813,12 +1851,17 @@ public class LLVM {
         a.a = ctx
         a.s = str
         a.n = length
-        if nullTerminated { a.m = 0 } else { a.m = 1 }
+        if nullTerminated {
+            a.m = 0
+        } else {
+            a.m = 1
+        }
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMConstStringInContext", a, v)
     }
 
-    public void constStructInContext(const pointer ctx, const pointer vals, const int numVals, const bool packed, pointer v) {
+    public void constStructInContext(const pointer ctx, const pointer vals, const int numVals, const bool packed,
+            pointer v) {
         PtrPtrIntArgs a = new PtrPtrIntArgs()
         a.a = ctx
         a.b = vals
@@ -1889,7 +1932,6 @@ public class LLVM {
         lib.call("LLVMSetComdat", a)
     }
 
-
     public void setInitializer(const pointer global, const pointer val) {
         Ptr2Args a = new Ptr2Args()
         a.a = global
@@ -1901,7 +1943,11 @@ public class LLVM {
     public void setGlobalConstant(const pointer global, const bool isConst) {
         PtrIntArgs a = new PtrIntArgs()
         a.a = global
-        if isConst { a.n = 1 } else { a.n = 0 }
+        if isConst {
+            a.n = 1
+        } else {
+            a.n = 0
+        }
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMSetGlobalConstant", a)
     }
@@ -1910,7 +1956,11 @@ public class LLVM {
         // LLVMSetThreadLocal(GlobalVar, IsThreadLocal LLVMBool) = (ptr, int)
         PtrIntArgs a = new PtrIntArgs()
         a.a = global
-        if isThreadLocal { a.n = 1 } else { a.n = 0 }
+        if isThreadLocal {
+            a.n = 1
+        } else {
+            a.n = 0
+        }
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMSetThreadLocal", a)
     }
@@ -1952,7 +2002,8 @@ public class LLVM {
 
     // createTargetMachine — full 7-argument marshalling (the old stub dropped all
     // but `target`). The TM pointer is the C return value, captured into `tm`.
-    public void createTargetMachine(const pointer target, const string triple, const string cpu, const string features, const int optLevel, const int reloc, const int codeModel, pointer tm) {
+    public void createTargetMachine(const pointer target, const string triple, const string cpu, const string features,
+            const int optLevel, const int reloc, const int codeModel, pointer tm) {
         CreateTMArgs a = new CreateTMArgs()
         a.target = target
         a.triple = cbuf(triple)
@@ -1995,7 +2046,8 @@ public class LLVM {
     // output directory does not exist, or a mangled path) LLVM does
     // `*ErrorMessage = strdup(msg)`, so a NULL here segfaults exactly when we should
     // be reporting the failure. Mirrors printModuleToFileChecked.
-    public void targetMachineEmitToFile(const pointer tm, const pointer mod, const string filename, const int emitType, bool ok) {
+    public void targetMachineEmitToFile(const pointer tm, const pointer mod, const string filename, const int emitType,
+            bool ok) {
         pointer errBuf = mem.alloc(8)
         mem.writePtr(errBuf, 0, 0)
         EmitFileArgs a = new EmitFileArgs()
@@ -2007,7 +2059,9 @@ public class LLVM {
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMTargetMachineEmitToFile", a, ok)
         pointer mp = mem.readPtr(errBuf, 0)
-        if mp != 0 { this.disposeMessage(mp) }
+        if mp != 0 {
+            this.disposeMessage(mp)
+        }
         mem.free(errBuf, 8)
     }
 
@@ -2042,7 +2096,8 @@ public class LLVM {
         lib.call("LLVMLookupIntrinsicID", a, id)
     }
 
-    public void getIntrinsicDeclaration(const pointer mod, const int id, const pointer paramTypes, const int paramCount, pointer fn) {
+    public void getIntrinsicDeclaration(const pointer mod, const int id, const pointer paramTypes, const int paramCount,
+            pointer fn) {
         PtrPtrIntArgs a = new PtrPtrIntArgs()
         a.a = mod
         a.b = paramTypes
@@ -2154,7 +2209,9 @@ public class LLVM {
         a.line = line
         a.ty = ty
         a.isLocal = 0
-        if isLocal { a.isLocal = 1 }
+        if isLocal {
+            a.isLocal = 1
+        }
         a.isDefinition = 1
         a.scopeLine = line
         a.flags = 256          // LLVMDIFlagPrototyped
@@ -2171,7 +2228,8 @@ public class LLVM {
         lib.call("LLVMSetSubprogram", a)
     }
 
-    public void diCreateDebugLocation(const pointer ctx, const int line, const int col, const pointer scope, pointer v) {
+    public void diCreateDebugLocation(const pointer ctx, const int line, const int col, const pointer scope,
+            pointer v) {
         DILocationArgs a = new DILocationArgs()
         a.ctx = ctx
         a.line = line
@@ -2205,7 +2263,8 @@ public class LLVM {
         lib.call("LLVMValueAsMetadata", a, v)
     }
 
-    public void diCreateBasicType(const pointer db, const string name, const long sizeInBits, const int encoding, pointer v) {
+    public void diCreateBasicType(const pointer db, const string name, const long sizeInBits, const int encoding,
+            pointer v) {
         DIBasicTypeArgs a = new DIBasicTypeArgs()
         a.b = db
         a.name = cbuf(name)
@@ -2232,7 +2291,7 @@ public class LLVM {
 
     // diCreateStructType — `elements` is a C array of `count` member types.
     public void diCreateStructType(const pointer db, const pointer scope, const string name, const pointer file,
-                                   const long sizeInBits, const int alignInBits, const pointer elements, const int count, pointer v) {
+            const long sizeInBits, const int alignInBits, const pointer elements, const int count, pointer v) {
         DIStructTypeArgs a = new DIStructTypeArgs()
         a.b = db
         a.scope = scope
@@ -2255,7 +2314,7 @@ public class LLVM {
     }
 
     public void diCreateMemberType(const pointer db, const pointer scope, const string name, const pointer file,
-                                   const long sizeInBits, const int alignInBits, const long offsetInBits, const pointer ty, pointer v) {
+            const long sizeInBits, const int alignInBits, const long offsetInBits, const pointer ty, pointer v) {
         DIMemberTypeArgs a = new DIMemberTypeArgs()
         a.b = db
         a.scope = scope
@@ -2273,7 +2332,8 @@ public class LLVM {
     }
 
     // diCreateForwardDecl — a struct known only by name (tag 19 = DW_TAG_structure_type).
-    public void diCreateForwardDecl(const pointer db, const string name, const pointer scope, const pointer file, pointer v) {
+    public void diCreateForwardDecl(const pointer db, const string name, const pointer scope, const pointer file,
+            pointer v) {
         DIForwardDeclArgs a = new DIForwardDeclArgs()
         a.b = db
         a.tag = 19

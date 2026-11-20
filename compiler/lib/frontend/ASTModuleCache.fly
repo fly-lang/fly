@@ -82,6 +82,10 @@ public class ASTModuleCache {
         this.byPath.put(path, new CachedModule(m, st.size, st.mtime_sec, st.mtime_nsec))
     }
 
-    public int getHits()   { return this.hits }
-    public int getMisses() { return this.misses }
+    public int getHits() {
+        return this.hits
+    }
+    public int getMisses() {
+        return this.misses
+    }
 }

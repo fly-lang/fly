@@ -13,8 +13,6 @@ import fly.assert
 // succeed, synthesizing an out-var).
 // ─────────────────────────────────────────────────────────────────────────────
 
-
-
 suite OverloadSuite {
 
     void overloadByTypeTest() {

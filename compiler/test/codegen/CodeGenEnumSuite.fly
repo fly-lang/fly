@@ -19,8 +19,6 @@ import fly.test.util.*
 // DEFERRED: CGEnumUnset (unset value), CGEnumList (Color.list), `.name` accessor.
 // ─────────────────────────────────────────────────────────────────────────────
 
-
-
 suite CodeGenEnumSuite {
 
     void enumTest() {

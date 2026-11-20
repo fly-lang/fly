@@ -50,7 +50,9 @@ public string uriToPath(const string uri) {
     }
     int de = 0
     string dec = codec.percentDecode(s, de)
-    if de == 0 { s = dec }
+    if de == 0 {
+        s = dec
+    }
     // "/c:/x" → "c:/x": the leading slash is URI syntax, not part of the path.
     if str.len(s) >= 3 {
         byte b0 = 0
@@ -62,7 +64,9 @@ public string uriToPath(const string uri) {
         i0 = i0 & 255
         i2 = i2 & 255
         if i0 == 47 {
-            if i2 == 58 { s = str.substring(s, 1, str.len(s)) }
+            if i2 == 58 {
+                s = str.substring(s, 1, str.len(s))
+            }
         }
     }
     return s
@@ -76,17 +80,27 @@ public string pathToUri(const string path) {
         byte b1 = str.byteAt(p, 1)
         int i1 = b1
         i1 = i1 & 255
-        if i1 == 58 { drive = true }
+        if i1 == 58 {
+            drive = true
+        }
     }
-    if drive { return str.concat("file:///", p) } else { return str.concat("file://", p) }
+    if drive {
+        return str.concat("file:///", p)
+    } else {
+        return str.concat("file://", p)
+    }
 }
 
 // mkPosition — an LSP Position node from 1-based compiler coordinates.
 public pointer mkPosition(const int line1, const int col1) {
     int l = line1 - 1
     int c = col1 - 1
-    if l < 0 { l = 0 }
-    if c < 0 { c = 0 }
+    if l < 0 {
+        l = 0
+    }
+    if c < 0 {
+        c = 0
+    }
     pointer o = json.newObject()
     json.put(o, "line", json.newInt(l))
     json.put(o, "character", json.newInt(c))
@@ -131,11 +145,21 @@ public bool isInternalName(const string n) {
 
 // completionKindOf — SymbolKind → LSP CompletionItemKind.
 public int completionKindOf(const SymbolKind k) {
-    if k == SymbolKind.FUNCTION { return 3 }
-    if k == SymbolKind.CLASS { return 7 }
-    if k == SymbolKind.LOCAL_VAR || k == SymbolKind.PARAM || k == SymbolKind.VAR { return 6 }
-    if k == SymbolKind.ATTRIBUTE || k == SymbolKind.ENUM_ENTRY { return 5 }
-    if k == SymbolKind.NAMESPACE { return 9 }
+    if k == SymbolKind.FUNCTION {
+        return 3
+    }
+    if k == SymbolKind.CLASS {
+        return 7
+    }
+    if k == SymbolKind.LOCAL_VAR || k == SymbolKind.PARAM || k == SymbolKind.VAR {
+        return 6
+    }
+    if k == SymbolKind.ATTRIBUTE || k == SymbolKind.ENUM_ENTRY {
+        return 5
+    }
+    if k == SymbolKind.NAMESPACE {
+        return 9
+    }
     return 1
 }
 
@@ -143,22 +167,44 @@ public int completionKindOf(const SymbolKind k) {
 // 0 namespace, 1 class, 2 function, 3 variable, 4 parameter, 5 property,
 // 6 enumMember, 7 type). -1 = skip.
 public int tokenTypeOf(const SymbolKind k) {
-    if k == SymbolKind.NAMESPACE { return 0 }
-    if k == SymbolKind.CLASS { return 1 }
-    if k == SymbolKind.FUNCTION { return 2 }
-    if k == SymbolKind.LOCAL_VAR || k == SymbolKind.VAR { return 3 }
-    if k == SymbolKind.PARAM { return 4 }
-    if k == SymbolKind.ATTRIBUTE { return 5 }
-    if k == SymbolKind.ENUM_ENTRY { return 6 }
-    if k == SymbolKind.TYPE || k == SymbolKind.ENUM || k == SymbolKind.BUILTIN_TYPE { return 7 }
+    if k == SymbolKind.NAMESPACE {
+        return 0
+    }
+    if k == SymbolKind.CLASS {
+        return 1
+    }
+    if k == SymbolKind.FUNCTION {
+        return 2
+    }
+    if k == SymbolKind.LOCAL_VAR || k == SymbolKind.VAR {
+        return 3
+    }
+    if k == SymbolKind.PARAM {
+        return 4
+    }
+    if k == SymbolKind.ATTRIBUTE {
+        return 5
+    }
+    if k == SymbolKind.ENUM_ENTRY {
+        return 6
+    }
+    if k == SymbolKind.TYPE || k == SymbolKind.ENUM || k == SymbolKind.BUILTIN_TYPE {
+        return 7
+    }
     return 0 - 1
 }
 
 // severityOfWord — "error"/"fatal" → 1, "warning" → 2, anything else → 3.
 public int severityOfWord(const string w) {
-    if str.equals(w, "error") { return 1 }
-    if str.equals(w, "fatal") { return 1 }
-    if str.equals(w, "warning") { return 2 }
+    if str.equals(w, "error") {
+        return 1
+    }
+    if str.equals(w, "fatal") {
+        return 1
+    }
+    if str.equals(w, "warning") {
+        return 2
+    }
     return 3
 }
 
@@ -175,42 +221,68 @@ public LspDiag parseRendered(const string s, const string file) {
     bool sawLine = false
     bool go = true
     while go {
-        if i >= n { go = false } else {
+        if i >= n {
+            go = false
+        } else {
             byte b = str.byteAt(s, i)
             int c = b
             c = c & 255
             bool digit = c >= 48 && c <= 57
-            if digit { line = line * 10 + (c - 48)  sawLine = true  i = i + 1 }
-            else { go = false }
+            if digit {
+                line = line * 10 + (c - 48)
+                sawLine = true
+                i = i + 1
+            } else {
+                go = false
+            }
         }
     }
-    if sawLine == false { return null }
-    if i >= n { return null }
+    if sawLine == false {
+        return null
+    }
+    if i >= n {
+        return null
+    }
     byte sep = str.byteAt(s, i)
     int sepI = sep
     sepI = sepI & 255
-    if sepI != 58 { return null }            // ':'
+    if sepI != 58 { // ':'
+        return null
+    }
     i = i + 1
     int col = 0
     bool sawCol = false
     go = true
     while go {
-        if i >= n { go = false } else {
+        if i >= n {
+            go = false
+        } else {
             byte b2 = str.byteAt(s, i)
             int c2 = b2
             c2 = c2 & 255
             bool digit2 = c2 >= 48 && c2 <= 57
-            if digit2 { col = col * 10 + (c2 - 48)  sawCol = true  i = i + 1 }
-            else { go = false }
+            if digit2 {
+                col = col * 10 + (c2 - 48)
+                sawCol = true
+                i = i + 1
+            } else {
+                go = false
+            }
         }
     }
-    if sawCol == false { return null }
+    if sawCol == false {
+        return null
+    }
     // ": level: message"
     string tail = str.substring(s, i, n)
-    if str.startsWith(tail, ": ") == false { return null }
+    if str.startsWith(tail, ": ") == false {
+        return null
+    }
     tail = str.substring(tail, 2, str.len(tail))
     int lv = str.indexOf(tail, ": ")
-    if lv < 0 { return null }
+    if lv < 0 {
+        return null
+    }
     string word = str.substring(tail, 0, lv)
     string msg = str.substring(tail, lv + 2, str.len(tail))
     return new LspDiag(line, col, severityOfWord(word), msg, file)
@@ -231,20 +303,32 @@ public List<string> diagFileSet(const List<LspDiag> diags, const string always) 
             bool seen = false
             int j = 0
             while j < files.size() {
-                if str.equals(files.get(j), d.file) { seen = true  j = (int)files.size() }
-                else { j = j + 1 }
+                if str.equals(files.get(j), d.file) {
+                    seen = true
+                    j = (int)files.size()
+                } else {
+                    j = j + 1
+                }
             }
-            if seen == false { files.add(d.file) }
+            if seen == false {
+                files.add(d.file)
+            }
         }
         i = i + 1
     }
     bool hasTrigger = false
     int k = 0
     while k < files.size() {
-        if str.equals(files.get(k), always) { hasTrigger = true  k = (int)files.size() }
-        else { k = k + 1 }
+        if str.equals(files.get(k), always) {
+            hasTrigger = true
+            k = (int)files.size()
+        } else {
+            k = k + 1
+        }
     }
-    if hasTrigger == false { files.add(always) }
+    if hasTrigger == false {
+        files.add(always)
+    }
     return files
 }
 

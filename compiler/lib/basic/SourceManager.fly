@@ -47,11 +47,15 @@ public class SourceManager {
     // buffer is set at construction and never replaced (setFilename renames the
     // buffer, it does not re-point it).
     void buildLines() {
-        if this.linesBuilt { return }
+        if this.linesBuilt {
+            return
+        }
         this.lineStarts.add(0)
         int i = 0
         while i < this.len {
-            if this.byteAt(i) == 10 { this.lineStarts.add(i + 1) }
+            if this.byteAt(i) == 10 {
+                this.lineStarts.add(i + 1)
+            }
             i = i + 1
         }
         this.linesBuilt = true
@@ -65,7 +69,11 @@ public class SourceManager {
         int hi = (int)this.lineStarts.size() - 1
         while lo < hi {
             int mid = (lo + hi + 1) / 2
-            if this.lineStarts.get(mid) <= pos { lo = mid } else { hi = mid - 1 }
+            if this.lineStarts.get(mid) <= pos {
+                lo = mid
+            } else {
+                hi = mid - 1
+            }
         }
         return lo
     }
@@ -121,10 +129,14 @@ public class SourceManager {
     public int getLineStartOffset(const int line) {
         this.buildLines()
         int idx = line - 1
-        if idx < 0 { idx = 0 }
+        if idx < 0 {
+            idx = 0
+        }
         // Past the last line: the old scan ran off the end and returned len,
         // and callers (getSourceLine) rely on that yielding an empty line.
-        if idx >= (int)this.lineStarts.size() { return this.len }
+        if idx >= (int)this.lineStarts.size() {
+            return this.len
+        }
         return this.lineStarts.get(idx)
     }
 

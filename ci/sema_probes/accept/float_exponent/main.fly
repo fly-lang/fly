@@ -3,7 +3,9 @@
 // `x * 1.5 - 3` - valid Fly, silently wrong.
 
 void check(const bool ok, const int code) {
-    if ok == false { fail code, "float literal with an exponent read wrongly" }
+    if ok == false {
+        fail code, "float literal with an exponent read wrongly"
+    }
 }
 
 void main() {

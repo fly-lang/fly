@@ -1,3 +1,5 @@
 final class A { public A() {} }
 class B : A { public B() {} }
-void main() { B b = new B() }
+void main() {
+    B b = new B()
+}

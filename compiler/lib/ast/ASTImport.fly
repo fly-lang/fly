@@ -13,16 +13,25 @@ public class ASTImport : ASTNode {
     List<ASTName> alias
     bool wildcard
 
-    public ASTImport(const SourceLocation loc, const List<ASTName> names, const List<ASTName> alias, const bool wildcard) {
+    public ASTImport(const SourceLocation loc, const List<ASTName> names, const List<ASTName> alias,
+            const bool wildcard) {
         super(ASTKind.IMPORT, loc)
         this.names = names
         this.alias = alias
         this.wildcard = wildcard
     }
 
-    public List<ASTName> getNames() { return this.names }
-    public List<ASTName> getAlias() { return this.alias }
-    public bool isWildcard() { return this.wildcard }
+    public List<ASTName> getNames() {
+        return this.names
+    }
+    public List<ASTName> getAlias() {
+        return this.alias
+    }
+    public bool isWildcard() {
+        return this.wildcard
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }

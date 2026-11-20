@@ -1,4 +1,8 @@
 class A { private int v
- public A() { this.v = 1 } }
-void main() { A a = new A()
- int x = a.v }
+ public A() {
+     this.v = 1
+ } }
+void main() {
+    A a = new A()
+ int x = a.v
+}

@@ -75,7 +75,9 @@ Buf bufOf(const string s) {
 // FailReader — every read reports an error (-1). readAll and friends took the
 // -1 for data: as a ulong it became an enormous byte count.
 class FailReader : Reader {
-    public long read(Buf buf, const ulong n) { return 0 - 1 }
+    public long read(Buf buf, const ulong n) {
+        return 0 - 1
+    }
     public void close() { }
 }
 

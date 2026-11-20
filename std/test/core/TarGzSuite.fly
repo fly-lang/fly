@@ -61,11 +61,21 @@ string digestOf(const string s) {
 }
 
 // The four expected digests, from sha256sum on the pre-archive files.
-string shaReadme()  { return "f420e8be059e1a738bf413c201e991eca029d0ce5cb0b8a994f5e6e2fdc7a203" }
-string shaMain()    { return "1c41d5c6e11e1f32a5e2c874ddc7bd6e46cad1a065686176a9366a36387ab2c2" }
-string shaBlob()    { return "d3859081b6ebe8d1e0ff6387a734eeb63afe2142343e77be4f836b961e7b141f" }
-string shaEmpty()   { return "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" }
-string shaLeaf()    { return "64896f89fd11190013b70103e603a1c5826e56b7fb7d2197ab279b0690043599" }
+string shaReadme() {
+    return "f420e8be059e1a738bf413c201e991eca029d0ce5cb0b8a994f5e6e2fdc7a203"
+}
+string shaMain() {
+    return "1c41d5c6e11e1f32a5e2c874ddc7bd6e46cad1a065686176a9366a36387ab2c2"
+}
+string shaBlob() {
+    return "d3859081b6ebe8d1e0ff6387a734eeb63afe2142343e77be4f836b961e7b141f"
+}
+string shaEmpty() {
+    return "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
+string shaLeaf() {
+    return "64896f89fd11190013b70103e603a1c5826e56b7fb7d2197ab279b0690043599"
+}
 
 // tarBlock — one 512-byte tar header with a VALID checksum: `name`, the size
 // field as octal digits, typeflag `ty`. The fixture only holds well-formed
@@ -88,7 +98,9 @@ string tarBlock(const string name, const string sizeOct, const int ty) {
     i = 0
     while i < 512 {
         int c = mem.readByte(b, i) & 255
-        if i >= 148 && i < 156 { c = 32 }
+        if i >= 148 && i < 156 {
+            c = 32
+        }
         sum = sum + (long)c
         i = i + 1
     }
@@ -207,11 +219,19 @@ suite TarGzSuite {
                 bool sawBlob = false
                 while targz.tarNext(h) {
                     total = total + 1
-                    if targz.tarIsDir(h) { dirs = dirs + 1 }
-                    if targz.tarIsFile(h) { files = files + 1 }
+                    if targz.tarIsDir(h) {
+                        dirs = dirs + 1
+                    }
+                    if targz.tarIsFile(h) {
+                        files = files + 1
+                    }
                     string nm = targz.tarName(h)
-                    if str.equals(nm, longLeaf()) { sawLeaf = true }
-                    if str.equals(nm, "pkg/src/blob.bin") { sawBlob = true }
+                    if str.equals(nm, longLeaf()) {
+                        sawLeaf = true
+                    }
+                    if str.equals(nm, "pkg/src/blob.bin") {
+                        sawBlob = true
+                    }
                 }
                 assert.assertEqI(targz.tarErr(h), 0, 303)
                 assert.assertEqI(total, 22, 304)
@@ -235,9 +255,15 @@ suite TarGzSuite {
                 long readmeSize = 0 - 1
                 while targz.tarNext(h) {
                     string nm = targz.tarName(h)
-                    if str.equals(nm, "pkg/src/blob.bin") { blobSize = targz.tarSize(h) }
-                    if str.equals(nm, "pkg/empty") { emptySize = targz.tarSize(h) }
-                    if str.equals(nm, "pkg/README.md") { readmeSize = targz.tarSize(h) }
+                    if str.equals(nm, "pkg/src/blob.bin") {
+                        blobSize = targz.tarSize(h)
+                    }
+                    if str.equals(nm, "pkg/empty") {
+                        emptySize = targz.tarSize(h)
+                    }
+                    if str.equals(nm, "pkg/README.md") {
+                        readmeSize = targz.tarSize(h)
+                    }
                 }
                 assert.assertEqL(blobSize, 3000, 310)
                 assert.assertEqL(emptySize, 0, 311)
@@ -269,7 +295,9 @@ suite TarGzSuite {
                         sawLeaf = true
                         leafBody = targz.tarData(h)
                     }
-                    if str.equals(nm, "pkg/README.md") { sawReadme = true }
+                    if str.equals(nm, "pkg/README.md") {
+                        sawReadme = true
+                    }
                 }
                 assert.assertEqI(targz.tarErr(h), 0, 323)
                 assert.assertTrue(sawReadme, 324)

@@ -1,4 +1,8 @@
-int f() { return 1
+int f() {
+    return 1
  int z = 2
- return z }
-void main() { int a = f() }
+ return z
+}
+void main() {
+    int a = f()
+}

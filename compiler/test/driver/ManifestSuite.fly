@@ -30,11 +30,17 @@ import fly.assert
 // source root of every discovery build) and restore cwd BEFORE asserting.
 // ─────────────────────────────────────────────────────────────────────────────
 
-string qq(const string v) { return str.concat(driver.dq(), str.concat(v, driver.dq())) }
-string nlc(const string s) { return str.concat(s, driver.nl()) }
+string qq(const string v) {
+    return str.concat(driver.dq(), str.concat(v, driver.dq()))
+}
+string nlc(const string s) {
+    return str.concat(s, driver.nl())
+}
 
 // qarg — append `, "<v>"` to a call-argument chain being built.
-string qarg(const string s, const string v) { return str.concat(s, str.concat(", ", qq(v))) }
+string qarg(const string s, const string v) {
+    return str.concat(s, str.concat(", ", qq(v)))
+}
 
 // manHead — the shared prologue of a synthetic Manifest.fly.
 string manHead() {
@@ -51,7 +57,8 @@ string fld(const string decl, const string rhs) {
 
 // dep8 — a full positional `new Dependency(name, version, registry, git, tag,
 // branch, rev, path)` (the fly.meta.Dependency field order the reader expects).
-string dep8(const string n, const string v, const string reg, const string git, const string tg, const string br, const string rv, const string pt) {
+string dep8(const string n, const string v, const string reg, const string git, const string tg, const string br,
+        const string rv, const string pt) {
     string s = str.concat("new Dependency(", qq(n))
     s = qarg(s, v)
     s = qarg(s, reg)
@@ -66,8 +73,12 @@ string dep8(const string n, const string v, const string reg, const string git, 
 // tmpBase — the OS temp dir (TMPDIR/TEMP, `/tmp` fallback) for scratch files.
 string tmpBase() {
     string tmp = env.get("TMPDIR")
-    if str.isEmpty(tmp) { tmp = env.get("TEMP") }
-    if str.isEmpty(tmp) { tmp = "/tmp" }
+    if str.isEmpty(tmp) {
+        tmp = env.get("TEMP")
+    }
+    if str.isEmpty(tmp) {
+        tmp = "/tmp"
+    }
     return tmp
 }
 
@@ -115,9 +126,11 @@ string fullManifestSrc() {
     string ll = str.concat("  string[] linkLibs = { ", str.concat(qq("m"), str.concat(", ", qq("pthread"))))
     s = str.concat(s, nlc(str.concat(ll, " }")))
     // Target[] targets = { new Target("app","src/main.fly",""), new Target("mylib","src/lib.fly","static") }
-    string t1 = str.concat("new Target(", str.concat(qq("app"), str.concat(", ", str.concat(qq("src/main.fly"), str.concat(", ", qq(""))))))
+    string t1 = str.concat("new Target(",
+            str.concat(qq("app"), str.concat(", ", str.concat(qq("src/main.fly"), str.concat(", ", qq(""))))))
     t1 = str.concat(t1, ")")
-    string t2 = str.concat("new Target(", str.concat(qq("mylib"), str.concat(", ", str.concat(qq("src/lib.fly"), str.concat(", ", qq("static"))))))
+    string t2 = str.concat("new Target(",
+            str.concat(qq("mylib"), str.concat(", ", str.concat(qq("src/lib.fly"), str.concat(", ", qq("static"))))))
     t2 = str.concat(t2, ")")
     string tg = str.concat("  Target[] targets = { ", str.concat(t1, str.concat(", ", str.concat(t2, " }"))))
     s = str.concat(s, nlc(tg))
@@ -254,8 +267,12 @@ suite ManifestSuite {
             // literal) so the case never goes stale on a version bump.
             string repo = env.cwdGet()
             string tmp = env.get("TMPDIR")
-            if str.isEmpty(tmp) { tmp = env.get("TEMP") }
-            if str.isEmpty(tmp) { tmp = "/tmp" }
+            if str.isEmpty(tmp) {
+                tmp = env.get("TEMP")
+            }
+            if str.isEmpty(tmp) {
+                tmp = "/tmp"
+            }
             string proj = path.join(tmp, "man_suite_init")
             fs.dirDeleteAll(proj)
             fs.dirCreateAll(proj, 493)

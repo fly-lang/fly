@@ -30,8 +30,12 @@ public class ParserFunction {
                 ASTType bound = p.parseType()
             }
             params.add(tp)
-            if p.curIsPunct(",") { p.bump()  go = p.curIsNamePart() }
-            else { go = false }
+            if p.curIsPunct(",") {
+                p.bump()
+                go = p.curIsNamePart()
+            } else {
+                go = false
+            }
         }
         p.closeTypeArgs()
         return params
@@ -50,17 +54,28 @@ public class ParserFunction {
             ASTType ty = p.parseType()
             string nm = ""
             SourceLocation nloc = p.curLoc()      // the NAME token, for setNameLoc
-            if p.curIsNamePart() { nm = p.curText()  p.bump() }
-            else { p.reportErr(DiagID.err_parser_invalid_param) }
+            if p.curIsNamePart() {
+                nm = p.curText()
+                p.bump()
+            } else {
+                p.reportErr(DiagID.err_parser_invalid_param)
+            }
             ASTParam param = ASTBuilder.CreateParam(loc, ty, nm, pmods, null)
             param.setNameLoc(nloc)
             params.add(param)
             // default value: `= expr`, kept on the param (ASTVar.expr). Overload
             // lookup accepts a call that omits it (Registry.defaultsMatch) and the
             // resolver appends it to the argument list (ResolverCall.addDefaultArgs).
-            if p.curIsPunct("=") { p.bump()  ASTExpr dv = p.parseExpr()  param.setExpr(dv) }
-            if p.curIsPunct(",") { p.bump() }
-            else { go = false }
+            if p.curIsPunct("=") {
+                p.bump()
+                ASTExpr dv = p.parseExpr()
+                param.setExpr(dv)
+            }
+            if p.curIsPunct(",") {
+                p.bump()
+            } else {
+                go = false
+            }
         }
         p.expectPunct(")")
         return params

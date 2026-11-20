@@ -20,8 +20,14 @@ public class ASTReturnStmt : ASTStmt {
         this.exprs = new List<ASTExpr>()
     }
 
-    public List<ASTExpr> getExprs() { return this.exprs }
-    public void addExpr(const ASTExpr e) { this.exprs.add(e) }
+    public List<ASTExpr> getExprs() {
+        return this.exprs
+    }
+    public void addExpr(const ASTExpr e) {
+        this.exprs.add(e)
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }

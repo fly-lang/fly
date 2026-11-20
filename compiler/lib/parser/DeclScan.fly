@@ -58,7 +58,9 @@ public string scanTopLevelDecls(const string src) {
             prevNsKw = false
             i = i + 1
         } elsif c == 125 {
-            if depth > 0 { depth = depth - 1 }
+            if depth > 0 {
+                depth = depth - 1
+            }
             prevMain = false
             prevSuite = false
             prevNsKw = false
@@ -76,7 +78,9 @@ public string scanTopLevelDecls(const string src) {
                         if e2 < n && declByteP(p, e2) == 46 {
                             int e3 = declIdentEnd(p, n, e2 + 1)
                             e2 = e3
-                        } else { goNs = false }
+                        } else {
+                            goNs = false
+                        }
                     }
                     nsName = str.substring(src, s, e2)
                     i = e2
@@ -97,7 +101,9 @@ public string scanTopLevelDecls(const string src) {
             }
         } elsif c == 40 {
             // '(' directly after a top-level `main` identifier = the entry point
-            if depth == 0 && prevMain { hasMain = true }
+            if depth == 0 && prevMain {
+                hasMain = true
+            }
             prevMain = false
             prevSuite = false
             prevNsKw = false
@@ -112,14 +118,18 @@ public string scanTopLevelDecls(const string src) {
         }
     }
     string head = ";0;"
-    if hasMain { head = ";1;" }
+    if hasMain {
+        head = ";1;"
+    }
     return str.concat(head, suites)
 }
 
 // declSkipLine — from just past "//", return the index of the newline (or n).
 public int declSkipLine(const pointer p, const int n, const int from) {
     int i = from
-    while i < n && declByteP(p, i) != 10 { i = i + 1 }
+    while i < n && declByteP(p, i) != 10 {
+        i = i + 1
+    }
     return i
 }
 
@@ -145,9 +155,14 @@ public int declSkipQuote(const pointer p, const int n, const int from, const int
     bool open = true
     while open && i < n {
         int cc = declByteP(p, i)
-        if cc == 92 { i = i + 2 }
-        elsif cc == q { i = i + 1  open = false }
-        else { i = i + 1 }
+        if cc == 92 {
+            i = i + 2
+        } elsif cc == q {
+            i = i + 1
+            open = false
+        } else {
+            i = i + 1
+        }
     }
     return i
 }
@@ -156,7 +171,9 @@ public int declSkipQuote(const pointer p, const int n, const int from, const int
 // past the identifier's last body byte.
 public int declIdentEnd(const pointer p, const int n, const int from) {
     int i = from
-    while i < n && declIsIdentBody(declByteP(p, i)) { i = i + 1 }
+    while i < n && declIsIdentBody(declByteP(p, i)) {
+        i = i + 1
+    }
     return i
 }
 
@@ -169,7 +186,9 @@ public int declByteP(const pointer p, const int i) {
 
 // declPeekP — byte code at offset i, or -1 past the end.
 public int declPeekP(const pointer p, const int n, const int i) {
-    if i >= n { return 0 - 1 }
+    if i >= n {
+        return 0 - 1
+    }
     return declByteP(p, i)
 }
 
@@ -184,14 +203,18 @@ public bool declIsIdentBody(const int c) {
 // declWordIs — buffer[s..e) equals `w`, compared byte-wise without allocating.
 public bool declWordIs(const pointer p, const int s, const int e, const string w) {
     int wl = str.len(w)
-    if e - s != wl { return false }
+    if e - s != wl {
+        return false
+    }
     int k = 0
     while k < wl {
         byte wb = str.byteAt(w, k)
         // masked int compare; a condition may not START with '(' (parser gotcha)
         int ai = declByteP(p, s + k)
         int bi = wb & 255
-        if ai != bi { return false }
+        if ai != bi {
+            return false
+        }
         k = k + 1
     }
     return true

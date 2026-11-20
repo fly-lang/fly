@@ -48,7 +48,9 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
         this.messages.add(message)
     }
 
-    public int count() { return (int)this.levels.size() }
+    public int count() {
+        return (int)this.levels.size()
+    }
 
     // jsonEscape — escape `\` then `"` so messages embed safely in JSON strings
     // (the search/replacement patterns are built from real bytes, since `"\\"` /
@@ -84,7 +86,9 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
         int i = 0
         while i < n {
             string sep = ""
-            if i > 0 { sep = "," }
+            if i > 0 {
+                sep = ","
+            }
             string p1 = this.jstr("level", this.levels.get(i))
             string p2 = this.jstr("file", this.jsonEscape(this.files.get(i)))
             string p3 = this.jnum("line", this.lines.get(i))

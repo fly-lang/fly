@@ -19,7 +19,9 @@ public class SemaStmt : SemaNode {
         this.ast = ast
     }
 
-    public ASTStmt getAST() { return this.ast }
+    public ASTStmt getAST() {
+        return this.ast
+    }
     // accept — base no-op; concrete leaves override with v.visit(this).
     public void accept(const SemaVisitor v) { }
 }

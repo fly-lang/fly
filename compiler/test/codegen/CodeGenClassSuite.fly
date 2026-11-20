@@ -22,8 +22,6 @@ import fly.test.util.*
 // CGClassStaticMethods (statics), CGAbstractClass, CGFinalClass.
 // ─────────────────────────────────────────────────────────────────────────────
 
-
-
 suite CodeGenClassSuite {
 
     void layoutTest() {

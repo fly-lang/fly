@@ -91,10 +91,18 @@ public class LspCallInfo {
 }
 
 // Walk modes.
-public int navModeFind()     { return 1 }   // name at (targetLine, targetCol)
-public int navModeCollect()  { return 2 }   // every use of wantName ("" = all)
-public int navModeCallAt()   { return 3 }   // innermost call at/before the cursor
-public int navModeCalls()    { return 4 }   // every call site with arg positions
+public int navModeFind() { // name at (targetLine, targetCol)
+    return 1
+}
+public int navModeCollect() { // every use of wantName ("" = all)
+    return 2
+}
+public int navModeCallAt() { // innermost call at/before the cursor
+    return 3
+}
+public int navModeCalls() { // every call site with arg positions
+    return 4
+}
 
 public class LspNavVisitor : ASTVisitor {
     public SourceManager sm
@@ -141,15 +149,23 @@ public class LspNavVisitor : ASTVisitor {
 
     // hit — does (targetLine, targetCol) fall inside [col, col+len) on `line`?
     bool hit(const int line, const int col, const int len) {
-        if line != this.targetLine { return false }
-        if this.targetCol < col { return false }
+        if line != this.targetLine {
+            return false
+        }
+        if this.targetCol < col {
+            return false
+        }
         return this.targetCol < col + len
     }
 
     // nameUse — the shared per-name-site work for every mode.
     void nameUse(const SourceLocation loc, const string name, const int kindTag) {
-        if loc == null { return }
-        if loc.isValid() == false { return }
+        if loc == null {
+            return
+        }
+        if loc.isValid() == false {
+            return
+        }
         int line = this.sm.getLineNumber(loc)
         int col = this.sm.getColumnNumber(loc)
         this.namedUseAt(line, col, name, kindTag)
@@ -160,17 +176,27 @@ public class LspNavVisitor : ASTVisitor {
     public void visit(const ASTIdentifier node) {
         int before = this.foundKind
         this.nameUse(node.getLoc(), node.getName(), 1)
-        if before == 0 { if this.foundKind != 0 { this.foundExpr = node } }
+        if before == 0 {
+            if this.foundKind != 0 {
+                this.foundExpr = node
+            }
+        }
     }
 
     public void visit(const ASTMember node) {
         int before = this.foundKind
         this.nameUse(node.getLoc(), node.getName(), 3)
-        if before == 0 { if this.foundKind != 0 { this.foundExpr = node } }
+        if before == 0 {
+            if this.foundKind != 0 {
+                this.foundExpr = node
+            }
+        }
         // The receiver chain hangs off getParent(), exactly as the reference
         // walks it: `a.b.c` enters at the outermost member.
         ASTExpr p = node.getParent()
-        if p != null { p.accept(this) }
+        if p != null {
+            p.accept(this)
+        }
     }
 
     public void visit(const ASTCall node) {
@@ -179,7 +205,11 @@ public class LspNavVisitor : ASTVisitor {
         // hit range covered "new P" and a click on the type name found nothing.
         // For every other call nameLoc defaults to loc — nothing else moves.
         this.nameUse(node.getNameLoc(), node.getName(), 2)
-        if beforeCall == 0 { if this.foundKind != 0 { this.foundExpr = node } }
+        if beforeCall == 0 {
+            if this.foundKind != 0 {
+                this.foundExpr = node
+            }
+        }
         if this.mode == 3 {
             SourceLocation loc = node.getLoc()
             if loc != null {
@@ -191,7 +221,9 @@ public class LspNavVisitor : ASTVisitor {
                     // candidate is recorded, and an inner call overwrites it.
                     bool before = line < this.targetLine
                     if before == false {
-                        if line == this.targetLine { before = col <= this.targetCol }
+                        if line == this.targetLine {
+                            before = col <= this.targetCol
+                        }
                     }
                     if before {
                         this.callAt = node
@@ -211,15 +243,21 @@ public class LspNavVisitor : ASTVisitor {
                                         int acol = this.sm.getColumnNumber(al)
                                         bool argBefore = aline < this.targetLine
                                         if argBefore == false {
-                                            if aline == this.targetLine { argBefore = acol <= this.targetCol }
+                                            if aline == this.targetLine {
+                                                argBefore = acol <= this.targetCol
+                                            }
                                         }
-                                        if argBefore { active = active + 1 }
+                                        if argBefore {
+                                            active = active + 1
+                                        }
                                     }
                                 }
                             }
                             ai = ai + 1
                         }
-                        if active > 0 { active = active - 1 }
+                        if active > 0 {
+                            active = active - 1
+                        }
                         this.callActiveParam = active
                     }
                 }
@@ -254,41 +292,59 @@ public class LspNavVisitor : ASTVisitor {
             }
         }
         ASTExpr parent = node.getParent()
-        if parent != null { parent.accept(this) }
+        if parent != null {
+            parent.accept(this)
+        }
         List<ASTArg> args = node.getArgs()
         int i = 0
         while i < args.size() {
             ASTArg a = args.get(i)
             ASTExpr e = a.getExpr()
-            if e != null { e.accept(this) }
+            if e != null {
+                e.accept(this)
+            }
             i = i + 1
         }
     }
 
     public void visit(const ASTUnary node) {
         ASTExpr e = node.getExpr()
-        if e != null { e.accept(this) }
+        if e != null {
+            e.accept(this)
+        }
     }
 
     public void visit(const ASTBinary node) {
         ASTExpr l = node.getLeftExpr()
-        if l != null { l.accept(this) }
+        if l != null {
+            l.accept(this)
+        }
         ASTExpr r = node.getRightExpr()
-        if r != null { r.accept(this) }
+        if r != null {
+            r.accept(this)
+        }
     }
 
     public void visit(const ASTTernary node) {
         ASTExpr c = node.getConditionExpr()
-        if c != null { c.accept(this) }
+        if c != null {
+            c.accept(this)
+        }
         ASTExpr t = node.getTrueExpr()
-        if t != null { t.accept(this) }
+        if t != null {
+            t.accept(this)
+        }
         ASTExpr f = node.getFalseExpr()
-        if f != null { f.accept(this) }
+        if f != null {
+            f.accept(this)
+        }
     }
 
     public void visit(const ASTCast node) {
         ASTExpr e = node.getExpr()
-        if e != null { e.accept(this) }
+        if e != null {
+            e.accept(this)
+        }
     }
 
     // ── statements ───────────────────────────────────────────────────────────
@@ -298,14 +354,18 @@ public class LspNavVisitor : ASTVisitor {
         int i = 0
         while i < content.size() {
             ASTStmt st = content.get(i)
-            if st != null { st.accept(this) }
+            if st != null {
+                st.accept(this)
+            }
             i = i + 1
         }
     }
 
     public void visit(const ASTExprStmt node) {
         ASTExpr e = node.getExpr()
-        if e != null { e.accept(this) }
+        if e != null {
+            e.accept(this)
+        }
     }
 
     public void visit(const ASTDeclStmt node) {
@@ -320,7 +380,9 @@ public class LspNavVisitor : ASTVisitor {
             this.nameUse(lv.getNameLoc(), lv.getName(), 1)
         }
         ASTExpr e = node.getExpr()
-        if e != null { e.accept(this) }
+        if e != null {
+            e.accept(this)
+        }
     }
 
     // nameColAfter — the 1-based column of the first occurrence of `name` on
@@ -332,11 +394,15 @@ public class LspNavVisitor : ASTVisitor {
         int cur = 1
         int i = 0
         while cur < line {
-            if i >= n { return fromCol }
+            if i >= n {
+                return fromCol
+            }
             byte b = str.byteAt(src, i)
             int c = b
             c = c & 255
-            if c == 10 { cur = cur + 1 }
+            if c == 10 {
+                cur = cur + 1
+            }
             i = i + 1
         }
         // slice to the end of the line
@@ -344,11 +410,17 @@ public class LspNavVisitor : ASTVisitor {
         int j = i
         bool go = true
         while go {
-            if j >= n { go = false } else {
+            if j >= n {
+                go = false
+            } else {
                 byte b2 = str.byteAt(src, j)
                 int c2 = b2
                 c2 = c2 & 255
-                if c2 == 10 { go = false } else { j = j + 1 }
+                if c2 == 10 {
+                    go = false
+                } else {
+                    j = j + 1
+                }
             }
         }
         string lineText = str.substring(src, lineStart, j)
@@ -361,13 +433,23 @@ public class LspNavVisitor : ASTVisitor {
         while from < tailLen {
             string rest = str.substring(tail, from, tailLen)
             int rel = str.indexOf(rest, name)
-            if rel < 0 { return fromCol }
+            if rel < 0 {
+                return fromCol
+            }
             int at = from + rel
             bool leftOk = at == 0
-            if leftOk == false { leftOk = this.isBoundary(tail, at - 1) }
+            if leftOk == false {
+                leftOk = this.isBoundary(tail, at - 1)
+            }
             bool rightOk = at + nameLen >= tailLen
-            if rightOk == false { rightOk = this.isBoundary(tail, at + nameLen) }
-            if leftOk { if rightOk { return fromCol + at } }
+            if rightOk == false {
+                rightOk = this.isBoundary(tail, at + nameLen)
+            }
+            if leftOk {
+                if rightOk {
+                    return fromCol + at
+                }
+            }
             from = at + 1
         }
         return fromCol
@@ -379,9 +461,15 @@ public class LspNavVisitor : ASTVisitor {
         int c = b
         c = c & 255
         bool ident = c >= 97 && c <= 122
-        if ident == false { ident = c >= 65 && c <= 90 }
-        if ident == false { ident = c >= 48 && c <= 57 }
-        if ident == false { ident = c == 95 }
+        if ident == false {
+            ident = c >= 65 && c <= 90
+        }
+        if ident == false {
+            ident = c >= 48 && c <= 57
+        }
+        if ident == false {
+            ident = c == 95
+        }
         return ident == false
     }
 
@@ -399,7 +487,9 @@ public class LspNavVisitor : ASTVisitor {
             }
         } elsif this.mode == 2 {
             bool take = str.isEmpty(this.wantName)
-            if take == false { take = str.equals(name, this.wantName) }
+            if take == false {
+                take = str.equals(name, this.wantName)
+            }
             if take {
                 this.uses.add(new LspUse(name, line, col, len, kindTag == 2))
             }
@@ -408,46 +498,68 @@ public class LspNavVisitor : ASTVisitor {
 
     public void visit(const ASTRuleStmt node) {
         ASTExpr e = node.getExpr()
-        if e != null { e.accept(this) }
+        if e != null {
+            e.accept(this)
+        }
         ASTStmt st = node.getStmt()
-        if st != null { st.accept(this) }
+        if st != null {
+            st.accept(this)
+        }
     }
 
     public void visit(const ASTIfStmt node) {
         ASTExpr e = node.getExpr()
-        if e != null { e.accept(this) }
+        if e != null {
+            e.accept(this)
+        }
         ASTStmt st = node.getStmt()
-        if st != null { st.accept(this) }
+        if st != null {
+            st.accept(this)
+        }
         List<ASTRuleStmt> elsifs = node.getElsif()
         int i = 0
         while i < elsifs.size() {
             ASTRuleStmt r = elsifs.get(i)
-            if r != null { r.accept(this) }
+            if r != null {
+                r.accept(this)
+            }
             i = i + 1
         }
         ASTStmt els = node.getElse()
-        if els != null { els.accept(this) }
+        if els != null {
+            els.accept(this)
+        }
     }
 
     public void visit(const ASTSwitchStmt node) {
         ASTExpr e = node.getExpr()
-        if e != null { e.accept(this) }
+        if e != null {
+            e.accept(this)
+        }
         List<ASTCaseStmt> cases = node.getCases()
         int i = 0
         while i < cases.size() {
             ASTCaseStmt c = cases.get(i)
-            if c != null { c.accept(this) }
+            if c != null {
+                c.accept(this)
+            }
             i = i + 1
         }
         ASTStmt d = node.getDefault()
-        if d != null { d.accept(this) }
+        if d != null {
+            d.accept(this)
+        }
     }
 
     public void visit(const ASTCaseStmt node) {
         ASTExpr e = node.getExpr()
-        if e != null { e.accept(this) }
+        if e != null {
+            e.accept(this)
+        }
         ASTBlockStmt b = node.getStmt()
-        if b != null { b.accept(this) }
+        if b != null {
+            b.accept(this)
+        }
     }
 
     public void visit(const ASTLoopStmt node) {
@@ -455,48 +567,72 @@ public class LspNavVisitor : ASTVisitor {
         int i = 0
         while i < init.size() {
             ASTStmt st = init.get(i)
-            if st != null { st.accept(this) }
+            if st != null {
+                st.accept(this)
+            }
             i = i + 1
         }
         ASTExpr e = node.getExpr()
-        if e != null { e.accept(this) }
+        if e != null {
+            e.accept(this)
+        }
         ASTStmt body = node.getLoop()
-        if body != null { body.accept(this) }
+        if body != null {
+            body.accept(this)
+        }
         List<ASTStmt> post = node.getPost()
         int j = 0
         while j < post.size() {
             ASTStmt st2 = post.get(j)
-            if st2 != null { st2.accept(this) }
+            if st2 != null {
+                st2.accept(this)
+            }
             j = j + 1
         }
     }
 
     public void visit(const ASTLoopInStmt node) {
         ASTExpr item = node.getItem()
-        if item != null { item.accept(this) }
+        if item != null {
+            item.accept(this)
+        }
         ASTExpr listE = node.getList()
-        if listE != null { listE.accept(this) }
+        if listE != null {
+            listE.accept(this)
+        }
         ASTStmt st = node.getStmt()
-        if st != null { st.accept(this) }
+        if st != null {
+            st.accept(this)
+        }
     }
 
     public void visit(const ASTHandleStmt node) {
         ASTBlockStmt b = node.getHandle()
-        if b != null { b.accept(this) }
+        if b != null {
+            b.accept(this)
+        }
     }
 
     public void visit(const ASTFailStmt node) {
         ASTExpr e1 = node.getFirstExpr()
-        if e1 != null { e1.accept(this) }
+        if e1 != null {
+            e1.accept(this)
+        }
         ASTExpr e2 = node.getSecondExpr()
-        if e2 != null { e2.accept(this) }
+        if e2 != null {
+            e2.accept(this)
+        }
         ASTExpr e3 = node.getThirdExpr()
-        if e3 != null { e3.accept(this) }
+        if e3 != null {
+            e3.accept(this)
+        }
     }
 
     public void visit(const ASTTestStmt node) {
         ASTBlockStmt b = node.getBody()
-        if b != null { b.accept(this) }
+        if b != null {
+            b.accept(this)
+        }
     }
 
     // A returned value is ordinary expression territory — every name in it is
@@ -526,7 +662,9 @@ public class LspNavVisitor : ASTVisitor {
     // symbol becomes a class target). Generic arguments and array element types
     // are walked too — they are ordinary type references.
     public void walkType(const ASTType t) {
-        if t == null { return }
+        if t == null {
+            return
+        }
         ASTNamedType nt = t.asNamedType()
         if nt != null {
             List<ASTName> ns = nt.getNames()
@@ -545,7 +683,9 @@ public class LspNavVisitor : ASTVisitor {
             return
         }
         ASTArrayType at = t.asArrayType()
-        if at != null { this.walkType(at.getElementType()) }
+        if at != null {
+            this.walkType(at.getElementType())
+        }
     }
 
     public void visit(const ASTFunction node) {
@@ -561,13 +701,17 @@ public class LspNavVisitor : ASTVisitor {
             pi = pi + 1
         }
         ASTBlockStmt b = node.getBody()
-        if b != null { b.accept(this) }
+        if b != null {
+            b.accept(this)
+        }
     }
     public void visit(const ASTClass node) { }
     public void visit(const ASTAttribute node) { }
     public void visit(const ASTMethod node) {
         ASTBlockStmt b = node.getBody()
-        if b != null { b.accept(this) }
+        if b != null {
+            b.accept(this)
+        }
     }
     public void visit(const ASTEnum node) { }
     public void visit(const ASTLocalVar node) { }

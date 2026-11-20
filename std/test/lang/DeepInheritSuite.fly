@@ -23,7 +23,10 @@ enum Kind { NONE, LEAF }
 class A {
     Kind kind
     int a
-    public A(const Kind k, const int x) { this.kind = k  this.a = x }
+    public A(const Kind k, const int x) {
+        this.kind = k
+        this.a = x
+    }
     public int getA() { // root reads its own field
         int res
         res = this.a
@@ -34,28 +37,45 @@ class A {
         res = (int)this.kind.value
         return res
     }
-    public void setA(const int v) { this.a = v }
+    public void setA(const int v) {
+        this.a = v
+    }
 }
 
 class B : A {
     int b
-    public B(const Kind k, const int x, const int y) { super(k, x)  this.b = y }
-    public int getB() { return this.b }
-    public int aPlusB() { return this.a + this.b }            // reaches one level up
+    public B(const Kind k, const int x, const int y) {
+        super(k, x)
+        this.b = y
+    }
+    public int getB() {
+        return this.b
+    }
+    public int aPlusB() { // reaches one level up
+        return this.a + this.b
+    }
 }
 
 class C : B {
     int c
-    public C(const Kind k, const int x, const int y, const int z) { super(k, x, y)  this.c = z }
+    public C(const Kind k, const int x, const int y, const int z) {
+        super(k, x, y)
+        this.c = z
+    }
     // reaches a great-grandparent field (A.a) and a grandparent one (B.b)
-    public int reach() { return this.a + this.b + this.c }
-    public void bumpA() { this.a = this.a + 100 }            // writes A.a from depth 3
+    public int reach() {
+        return this.a + this.b + this.c
+    }
+    public void bumpA() { // writes A.a from depth 3
+        this.a = this.a + 100
+    }
 }
 
 class D : C {
     int d
     public D(const Kind k, const int x, const int y, const int z, const int w) {
-        super(k, x, y, z)  this.d = w
+        super(k, x, y, z)
+        this.d = w
     }
     public int total() { // inherited C.reach()
         int res
@@ -67,11 +87,17 @@ class D : C {
         res = this.a
         return res
     }
-    public void bumpD() { this.d = this.d + 1 }
+    public void bumpD() {
+        this.d = this.d + 1
+    }
 }
 
-int reachOf(const C c) { return c.reach() }
-int rootA(const A a) { return a.getA() }
+int reachOf(const C c) {
+    return c.reach()
+}
+int rootA(const A a) {
+    return a.getA()
+}
 
 suite DeepInheritSuite {
 
@@ -200,7 +226,9 @@ suite DeepInheritSuite {
             int i = 0
             while i < 50 {
                 D o = new D(Kind.LEAF, i, i, i, i)
-                if o.total() != i * 4 { bad = i }
+                if o.total() != i * 4 {
+                    bad = i
+                }
                 i = i + 1
             }
             assert.assertEqI(bad, 0 - 1, 408)

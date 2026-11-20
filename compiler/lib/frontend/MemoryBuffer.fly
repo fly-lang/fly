@@ -17,7 +17,13 @@ public class MemoryBuffer {
         this.text = text
     }
 
-    public string getBuffer()     { return this.text }
-    public string getBufferName() { return this.name }
-    public bool isEmpty()         { return str.isEmpty(this.text) }
+    public string getBuffer() {
+        return this.text
+    }
+    public string getBufferName() {
+        return this.name
+    }
+    public bool isEmpty() {
+        return str.isEmpty(this.text)
+    }
 }

@@ -91,13 +91,17 @@ private string pathJoin(const string base, const string comp) {
     if bs > 0 {
         byte last = 0
         fly.llvm.strByteAt(base, bs - 1, last)
-        if last != 47 { need_sep = 1 }
+        if last != 47 {
+            need_sep = 1
+        }
     }
     if need_sep != 0 {
         if cs > 0 {
             byte first = 0
             fly.llvm.strByteAt(comp, 0, first)
-            if first == 47 { need_sep = 0 }
+            if first == 47 {
+                need_sep = 0
+            }
         }
     }
     int total = bs + need_sep + cs
@@ -110,7 +114,9 @@ private string pathJoin(const string base, const string comp) {
         fly.llvm.strPoke(buf, i, b)
         i = i + 1
     }
-    if need_sep != 0 { fly.llvm.strPoke(buf, bs, 47) }
+    if need_sep != 0 {
+        fly.llvm.strPoke(buf, bs, 47)
+    }
     int off = bs + need_sep
     i = 0
     while i < cs {
@@ -142,9 +148,15 @@ private Stat fillStatMode(const int fmode, const long fsize, const long mtimeNs)
     res.is_file = 0
     res.is_dir = 0
     res.is_symlink = 0
-    if ftype16 == 8 { res.is_file = 1 }
-    if ftype16 == 4 { res.is_dir = 1 }
-    if ftype16 == 10 { res.is_symlink = 1 }
+    if ftype16 == 8 {
+        res.is_file = 1
+    }
+    if ftype16 == 4 {
+        res.is_dir = 1
+    }
+    if ftype16 == 10 {
+        res.is_symlink = 1
+    }
     return res
 }
 
@@ -204,24 +216,32 @@ public fly.os.io.Buf read(const string path) {
     fly.os.io.Buf res
     ulong fsize = size(path)
     ulong cap = fsize
-    if cap == 0 { cap = 1 }
+    if cap == 0 {
+        cap = 1
+    }
     pointer buf = 0
     fly.runtime.mem_alloc(cap, buf)
     res.ptr = buf
     res.size = 0
     res.cap = cap
-    if fsize == 0 { return res }
+    if fsize == 0 {
+        return res
+    }
 
     pointer cpath = strToCstr(path)
     int fd = 0
     fly.runtime.fs_open(cpath, 0, 0, fd)
     cstrFree(cpath)
-    if fd < 0 { return res }
+    if fd < 0 {
+        return res
+    }
 
     long nread = 0
     fly.runtime.fs_read(fd, buf, fsize, nread)
     fly.runtime.fs_close(fd)
-    if nread > 0 { res.size = nread }
+    if nread > 0 {
+        res.size = nread
+    }
     return res
 }
 
@@ -233,7 +253,9 @@ public void write(const string path, fly.os.io.Buf data, const int perm) {
     int fd = 0
     fly.runtime.fs_open(cpath, flags, perm, fd)
     cstrFree(cpath)
-    if fd < 0 { return }
+    if fd < 0 {
+        return
+    }
     long nwritten = 0
     fly.runtime.fs_write(fd, data.ptr, data.size, nwritten)
     fly.runtime.fs_close(fd)
@@ -247,7 +269,9 @@ public void append(const string path, fly.os.io.Buf data, const int perm) {
     int fd = 0
     fly.runtime.fs_open(cpath, flags, perm, fd)
     cstrFree(cpath)
-    if fd < 0 { return }
+    if fd < 0 {
+        return
+    }
     long nwritten = 0
     fly.runtime.fs_write(fd, data.ptr, data.size, nwritten)
     fly.runtime.fs_close(fd)
@@ -318,7 +342,9 @@ public ulong size(const string path) {
     long fsize = 0
     fly.runtime.fs_size(cpath, fsize)
     cstrFree(cpath)
-    if fsize < 0 { fsize = 0 }
+    if fsize < 0 {
+        fsize = 0
+    }
     return fsize
 }
 
@@ -369,10 +395,14 @@ public void copy(const string src, const string dst) {
     pointer cpath_src = strToCstr(src)
     long fsize = 0
     fly.runtime.fs_size(cpath_src, fsize)
-    if fsize < 0 { fsize = 0 }
+    if fsize < 0 {
+        fsize = 0
+    }
     ulong write_size = fsize
     ulong alloc_size = fsize
-    if alloc_size == 0 { alloc_size = 1 }
+    if alloc_size == 0 {
+        alloc_size = 1
+    }
     pointer buf = 0
     fly.runtime.mem_alloc(alloc_size, buf)
     if fsize > 0 {
@@ -433,7 +463,9 @@ public void dirCreate(const string path, const int perm) {
 public void dirCreateAll(const string path, const int perm) {
     int plen = 0
     fly.llvm.strSize(path, plen)
-    if plen == 0 { return }
+    if plen == 0 {
+        return
+    }
 
     pointer buf = 0
     fly.runtime.mem_alloc(plen + 2, buf)
@@ -449,10 +481,16 @@ public void dirCreateAll(const string path, const int perm) {
     int i = 1
     while i <= plen {
         byte b = 0
-        if i < plen { fly.llvm.ptrByteAt(buf, i, b) }
+        if i < plen {
+            fly.llvm.ptrByteAt(buf, i, b)
+        }
         bool at_bound = false
-        if b == 47 { at_bound = true }
-        if i == plen { at_bound = true }
+        if b == 47 {
+            at_bound = true
+        }
+        if i == plen {
+            at_bound = true
+        }
         if at_bound {
             fly.llvm.strPoke(buf, i, 0)
             int ret = 0
@@ -518,21 +556,29 @@ public void dirDeleteAll(const string path) {
                 byte nb = 1
                 while nb != 0 {
                     fly.llvm.ptrByteAt(dbuf, pos + 19 + name_len, nb)
-                    if nb != 0 { name_len = name_len + 1 }
+                    if nb != 0 {
+                        name_len = name_len + 1
+                    }
                 }
 
                 bool skip = false
                 if name_len == 1 {
                     byte n0 = 0
                     fly.llvm.ptrByteAt(dbuf, pos + 19, n0)
-                    if n0 == 46 { skip = true }
+                    if n0 == 46 {
+                        skip = true
+                    }
                 }
                 if name_len == 2 {
                     byte n0 = 0
                     byte n1 = 0
                     fly.llvm.ptrByteAt(dbuf, pos + 19, n0)
                     fly.llvm.ptrByteAt(dbuf, pos + 20, n1)
-                    if n0 == 46 { if n1 == 46 { skip = true } }
+                    if n0 == 46 {
+                        if n1 == 46 {
+                            skip = true
+                        }
+                    }
                 }
 
                 if skip == false {
@@ -593,7 +639,9 @@ public void dirEntriesFree(DirEntries d) {
             ulong off = i * 56
             pointer slot = d.items + off
             pointer name = mem.readPtr(slot, 0)
-            if name != 0 { fly.runtime.mem_free(name, 0) }
+            if name != 0 {
+                fly.runtime.mem_free(name, 0)
+            }
             i = i + 1
         }
         fly.runtime.mem_free(d.items, 0)
@@ -625,7 +673,9 @@ public DirEntries dirRead(const string path) {
     pointer dh = 0
     fly.runtime.dir_open(cpath, dh)
     cstrFree(cpath)
-    if dh == 0 { return res }
+    if dh == 0 {
+        return res
+    }
 
     ulong cap = 16
     ulong stride = 56
@@ -670,7 +720,9 @@ public DirEntries dirRead(const string path) {
                 byte nb = 1
                 while nb != 0 {
                     fly.llvm.ptrByteAt(dbuf, pos + 19 + name_len, nb)
-                    if nb != 0 { name_len = name_len + 1 }
+                    if nb != 0 {
+                        name_len = name_len + 1
+                    }
                 }
 
                 // Skip "." and ".."
@@ -678,14 +730,20 @@ public DirEntries dirRead(const string path) {
                 if name_len == 1 {
                     byte n0 = 0
                     fly.llvm.ptrByteAt(dbuf, pos + 19, n0)
-                    if n0 == 46 { skip = true }
+                    if n0 == 46 {
+                        skip = true
+                    }
                 }
                 if name_len == 2 {
                     byte n0 = 0
                     byte n1 = 0
                     fly.llvm.ptrByteAt(dbuf, pos + 19, n0)
                     fly.llvm.ptrByteAt(dbuf, pos + 20, n1)
-                    if n0 == 46 { if n1 == 46 { skip = true } }
+                    if n0 == 46 {
+                        if n1 == 46 {
+                            skip = true
+                        }
+                    }
                 }
 
                 if skip == false {
@@ -840,15 +898,25 @@ public string, File tempFile(const string dir, const string pattern) {
             while v > 0 {
                 long digit = v - (v / 10) * 10
                 byte db = 48
-                if digit == 1 { db = 49 }
-                elsif digit == 2 { db = 50 }
-                elsif digit == 3 { db = 51 }
-                elsif digit == 4 { db = 52 }
-                elsif digit == 5 { db = 53 }
-                elsif digit == 6 { db = 54 }
-                elsif digit == 7 { db = 55 }
-                elsif digit == 8 { db = 56 }
-                elsif digit == 9 { db = 57 }
+                if digit == 1 {
+                    db = 49
+                } elsif digit == 2 {
+                    db = 50
+                } elsif digit == 3 {
+                    db = 51
+                } elsif digit == 4 {
+                    db = 52
+                } elsif digit == 5 {
+                    db = 53
+                } elsif digit == 6 {
+                    db = 54
+                } elsif digit == 7 {
+                    db = 55
+                } elsif digit == 8 {
+                    db = 56
+                } elsif digit == 9 {
+                    db = 57
+                }
                 fly.llvm.strPoke(tmp_d, nd, db)
                 v = v / 10
                 nd = nd + 1
@@ -920,15 +988,25 @@ public string tempDir(const string dir, const string pattern) {
             while v > 0 {
                 long digit = v - (v / 10) * 10
                 byte db = 48
-                if digit == 1 { db = 49 }
-                elsif digit == 2 { db = 50 }
-                elsif digit == 3 { db = 51 }
-                elsif digit == 4 { db = 52 }
-                elsif digit == 5 { db = 53 }
-                elsif digit == 6 { db = 54 }
-                elsif digit == 7 { db = 55 }
-                elsif digit == 8 { db = 56 }
-                elsif digit == 9 { db = 57 }
+                if digit == 1 {
+                    db = 49
+                } elsif digit == 2 {
+                    db = 50
+                } elsif digit == 3 {
+                    db = 51
+                } elsif digit == 4 {
+                    db = 52
+                } elsif digit == 5 {
+                    db = 53
+                } elsif digit == 6 {
+                    db = 54
+                } elsif digit == 7 {
+                    db = 55
+                } elsif digit == 8 {
+                    db = 56
+                } elsif digit == 9 {
+                    db = 57
+                }
                 fly.llvm.strPoke(tmp_d, nd, db)
                 v = v / 10
                 nd = nd + 1
@@ -971,7 +1049,9 @@ public void writeStr(const string path, const string content, const int perm) {
     int fd = 0
     fly.runtime.fs_open(cpath, flags, perm, fd)
     cstrFree(cpath)
-    if fd < 0 { return }
+    if fd < 0 {
+        return
+    }
     long nwritten = 0
     fly.runtime.fs_write(fd, ptr, sz, nwritten)
     fly.runtime.fs_close(fd)
@@ -1006,7 +1086,9 @@ public void writeBytes(const string path, const string content, const int perm) 
     int fd = 0
     fly.runtime.fs_open(cpath, flags, perm, fd)
     cstrFree(cpath)
-    if fd < 0 { return }
+    if fd < 0 {
+        return
+    }
     int bm = 0
     fly.runtime.io_set_binary(fd, bm)
     long nwritten = 0
@@ -1042,11 +1124,15 @@ public string readBytes(const string path) {
     bool go = true
     while go {
         ulong want = fsize - total
-        if want == 0 { go = false } else {
+        if want == 0 {
+            go = false
+        } else {
             pointer at = buf + total
             long n = 0
             fly.runtime.fs_read(fd, at, want, n)
-            if n <= 0 { go = false } else {
+            if n <= 0 {
+                go = false
+            } else {
                 int adv = 0
                 fly.llvm.longToInt(n, adv)
                 total = total + adv
@@ -1105,7 +1191,9 @@ public void appendStr(const string path, const string content, const int perm) {
     int fd = 0
     fly.runtime.fs_open(cpath, flags, perm, fd)
     cstrFree(cpath)
-    if fd < 0 { return }
+    if fd < 0 {
+        return
+    }
     long nwritten = 0
     fly.runtime.fs_write(fd, ptr, sz, nwritten)
     fly.runtime.fs_close(fd)
@@ -1123,7 +1211,11 @@ public bool isFile(const string path) {
     }
     int ftype = fmode / 4096
     int ftype16 = ftype - (ftype / 16) * 16
-    if ftype16 == 8 { return true } else { return false }
+    if ftype16 == 8 {
+        return true
+    } else {
+        return false
+    }
 }
 
 // isDir returns true if path exists and is a directory (follows symlinks).
@@ -1138,5 +1230,9 @@ public bool isDir(const string path) {
     }
     int ftype = fmode / 4096
     int ftype16 = ftype - (ftype / 16) * 16
-    if ftype16 == 4 { return true } else { return false }
+    if ftype16 == 4 {
+        return true
+    } else {
+        return false
+    }
 }

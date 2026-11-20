@@ -374,7 +374,8 @@ suite HttpSuite {
             assert.assertTrue(http.isComplete(mkHttp("HTTP/1.1 200 OK~Transfer-Encoding: chunked~~0~~")), 818)
         }
         case "bodyDecoded strips the coding, or does not when there is none": {
-            assert.assertStr(http.bodyDecoded(mkHttp("HTTP/1.1 200 OK~Transfer-Encoding: chunked~~3~abc~0~~")), "abc", 819)
+            assert.assertStr(http.bodyDecoded(mkHttp("HTTP/1.1 200 OK~Transfer-Encoding: chunked~~3~abc~0~~")), "abc",
+                    819)
             assert.assertStr(http.bodyDecoded(mkHttp("HTTP/1.1 200 OK~Content-Length: 3~~abc")), "abc", 820)
         }
         case "a chunked body carrying high bytes survives": {
@@ -434,7 +435,9 @@ suite HttpSuite {
         case "getFollow refuses https and gives up at the hop limit": {
             // No TLS, so an https target fails rather than downgrading.
             assert.assertEmpty(http.getFollow("https://example.org/x", 3), 924)
-            if skipSockets() { assert.assertTrue(true, 925) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 925)
+            } else {
                 assert.assertEmpty(http.getFollow("http://fly-no-such-host-xyzabc.invalid/x", 3), 925)
             }
         }
@@ -533,7 +536,9 @@ suite HttpSuite {
     // ── end to end over loopback ─────────────────────────────────────────────
     void exchangeTest() {
         case "a client request reaches a hand-rolled server and the reply comes back": {
-            if skipSockets() { assert.assertTrue(true, 701) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 701)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 assert.assertTrue(srv >= 0, 701)
                 int port = net.localPort(srv)
@@ -586,7 +591,9 @@ suite HttpSuite {
             // exchange internally, and this suite is single-threaded, so there is
             // nobody to accept. The wire half is spelled out instead, which is
             // strictly more than download() does before the write.
-            if skipSockets() { assert.assertTrue(true, 1201) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 1201)
+            } else {
                 pointer b = mem.alloc(7)
                 mem.writeByte(b, 0, 31)      // \  the real gzip magic:
                 mem.writeByte(b, 1, 139)     // /  0x1F 0x8B, and 139 > 127
@@ -640,7 +647,9 @@ suite HttpSuite {
             // connExchange cannot read to EOF — it must stop at the end of the
             // message. If the framing were wrong this case would hang, not fail,
             // which is why both responses carry a Content-Length.
-            if skipSockets() { assert.assertTrue(true, 1101) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 1101)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
 
@@ -668,9 +677,13 @@ suite HttpSuite {
                     string resp1 = ""
                     bool go1 = true
                     while go1 {
-                        if http.isComplete(resp1) { go1 = false } else {
+                        if http.isComplete(resp1) {
+                            go1 = false
+                        } else {
                             string c = net.recvStr(cli, 4096)
-                            if str.isEmpty(c) { go1 = false } else {
+                            if str.isEmpty(c) {
+                                go1 = false
+                            } else {
                                 string g = str.concat(resp1, c)
                                 resp1 = g
                             }
@@ -690,9 +703,13 @@ suite HttpSuite {
                     string resp2 = ""
                     bool go2 = true
                     while go2 {
-                        if http.isComplete(resp2) { go2 = false } else {
+                        if http.isComplete(resp2) {
+                            go2 = false
+                        } else {
                             string c = net.recvStr(cli, 4096)
-                            if str.isEmpty(c) { go2 = false } else {
+                            if str.isEmpty(c) {
+                                go2 = false
+                            } else {
                                 string g = str.concat(resp2, c)
                                 resp2 = g
                             }
@@ -711,7 +728,9 @@ suite HttpSuite {
         case "connExchange frames a chunked response on a live connection": {
             // A chunked reply has no Content-Length, so this is the case that
             // would read forever if isComplete did not understand chunking.
-            if skipSockets() { assert.assertTrue(true, 1114) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 1114)
+            } else {
                 long srv = net.listenOn(net.loopback(), 0, 4)
                 int port = net.localPort(srv)
                 long cli = http.connOpen("127.0.0.1", port, 3000)
@@ -755,7 +774,9 @@ suite HttpSuite {
             // A missing local file is refused before any network work, whatever
             // the scheme or the backend.
             assert.assertFalse(http.postFileSecure("https://example.org/x", "no_such_file", ""), 718)
-            if skipSockets() { assert.assertTrue(true, 715) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 715)
+            } else {
                 assert.assertEmpty(http.get("http://fly-no-such-host-xyzabc.invalid/x"), 715)
                 assert.assertEqI(http.getStatus("http://fly-no-such-host-xyzabc.invalid/x"), 0 - 1, 716)
             }
@@ -768,7 +789,9 @@ suite HttpSuite {
             // sendStr, shutdownWrite, recvAll) each have their own end-to-end
             // cases; what is pinned here is the composition's failure contract:
             // "" on any failure, never a hang, never a partial result.
-            if skipSockets() { assert.assertTrue(true, 719) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 719)
+            } else {
                 // A port that was just bound and released: deterministic refusal
                 // without picking a magic number and hoping it is closed.
                 long tmp = net.listenOn(net.loopback(), 0, 1)
@@ -793,7 +816,11 @@ suite HttpSuite {
             // and on Windows available must be true.
             bool avail = http.httpsAvailable()
             bool sup = http.httpsSupported()
-            if avail { assert.assertTrue(sup, 719) } else { assert.assertTrue(true, 719) }
+            if avail {
+                assert.assertTrue(sup, 719)
+            } else {
+                assert.assertTrue(true, 719)
+            }
             if str.equals(env.osname(), "windows") {
                 assert.assertTrue(avail, 720)
             } else {
@@ -805,9 +832,15 @@ suite HttpSuite {
             // This is the only case that actually exercises WinHTTP end to end, so
             // a green board does NOT prove https works — run it deliberately.
             bool run = str.isEmpty(env.get("FLY_NET_ONLINE_TESTS")) == false
-            if http.httpsSupported() == false { run = false }
-            if skipSockets() { run = false }
-            if run == false { assert.assertTrue(true, 721) } else {
+            if http.httpsSupported() == false {
+                run = false
+            }
+            if skipSockets() {
+                run = false
+            }
+            if run == false {
+                assert.assertTrue(true, 721)
+            } else {
                 int st = http.getSecureStatus("https://example.org/")
                 assert.assertTrue(st > 0, 721)
                 assert.assertTrue(st < 600, 722)

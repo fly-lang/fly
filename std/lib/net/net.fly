@@ -100,7 +100,9 @@ public string ipToStr(const int addr) {
 // octet above 255. "0.0.0.0" also returns 0 — spell the wildcard as anyAddr().
 public int parseIp(const string s) {
     int n = str.len(s)
-    if n == 0 { return 0 }
+    if n == 0 {
+        return 0
+    }
     int acc = 0
     int cur = 0
     int digits = 0
@@ -110,23 +112,35 @@ public int parseIp(const string s) {
         byte bb = str.byteAt(s, i)
         int c = bb & 255
         if c == 46 {
-            if digits == 0 { return 0 }
-            if parts >= 3 { return 0 }
+            if digits == 0 {
+                return 0
+            }
+            if parts >= 3 {
+                return 0
+            }
             acc = (acc << 8) | cur
             parts = parts + 1
             cur = 0
             digits = 0
         } else {
             bool isDigit = c >= 48 && c <= 57
-            if isDigit == false { return 0 }
+            if isDigit == false {
+                return 0
+            }
             cur = cur * 10 + (c - 48)
-            if cur > 255 { return 0 }
+            if cur > 255 {
+                return 0
+            }
             digits = digits + 1
-            if digits > 3 { return 0 }
+            if digits > 3 {
+                return 0
+            }
         }
         i = i + 1
     }
-    if digits == 0 || parts != 3 { return 0 }
+    if digits == 0 || parts != 3 {
+        return 0
+    }
     return (acc << 8) | cur
 }
 
@@ -149,7 +163,9 @@ public int parseIp(const string s) {
 // resolve. A dotted-quad literal yields a one-entry list without touching DNS.
 // Release it with addrFree().
 public pointer resolveAll(const string host) {
-    if str.isEmpty(host) { return 0 }
+    if str.isEmpty(host) {
+        return 0
+    }
     int lit = parseIp(host)
     if lit != 0 {
         pointer one = 0
@@ -182,21 +198,29 @@ public pointer resolveAll(const string host) {
 
 // addrCount — how many addresses the list holds; 0 for a null handle.
 public int addrCount(const pointer h) {
-    if h == 0 { return 0 }
+    if h == 0 {
+        return 0
+    }
     return mem.readInt(h, 0)
 }
 
 // addrAt — the i-th address; 0 when out of range or the handle is null.
 public int addrAt(const pointer h, const int i) {
-    if h == 0 { return 0 }
+    if h == 0 {
+        return 0
+    }
     int n = mem.readInt(h, 0)
-    if i < 0 || i >= n { return 0 }
+    if i < 0 || i >= n {
+        return 0
+    }
     return mem.readInt(h, 8 + i * 4)
 }
 
 // addrFree — release a list. Safe on a null handle.
 public void addrFree(const pointer h) {
-    if h == 0 { return }
+    if h == 0 {
+        return
+    }
     fly.runtime.mem_free(h, 0)
 }
 
@@ -242,9 +266,13 @@ public int peerPort(const long s) {
 // in via dlopen, so a --static binary may fail to resolve a real hostname;
 // literals and anything in the hosts file (including "localhost") are unaffected.
 public int resolve(const string host) {
-    if str.isEmpty(host) { return 0 }
+    if str.isEmpty(host) {
+        return 0
+    }
     int lit = parseIp(host)
-    if lit != 0 { return lit }
+    if lit != 0 {
+        return lit
+    }
     pointer chost = strToCstr(host)
     int addr = 0
     fly.runtime.net_resolve4(chost, addr)
@@ -264,7 +292,9 @@ public long socket() {
 
 // close — release a socket. A negative handle is ignored.
 public void close(const long s) {
-    if s < 0 { return }
+    if s < 0 {
+        return
+    }
     fly.runtime.net_close(s)
 }
 
@@ -327,7 +357,9 @@ public bool setSendTimeout(const long s, const int ms) {
 // a connect() be given a deadline.
 public bool setNonBlocking(const long s, const bool on) {
     int v = 0
-    if on { v = 1 }
+    if on {
+        v = 1
+    }
     int rc = 0
     fly.runtime.net_set_nonblocking(s, v, rc)
     return rc == 0
@@ -338,7 +370,9 @@ public bool setNonBlocking(const long s, const bool on) {
 // protocol, where coalescing only adds latency.
 public bool setNoDelay(const long s, const bool on) {
     int v = 0
-    if on { v = 1 }
+    if on {
+        v = 1
+    }
     int rc = 0
     fly.runtime.net_set_nodelay(s, v, rc)
     return rc == 0
@@ -348,7 +382,9 @@ public bool setNoDelay(const long s, const bool on) {
 // that vanished without a FIN is eventually detected.
 public bool setKeepAlive(const long s, const bool on) {
     int v = 0
-    if on { v = 1 }
+    if on {
+        v = 1
+    }
     int rc = 0
     fly.runtime.net_set_keepalive(s, v, rc)
     return rc == 0
@@ -358,7 +394,9 @@ public bool setKeepAlive(const long s, const bool on) {
 // broadcast address. Meaningless on TCP.
 public bool setBroadcast(const long s, const bool on) {
     int v = 0
-    if on { v = 1 }
+    if on {
+        v = 1
+    }
     int rc = 0
     fly.runtime.net_set_broadcast(s, v, rc)
     return rc == 0
@@ -369,7 +407,9 @@ public bool setBroadcast(const long s, const bool on) {
 // pending data is discarded. sec is ignored when off.
 public bool setLinger(const long s, const bool on, const int sec) {
     int v = 0
-    if on { v = 1 }
+    if on {
+        v = 1
+    }
     int rc = 0
     fly.runtime.net_set_linger(s, v, sec, rc)
     return rc == 0
@@ -441,7 +481,9 @@ public int localPort(const long s) {
 public long listenOn(const int addr, const int port, const int backlog) {
     long s = 0
     fly.runtime.net_socket(s)
-    if s < 0 { return 0 - 1 }
+    if s < 0 {
+        return 0 - 1
+    }
     int rc = 0
     fly.runtime.net_reuseaddr(s, rc)
     int rb = 0
@@ -472,10 +514,14 @@ public bool connect(const long s, const int addr, const int port) {
 // on failure; nothing is leaked on the failure path.
 public long connectTo(const string host, const int port) {
     int addr = resolve(host)
-    if addr == 0 { return 0 - 1 }
+    if addr == 0 {
+        return 0 - 1
+    }
     long s = 0
     fly.runtime.net_socket(s)
-    if s < 0 { return 0 - 1 }
+    if s < 0 {
+        return 0 - 1
+    }
     int rc = 0
     fly.runtime.net_connect(s, addr, port, rc)
     if rc != 0 {
@@ -500,15 +546,21 @@ public long send(const long s, const pointer buf, const int n) {
 // mid-write. Each chunk is capped at 1 MiB so the int length Winsock takes can
 // never overflow.
 public bool sendAll(const long s, const pointer buf, const int n) {
-    if s < 0 { return false }
+    if s < 0 {
+        return false
+    }
     int done = 0
     while done < n {
         int want = n - done
-        if want > 1048576 { want = 1048576 }
+        if want > 1048576 {
+            want = 1048576
+        }
         pointer at = buf + done
         long sent = 0
         fly.runtime.net_send(s, at, want, sent)
-        if sent <= 0 { return false }
+        if sent <= 0 {
+            return false
+        }
         int adv = 0
         fly.llvm.longToInt(sent, adv)
         done = done + adv
@@ -520,7 +572,9 @@ public bool sendAll(const long s, const pointer buf, const int n) {
 // without touching the socket.
 public bool sendStr(const long s, const string data) {
     int n = str.len(data)
-    if n == 0 { return s >= 0 }
+    if n == 0 {
+        return s >= 0
+    }
     pointer buf = strToCstr(data)
     bool ok = sendAll(s, buf, n)
     fly.runtime.mem_free(buf, 0)
@@ -540,16 +594,22 @@ public long recv(const long s, const pointer buf, const int n) {
 // timeout) arrived first, so a framed protocol checks `== n` and gives up
 // otherwise. This is the receive-side twin of sendAll.
 public long recvExact(const long s, const pointer buf, const int n) {
-    if s < 0 || n <= 0 { return 0 }
+    if s < 0 || n <= 0 {
+        return 0
+    }
     int done = 0
     bool go = true
     while go {
-        if done >= n { go = false } else {
+        if done >= n {
+            go = false
+        } else {
             pointer at = buf + done
             int want = n - done
             long got = 0
             fly.runtime.net_recv(s, at, want, got)
-            if got <= 0 { go = false } else {
+            if got <= 0 {
+                go = false
+            } else {
                 int adv = 0
                 fly.llvm.longToInt(got, adv)
                 done = done + adv
@@ -563,7 +623,9 @@ public long recvExact(const long s, const pointer buf, const int n) {
 // on error, so it cannot distinguish the two: use recv() when that matters.
 public string recvStr(const long s, const int max) {
     string res = ""
-    if s < 0 || max <= 0 { return res }
+    if s < 0 || max <= 0 {
+        return res
+    }
     pointer buf = 0
     fly.runtime.mem_alloc(max, buf)
     long got = 0
@@ -585,18 +647,26 @@ public string recvStr(const long s, const int max) {
 // the receive loop would be quadratic and would allocate per chunk.
 public string recvUpTo(const long s, const int limit) {
     string res = ""
-    if s < 0 || limit <= 0 { return res }
+    if s < 0 || limit <= 0 {
+        return res
+    }
     int cap = 8192
-    if cap > limit { cap = limit }
+    if cap > limit {
+        cap = limit
+    }
     pointer buf = 0
     fly.runtime.mem_alloc(cap, buf)
     int len = 0
     bool go = true
     while go {
-        if len >= limit { go = false } else {
+        if len >= limit {
+            go = false
+        } else {
             if len >= cap {
                 int want = cap * 2
-                if want > limit { want = limit }
+                if want > limit {
+                    want = limit
+                }
                 pointer bigger = 0
                 fly.runtime.mem_realloc(buf, want, bigger)
                 buf = bigger
@@ -606,7 +676,9 @@ public string recvUpTo(const long s, const int limit) {
             pointer at = buf + len
             long got = 0
             fly.runtime.net_recv(s, at, room, got)
-            if got <= 0 { go = false } else {
+            if got <= 0 {
+                go = false
+            } else {
                 int adv = 0
                 fly.llvm.longToInt(got, adv)
                 len = len + adv
@@ -671,18 +743,24 @@ public pointer fromNew() {
 // fromAddr — the sender's address from a scratch filled by recvFrom; 0 for a
 // null scratch or before any receive.
 public int fromAddr(const pointer from) {
-    if from == 0 { return 0 }
+    if from == 0 {
+        return 0
+    }
     return mem.readInt(from, 0)
 }
 
 // fromPort — the sender's port; 0 for a null scratch or before any receive.
 public int fromPort(const pointer from) {
-    if from == 0 { return 0 }
+    if from == 0 {
+        return 0
+    }
     return mem.readInt(from, 4)
 }
 
 public void fromFree(const pointer from) {
-    if from == 0 { return }
+    if from == 0 {
+        return
+    }
     fly.runtime.mem_free(from, 8)
 }
 
@@ -698,7 +776,9 @@ public long sendTo(const long s, const pointer buf, const int n, const int addr,
 // EMPTY DATAGRAM, which is a real message the peer will receive — it is not a
 // no-op, unlike sendStr on a stream socket.
 public bool sendStrTo(const long s, const string data, const int addr, const int port) {
-    if s < 0 { return false }
+    if s < 0 {
+        return false
+    }
     int n = str.len(data)
     if n == 0 {
         long e = 0
@@ -726,7 +806,9 @@ public long recvFrom(const long s, const pointer buf, const int n, const pointer
 // be told apart.
 public string recvStrFrom(const long s, const int max, const pointer from) {
     string res = ""
-    if s < 0 || max <= 0 { return res }
+    if s < 0 || max <= 0 {
+        return res
+    }
     pointer buf = 0
     fly.runtime.mem_alloc(max, buf)
     long got = 0
@@ -767,14 +849,22 @@ public string recvStrFrom(const long s, const int max, const pointer from) {
 
 // pollRead — the socket has data to read, or a listening socket has a pending
 // connection.
-public int pollRead()  { return 1 }
+public int pollRead() {
+    return 1
+}
 // pollWrite — a send would not block.
-public int pollWrite() { return 2 }
+public int pollWrite() {
+    return 2
+}
 // pollErr — an error condition, or an invalid handle. Always reported whether
 // asked for or not.
-public int pollErr()   { return 4 }
+public int pollErr() {
+    return 4
+}
 // pollHup — the peer hung up. Also always reported.
-public int pollHup()   { return 8 }
+public int pollHup() {
+    return 8
+}
 //
 // A CLOSED PEER IS REPORTED DIFFERENTLY PER PLATFORM, and this is the one place
 // the abstraction leaks: POSIX marks the socket READABLE (the recv that follows
@@ -797,7 +887,9 @@ public pointer pollNew() {
 
 // pollCount — how many sockets the set watches.
 public int pollCount(const pointer ps) {
-    if ps == 0 { return 0 }
+    if ps == 0 {
+        return 0
+    }
     return mem.readInt(ps, 8)
 }
 
@@ -806,7 +898,9 @@ public int pollCount(const pointer ps) {
 // a null set or a negative socket. The same socket may be added twice; nothing
 // deduplicates.
 public int pollAdd(const pointer ps, const long s, const int events) {
-    if ps == 0 || s < 0 { return 0 - 1 }
+    if ps == 0 || s < 0 {
+        return 0 - 1
+    }
     int count = mem.readInt(ps, 8)
     int cap = mem.readInt(ps, 12)
     pointer items = mem.readPtr(ps, 0)
@@ -827,9 +921,13 @@ public int pollAdd(const pointer ps, const long s, const int events) {
 
 // pollSet — change what entry `i` is watching. false when out of range.
 public bool pollSet(const pointer ps, const int i, const int events) {
-    if ps == 0 { return false }
+    if ps == 0 {
+        return false
+    }
     int count = mem.readInt(ps, 8)
-    if i < 0 || i >= count { return false }
+    if i < 0 || i >= count {
+        return false
+    }
     pointer items = mem.readPtr(ps, 0)
     mem.writeInt(items, i * 16 + 8, events)
     return true
@@ -839,9 +937,13 @@ public bool pollSet(const pointer ps, const int i, const int events) {
 // are NOT stable across a removal — re-read them after removing, or remove only
 // while iterating backwards. false when out of range.
 public bool pollRemove(const pointer ps, const int i) {
-    if ps == 0 { return false }
+    if ps == 0 {
+        return false
+    }
     int count = mem.readInt(ps, 8)
-    if i < 0 || i >= count { return false }
+    if i < 0 || i >= count {
+        return false
+    }
     pointer items = mem.readPtr(ps, 0)
     int last = count - 1
     if i != last {
@@ -855,18 +957,26 @@ public bool pollRemove(const pointer ps, const int i) {
 
 // pollSocketAt — the socket registered at entry `i`; -1 when out of range.
 public long pollSocketAt(const pointer ps, const int i) {
-    if ps == 0 { return 0 - 1 }
+    if ps == 0 {
+        return 0 - 1
+    }
     int count = mem.readInt(ps, 8)
-    if i < 0 || i >= count { return 0 - 1 }
+    if i < 0 || i >= count {
+        return 0 - 1
+    }
     pointer items = mem.readPtr(ps, 0)
     return mem.readLong(items, i * 16)
 }
 
 // pollEventsAt — what entry `i` is watching; 0 when out of range.
 public int pollEventsAt(const pointer ps, const int i) {
-    if ps == 0 { return 0 }
+    if ps == 0 {
+        return 0
+    }
     int count = mem.readInt(ps, 8)
-    if i < 0 || i >= count { return 0 }
+    if i < 0 || i >= count {
+        return 0
+    }
     pointer items = mem.readPtr(ps, 0)
     return mem.readInt(items, i * 16 + 8)
 }
@@ -878,9 +988,13 @@ public int pollEventsAt(const pointer ps, const int i) {
 //
 // Read the outcome with pollRevents(ps, i) for each entry.
 public int pollWait(const pointer ps, const int timeoutMs) {
-    if ps == 0 { return 0 - 1 }
+    if ps == 0 {
+        return 0 - 1
+    }
     int count = mem.readInt(ps, 8)
-    if count == 0 { return 0 }
+    if count == 0 {
+        return 0
+    }
     pointer items = mem.readPtr(ps, 0)
     int rc = 0
     fly.runtime.net_poll(items, count, timeoutMs, rc)
@@ -891,9 +1005,13 @@ public int pollWait(const pointer ps, const int timeoutMs) {
 // 0 means nothing (and is what every entry reads after a timeout). Only
 // meaningful after a pollWait; 0 when out of range.
 public int pollRevents(const pointer ps, const int i) {
-    if ps == 0 { return 0 }
+    if ps == 0 {
+        return 0
+    }
     int count = mem.readInt(ps, 8)
-    if i < 0 || i >= count { return 0 }
+    if i < 0 || i >= count {
+        return 0
+    }
     pointer items = mem.readPtr(ps, 0)
     return mem.readInt(items, i * 16 + 12)
 }
@@ -908,8 +1026,12 @@ public bool pollIsReady(const pointer ps, const int i, const int mask) {
 // pollFree — release the set. The watched sockets are NOT closed; they belong to
 // the caller. Safe on a null handle.
 public void pollFree(const pointer ps) {
-    if ps == 0 { return }
+    if ps == 0 {
+        return
+    }
     pointer items = mem.readPtr(ps, 0)
-    if items != 0 { fly.runtime.mem_free(items, 0) }
+    if items != 0 {
+        fly.runtime.mem_free(items, 0)
+    }
     fly.runtime.mem_free(ps, 16)
 }

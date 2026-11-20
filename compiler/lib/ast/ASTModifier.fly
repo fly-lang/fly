@@ -23,5 +23,7 @@ public class ASTModifier : ASTBase {
         this.modifierKind = modifierKind
     }
 
-    public ASTModifierKind getModifierKind() { return this.modifierKind }
+    public ASTModifierKind getModifierKind() {
+        return this.modifierKind
+    }
 }

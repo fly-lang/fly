@@ -30,7 +30,9 @@ import fly.os.io
 public class RegistryFetcher {
     fly.driver.Cache cache
 
-    public RegistryFetcher(const fly.driver.Cache c) { this.cache = c }
+    public RegistryFetcher(const fly.driver.Cache c) {
+        this.cache = c
+    }
 
     // ── HTTP ──────────────────────────────────────────────────────────────────
     //
@@ -41,7 +43,9 @@ public class RegistryFetcher {
     // httpsUsable — can this build actually serve an https URL? Used only to turn
     // "it returned nothing" into an actionable message.
     public bool httpsUsable(const string url) {
-        if str.equals(http.urlScheme(url), "https") == false { return true }
+        if str.equals(http.urlScheme(url), "https") == false {
+            return true
+        }
         return http.httpsSupported()
     }
 
@@ -54,15 +58,24 @@ public class RegistryFetcher {
     }
 
     public string httpGet(const string url) {
-        if this.httpsUsable(url) == false { this.reportNoHttps(url)  return "" }
+        if this.httpsUsable(url) == false {
+            this.reportNoHttps(url)
+            return ""
+        }
         return http.get(url)
     }
     public bool httpDownload(const string url, const string dest) {
-        if this.httpsUsable(url) == false { this.reportNoHttps(url)  return false }
+        if this.httpsUsable(url) == false {
+            this.reportNoHttps(url)
+            return false
+        }
         return http.download(url, dest)
     }
     public bool httpPostFile(const string url, const string file, const string token) {
-        if this.httpsUsable(url) == false { this.reportNoHttps(url)  return false }
+        if this.httpsUsable(url) == false {
+            this.reportNoHttps(url)
+            return false
+        }
         return http.postFile(url, file, token)
     }
 
@@ -75,8 +88,14 @@ public class RegistryFetcher {
         string body = this.httpGet(url)
         int e = 0
         pointer v = json.parse(body, e)
-        if e != 0 { json.freeValue(v)  return vers }
-        if json.isArray(v) == false { json.freeValue(v)  return vers }
+        if e != 0 {
+            json.freeValue(v)
+            return vers
+        }
+        if json.isArray(v) == false {
+            json.freeValue(v)
+            return vers
+        }
         int i = 0
         while i < json.size(v) {
             pointer el = json.at(v, i)
@@ -85,7 +104,9 @@ public class RegistryFetcher {
                 if str.isEmpty(s) == false {
                     byte b0 = str.byteAt(s, 0)
                     int c = b0
-                    if c >= 48 && c <= 57 { vers.add(s) }   // starts with a digit
+                    if c >= 48 && c <= 57 { // starts with a digit
+                        vers.add(s)
+                    }
                 }
             }
             i = i + 1
@@ -124,21 +145,30 @@ public class RegistryFetcher {
     // isExact — v?DIGITS.DIGITS.DIGITS (no range operators).
     public bool isExact(const string s) {
         int n = str.len(s)
-        if n == 0 { return false }
+        if n == 0 {
+            return false
+        }
         int i = 0
         byte b0 = str.byteAt(s, 0)
-        if b0 == 118 || b0 == 86 { i = 1 }      // leading v/V
+        if b0 == 118 || b0 == 86 { // leading v/V
+            i = 1
+        }
         int dots = 0
         int digits = 0
         while i < n {
             byte bb = str.byteAt(s, i)
             int c = bb
-            if c >= 48 && c <= 57 { digits = digits + 1 }
-            elsif c == 46 {
-                if digits == 0 { return false }
+            if c >= 48 && c <= 57 {
+                digits = digits + 1
+            } elsif c == 46 {
+                if digits == 0 {
+                    return false
+                }
                 dots = dots + 1
                 digits = 0
-            } else { return false }
+            } else {
+                return false
+            }
             i = i + 1
         }
         return dots == 2 && digits > 0
@@ -151,11 +181,14 @@ public class RegistryFetcher {
     public FetchResult fetch(const string alias, const GitDep dep, const string registryUrl) {
         FetchResult r = new FetchResult()
         string pkg = dep.getPkgName()
-        if str.isEmpty(pkg) { pkg = alias }
+        if str.isEmpty(pkg) {
+            pkg = alias
+        }
 
         string version = this.resolveVersion(registryUrl, pkg, dep.getVersionReq())
         if str.isEmpty(version) {
-            r.setError(str.concat("registry: no version of ", str.concat(pkg, str.concat(" satisfies ", dep.getVersionReq()))))
+            r.setError(str.concat("registry: no version of ",
+                    str.concat(pkg, str.concat(" satisfies ", dep.getVersionReq()))))
             return r
         }
 
@@ -206,7 +239,8 @@ public class RegistryFetcher {
     }
 
     // publish — POST a tarball to <registry>/v1/<pkg>/<version>.
-    public bool publish(const string pkg, const string version, const string tarball, const string registryUrl, const string token) {
+    public bool publish(const string pkg, const string version, const string tarball, const string registryUrl,
+            const string token) {
         string url = str.concat(registryUrl, str.concat("/v1/",
                      str.concat(pkg, str.concat("/", version))))
         return this.httpPostFile(url, tarball, token)

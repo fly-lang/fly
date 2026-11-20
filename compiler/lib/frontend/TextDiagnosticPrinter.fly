@@ -27,7 +27,9 @@ public class TextDiagnosticPrinter : DiagnosticConsumer {
         this.warnings = 0
     }
 
-    public void setPrefix(const string p) { this.prefix = p }
+    public void setPrefix(const string p) {
+        this.prefix = p
+    }
 
     public void handleDiagnostic(const Diagnostic diag) {
         string text = this.td.render(diag)
@@ -36,10 +38,17 @@ public class TextDiagnosticPrinter : DiagnosticConsumer {
         }
         io.printErrLn(text)
         DiagLevel level = diag.getLevel()
-        if level == DiagLevel.Error || level == DiagLevel.Fatal { this.errors = this.errors + 1 }
-        elsif level == DiagLevel.Warning { this.warnings = this.warnings + 1 }
+        if level == DiagLevel.Error || level == DiagLevel.Fatal {
+            this.errors = this.errors + 1
+        } elsif level == DiagLevel.Warning {
+            this.warnings = this.warnings + 1
+        }
     }
 
-    public int errorCount()   { return this.errors }
-    public int warningCount() { return this.warnings }
+    public int errorCount() {
+        return this.errors
+    }
+    public int warningCount() {
+        return this.warnings
+    }
 }

@@ -25,7 +25,8 @@ public class SemaBuilder {
         return imp
     }
 
-    public static SemaFunction CreateFunction(const SemaModule module, const SymbolTable symbols, const ASTFunction ast) {
+    public static SemaFunction CreateFunction(const SemaModule module, const SymbolTable symbols,
+            const ASTFunction ast) {
         SemaFunction function = new SemaFunction(ast, symbols)
         SemaBuilderModifiers mods = SemaBuilderModifiers.Build(ast.getModifiers())
         function.setVisibility(mods.getVisibility())
@@ -51,10 +52,13 @@ public class SemaBuilder {
     // mangle key. The spec scope rebinds each type param T → its concrete type so
     // member resolution (ResolveClassTypeIsolated) substitutes T. Caches BEFORE
     // returning so a self-referential T in the body finds the in-progress spec.
-    public static SemaClassType CreateSpecialization(const SemaClassType template, const List<SemaType> typeArgs, const SymbolTable symbols) {
+    public static SemaClassType CreateSpecialization(const SemaClassType template, const List<SemaType> typeArgs,
+            const SymbolTable symbols) {
         string key = buildMangleKey(template.getName(), typeArgs)
         Map<string, SemaClassType> specs = template.getSpecializations()
-        if specs.has(key) { return specs.get(key) }
+        if specs.has(key) {
+            return specs.get(key)
+        }
 
         SymbolTable tplScope = template.getSymbols()
         SymbolTable parent = tplScope.getParent()
@@ -95,10 +99,13 @@ public class SemaBuilder {
     // the template's ASTFunction; memoized on the template by mangle key. The
     // spec is NEVER fromHeader — its body is monomorphized locally even when the
     // template came from a .fly.h.
-    public static SemaFunction CreateFunctionSpecialization(const SemaFunction template, const List<SemaType> typeArgs, const SymbolTable symbols) {
+    public static SemaFunction CreateFunctionSpecialization(const SemaFunction template, const List<SemaType> typeArgs,
+            const SymbolTable symbols) {
         string key = buildMangleKey(template.getName(), typeArgs)
         Map<string, SemaFunction> specs = template.getSpecializations()
-        if specs.has(key) { return specs.get(key) }
+        if specs.has(key) {
+            return specs.get(key)
+        }
 
         SymbolTable tplScope = template.getSymbols()
         SymbolTable parent = tplScope.getParent()
@@ -128,7 +135,8 @@ public class SemaBuilder {
         return spec
     }
 
-    public static SemaClassAttribute CreateClassAttribute(const SemaClassType cls, const ASTAttribute ast, const SemaType type) {
+    public static SemaClassAttribute CreateClassAttribute(const SemaClassType cls, const ASTAttribute ast,
+            const SemaType type) {
         SemaClassAttribute attr = new SemaClassAttribute(ast, cls, type)
         SemaClassInstance thisInst = cls.getThis()
         attr.setParent(thisInst)
@@ -145,11 +153,17 @@ public class SemaBuilder {
     // namespace and never match the archive symbols (audit V4 fase 2).
     public static string classNsFlat(const SemaClassType cls) {
         SemaModule m = cls.getModule()
-        if m == null { return "" }
+        if m == null {
+            return ""
+        }
         ASTModule am = m.getAST()
-        if am == null { return "" }
+        if am == null {
+            return ""
+        }
         ASTNameSpace ns = am.getNameSpace()
-        if ns == null { return "" }
+        if ns == null {
+            return ""
+        }
         // join ALL the path segments with '_' (SemaNameSpace.getName() is only
         // the LAST segment — "io", not "fly_os_io")
         List<ASTName> names = ns.getNames()
@@ -176,7 +190,8 @@ public class SemaBuilder {
         return dm
     }
 
-    public static SemaClassMethod CreateClassMethod(const SemaClassType cls, const ASTMethod ast, const SymbolTable scope) {
+    public static SemaClassMethod CreateClassMethod(const SemaClassType cls, const ASTMethod ast,
+            const SymbolTable scope) {
         SemaBuilderModifiers mods = SemaBuilderModifiers.Build(ast.getModifiers())
         string an = ast.getName()
         string cn = cls.getName()
@@ -218,9 +233,12 @@ public class SemaBuilder {
         return new SemaEnumList(en, arrayType)
     }
 
-    public static SemaEnumAccessor CreateEnumAccessor(const SemaEnumType en, const SemaEnumEntry entry, const SemaVar var, const bool isName) {
+    public static SemaEnumAccessor CreateEnumAccessor(const SemaEnumType en, const SemaEnumEntry entry,
+            const SemaVar var, const bool isName) {
         SemaType type = SemaBuiltin.getIntType()
-        if isName { type = SemaBuiltin.getStringType() }
+        if isName {
+            type = SemaBuiltin.getStringType()
+        }
         return new SemaEnumAccessor(en, entry, var, isName, type)
     }
 
@@ -249,13 +267,16 @@ public class SemaBuilder {
         // null, which broke chained accesses like `this.kind.value` and starved
         // the codegen coercion of the field's type)
         SemaType t = null
-        if ref != null { t = ref.getType() }
+        if ref != null {
+            t = ref.getType()
+        }
         return new SemaMember(ast, ref, parent, t)
     }
 
     // CreateArrayAccess — `base[index]`, typed as the array's ELEMENT type so the
     // whole expression behaves like a value of that type everywhere else.
-    public static SemaArrayAccess CreateArrayAccess(const ASTArrayAccess ast, const SemaExpr base, const SemaExpr index, const SemaType elemType) {
+    public static SemaArrayAccess CreateArrayAccess(const ASTArrayAccess ast, const SemaExpr base, const SemaExpr index,
+            const SemaType elemType) {
         return new SemaArrayAccess(ast, base, index, elemType)
     }
 
@@ -274,19 +295,26 @@ public class SemaBuilder {
     // the whole compile segfaults instead of exiting with the errors (audit V2).
     public static SemaUnary CreateUnary(const ASTUnary ast, const SemaExpr expr) {
         SemaType t = null
-        if expr != null { t = expr.getType() }
+        if expr != null {
+            t = expr.getType()
+        }
         return new SemaUnary(ast, expr, t)
     }
 
     public static SemaBinary CreateBinary(const ASTBinary ast, const SemaExpr left, const SemaExpr right) {
         SemaType t = null
-        if left != null { t = left.getType() }
+        if left != null {
+            t = left.getType()
+        }
         return new SemaBinary(ast, left, right, t)
     }
 
-    public static SemaTernary CreateTernary(const ASTTernary ast, const SemaExpr cond, const SemaExpr trueExpr, const SemaExpr falseExpr) {
+    public static SemaTernary CreateTernary(const ASTTernary ast, const SemaExpr cond, const SemaExpr trueExpr,
+            const SemaExpr falseExpr) {
         SemaType t = null
-        if trueExpr != null { t = trueExpr.getType() }
+        if trueExpr != null {
+            t = trueExpr.getType()
+        }
         // Numeric promotion of the branches: the result carries the WIDER type
         // (float beats integer, ties keep the true branch). Typing from the
         // true branch alone truncated the other arm (B020:
@@ -303,20 +331,38 @@ public class SemaBuilder {
     // (rank rounded up to its even partner, as CodeGenExpr.numWidth does —
     // parity only encodes signedness). Non-numeric or one-sided → keep `a`.
     public static SemaType selectWiderNumeric(const SemaType a, const SemaType b) {
-        if a == null { return b }
-        if b == null { return a }
-        if a.isNumber() == false { return a }
-        if b.isNumber() == false { return a }
+        if a == null {
+            return b
+        }
+        if b == null {
+            return a
+        }
+        if a.isNumber() == false {
+            return a
+        }
+        if b.isNumber() == false {
+            return a
+        }
         if a.isFloat() {
-            if b.isFloat() == false { return a }
+            if b.isFloat() == false {
+                return a
+            }
         } else {
-            if b.isFloat() { return b }
+            if b.isFloat() {
+                return b
+            }
         }
         int aw = a.getRank()
-        if aw % 2 == 1 { aw = aw + 1 }
+        if aw % 2 == 1 {
+            aw = aw + 1
+        }
         int bw = b.getRank()
-        if bw % 2 == 1 { bw = bw + 1 }
-        if bw > aw { return b }
+        if bw % 2 == 1 {
+            bw = bw + 1
+        }
+        if bw > aw {
+            return b
+        }
         return a
     }
 
@@ -338,7 +384,9 @@ public class SemaBuilder {
         bool hasExp = str.contains(raw, "e") || str.contains(raw, "E")
         bool isFloatLit = str.contains(raw, ".")
         if isHexLit == false {
-            if hasExp { isFloatLit = true }
+            if hasExp {
+                isFloatLit = true
+            }
         }
         if isFloatLit {
             SemaType ft = SemaBuiltin.getDoubleType()
@@ -356,8 +404,9 @@ public class SemaBuilder {
             while di < L {
                 byte db = str.byteAt(raw, di)
                 int dc = db
-                if dc < 48 || dc > 57 { allDigits = false }
-                else {
+                if dc < 48 || dc > 57 {
+                    allDigits = false
+                } else {
                     if acc < 3000000000 {
                         long dv = dc - 48
                         acc = acc * 10 + dv
@@ -366,10 +415,14 @@ public class SemaBuilder {
                 di = di + 1
             }
             if allDigits {
-                if acc > 2147483647 { wide = true }
+                if acc > 2147483647 {
+                    wide = true
+                }
             }
             SemaType it = SemaBuiltin.getIntType()
-            if wide { it = SemaBuiltin.getLongType() }
+            if wide {
+                it = SemaBuiltin.getLongType()
+            }
             v = new SemaIntValue(ast, it, raw)
         }
         return v
@@ -390,7 +443,8 @@ public class SemaBuilder {
         return new SemaStringValue(ast, t)
     }
 
-    public static SemaArrayValue CreateArrayValue(const ASTArrayValue ast, const SemaType type, const List<SemaExpr> values) {
+    public static SemaArrayValue CreateArrayValue(const ASTArrayValue ast, const SemaType type,
+            const List<SemaExpr> values) {
         long size = (long)values.size()
         SemaArrayType arrayType = SemaBuiltin.CreateArrayType(type, size)
         SemaArrayValue v = new SemaArrayValue(ast, arrayType)
@@ -415,19 +469,46 @@ public class SemaBuilder {
     }
 
     // ─── Statement factory methods ──────────────────────────────────────────
-    public static SemaBlockStmt CreateBlockStmt(const ASTStmt ast) { return new SemaBlockStmt(ast) }
-    public static SemaDeclStmt CreateDeclStmt(const ASTStmt ast, const SemaLocalVar var, const SemaExpr expr) { return new SemaDeclStmt(ast, var, expr) }
-    public static SemaExprStmt CreateExprStmt(const ASTStmt ast, const SemaExpr expr) { return new SemaExprStmt(ast, expr) }
-    public static SemaReturnStmt CreateReturnStmt(const ASTStmt ast, const SemaExpr expr) { return new SemaReturnStmt(ast, expr) }
-    public static SemaIfStmt CreateIfStmt(const ASTStmt ast, const SemaExpr cond, const SemaStmt thenStmt) { return new SemaIfStmt(ast, cond, thenStmt) }
-    public static SemaSwitchStmt CreateSwitchStmt(const ASTStmt ast, const SemaExpr expr) { return new SemaSwitchStmt(ast, expr) }
-    public static SemaLoopStmt CreateLoopStmt(const ASTStmt ast, const bool verifyAtEnd) { return new SemaLoopStmt(ast, verifyAtEnd) }
-    public static SemaLoopInStmt CreateLoopInStmt(const ASTStmt ast, const SemaExpr item, const SemaExpr list, const SemaStmt body) { return new SemaLoopInStmt(ast, item, list, body) }
-    public static SemaDeleteStmt CreateDeleteStmt(const ASTStmt ast, const SemaExpr expr) { return new SemaDeleteStmt(ast, expr) }
-    public static SemaBreakStmt CreateBreakStmt(const ASTStmt ast) { return new SemaBreakStmt(ast) }
-    public static SemaContinueStmt CreateContinueStmt(const ASTStmt ast) { return new SemaContinueStmt(ast) }
-    public static SemaFailStmt CreateFailStmt(const ASTStmt ast) { return new SemaFailStmt(ast) }
-    public static SemaHandleStmt CreateHandleStmt(const ASTStmt ast) { return new SemaHandleStmt(ast) }
+    public static SemaBlockStmt CreateBlockStmt(const ASTStmt ast) {
+        return new SemaBlockStmt(ast)
+    }
+    public static SemaDeclStmt CreateDeclStmt(const ASTStmt ast, const SemaLocalVar var, const SemaExpr expr) {
+        return new SemaDeclStmt(ast, var, expr)
+    }
+    public static SemaExprStmt CreateExprStmt(const ASTStmt ast, const SemaExpr expr) {
+        return new SemaExprStmt(ast, expr)
+    }
+    public static SemaReturnStmt CreateReturnStmt(const ASTStmt ast, const SemaExpr expr) {
+        return new SemaReturnStmt(ast, expr)
+    }
+    public static SemaIfStmt CreateIfStmt(const ASTStmt ast, const SemaExpr cond, const SemaStmt thenStmt) {
+        return new SemaIfStmt(ast, cond, thenStmt)
+    }
+    public static SemaSwitchStmt CreateSwitchStmt(const ASTStmt ast, const SemaExpr expr) {
+        return new SemaSwitchStmt(ast, expr)
+    }
+    public static SemaLoopStmt CreateLoopStmt(const ASTStmt ast, const bool verifyAtEnd) {
+        return new SemaLoopStmt(ast, verifyAtEnd)
+    }
+    public static SemaLoopInStmt CreateLoopInStmt(const ASTStmt ast, const SemaExpr item, const SemaExpr list,
+            const SemaStmt body) {
+        return new SemaLoopInStmt(ast, item, list, body)
+    }
+    public static SemaDeleteStmt CreateDeleteStmt(const ASTStmt ast, const SemaExpr expr) {
+        return new SemaDeleteStmt(ast, expr)
+    }
+    public static SemaBreakStmt CreateBreakStmt(const ASTStmt ast) {
+        return new SemaBreakStmt(ast)
+    }
+    public static SemaContinueStmt CreateContinueStmt(const ASTStmt ast) {
+        return new SemaContinueStmt(ast)
+    }
+    public static SemaFailStmt CreateFailStmt(const ASTStmt ast) {
+        return new SemaFailStmt(ast)
+    }
+    public static SemaHandleStmt CreateHandleStmt(const ASTStmt ast) {
+        return new SemaHandleStmt(ast)
+    }
 }
 
 // buildMangleKey — a unique key "<base>_<argname><argname>…" for a generic

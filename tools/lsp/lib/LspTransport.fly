@@ -53,7 +53,9 @@ public string frameFor(const string body) {
 public pointer idNodeOf(const string idJson) {
     int pe = 0
     pointer idNode = json.parse(idJson, pe)
-    if pe != 0 { idNode = json.newNull() }
+    if pe != 0 {
+        idNode = json.newNull()
+    }
     return idNode
 }
 
@@ -64,7 +66,9 @@ public string resultJson(const string idJson, const pointer result) {
     json.put(o, "jsonrpc", json.newString("2.0"))
     json.put(o, "id", idNodeOf(idJson))
     pointer res = result
-    if res == 0 { res = json.newNull() }
+    if res == 0 {
+        res = json.newNull()
+    }
     json.put(o, "result", res)
     string s = json.write(o)
     json.freeValue(o)
@@ -92,7 +96,9 @@ public string notificationJson(const string method, const pointer params) {
     json.put(o, "jsonrpc", json.newString("2.0"))
     json.put(o, "method", json.newString(method))
     pointer p = params
-    if p == 0 { p = json.newObject() }
+    if p == 0 {
+        p = json.newObject()
+    }
     json.put(o, "params", p)
     string s = json.write(o)
     json.freeValue(o)
@@ -112,7 +118,9 @@ public class LspTransport {
     int readByte() {
         Buf b = io.readExact(this.in, 1)
         if b.size < 1 {
-            if b.ptr != 0 { mem.free(b.ptr, b.cap) }
+            if b.ptr != 0 {
+                mem.free(b.ptr, b.cap)
+            }
             return 0 - 1
         }
         byte v = mem.readByte(b.ptr, 0)
@@ -136,11 +144,18 @@ public class LspTransport {
             bool eof = false
             while lineDone == false {
                 int c = this.readByte()
-                if c < 0 { lineDone = true  eof = true }
-                elsif c == 10 { lineDone = true }
-                elsif c == 13 { lineDone = false }
-                else {
-                    if accLen < 256 { mem.writeByte(acc, accLen, (byte)c)  accLen = accLen + 1 }
+                if c < 0 {
+                    lineDone = true
+                    eof = true
+                } elsif c == 10 {
+                    lineDone = true
+                } elsif c == 13 {
+                    lineDone = false
+                } else {
+                    if accLen < 256 {
+                        mem.writeByte(acc, accLen, (byte)c)
+                        accLen = accLen + 1
+                    }
                 }
             }
             if eof {
@@ -165,18 +180,24 @@ public class LspTransport {
                         int dc = db
                         dc = dc & 255
                         bool digit = dc >= 48 && dc <= 57
-                        if digit { v = v * 10 + (dc - 48) }
+                        if digit {
+                            v = v * 10 + (dc - 48)
+                        }
                         di = di + 1
                     }
                     contentLength = v
                 }
             }
         }
-        if contentLength <= 0 { return "" }
+        if contentLength <= 0 {
+            return ""
+        }
 
         Buf body = io.readExact(this.in, contentLength)
         if body.size < contentLength {
-            if body.ptr != 0 { mem.free(body.ptr, body.cap) }
+            if body.ptr != 0 {
+                mem.free(body.ptr, body.cap)
+            }
             return ""
         }
         string s = ""
@@ -192,7 +213,9 @@ public class LspTransport {
     // sendNode — serialize a fly.json tree, send it, AND FREE IT. Every response
     // path funnels through here so no caller can leak or double-free a tree.
     public void sendNode(const pointer root) {
-        if root == 0 { return }
+        if root == 0 {
+            return
+        }
         string body = json.write(root)
         json.freeValue(root)
         this.send(body)

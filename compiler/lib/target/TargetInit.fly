@@ -12,24 +12,43 @@ import fly.mem
 // ─────────────────────────────────────────────────────────────────────────────
 
 public void initTargetForArch(const LLVM llvm, const Arch a) {
-    if a == Arch.X86 || a == Arch.X86_64                                  { llvm.initX86() }
-    elsif a == Arch.AARCH64 || a == Arch.AARCH64_BE                       { llvm.initAArch64() }
-    elsif a == Arch.ARM || a == Arch.ARMEB                                { llvm.initARM() }
-    elsif a == Arch.MIPS || a == Arch.MIPSEL || a == Arch.MIPS64 || a == Arch.MIPS64EL { llvm.initMips() }
-    elsif a == Arch.PPC || a == Arch.PPC64 || a == Arch.PPC64LE           { llvm.initPowerPC() }
-    elsif a == Arch.RISCV32 || a == Arch.RISCV64                          { llvm.initRISCV() }
-    elsif a == Arch.SPARC || a == Arch.SPARCV9                            { llvm.initSparc() }
-    elsif a == Arch.SYSTEMZ                                               { llvm.initSystemZ() }
-    elsif a == Arch.WASM32 || a == Arch.WASM64                            { llvm.initWebAssembly() }
-    elsif a == Arch.BPFEL || a == Arch.BPFEB                              { llvm.initBPF() }
-    elsif a == Arch.NVPTX || a == Arch.NVPTX64                            { llvm.initNVPTX() }
-    elsif a == Arch.AMDGCN || a == Arch.R600                              { llvm.initAMDGPU() }
-    elsif a == Arch.AVR                                                   { llvm.initAVR() }
-    elsif a == Arch.MSP430                                                { llvm.initMSP430() }
-    elsif a == Arch.HEXAGON                                               { llvm.initHexagon() }
-    elsif a == Arch.LANAI                                                 { llvm.initLanai() }
-    elsif a == Arch.XCORE                                                 { llvm.initXCore() }
-    elsif a == Arch.VE                                                    { llvm.initVE() }
+    if a == Arch.X86 || a == Arch.X86_64 {
+        llvm.initX86()
+    } elsif a == Arch.AARCH64 || a == Arch.AARCH64_BE {
+        llvm.initAArch64()
+    } elsif a == Arch.ARM || a == Arch.ARMEB {
+        llvm.initARM()
+    } elsif a == Arch.MIPS || a == Arch.MIPSEL || a == Arch.MIPS64 || a == Arch.MIPS64EL {
+        llvm.initMips()
+    } elsif a == Arch.PPC || a == Arch.PPC64 || a == Arch.PPC64LE {
+        llvm.initPowerPC()
+    } elsif a == Arch.RISCV32 || a == Arch.RISCV64 {
+        llvm.initRISCV()
+    } elsif a == Arch.SPARC || a == Arch.SPARCV9 {
+        llvm.initSparc()
+    } elsif a == Arch.SYSTEMZ {
+        llvm.initSystemZ()
+    } elsif a == Arch.WASM32 || a == Arch.WASM64 {
+        llvm.initWebAssembly()
+    } elsif a == Arch.BPFEL || a == Arch.BPFEB {
+        llvm.initBPF()
+    } elsif a == Arch.NVPTX || a == Arch.NVPTX64 {
+        llvm.initNVPTX()
+    } elsif a == Arch.AMDGCN || a == Arch.R600 {
+        llvm.initAMDGPU()
+    } elsif a == Arch.AVR {
+        llvm.initAVR()
+    } elsif a == Arch.MSP430 {
+        llvm.initMSP430()
+    } elsif a == Arch.HEXAGON {
+        llvm.initHexagon()
+    } elsif a == Arch.LANAI {
+        llvm.initLanai()
+    } elsif a == Arch.XCORE {
+        llvm.initXCore()
+    } elsif a == Arch.VE {
+        llvm.initVE()
+    }
     // ARC, LE64, SPIR, SPIR64, TCE, TCELE: no backend in libLLVM-20 → no-op.
 }
 
@@ -44,10 +63,14 @@ public int targetMachineCheck(const string triple, const Arch a) {
     pointer target = 0
     bool ok = false
     llvm.getTargetFromTriple(triple, target, ok)
-    if target == 0 { return 0 }
+    if target == 0 {
+        return 0
+    }
     pointer tm = 0
     // LLVMCodeGenLevelDefault=2, LLVMRelocPIC=2, LLVMCodeModelDefault=0.
     llvm.createTargetMachine(target, triple, "", "", 2, 2, 0, tm)
-    if tm == 0 { return 2 }
+    if tm == 0 {
+        return 2
+    }
     return 1
 }

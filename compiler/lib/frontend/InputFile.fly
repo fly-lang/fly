@@ -19,10 +19,18 @@ public enum FileExt {
 
 // extOf — classify a filename by extension (the C++ FileExt detection).
 public FileExt extOf(const string fileName) {
-    if str.endsWith(fileName, ".fly.h") { return FileExt.FLY_H }
-    if str.endsWith(fileName, ".fly")   { return FileExt.FLY }
-    if str.endsWith(fileName, ".a") || str.endsWith(fileName, ".lib") { return FileExt.LIB }
-    if str.endsWith(fileName, ".o")     { return FileExt.OBJ }
+    if str.endsWith(fileName, ".fly.h") {
+        return FileExt.FLY_H
+    }
+    if str.endsWith(fileName, ".fly") {
+        return FileExt.FLY
+    }
+    if str.endsWith(fileName, ".a") || str.endsWith(fileName, ".lib") {
+        return FileExt.LIB
+    }
+    if str.endsWith(fileName, ".o") {
+        return FileExt.OBJ
+    }
     return FileExt.UNKNOWN
 }
 
@@ -50,7 +58,9 @@ public class InputFile {
     // load — read the file from disk into a MemoryBuffer. Returns false if the file
     // is missing/empty (the C++ reports err_basic_cannot_open_file).
     public bool load() {
-        if fs.exists(this.fileName) == false { return false }
+        if fs.exists(this.fileName) == false {
+            return false
+        }
         string txt = fs.readStr(this.fileName)
         return this.loadBuffer(txt)
     }
@@ -64,13 +74,27 @@ public class InputFile {
     }
 
     public bool isEmpty() {
-        if this.loaded == false { return true }
+        if this.loaded == false {
+            return true
+        }
         return this.buffer.isEmpty()
     }
-    public bool isBuffer()           { return this.loaded }
-    public string getFileName()      { return this.fileName }
-    public string getName()          { return this.name }
-    public FileExt getExt()          { return this.ext }
-    public FileID getFileID()        { return this.fid }
-    public MemoryBuffer getBuffer()  { return this.buffer }
+    public bool isBuffer() {
+        return this.loaded
+    }
+    public string getFileName() {
+        return this.fileName
+    }
+    public string getName() {
+        return this.name
+    }
+    public FileExt getExt() {
+        return this.ext
+    }
+    public FileID getFileID() {
+        return this.fid
+    }
+    public MemoryBuffer getBuffer() {
+        return this.buffer
+    }
 }

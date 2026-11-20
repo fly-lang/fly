@@ -77,10 +77,16 @@ public class CodeGenExprOps {
         // frame address, so two live results alias — a second `fs.tempFile(…, f2)`
         // silently clobbered `f1`. Handled before the generic clone-on-store below,
         // which copies for the assignee rather than for the caller.
-        if CodeGenExprOps.assignStructOut(cge, left, rhs) { node.setLlvmValue(rhs)  return }
+        if CodeGenExprOps.assignStructOut(cge, left, rhs) {
+            node.setLlvmValue(rhs)
+            return
+        }
         // A STRUCT written to a class/struct FIELD is copied INTO the field's
         // inline storage (fields lay structs inline — CodeGenClass.fieldLlvmType).
-        if CodeGenExprOps.assignStructField(cge, left, rhs) { node.setLlvmValue(rhs)  return }
+        if CodeGenExprOps.assignStructField(cge, left, rhs) {
+            node.setLlvmValue(rhs)
+            return
+        }
         // Same clone-on-store rule for STRUCTs (see CodeGenStmt.decl): value
         // types, so the assignee gets its own aggregate instead of aliasing the
         // RHS storage. cloneIfStruct no-ops for CLASS handles and scalars.
@@ -126,7 +132,9 @@ public class CodeGenExprOps {
     // documented on SemaExpr.isVarExpr), so the kind + type + genAddr are the only
     // dispatch-free facts available here.
     public static bool assignStructOut(const CodeGenExpr cge, const SemaExpr left, const pointer rhs) {
-        if left == null { return false }
+        if left == null {
+            return false
+        }
         // An NRVO local takes the same path: its slot holds the CALLER's struct, so
         // an assignment must copy through the pointer, never store over it. The
         // local is recognised by its slot, not by asVar() — that mis-dispatches
@@ -135,22 +143,38 @@ public class CodeGenExprOps {
         if left.getKind() == SemaKind.LOCAL_VAR {
             pointer nrvoCell = cge.getNrvoCell()
             if nrvoCell != 0 {
-                if cge.genAddr(left) == nrvoCell { nrvoLocal = true }
+                if cge.genAddr(left) == nrvoCell {
+                    nrvoLocal = true
+                }
             }
         }
         if left.getKind() != SemaKind.PARAM_VAR {
-            if nrvoLocal == false { return false }
+            if nrvoLocal == false {
+                return false
+            }
         }
         SemaType lt = left.getType()
-        if lt == null { return false }
+        if lt == null {
+            return false
+        }
         SemaClassType lc = lt.asClass()
-        if lc == null { return false }
-        if lc.getClassKind() != SemaClassKind.STRUCT { return false }
+        if lc == null {
+            return false
+        }
+        if lc.getClassKind() != SemaClassKind.STRUCT {
+            return false
+        }
         pointer sty = lc.getLlvmStructType()
-        if sty == 0 { return false }
-        if rhs == 0 { return false }
+        if sty == 0 {
+            return false
+        }
+        if rhs == 0 {
+            return false
+        }
         pointer slot = cge.genAddr(left)
-        if slot == 0 { return false }
+        if slot == 0 {
+            return false
+        }
 
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
@@ -168,15 +192,28 @@ public class CodeGenExprOps {
     // points at. Shared by the struct-parameter path and by an NRVO local, whose
     // slot holds the caller's return storage: in both cases the bytes must land in
     // the owner's memory rather than re-pointing the slot at the callee's frame.
-    public static void copyStructThroughSlot(const CodeGenExpr cge, const pointer slot, const pointer rhs, const SemaType ty) {
-        if slot == 0 { return }
-        if rhs == 0 { return }
-        if ty == null { return }
+    public static void copyStructThroughSlot(const CodeGenExpr cge, const pointer slot, const pointer rhs,
+            const SemaType ty) {
+        if slot == 0 {
+            return
+        }
+        if rhs == 0 {
+            return
+        }
+        if ty == null {
+            return
+        }
         SemaClassType ct = ty.asClass()
-        if ct == null { return }
-        if ct.getClassKind() != SemaClassKind.STRUCT { return }
+        if ct == null {
+            return
+        }
+        if ct.getClassKind() != SemaClassKind.STRUCT {
+            return
+        }
         pointer sty = ct.getLlvmStructType()
-        if sty == 0 { return }
+        if sty == 0 {
+            return
+        }
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         pointer dest
@@ -195,21 +232,37 @@ public class CodeGenExprOps {
     // later read of the field copied garbage (the Linux WrapperSuite failures).
     // False (nothing emitted) for every other assignee.
     public static bool assignStructField(const CodeGenExpr cge, const SemaExpr left, const pointer rhs) {
-        if left == null { return false }
+        if left == null {
+            return false
+        }
         SemaKind k = left.getKind()
         if k != SemaKind.MEMBER {
-            if k != SemaKind.ATTRIBUTE { return false }
+            if k != SemaKind.ATTRIBUTE {
+                return false
+            }
         }
         SemaType lt = left.getType()
-        if lt == null { return false }
+        if lt == null {
+            return false
+        }
         SemaClassType lc = lt.asClass()
-        if lc == null { return false }
-        if lc.getClassKind() != SemaClassKind.STRUCT { return false }
+        if lc == null {
+            return false
+        }
+        if lc.getClassKind() != SemaClassKind.STRUCT {
+            return false
+        }
         pointer sty = lc.getLlvmStructType()
-        if sty == 0 { return false }
-        if rhs == 0 { return false }
+        if sty == 0 {
+            return false
+        }
+        if rhs == 0 {
+            return false
+        }
         pointer slot = cge.genAddr(left)
-        if slot == 0 { return false }
+        if slot == 0 {
+            return false
+        }
 
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
@@ -250,7 +303,9 @@ public class CodeGenExprOps {
         pointer r = cge.gen(right)
         SemaType t = node.getType()
         bool isF = false
-        if t != null { isF = t.isFloat() }
+        if t != null {
+            isF = t.isFloat()
+        }
         l = cge.coerce(l, left.getType(), t)
         r = cge.coerce(r, right.getType(), t)
         bool uns = cge.isUnsignedInt(t)
@@ -267,17 +322,37 @@ public class CodeGenExprOps {
         pointer b = cge.getBuilder()
         pointer v
         if k == ASTBinaryKind.OP_BINARY_ARITH_ADD {
-            if isF { llvm.buildFAdd(b, l, r, "add", v) } else { llvm.buildAdd(b, l, r, "add", v) }
+            if isF {
+                llvm.buildFAdd(b, l, r, "add", v)
+            } else {
+                llvm.buildAdd(b, l, r, "add", v)
+            }
         } elsif k == ASTBinaryKind.OP_BINARY_ARITH_SUB {
-            if isF { llvm.buildFSub(b, l, r, "sub", v) } else { llvm.buildSub(b, l, r, "sub", v) }
+            if isF {
+                llvm.buildFSub(b, l, r, "sub", v)
+            } else {
+                llvm.buildSub(b, l, r, "sub", v)
+            }
         } elsif k == ASTBinaryKind.OP_BINARY_ARITH_MUL {
-            if isF { llvm.buildFMul(b, l, r, "mul", v) } else { llvm.buildMul(b, l, r, "mul", v) }
+            if isF {
+                llvm.buildFMul(b, l, r, "mul", v)
+            } else {
+                llvm.buildMul(b, l, r, "mul", v)
+            }
         } elsif k == ASTBinaryKind.OP_BINARY_ARITH_DIV {
-            if isF { llvm.buildFDiv(b, l, r, "div", v) }
-            elsif uns { llvm.buildUDiv(b, l, r, "div", v) }
-            else { llvm.buildSDiv(b, l, r, "div", v) }
+            if isF {
+                llvm.buildFDiv(b, l, r, "div", v)
+            } elsif uns {
+                llvm.buildUDiv(b, l, r, "div", v)
+            } else {
+                llvm.buildSDiv(b, l, r, "div", v)
+            }
         } elsif k == ASTBinaryKind.OP_BINARY_ARITH_MOD {
-            if uns { llvm.buildURem(b, l, r, "rem", v) } else { llvm.buildSRem(b, l, r, "rem", v) }
+            if uns {
+                llvm.buildURem(b, l, r, "rem", v)
+            } else {
+                llvm.buildSRem(b, l, r, "rem", v)
+            }
         } elsif k == ASTBinaryKind.OP_BINARY_ARITH_AND {
             llvm.buildAnd(b, l, r, "and", v)
         } elsif k == ASTBinaryKind.OP_BINARY_ARITH_OR {
@@ -287,7 +362,11 @@ public class CodeGenExprOps {
         } elsif k == ASTBinaryKind.OP_BINARY_ARITH_SHIFT_L {
             llvm.buildShl(b, l, r, "shl", v)
         } else {
-            if uns { llvm.buildLShr(b, l, r, "shr", v) } else { llvm.buildAShr(b, l, r, "shr", v) }
+            if uns {
+                llvm.buildLShr(b, l, r, "shr", v)
+            } else {
+                llvm.buildAShr(b, l, r, "shr", v)
+            }
         }
         return v
     }
@@ -295,15 +374,33 @@ public class CodeGenExprOps {
     // toArithKind — the arithmetic kind a compound assignment lowers through
     // (`a += b` → OP_BINARY_ARITH_ADD), mirroring the reference toCompoundArith.
     public static ASTBinaryKind toArithKind(const ASTBinaryKind ck) {
-        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_ADD { return ASTBinaryKind.OP_BINARY_ARITH_ADD }
-        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_SUB { return ASTBinaryKind.OP_BINARY_ARITH_SUB }
-        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_MUL { return ASTBinaryKind.OP_BINARY_ARITH_MUL }
-        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_DIV { return ASTBinaryKind.OP_BINARY_ARITH_DIV }
-        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_MOD { return ASTBinaryKind.OP_BINARY_ARITH_MOD }
-        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_AND { return ASTBinaryKind.OP_BINARY_ARITH_AND }
-        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_OR  { return ASTBinaryKind.OP_BINARY_ARITH_OR }
-        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_XOR { return ASTBinaryKind.OP_BINARY_ARITH_XOR }
-        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_SHIFT_L { return ASTBinaryKind.OP_BINARY_ARITH_SHIFT_L }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_ADD {
+            return ASTBinaryKind.OP_BINARY_ARITH_ADD
+        }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_SUB {
+            return ASTBinaryKind.OP_BINARY_ARITH_SUB
+        }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_MUL {
+            return ASTBinaryKind.OP_BINARY_ARITH_MUL
+        }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_DIV {
+            return ASTBinaryKind.OP_BINARY_ARITH_DIV
+        }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_MOD {
+            return ASTBinaryKind.OP_BINARY_ARITH_MOD
+        }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_AND {
+            return ASTBinaryKind.OP_BINARY_ARITH_AND
+        }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_OR {
+            return ASTBinaryKind.OP_BINARY_ARITH_OR
+        }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_XOR {
+            return ASTBinaryKind.OP_BINARY_ARITH_XOR
+        }
+        if ck == ASTBinaryKind.OP_BINARY_ASSIGN_SHIFT_L {
+            return ASTBinaryKind.OP_BINARY_ARITH_SHIFT_L
+        }
         return ASTBinaryKind.OP_BINARY_ARITH_SHIFT_R
     }
 
@@ -323,7 +420,9 @@ public class CodeGenExprOps {
             if rt != null {
                 if lt.isNumber() {
                     if rt.isNumber() {
-                        if rt.getRank() > lt.getRank() { at = rt }
+                        if rt.getRank() > lt.getRank() {
+                            at = rt
+                        }
                     }
                 }
             }
@@ -336,7 +435,9 @@ public class CodeGenExprOps {
         pointer r = cge.gen(right)
         r = cge.coerce(r, rt, at)
         bool isF = false
-        if at != null { isF = at.isFloat() }
+        if at != null {
+            isF = at.isFloat()
+        }
         bool uns = cge.isUnsignedInt(at)
         ASTBinaryKind ak = CodeGenExprOps.toArithKind(ck)
         pointer v = CodeGenExprOps.arithValues(cge, ak, l, r, isF, uns)
@@ -482,8 +583,12 @@ public class CodeGenExprOps {
     // it. Flag it an owned temp so a decl/assign MOVES it instead of cloning (which
     // leaked the original, one buffer per call) and a concat frees it after copying.
     public static void markOwnedResult(const SemaExpr node, const SemaType t) {
-        if t == null { return }
-        if t.isString() { node.setOwnedStrTemp(true) }
+        if t == null {
+            return
+        }
+        if t.isString() {
+            node.setOwnedStrTemp(true)
+        }
     }
 
     // noteArgTemp / freeArgTemps — an owned string temp (a call result or a concat)
@@ -492,10 +597,16 @@ public class CodeGenExprOps {
     // free the buffer once the call returns. A non-const parameter is excluded:
     // the callee may reassign it, which frees the buffer on its side.
     public static void noteArgTemp(List<pointer> temps, const SemaExpr a, const pointer av) {
-        if a.isOwnedStrTemp() == false { return }
+        if a.isOwnedStrTemp() == false {
+            return
+        }
         SemaType t = a.getType()
-        if t == null { return }
-        if t.isString() { temps.add(av) }
+        if t == null {
+            return
+        }
+        if t.isString() {
+            temps.add(av)
+        }
     }
     public static void freeArgTemps(const CodeGenExpr cge, const List<pointer> temps) {
         int i = 0
@@ -508,8 +619,12 @@ public class CodeGenExprOps {
     }
 
     public static void freeOwnedConcatTemp(const CodeGenModule cgm, const SemaExpr e, const pointer bufPtr) {
-        if e == null { return }
-        if e.isOwnedStrTemp() == false { return }
+        if e == null {
+            return
+        }
+        if e.isOwnedStrTemp() == false {
+            return
+        }
         cgm.freeHandle(bufPtr)
     }
 
@@ -549,7 +664,9 @@ public class CodeGenExprOps {
             if rt != null {
                 if lt.isNumber() {
                     if rt.isNumber() {
-                        if rt.getRank() > lt.getRank() { common = rt }
+                        if rt.getRank() > lt.getRank() {
+                            common = rt
+                        }
                         l = cge.coerce(l, lt, common)
                         r = cge.coerce(r, rt, common)
                     }
@@ -557,7 +674,9 @@ public class CodeGenExprOps {
             }
         }
         bool isF = false
-        if common != null { isF = common.isFloat() }
+        if common != null {
+            isF = common.isFloat()
+        }
 
         pointer v
         if isF {
@@ -571,7 +690,8 @@ public class CodeGenExprOps {
     // stringEq — lower a string `==` / `!=` (l, r are the gen'd %string values).
     // Compare the i32 size fields; only when equal call memcmp on the byte pointers.
     // A bool alloca merges the two paths (buildPhi lacks an addIncoming binding).
-    public static void stringEq(const CodeGenExpr cge, const SemaBinary node, const ASTBinaryKind k, const pointer l, const pointer r) {
+    public static void stringEq(const CodeGenExpr cge, const SemaBinary node, const ASTBinaryKind k, const pointer l,
+            const pointer r) {
         LLVM llvm = cge.getLLVM()
         CodeGenModule cgm = cge.getCgm()
         pointer ctx = cgm.getCtx()
@@ -665,10 +785,15 @@ public class CodeGenExprOps {
             pointer nval = cge.gen(e)
             SemaType nt = node.getType()
             bool isF = false
-            if nt != null { isF = nt.isFloat() }
+            if nt != null {
+                isF = nt.isFloat()
+            }
             pointer nv2
-            if isF { llvm.buildFNeg(b, nval, "neg", nv2) }
-            else { llvm.buildNeg(b, nval, "neg", nv2) }
+            if isF {
+                llvm.buildFNeg(b, nval, "neg", nv2)
+            } else {
+                llvm.buildNeg(b, nval, "neg", nv2)
+            }
             node.setLlvmValue(nv2)
             return
         }
@@ -682,10 +807,18 @@ public class CodeGenExprOps {
         llvm.constInt(ty, 1, true, one)
         pointer nv
         bool incr = k == ASTUnaryKind.OP_UNARY_PRE_INCR || k == ASTUnaryKind.OP_UNARY_POST_INCR
-        if incr { llvm.buildAdd(b, old, one, "inc", nv) } else { llvm.buildSub(b, old, one, "dec", nv) }
+        if incr {
+            llvm.buildAdd(b, old, one, "inc", nv)
+        } else {
+            llvm.buildSub(b, old, one, "dec", nv)
+        }
         llvm.buildStore(b, nv, addr)
         bool post = k == ASTUnaryKind.OP_UNARY_POST_INCR || k == ASTUnaryKind.OP_UNARY_POST_DECR
-        if post { node.setLlvmValue(old) } else { node.setLlvmValue(nv) }
+        if post {
+            node.setLlvmValue(old)
+        } else {
+            node.setLlvmValue(nv)
+        }
     }
 
     // cast — numeric conversions (int↔int width, int↔float, float↔float).
@@ -701,21 +834,31 @@ public class CodeGenExprOps {
         pointer v = val
         bool fromF = false
         bool toF = false
-        if from != null { fromF = from.isFloat() }
-        if to != null { toF = to.isFloat() }
+        if from != null {
+            fromF = from.isFloat()
+        }
+        if to != null {
+            toF = to.isFloat()
+        }
 
         if fromF {
             if toF {
-                if to.getRank() >= from.getRank() { llvm.buildFPExt(b, val, toTy, "fpext", v) }
-                else { llvm.buildFPTrunc(b, val, toTy, "fptrunc", v) }
+                if to.getRank() >= from.getRank() {
+                    llvm.buildFPExt(b, val, toTy, "fpext", v)
+                } else {
+                    llvm.buildFPTrunc(b, val, toTy, "fptrunc", v)
+                }
             } else {
                 llvm.buildFPToSI(b, val, toTy, "fptosi", v)
             }
         } else {
             if toF {
                 // unsigned sources convert with uitofp (mirrors coerce)
-                if cge.isUnsignedInt(from) { llvm.buildUIToFP(b, val, toTy, "uitofp", v) }
-                else { llvm.buildSIToFP(b, val, toTy, "sitofp", v) }
+                if cge.isUnsignedInt(from) {
+                    llvm.buildUIToFP(b, val, toTy, "uitofp", v)
+                } else {
+                    llvm.buildSIToFP(b, val, toTy, "sitofp", v)
+                }
             } else {
                 // int → int: compare lowered WIDTHS (ranks encode signedness in
                 // their parity: int 31 and uint 32 are both i32) and extend by
@@ -725,13 +868,21 @@ public class CodeGenExprOps {
                 // widened differently depending on the spelling).
                 int fw = 0
                 int tw = 0
-                if from != null { fw = cge.numWidth(from) }
-                if to != null { tw = cge.numWidth(to) }
-                if tw > fw {
-                    if cge.isUnsignedInt(from) { llvm.buildZExt(b, val, toTy, "zext", v) }
-                    else { llvm.buildSExt(b, val, toTy, "sext", v) }
+                if from != null {
+                    fw = cge.numWidth(from)
                 }
-                elsif tw < fw { llvm.buildTrunc(b, val, toTy, "trunc", v) }
+                if to != null {
+                    tw = cge.numWidth(to)
+                }
+                if tw > fw {
+                    if cge.isUnsignedInt(from) {
+                        llvm.buildZExt(b, val, toTy, "zext", v)
+                    } else {
+                        llvm.buildSExt(b, val, toTy, "sext", v)
+                    }
+                } elsif tw < fw {
+                    llvm.buildTrunc(b, val, toTy, "trunc", v)
+                }
             }
         }
         node.setLlvmValue(v)
@@ -779,26 +930,52 @@ public class CodeGenExprOps {
 // LLVM IntPredicate codes. EQ/NE are sign-agnostic; the relational predicates
 // pick the unsigned (34-37) or signed (38-41) family from the comparison type.
 public int icmpPred(const ASTBinaryKind k, const bool uns) {
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_EQ  { return 32 }
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_NE  { return 33 }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_EQ {
+        return 32
+    }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_NE {
+        return 33
+    }
     if uns {
-        if k == ASTBinaryKind.OP_BINARY_COMPARE_GT  { return 34 }   // UGT
-        if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { return 35 }   // UGE
-        if k == ASTBinaryKind.OP_BINARY_COMPARE_LT  { return 36 }   // ULT
+        if k == ASTBinaryKind.OP_BINARY_COMPARE_GT { // UGT
+            return 34
+        }
+        if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { // UGE
+            return 35
+        }
+        if k == ASTBinaryKind.OP_BINARY_COMPARE_LT { // ULT
+            return 36
+        }
         return 37   // ULE
     }
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_GT  { return 38 }   // SGT
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { return 39 }   // SGE
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_LT  { return 40 }   // SLT
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_GT { // SGT
+        return 38
+    }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { // SGE
+        return 39
+    }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_LT { // SLT
+        return 40
+    }
     return 41   // SLE
 }
 
 // LLVM RealPredicate codes (ordered comparisons).
 public int fcmpPred(const ASTBinaryKind k) {
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_EQ  { return 1 }
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_NE  { return 6 }
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_GT  { return 2 }
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE { return 3 }
-    if k == ASTBinaryKind.OP_BINARY_COMPARE_LT  { return 4 }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_EQ {
+        return 1
+    }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_NE {
+        return 6
+    }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_GT {
+        return 2
+    }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_GTE {
+        return 3
+    }
+    if k == ASTBinaryKind.OP_BINARY_COMPARE_LT {
+        return 4
+    }
     return 5   // OLE
 }

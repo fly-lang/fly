@@ -23,12 +23,24 @@ public class SemaMember : SemaExpr {
         this.memberAst = memberAst
         this.ref = ref
         this.staticAttr = null
-        if parent != null { this.setParent(parent) }
+        if parent != null {
+            this.setParent(parent)
+        }
     }
 
-    public ASTMember getAST() { return this.memberAst }
-    public SemaExpr getRef() { return this.ref }
-    public SemaClassAttribute getStaticAttr() { return this.staticAttr }
-    public void setStaticAttr(const SemaClassAttribute a) { this.staticAttr = a }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public ASTMember getAST() {
+        return this.memberAst
+    }
+    public SemaExpr getRef() {
+        return this.ref
+    }
+    public SemaClassAttribute getStaticAttr() {
+        return this.staticAttr
+    }
+    public void setStaticAttr(const SemaClassAttribute a) {
+        this.staticAttr = a
+    }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }

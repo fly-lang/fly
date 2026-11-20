@@ -51,24 +51,49 @@ public class TargetInfo {
         this.doubleWidth = 0
     }
 
-    public bool isValid()        { return this.valid }
-    public bool isBigEndian()    { return this.bigEndian }
-    public Triple getTriple()    { return this.triple }
-    public string getTripleStr() { return this.triple.getTriple() }
-    public string getDataLayout(){ return this.dataLayout }
+    public bool isValid() {
+        return this.valid
+    }
+    public bool isBigEndian() {
+        return this.bigEndian
+    }
+    public Triple getTriple() {
+        return this.triple
+    }
+    public string getTripleStr() {
+        return this.triple.getTriple()
+    }
+    public string getDataLayout(){
+        return this.dataLayout
+    }
 
-    public int getPointerWidth()  { return this.pointerWidth }
-    public int getBoolWidth()     { return this.boolWidth }
-    public int getIntWidth()      { return this.intWidth }
-    public int getLongWidth()     { return this.longWidth }
-    public int getLongLongWidth() { return this.longLongWidth }
-    public int getFloatWidth()    { return this.floatWidth }
-    public int getDoubleWidth()   { return this.doubleWidth }
+    public int getPointerWidth() {
+        return this.pointerWidth
+    }
+    public int getBoolWidth() {
+        return this.boolWidth
+    }
+    public int getIntWidth() {
+        return this.intWidth
+    }
+    public int getLongWidth() {
+        return this.longWidth
+    }
+    public int getLongLongWidth() {
+        return this.longLongWidth
+    }
+    public int getFloatWidth() {
+        return this.floatWidth
+    }
+    public int getDoubleWidth() {
+        return this.doubleWidth
+    }
 
     // applyData — populate from a family's machine description. Sets the data
     // layout, pointer width, endianness and int/long widths; the remaining
     // widths take the near-universal defaults. Marks the target valid.
-    public void applyData(const string dataLayout, const int ptrWidth, const bool bigEndian, const int intWidth, const int longWidth) {
+    public void applyData(const string dataLayout, const int ptrWidth, const bool bigEndian, const int intWidth,
+            const int longWidth) {
         this.valid = true
         this.dataLayout = dataLayout
         this.pointerWidth = ptrWidth
@@ -91,44 +116,83 @@ public TargetInfo targetInfoCreate(const TargetOptions opts) {
     TargetInfo ti = new TargetInfo(t)
     Arch a = t.getArch()
 
-    if a == Arch.X86            { x86Populate(ti) }
-    elsif a == Arch.X86_64      { x86_64Populate(ti) }
-    elsif a == Arch.AARCH64     { aarch64Populate(ti) }
-    elsif a == Arch.AARCH64_BE  { aarch64BePopulate(ti) }
-    elsif a == Arch.ARM         { armPopulate(ti) }
-    elsif a == Arch.ARMEB       { armebPopulate(ti) }
-    elsif a == Arch.MIPS        { mipsPopulate(ti) }
-    elsif a == Arch.MIPSEL      { mipselPopulate(ti) }
-    elsif a == Arch.MIPS64      { mips64Populate(ti) }
-    elsif a == Arch.MIPS64EL    { mips64elPopulate(ti) }
-    elsif a == Arch.PPC         { ppcPopulate(ti) }
-    elsif a == Arch.PPC64       { ppc64Populate(ti) }
-    elsif a == Arch.PPC64LE     { ppc64lePopulate(ti) }
-    elsif a == Arch.RISCV32     { riscv32Populate(ti) }
-    elsif a == Arch.RISCV64     { riscv64Populate(ti) }
-    elsif a == Arch.SPARC       { sparcPopulate(ti) }
-    elsif a == Arch.SPARCV9     { sparcv9Populate(ti) }
-    elsif a == Arch.SYSTEMZ     { systemzPopulate(ti) }
-    elsif a == Arch.WASM32      { wasm32Populate(ti) }
-    elsif a == Arch.WASM64      { wasm64Populate(ti) }
-    elsif a == Arch.BPFEL       { bpfelPopulate(ti) }
-    elsif a == Arch.BPFEB       { bpfebPopulate(ti) }
-    elsif a == Arch.NVPTX       { nvptxPopulate(ti) }
-    elsif a == Arch.NVPTX64     { nvptx64Populate(ti) }
-    elsif a == Arch.AMDGCN      { amdgcnPopulate(ti) }
-    elsif a == Arch.R600        { r600Populate(ti) }
-    elsif a == Arch.AVR         { avrPopulate(ti) }
-    elsif a == Arch.MSP430      { msp430Populate(ti) }
-    elsif a == Arch.HEXAGON     { hexagonPopulate(ti) }
-    elsif a == Arch.LANAI       { lanaiPopulate(ti) }
-    elsif a == Arch.LE64        { le64Populate(ti) }
-    elsif a == Arch.ARC         { arcPopulate(ti) }
-    elsif a == Arch.XCORE       { xcorePopulate(ti) }
-    elsif a == Arch.SPIR        { spirPopulate(ti) }
-    elsif a == Arch.SPIR64      { spir64Populate(ti) }
-    elsif a == Arch.TCE         { tcePopulate(ti) }
-    elsif a == Arch.TCELE       { tcelePopulate(ti) }
-    elsif a == Arch.VE          { vePopulate(ti) }
+    if a == Arch.X86 {
+        x86Populate(ti)
+    } elsif a == Arch.X86_64 {
+        x86_64Populate(ti)
+    } elsif a == Arch.AARCH64 {
+        aarch64Populate(ti)
+    } elsif a == Arch.AARCH64_BE {
+        aarch64BePopulate(ti)
+    } elsif a == Arch.ARM {
+        armPopulate(ti)
+    } elsif a == Arch.ARMEB {
+        armebPopulate(ti)
+    } elsif a == Arch.MIPS {
+        mipsPopulate(ti)
+    } elsif a == Arch.MIPSEL {
+        mipselPopulate(ti)
+    } elsif a == Arch.MIPS64 {
+        mips64Populate(ti)
+    } elsif a == Arch.MIPS64EL {
+        mips64elPopulate(ti)
+    } elsif a == Arch.PPC {
+        ppcPopulate(ti)
+    } elsif a == Arch.PPC64 {
+        ppc64Populate(ti)
+    } elsif a == Arch.PPC64LE {
+        ppc64lePopulate(ti)
+    } elsif a == Arch.RISCV32 {
+        riscv32Populate(ti)
+    } elsif a == Arch.RISCV64 {
+        riscv64Populate(ti)
+    } elsif a == Arch.SPARC {
+        sparcPopulate(ti)
+    } elsif a == Arch.SPARCV9 {
+        sparcv9Populate(ti)
+    } elsif a == Arch.SYSTEMZ {
+        systemzPopulate(ti)
+    } elsif a == Arch.WASM32 {
+        wasm32Populate(ti)
+    } elsif a == Arch.WASM64 {
+        wasm64Populate(ti)
+    } elsif a == Arch.BPFEL {
+        bpfelPopulate(ti)
+    } elsif a == Arch.BPFEB {
+        bpfebPopulate(ti)
+    } elsif a == Arch.NVPTX {
+        nvptxPopulate(ti)
+    } elsif a == Arch.NVPTX64 {
+        nvptx64Populate(ti)
+    } elsif a == Arch.AMDGCN {
+        amdgcnPopulate(ti)
+    } elsif a == Arch.R600 {
+        r600Populate(ti)
+    } elsif a == Arch.AVR {
+        avrPopulate(ti)
+    } elsif a == Arch.MSP430 {
+        msp430Populate(ti)
+    } elsif a == Arch.HEXAGON {
+        hexagonPopulate(ti)
+    } elsif a == Arch.LANAI {
+        lanaiPopulate(ti)
+    } elsif a == Arch.LE64 {
+        le64Populate(ti)
+    } elsif a == Arch.ARC {
+        arcPopulate(ti)
+    } elsif a == Arch.XCORE {
+        xcorePopulate(ti)
+    } elsif a == Arch.SPIR {
+        spirPopulate(ti)
+    } elsif a == Arch.SPIR64 {
+        spir64Populate(ti)
+    } elsif a == Arch.TCE {
+        tcePopulate(ti)
+    } elsif a == Arch.TCELE {
+        tcelePopulate(ti)
+    } elsif a == Arch.VE {
+        vePopulate(ti)
+    }
 
     return ti
 }

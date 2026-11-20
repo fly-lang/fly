@@ -16,57 +16,155 @@ public class AcceptProbe : ASTVisitor {
 
     string last
 
-    public AcceptProbe() { this.last = "" }
+    public AcceptProbe() {
+        this.last = ""
+    }
 
-    public string getLast() { return this.last }
+    public string getLast() {
+        return this.last
+    }
 
-    public void visit(const ASTModule node) { this.last = "module" }
-    public void visit(const ASTNameSpace node) { this.last = "namespace" }
-    public void visit(const ASTImport node) { this.last = "import" }
-    public void visit(const ASTFunction node) { this.last = "function" }
-    public void visit(const ASTClass node) { this.last = "class" }
-    public void visit(const ASTAttribute node) { this.last = "attribute" }
-    public void visit(const ASTMethod node) { this.last = "method" }
-    public void visit(const ASTEnum node) { this.last = "enum" }
-    public void visit(const ASTLocalVar node) { this.last = "localvar" }
-    public void visit(const ASTParam node) { this.last = "param" }
-    public void visit(const ASTComment node) { this.last = "comment" }
-    public void visit(const ASTBuiltinType node) { this.last = "builtinType" }
-    public void visit(const ASTNamedType node) { this.last = "namedType" }
-    public void visit(const ASTArrayType node) { this.last = "arrayType" }
-    public void visit(const ASTTypeParam node) { this.last = "typeParam" }
-    public void visit(const ASTBreakStmt node) { this.last = "break" }
-    public void visit(const ASTContinueStmt node) { this.last = "continue" }
-    public void visit(const ASTDeleteStmt node) { this.last = "delete" }
-    public void visit(const ASTExprStmt node) { this.last = "exprStmt" }
-    public void visit(const ASTDeclStmt node) { this.last = "declStmt" }
-    public void visit(const ASTFailStmt node) { this.last = "fail" }
-    public void visit(const ASTHandleStmt node) { this.last = "handle" }
-    public void visit(const ASTReturnStmt node) { this.last = "return" }
-    public void visit(const ASTRuleStmt node) { this.last = "rule" }
-    public void visit(const ASTIfStmt node) { this.last = "if" }
-    public void visit(const ASTSwitchStmt node) { this.last = "switch" }
-    public void visit(const ASTLoopStmt node) { this.last = "loop" }
-    public void visit(const ASTLoopInStmt node) { this.last = "loopIn" }
-    public void visit(const ASTBlockStmt node) { this.last = "block" }
-    public void visit(const ASTTestStmt node) { this.last = "test" }
-    public void visit(const ASTCaseStmt node) { this.last = "case" }
-    public void visit(const ASTIdentifier node) { this.last = "identifier" }
-    public void visit(const ASTMember node) { this.last = "member" }
-    public void visit(const ASTCall node) { this.last = "call" }
-    public void visit(const ASTUnary node) { this.last = "unary" }
-    public void visit(const ASTBinary node) { this.last = "binary" }
-    public void visit(const ASTTernary node) { this.last = "ternary" }
-    public void visit(const ASTCast node) { this.last = "cast" }
-    public void visit(const ASTBoolValue node) { this.last = "bool" }
-    public void visit(const ASTNumberValue node) { this.last = "number" }
-    public void visit(const ASTStringValue node) { this.last = "string" }
-    public void visit(const ASTArrayValue node) { this.last = "arrayValue" }
-    public void visit(const ASTStructValue node) { this.last = "structValue" }
-    public void visit(const ASTNullValue node) { this.last = "null" }
-    public void visit(const ASTUnsetValue node) { this.last = "unset" }
-    public void visit(const ASTEnumEntry node) { this.last = "enumEntry" }
-    public void visit(const ASTArrayAccess node) { this.last = "arrayAccess" }
+    public void visit(const ASTModule node) {
+        this.last = "module"
+    }
+    public void visit(const ASTNameSpace node) {
+        this.last = "namespace"
+    }
+    public void visit(const ASTImport node) {
+        this.last = "import"
+    }
+    public void visit(const ASTFunction node) {
+        this.last = "function"
+    }
+    public void visit(const ASTClass node) {
+        this.last = "class"
+    }
+    public void visit(const ASTAttribute node) {
+        this.last = "attribute"
+    }
+    public void visit(const ASTMethod node) {
+        this.last = "method"
+    }
+    public void visit(const ASTEnum node) {
+        this.last = "enum"
+    }
+    public void visit(const ASTLocalVar node) {
+        this.last = "localvar"
+    }
+    public void visit(const ASTParam node) {
+        this.last = "param"
+    }
+    public void visit(const ASTComment node) {
+        this.last = "comment"
+    }
+    public void visit(const ASTBuiltinType node) {
+        this.last = "builtinType"
+    }
+    public void visit(const ASTNamedType node) {
+        this.last = "namedType"
+    }
+    public void visit(const ASTArrayType node) {
+        this.last = "arrayType"
+    }
+    public void visit(const ASTTypeParam node) {
+        this.last = "typeParam"
+    }
+    public void visit(const ASTBreakStmt node) {
+        this.last = "break"
+    }
+    public void visit(const ASTContinueStmt node) {
+        this.last = "continue"
+    }
+    public void visit(const ASTDeleteStmt node) {
+        this.last = "delete"
+    }
+    public void visit(const ASTExprStmt node) {
+        this.last = "exprStmt"
+    }
+    public void visit(const ASTDeclStmt node) {
+        this.last = "declStmt"
+    }
+    public void visit(const ASTFailStmt node) {
+        this.last = "fail"
+    }
+    public void visit(const ASTHandleStmt node) {
+        this.last = "handle"
+    }
+    public void visit(const ASTReturnStmt node) {
+        this.last = "return"
+    }
+    public void visit(const ASTRuleStmt node) {
+        this.last = "rule"
+    }
+    public void visit(const ASTIfStmt node) {
+        this.last = "if"
+    }
+    public void visit(const ASTSwitchStmt node) {
+        this.last = "switch"
+    }
+    public void visit(const ASTLoopStmt node) {
+        this.last = "loop"
+    }
+    public void visit(const ASTLoopInStmt node) {
+        this.last = "loopIn"
+    }
+    public void visit(const ASTBlockStmt node) {
+        this.last = "block"
+    }
+    public void visit(const ASTTestStmt node) {
+        this.last = "test"
+    }
+    public void visit(const ASTCaseStmt node) {
+        this.last = "case"
+    }
+    public void visit(const ASTIdentifier node) {
+        this.last = "identifier"
+    }
+    public void visit(const ASTMember node) {
+        this.last = "member"
+    }
+    public void visit(const ASTCall node) {
+        this.last = "call"
+    }
+    public void visit(const ASTUnary node) {
+        this.last = "unary"
+    }
+    public void visit(const ASTBinary node) {
+        this.last = "binary"
+    }
+    public void visit(const ASTTernary node) {
+        this.last = "ternary"
+    }
+    public void visit(const ASTCast node) {
+        this.last = "cast"
+    }
+    public void visit(const ASTBoolValue node) {
+        this.last = "bool"
+    }
+    public void visit(const ASTNumberValue node) {
+        this.last = "number"
+    }
+    public void visit(const ASTStringValue node) {
+        this.last = "string"
+    }
+    public void visit(const ASTArrayValue node) {
+        this.last = "arrayValue"
+    }
+    public void visit(const ASTStructValue node) {
+        this.last = "structValue"
+    }
+    public void visit(const ASTNullValue node) {
+        this.last = "null"
+    }
+    public void visit(const ASTUnsetValue node) {
+        this.last = "unset"
+    }
+    public void visit(const ASTEnumEntry node) {
+        this.last = "enumEntry"
+    }
+    public void visit(const ASTArrayAccess node) {
+        this.last = "arrayAccess"
+    }
 }
 
 suite ASTAcceptSuite {

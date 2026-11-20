@@ -61,13 +61,17 @@ public string join(const string base, const string comp) {
     if bs > 0 {
         byte last = 0
         fly.llvm.strByteAt(base, bs - 1, last)
-        if last != 47 { need_sep = 1 }
+        if last != 47 {
+            need_sep = 1
+        }
     }
     if need_sep != 0 {
         if cs > 0 {
             byte first = 0
             fly.llvm.strByteAt(comp, 0, first)
-            if first == 47 { need_sep = 0 }
+            if first == 47 {
+                need_sep = 0
+            }
         }
     }
     int total = bs + need_sep + cs
@@ -80,7 +84,9 @@ public string join(const string base, const string comp) {
         fly.llvm.strPoke(buf, i, b)
         i = i + 1
     }
-    if need_sep != 0 { fly.llvm.strPoke(buf, bs, 47) }
+    if need_sep != 0 {
+        fly.llvm.strPoke(buf, bs, 47)
+    }
     int off = bs + need_sep
     i = 0
     while i < cs {
@@ -112,7 +118,11 @@ public string joinN(fly.os.env.StringArray parts) {
         mem.copy(cp, sp, size)
         string part
         fly.llvm.strMake(cp, size, part)             // part owns the copy
-        if i == 0 { res = part } else { res = join(res, part) }
+        if i == 0 {
+            res = part
+        } else {
+            res = join(res, part)
+        }
         i = i + 1
     }
     return res
@@ -153,7 +163,9 @@ public string basename(const string path) {
     while i < size {
         byte b = 0
         fly.llvm.strByteAt(path, i, b)
-        if b == 47 { last_slash = i }
+        if b == 47 {
+            last_slash = i
+        }
         i = i + 1
     }
     int start = last_slash + 1
@@ -188,13 +200,19 @@ public string dirname(const string path) {
     while i < size {
         byte b = 0
         fly.llvm.strByteAt(path, i, b)
-        if b == 47 || b == 92 { last_slash = i }     // '/' or '\' (Windows paths)
+        if b == 47 || b == 92 { // '/' or '\' (Windows paths)
+            last_slash = i
+        }
         i = i + 1
     }
     int len = 0
-    if last_slash < 0 { len = 1 }
-    elsif last_slash == 0 { len = 1 }
-    else { len = last_slash }
+    if last_slash < 0 {
+        len = 1
+    } elsif last_slash == 0 {
+        len = 1
+    } else {
+        len = last_slash
+    }
     pointer buf = 0
     fly.runtime.mem_alloc(len, buf)
     if last_slash < 0 {
@@ -230,7 +248,9 @@ public string ext(const string path) {
             last_slash = i
             last_dot = 0 - 1
         }
-        if b == 46 { last_dot = i }
+        if b == 46 {
+            last_dot = i
+        }
         i = i + 1
     }
     // A dot that STARTS the basename (".bashrc") marks a hidden file, not an
@@ -271,12 +291,18 @@ public string stem(const string path) {
             last_slash = i
             last_dot = 0 - 1
         }
-        if b == 46 { last_dot = i }
+        if b == 46 {
+            last_dot = i
+        }
         i = i + 1
     }
     int start = last_slash + 1
     int end_pos = 0
-    if last_dot > start { end_pos = last_dot } else { end_pos = size }
+    if last_dot > start {
+        end_pos = last_dot
+    } else {
+        end_pos = size
+    }
     int len = end_pos - start
     if len <= 0 {
         pointer empty = 0
@@ -370,14 +396,18 @@ public string normalize(const string path) {
     }
 
     int i = 0
-    if absolute { i = 1 }
+    if absolute {
+        i = 1
+    }
 
     while i <= plen {
         int j = i
         while j < plen {
             byte bj = 0
             fly.llvm.strByteAt(path, j, bj)
-            if bj == 47 { break }
+            if bj == 47 {
+                break
+            }
             j = j + 1
         }
         int clen = j - i
@@ -386,7 +416,9 @@ public string normalize(const string path) {
         if clen == 1 {
             byte c0 = 0
             fly.llvm.strByteAt(path, i, c0)
-            if c0 == 46 { is_dot = true }
+            if c0 == 46 {
+                is_dot = true
+            }
         }
 
         bool is_dotdot = false
@@ -395,18 +427,30 @@ public string normalize(const string path) {
             byte c1 = 0
             fly.llvm.strByteAt(path, i, c0)
             fly.llvm.strByteAt(path, i + 1, c1)
-            if c0 == 46 { if c1 == 46 { is_dotdot = true } }
+            if c0 == 46 {
+                if c1 == 46 {
+                    is_dotdot = true
+                }
+            }
         }
 
         bool skip_seg = false
-        if clen == 0 { skip_seg = true }
-        if is_dot    { skip_seg = true }
+        if clen == 0 {
+            skip_seg = true
+        }
+        if is_dot {
+            skip_seg = true
+        }
 
         if skip_seg {
             // skip
         } elsif is_dotdot {
             bool at_root = false
-            if absolute { if out_len <= 1 { at_root = true } }
+            if absolute {
+                if out_len <= 1 {
+                    at_root = true
+                }
+            }
             if at_root {
                 out_len = 1
             } else {
@@ -431,7 +475,11 @@ public string normalize(const string path) {
                     byte u1 = 0
                     fly.llvm.ptrByteAt(buf, seg_start, u0)
                     fly.llvm.ptrByteAt(buf, seg_start + 1, u1)
-                    if u0 == 46 { if u1 == 46 { last_is_up = true } }
+                    if u0 == 46 {
+                        if u1 == 46 {
+                            last_is_up = true
+                        }
+                    }
                 }
                 if out_len == 0 || last_is_up {
                     if out_len > 0 {
@@ -445,7 +493,11 @@ public string normalize(const string path) {
                     out_len = 0
                 } else {
                     bool is_abs_root = false
-                    if absolute { if found_at == 0 { is_abs_root = true } }
+                    if absolute {
+                        if found_at == 0 {
+                            is_abs_root = true
+                        }
+                    }
                     if is_abs_root {
                         out_len = 1
                     } else {
@@ -504,23 +556,37 @@ public string rel(const string base, const string target) {
     fly.llvm.strSize(nt, tlen)
     // "." is the EMPTY relative path: it has no segment to climb out of, and
     // counting it as one made rel(".", "a") come out as "../a".
-    if nb == "." { blen = 0 }
-    if nt == "." { tlen = 0 }
+    if nb == "." {
+        blen = 0
+    }
+    if nt == "." {
+        tlen = 0
+    }
 
     int common = 0 - 1
     int i = 0
     while i < blen {
-        if i >= tlen { break }
+        if i >= tlen {
+            break
+        }
         byte bb = 0
         byte tb = 0
         fly.llvm.strByteAt(nb, i, bb)
         fly.llvm.strByteAt(nt, i, tb)
-        if bb != tb { break }
-        if bb == 47 { common = i }
+        if bb != tb {
+            break
+        }
+        if bb == 47 {
+            common = i
+        }
         i = i + 1
     }
     bool both_done = false
-    if i == blen { if i == tlen { both_done = true } }
+    if i == blen {
+        if i == tlen {
+            both_done = true
+        }
+    }
     if both_done {
         pointer dot_buf = 0
         fly.runtime.mem_alloc(2, dot_buf)
@@ -531,17 +597,29 @@ public string rel(const string base, const string target) {
     if i == blen {
         byte tb = 0
         fly.llvm.strByteAt(nt, i, tb)
-        if tb == 47 { common = i }
+        if tb == 47 {
+            common = i
+        }
     } elsif i == tlen {
         byte bb = 0
         fly.llvm.strByteAt(nb, i, bb)
-        if bb == 47 { common = i }
+        if bb == 47 {
+            common = i
+        }
     }
 
     int b_start = 0
-    if common >= 0 { b_start = common + 1 } else { b_start = 0 }
+    if common >= 0 {
+        b_start = common + 1
+    } else {
+        b_start = 0
+    }
     int t_start = 0
-    if common >= 0 { t_start = common + 1 } else { t_start = 0 }
+    if common >= 0 {
+        t_start = common + 1
+    } else {
+        t_start = 0
+    }
 
     int dotdot_count = 0
     int j = b_start
@@ -550,14 +628,18 @@ public string rel(const string base, const string target) {
         byte bb = 0
         fly.llvm.strByteAt(nb, j, bb)
         if bb == 47 {
-            if in_seg { dotdot_count = dotdot_count + 1 }
+            if in_seg {
+                dotdot_count = dotdot_count + 1
+            }
             in_seg = false
         } else {
             in_seg = true
         }
         j = j + 1
     }
-    if in_seg { dotdot_count = dotdot_count + 1 }
+    if in_seg {
+        dotdot_count = dotdot_count + 1
+    }
 
     int suffix_len = tlen - t_start
     int total = dotdot_count * 3 + suffix_len + 2
@@ -571,8 +653,12 @@ public string rel(const string base, const string target) {
         fly.llvm.strPoke(buf, pos + 1, 46)
         pos = pos + 2
         bool add_sep = false
-        if d < dotdot_count - 1 { add_sep = true }
-        if suffix_len > 0 { add_sep = true }
+        if d < dotdot_count - 1 {
+            add_sep = true
+        }
+        if suffix_len > 0 {
+            add_sep = true
+        }
         if add_sep {
             fly.llvm.strPoke(buf, pos, 47)
             pos = pos + 1
@@ -608,7 +694,9 @@ public bool isFile(const string path) {
     fly.runtime.fs_mode(cpath, fmode)
     cstrFree(cpath)
     res = false
-    if fmode < 0 { return res }
+    if fmode < 0 {
+        return res
+    }
     int ftype = fmode / 4096
     int ftype16 = ftype - (ftype / 16) * 16
     return ftype16 == 8
@@ -622,7 +710,9 @@ public bool isDir(const string path) {
     fly.runtime.fs_mode(cpath, fmode)
     cstrFree(cpath)
     res = false
-    if fmode < 0 { return res }
+    if fmode < 0 {
+        return res
+    }
     int ftype = fmode / 4096
     int ftype16 = ftype - (ftype / 16) * 16
     return ftype16 == 4
@@ -636,7 +726,9 @@ public bool isSym(const string path) {
     fly.runtime.fs_lmode(cpath, fmode)
     cstrFree(cpath)
     res = false
-    if fmode < 0 { return res }
+    if fmode < 0 {
+        return res
+    }
     int ftype = fmode / 4096
     int ftype16 = ftype - (ftype / 16) * 16
     return ftype16 == 10
@@ -660,7 +752,9 @@ public fly.os.env.StringArray glob(const string pattern) {
     while i < plen {
         byte b = 0
         fly.llvm.strByteAt(pattern, i, b)
-        if b == 47 { last_sep = i }
+        if b == 47 {
+            last_sep = i
+        }
         i = i + 1
     }
 
@@ -761,21 +855,31 @@ public fly.os.env.StringArray glob(const string pattern) {
                     while name_done == false {
                         byte nb = 0
                         fly.llvm.ptrByteAt(gbuf, pos + 19 + name_len, nb)
-                        if nb == 0 { name_done = true } else { name_len = name_len + 1 }
+                        if nb == 0 {
+                            name_done = true
+                        } else {
+                            name_len = name_len + 1
+                        }
                     }
 
                     bool skip = false
                     if name_len == 1 {
                         byte n0 = 0
                         fly.llvm.ptrByteAt(gbuf, pos + 19, n0)
-                        if n0 == 46 { skip = true }
+                        if n0 == 46 {
+                            skip = true
+                        }
                     }
                     if name_len == 2 {
                         byte n0 = 0
                         byte n1 = 0
                         fly.llvm.ptrByteAt(gbuf, pos + 19, n0)
                         fly.llvm.ptrByteAt(gbuf, pos + 20, n1)
-                        if n0 == 46 { if n1 == 46 { skip = true } }
+                        if n0 == 46 {
+                            if n1 == 46 {
+                                skip = true
+                            }
+                        }
                     }
 
                     if skip == false {
@@ -805,7 +909,9 @@ public fly.os.env.StringArray glob(const string pattern) {
                                 fly.llvm.strPoke(fbuf, fi, b)
                                 fi = fi + 1
                             }
-                            if need_sep == 1 { fly.llvm.strPoke(fbuf, dir_len, 47) }
+                            if need_sep == 1 {
+                                fly.llvm.strPoke(fbuf, dir_len, 47)
+                            }
                             int ni2 = 0
                             while ni2 < name_len {
                                 byte nb = 0
@@ -864,7 +970,9 @@ public int globCount(const string pattern) {
     while i < plen {
         byte b = 0
         fly.llvm.strByteAt(pattern, i, b)
-        if b == 47 { last_sep = i }
+        if b == 47 {
+            last_sep = i
+        }
         i = i + 1
     }
 
@@ -955,20 +1063,30 @@ public int globCount(const string pattern) {
                     while name_done == false {
                         byte nb = 0
                         fly.llvm.ptrByteAt(gbuf, pos + 19 + name_len, nb)
-                        if nb == 0 { name_done = true } else { name_len = name_len + 1 }
+                        if nb == 0 {
+                            name_done = true
+                        } else {
+                            name_len = name_len + 1
+                        }
                     }
                     bool skip = false
                     if name_len == 1 {
                         byte n0 = 0
                         fly.llvm.ptrByteAt(gbuf, pos + 19, n0)
-                        if n0 == 46 { skip = true }
+                        if n0 == 46 {
+                            skip = true
+                        }
                     }
                     if name_len == 2 {
                         byte n0 = 0
                         byte n1 = 0
                         fly.llvm.ptrByteAt(gbuf, pos + 19, n0)
                         fly.llvm.ptrByteAt(gbuf, pos + 20, n1)
-                        if n0 == 46 { if n1 == 46 { skip = true } }
+                        if n0 == 46 {
+                            if n1 == 46 {
+                                skip = true
+                            }
+                        }
                     }
                     if skip == false {
                         pointer nbuf = 0
@@ -984,7 +1102,9 @@ public int globCount(const string pattern) {
                         string entry_name = ""
                         fly.llvm.strMake(nbuf, name_len, entry_name)
                         bool matched = match(name_pat, entry_name)
-                        if matched { count = count + 1 }
+                        if matched {
+                            count = count + 1
+                        }
                     }
                     pos = pos + reclen
                 }
@@ -1023,8 +1143,12 @@ public bool match(const string pattern, const string name) {
                 pi = pi + 1
             } else {
                 bool match_ch = false
-                if pb == 63 { match_ch = true }
-                if pb == nb { match_ch = true }
+                if pb == 63 {
+                    match_ch = true
+                }
+                if pb == nb {
+                    match_ch = true
+                }
                 if match_ch {
                     pi = pi + 1
                     ni = ni + 1
@@ -1077,7 +1201,9 @@ public fly.os.env.StringArray comp(const string path) {
     if plen > 0 {
         byte fb = 0
         fly.llvm.strByteAt(path, 0, fb)
-        if fb == 47 { start = 1 }
+        if fb == 47 {
+            start = 1
+        }
     }
     bool in_comp = false
     int i = start
@@ -1085,14 +1211,18 @@ public fly.os.env.StringArray comp(const string path) {
         byte b = 0
         fly.llvm.strByteAt(path, i, b)
         if b == 47 {
-            if in_comp { count = count + 1 }
+            if in_comp {
+                count = count + 1
+            }
             in_comp = false
         } else {
             in_comp = true
         }
         i = i + 1
     }
-    if in_comp { count = count + 1 }
+    if in_comp {
+        count = count + 1
+    }
 
     if count == 0 {
         res.items = 0
@@ -1110,9 +1240,13 @@ public fly.os.env.StringArray comp(const string path) {
     while i <= plen {
         byte b = 0
         bool at_sep = i == plen
-        if at_sep == false { fly.llvm.strByteAt(path, i, b) }
+        if at_sep == false {
+            fly.llvm.strByteAt(path, i, b)
+        }
         bool is_sep_or_end = at_sep
-        if b == 47 { is_sep_or_end = true }
+        if b == 47 {
+            is_sep_or_end = true
+        }
         if is_sep_or_end {
             if in_comp2 {
                 int clen = i - comp_start
@@ -1161,20 +1295,26 @@ public int compCount(const string path) {
     if plen > 0 {
         byte fb = 0
         fly.llvm.strByteAt(path, 0, fb)
-        if fb == 47 { start = 1 }
+        if fb == 47 {
+            start = 1
+        }
     }
     int i = start
     while i < plen {
         byte b = 0
         fly.llvm.strByteAt(path, i, b)
         if b == 47 {
-            if in_comp { count = count + 1 }
+            if in_comp {
+                count = count + 1
+            }
             in_comp = false
         } else {
             in_comp = true
         }
         i = i + 1
     }
-    if in_comp { count = count + 1 }
+    if in_comp {
+        count = count + 1
+    }
     return count
 }

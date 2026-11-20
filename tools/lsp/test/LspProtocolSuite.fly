@@ -53,7 +53,9 @@ int intAt(const string body, const string key) {
     int v = 0 - 999
     if e == 0 {
         pointer n = json.get(o, key)
-        if n != 0 { v = json.asInt(n) }
+        if n != 0 {
+            v = json.asInt(n)
+        }
     }
     json.freeValue(o)
     return v
@@ -67,7 +69,9 @@ int intAt2(const string body, const string outer, const string inner) {
         pointer mid = json.get(o, outer)
         if mid != 0 {
             pointer n = json.get(mid, inner)
-            if n != 0 { v = json.asInt(n) }
+            if n != 0 {
+                v = json.asInt(n)
+            }
         }
     }
     json.freeValue(o)
@@ -84,7 +88,9 @@ int intAt3(const string body, const string a, const string b, const string c) {
             pointer m2 = json.get(m1, b)
             if m2 != 0 {
                 pointer n = json.get(m2, c)
-                if n != 0 { v = json.asInt(n) }
+                if n != 0 {
+                    v = json.asInt(n)
+                }
             }
         }
     }
@@ -99,7 +105,11 @@ string strAt(const string body, const string key) {
     string v = ""
     if e == 0 {
         pointer n = json.get(o, key)
-        if n != 0 { if json.isString(n) { v = json.asString(n) } }
+        if n != 0 {
+            if json.isString(n) {
+                v = json.asString(n)
+            }
+        }
     }
     json.freeValue(o)
     return v
@@ -110,7 +120,9 @@ bool hasKey(const string body, const string key) {
     int e = 0
     pointer o = json.parse(body, e)
     bool h = false
-    if e == 0 { h = json.has(o, key) }
+    if e == 0 {
+        h = json.has(o, key)
+    }
     json.freeValue(o)
     return h
 }

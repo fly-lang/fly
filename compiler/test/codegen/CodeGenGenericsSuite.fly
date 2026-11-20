@@ -18,8 +18,6 @@ import fly.test.util.*
 // exercised through the self-host monomorphization path).
 // ─────────────────────────────────────────────────────────────────────────────
 
-
-
 suite CodeGenGenericsSuite {
 
     void specializationTest() {

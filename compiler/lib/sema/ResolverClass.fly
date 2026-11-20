@@ -18,7 +18,9 @@ public class ResolverClass {
     // declareClass — visit(ASTClass): create the SemaClassType shell, register the
     // type symbol in the module (and namespace) scope, and queue it for Phase B.
     public static void declareClass(const Resolver r, const ASTClass node) {
-        if node.isVisited(r.getRun()) { return }
+        if node.isVisited(r.getRun()) {
+            return
+        }
         node.setVisited(r.getRun())
         r.resetCurrents()
         r.enterScope()
@@ -59,7 +61,9 @@ public class ResolverClass {
     // resolveClassType — Phase B: resolve a class's members (attributes + methods)
     // against its own scope, then synthesize a default constructor if needed.
     public static void resolveClassType(const Resolver r, const SemaClassType cls) {
-        if cls.isResolved() { return }
+        if cls.isResolved() {
+            return
+        }
         cls.setResolved(true)
         r.setCurrentScope(cls.getSymbols())
         r.setCurrentClass(cls)
@@ -98,9 +102,13 @@ public class ResolverClass {
     // at all is not the same thing: it is simply a data holder, and specializing it
     // is fine. Interfaces are excluded — bodiless is their normal state.
     public static bool templateHasNoBodies(const SemaClassType cls) {
-        if cls.getClassKind() == SemaClassKind.INTERFACE { return false }
+        if cls.getClassKind() == SemaClassKind.INTERFACE {
+            return false
+        }
         ASTClass ac = cls.getAST()
-        if ac == null { return false }
+        if ac == null {
+            return false
+        }
         List<ASTNode> nodes = ac.getNodes()
         bool sawMethod = false
         int i = 0
@@ -108,7 +116,9 @@ public class ResolverClass {
             ASTFunction meth = nodes.get(i).asFunction()
             if meth != null {
                 sawMethod = true
-                if meth.getBody() != null { return false }
+                if meth.getBody() != null {
+                    return false
+                }
             }
             i = i + 1
         }
@@ -119,8 +129,12 @@ public class ResolverClass {
     // for every abstract method declared in its base chain (interfaces + abstract
     // classes). Emits err_sema_abstract_not_implemented per missing method.
     public static void checkAbstractMethods(const Resolver r, const SemaClassType cls) {
-        if cls.isAbstract() { return }
-        if cls.getClassKind() == SemaClassKind.INTERFACE { return }
+        if cls.isAbstract() {
+            return
+        }
+        if cls.getClassKind() == SemaClassKind.INTERFACE {
+            return
+        }
 
         List<string> required = new List<string>()
         List<SemaClassType> bases = cls.getBaseClasses()
@@ -158,7 +172,9 @@ public class ResolverClass {
         int j = 0
         while j < ms.size() {
             SemaClassMethod m = ms.get(j)
-            if m.isAbstract() { required.add(m.getName()) }
+            if m.isAbstract() {
+                required.add(m.getName())
+            }
             j = j + 1
         }
     }
@@ -172,7 +188,9 @@ public class ResolverClass {
             SemaClassMethod m = ms.get(i)
             if m.isAbstract() == false {
                 if m.isConstructor() == false {
-                    if str.equals(m.getName(), name) { return true }
+                    if str.equals(m.getName(), name) {
+                        return true
+                    }
                 }
             }
             i = i + 1
@@ -181,7 +199,9 @@ public class ResolverClass {
         int j = 0
         while j < bases.size() {
             SemaClassType b = bases.get(j)
-            if ResolverClass.hasConcreteMethod(b, name) { return true }
+            if ResolverClass.hasConcreteMethod(b, name) {
+                return true
+            }
             j = j + 1
         }
         return false
@@ -226,7 +246,8 @@ public class ResolverClass {
     // collectInterfaceDefaults — gather (default-method-name, declaring-interface-name)
     // pairs from an interface and its interface bases. The DECLARING interface is the
     // source, so the same interface reached via two paths counts once (not a conflict).
-    public static void collectInterfaceDefaults(const SemaClassType iface, const List<string> dnames, const List<string> dsrcs) {
+    public static void collectInterfaceDefaults(const SemaClassType iface, const List<string> dnames,
+            const List<string> dsrcs) {
         List<SemaClassType> supers = iface.getBaseClasses()
         int i = 0
         while i < supers.size() {
@@ -260,7 +281,9 @@ public class ResolverClass {
             string nm = dnames.get(i)
             if str.equals(nm, name) {
                 string src = dsrcs.get(i)
-                if ResolverClass.listHasStr(seen, src) == false { seen.add(src) }
+                if ResolverClass.listHasStr(seen, src) == false {
+                    seen.add(src)
+                }
             }
             i = i + 1
         }
@@ -275,7 +298,9 @@ public class ResolverClass {
         while i < ms.size() {
             SemaClassMethod m = ms.get(i)
             if m.isConstructor() == false {
-                if str.equals(m.getName(), name) { return true }
+                if str.equals(m.getName(), name) {
+                    return true
+                }
             }
             i = i + 1
         }
@@ -287,7 +312,9 @@ public class ResolverClass {
         int i = 0
         while i < list.size() {
             string x = list.get(i)
-            if str.equals(x, s) { return true }
+            if str.equals(x, s) {
+                return true
+            }
             i = i + 1
         }
         return false
@@ -327,7 +354,9 @@ public class ResolverClass {
             bt.accept(r)
             SemaType st = r.getCurrentType()
             SemaClassType bc = null
-            if st != null { bc = st.asClass() }
+            if st != null {
+                bc = st.asClass()
+            }
             if bc != null {
                 ResolverClass.resolveClassType(r, bc)
                 cls.addBaseClass(bc)
@@ -361,7 +390,9 @@ public class ResolverClass {
             SemaClassMethod bm = b.LookupMethod(name)
             if bm != null {
                 List<SemaType> bp = bm.getParamTypes()
-                if ResolverClass.typesMatch(bp, ptypes) { meth.setOverridden(bm) }
+                if ResolverClass.typesMatch(bp, ptypes) {
+                    meth.setOverridden(bm)
+                }
             }
             i = i + 1
         }
@@ -369,16 +400,22 @@ public class ResolverClass {
 
     // typesMatch — element-wise SemaType.isEquals over two explicit-param lists.
     public static bool typesMatch(const List<SemaType> a, const List<SemaType> b) {
-        if a.size() != b.size() { return false }
+        if a.size() != b.size() {
+            return false
+        }
         int i = 0
         while i < a.size() {
             SemaType ta = a.get(i)
             SemaType tb = b.get(i)
             bool eq = false
             if ta != null {
-                if tb != null { eq = ta.isEquals(tb) }
+                if tb != null {
+                    eq = ta.isEquals(tb)
+                }
             }
-            if eq == false { return false }
+            if eq == false {
+                return false
+            }
             i = i + 1
         }
         return true
@@ -439,11 +476,18 @@ public class ResolverClass {
         // declareClass captured the flag in phase A, while it was still true.
         if body == null {
             bool external = cls.isFromHeader()
-            if cls.getClassKind() == SemaClassKind.INTERFACE { external = false }
+            if cls.getClassKind() == SemaClassKind.INTERFACE {
+                external = false
+            }
             SemaBuilderModifiers mmods = SemaBuilderModifiers.Build(node.getModifiers())
-            if mmods.isAbstract() { external = false }
-            if external { meth.setFromHeader(true) }
-            else { meth.setAbstract(true) }
+            if mmods.isAbstract() {
+                external = false
+            }
+            if external {
+                meth.setFromHeader(true)
+            } else {
+                meth.setAbstract(true)
+            }
         }
         cls.addMethod(meth)
 
@@ -457,7 +501,9 @@ public class ResolverClass {
             // (createDefaultConstructor) — that empty stub would otherwise win
             // `new C()` on exact arity and leave the declared ctor (and its
             // defaults, and its body) unrun.
-            if allParamsDefaulted(ps0) { cls.setDefaultConstructor(meth) }
+            if allParamsDefaulted(ps0) {
+                cls.setDefaultConstructor(meth)
+            }
         }
 
         r.setCurrentFunctionBase(meth)
@@ -477,7 +523,9 @@ public class ResolverClass {
             SemaType rtt = r.getCurrentType()
             meth.setReturnType(rtt)
             bool isVoidRet = false
-            if rtt != null { isVoidRet = rtt.isVoid() }
+            if rtt != null {
+                isVoidRet = rtt.isVoid()
+            }
             if isVoidRet == false {
                 List<ASTModifier> noMods = new List<ASTModifier>()
                 ASTParam outAst = ASTBuilder.CreateParam(node.getLoc(), rt, "__ret", noMods, null)
@@ -516,7 +564,9 @@ public class ResolverClass {
                 if ovr.isFinal() {
                     string fo = "?"
                     SemaClassType foc = ovr.getClass()
-                    if foc != null { fo = foc.getName() }
+                    if foc != null {
+                        fo = foc.getName()
+                    }
                     r.diagStr2(node.getLoc(), DiagID.err_sema_final_method_overridden, mn, fo)
                 }
             }
@@ -539,7 +589,9 @@ public class ResolverClass {
         if meth.isAbstract() == false {
             bool isTemplate = false
             if cls.isGeneric() {
-                if cls.getGenericTemplate() == null { isTemplate = true }
+                if cls.getGenericTemplate() == null {
+                    isTemplate = true
+                }
             }
             if isTemplate == false {
                 Registry reg = r.getReg()
@@ -609,12 +661,18 @@ public class ResolverClass {
 // arguments: empty, or every param carrying a default value (ASTVar.expr, set by
 // ParserFunction.parseParams).
 public bool allParamsDefaulted(const List<ASTParam> ps) {
-    if ps == null { return true }
+    if ps == null {
+        return true
+    }
     int i = 0
     while i < ps.size() {
         ASTParam p = ps.get(i)
-        if p == null { return false }
-        if p.getExpr() == null { return false }
+        if p == null {
+            return false
+        }
+        if p.getExpr() == null {
+            return false
+        }
         i = i + 1
     }
     return true

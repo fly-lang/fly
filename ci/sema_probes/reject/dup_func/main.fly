@@ -1,3 +1,9 @@
-int f() { return 1 }
-int f() { return 2 }
-void main() { int a = f() }
+int f() {
+    return 1
+}
+int f() {
+    return 2
+}
+void main() {
+    int a = f()
+}

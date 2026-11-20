@@ -55,7 +55,9 @@ public class Set<T> {
                 if rfl == 1 {
                     int rh = 0
                     fly.llvm.slotHashAtT(this.keys, ri * this.stride, probe, rh)
-                    if rh < 0 { rh = 0 - rh }
+                    if rh < 0 {
+                        rh = 0 - rh
+                    }
                     pointer rb = rh & (newcap - 1)
                     byte rnfl = 0
                     fly.llvm.ptrByteAt(nflags, rb, rnfl)
@@ -81,7 +83,9 @@ public class Set<T> {
         }
         int ph = 0
         fly.llvm.slotHashT(key, ph)
-        if ph < 0 { ph = 0 - ph }
+        if ph < 0 {
+            ph = 0 - ph
+        }
         pointer b = ph & (this.cap - 1)
         bool hasTs = false
         pointer ts = 0
@@ -106,7 +110,9 @@ public class Set<T> {
                     }
                 }
                 if fl == 0 {
-                    if hasTs { b = ts }
+                    if hasTs {
+                        b = ts
+                    }
                     fly.llvm.slotPokeT(this.keys, b * this.stride, key)
                     fly.llvm.ptrPokeByte(this.flags, b, 1)
                     this.count = this.count + 1
@@ -134,7 +140,9 @@ public class Set<T> {
         }
         int hh = 0
         fly.llvm.slotHashT(key, hh)
-        if hh < 0 { hh = 0 - hh }
+        if hh < 0 {
+            hh = 0 - hh
+        }
         pointer b = hh & (this.cap - 1)
         pointer probed = 0
         bool found = false
@@ -162,10 +170,14 @@ public class Set<T> {
     }
 
     public void remove(const T key) {
-        if this.keys == 0 { return }
+        if this.keys == 0 {
+            return
+        }
         int rh = 0
         fly.llvm.slotHashT(key, rh)
-        if rh < 0 { rh = 0 - rh }
+        if rh < 0 {
+            rh = 0 - rh
+        }
         pointer b = rh & (this.cap - 1)
         pointer probed = 0
         while probed < this.cap {

@@ -11,20 +11,32 @@ import fly.str
 
 public class ExecBox<T> {
     T v
-    public ExecBox(T x) { this.v = x }
-    public T get() { return this.v }
-    public void set(T x) { this.v = x }
+    public ExecBox(T x) {
+        this.v = x
+    }
+    public T get() {
+        return this.v
+    }
+    public void set(T x) {
+        this.v = x
+    }
 }
 
 public class ExecBeast {
     public ExecBeast() { }
-    public int legs() { return 4 }
+    public int legs() {
+        return 4
+    }
 }
 
 public class ExecPen<T : ExecBeast> {
     T beast
-    public ExecPen(T b) { this.beast = b }
-    public int count() { return this.beast.legs() }
+    public ExecPen(T b) {
+        this.beast = b
+    }
+    public int count() {
+        return this.beast.legs()
+    }
 }
 
 int execGenIdentity<T>(const T x) {

@@ -35,21 +35,49 @@ public class SemaCall : SemaExpr {
     // a void call, one entry for a single return, N for an `A,B,…` multi-return.
     // getOutVar() stays the FIRST of them: that is the call's rvalue, matching
     // `int q = divmod(17, 5)` binding out[0].
-    public List<SemaLocalVar> getOutVars() { return this.outVars }
-    public void addOutVar(const SemaLocalVar v) { this.outVars.add(v) }
+    public List<SemaLocalVar> getOutVars() {
+        return this.outVars
+    }
+    public void addOutVar(const SemaLocalVar v) {
+        this.outVars.add(v)
+    }
 
-    public SemaCall asCall() { return this }
-    public ASTCall getAST() { return this.callAst }
-    public SemaFunctionBase getFunction() { return this.function }
-    public void setFunction(const SemaFunctionBase function) { this.function = function }
-    public SemaError getErrorHandler() { return this.errorHandler }
-    public void setErrorHandler(const SemaError errorHandler) { this.errorHandler = errorHandler }
-    public bool isSuper() { return this.isSuperFlag }
-    public void setSuper(const bool isSuperFlag) { this.isSuperFlag = isSuperFlag }
-    public SemaLocalVar getOutVar() { return this.outVar }
-    public void setOutVar(const SemaLocalVar outVar) { this.outVar = outVar }
-    public List<SemaExpr> getArgs() { return this.args }
-    public void addArg(const SemaExpr arg) { this.args.add(arg) }
+    public SemaCall asCall() {
+        return this
+    }
+    public ASTCall getAST() {
+        return this.callAst
+    }
+    public SemaFunctionBase getFunction() {
+        return this.function
+    }
+    public void setFunction(const SemaFunctionBase function) {
+        this.function = function
+    }
+    public SemaError getErrorHandler() {
+        return this.errorHandler
+    }
+    public void setErrorHandler(const SemaError errorHandler) {
+        this.errorHandler = errorHandler
+    }
+    public bool isSuper() {
+        return this.isSuperFlag
+    }
+    public void setSuper(const bool isSuperFlag) {
+        this.isSuperFlag = isSuperFlag
+    }
+    public SemaLocalVar getOutVar() {
+        return this.outVar
+    }
+    public void setOutVar(const SemaLocalVar outVar) {
+        this.outVar = outVar
+    }
+    public List<SemaExpr> getArgs() {
+        return this.args
+    }
+    public void addArg(const SemaExpr arg) {
+        this.args.add(arg)
+    }
 
     // isNew — a constructor/new call (any of the new variants).
     public bool isNew() {
@@ -59,5 +87,7 @@ public class SemaCall : SemaExpr {
            || k == ASTCallKind.CALL_NEW_SHARED
            || k == ASTCallKind.CALL_NEW_WEAK
     }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }

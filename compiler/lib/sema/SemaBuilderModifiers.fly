@@ -33,26 +33,54 @@ public class SemaBuilderModifiers {
         while i < modifiers.size() {
             ASTModifier mod = modifiers.get(i)
             ASTModifierKind k = mod.getModifierKind()
-            if k == ASTModifierKind.MOD_CONSTANT { m.setConstant(true) }
-            elsif k == ASTModifierKind.MOD_STATIC { m.setStatic(true) }
-            elsif k == ASTModifierKind.MOD_PUBLIC { m.setVisibility(SemaVisibilityKind.PUBLIC) }
-            elsif k == ASTModifierKind.MOD_PRIVATE { m.setVisibility(SemaVisibilityKind.PRIVATE) }
-            elsif k == ASTModifierKind.MOD_PROTECTED { m.setVisibility(SemaVisibilityKind.PROTECTED) }
-            elsif k == ASTModifierKind.MOD_ABSTRACT { m.setAbstract(true) }
-            elsif k == ASTModifierKind.MOD_FINAL { m.setFinal(true) }
+            if k == ASTModifierKind.MOD_CONSTANT {
+                m.setConstant(true)
+            } elsif k == ASTModifierKind.MOD_STATIC {
+                m.setStatic(true)
+            } elsif k == ASTModifierKind.MOD_PUBLIC {
+                m.setVisibility(SemaVisibilityKind.PUBLIC)
+            } elsif k == ASTModifierKind.MOD_PRIVATE {
+                m.setVisibility(SemaVisibilityKind.PRIVATE)
+            } elsif k == ASTModifierKind.MOD_PROTECTED {
+                m.setVisibility(SemaVisibilityKind.PROTECTED)
+            } elsif k == ASTModifierKind.MOD_ABSTRACT {
+                m.setAbstract(true)
+            } elsif k == ASTModifierKind.MOD_FINAL {
+                m.setFinal(true)
+            }
             i = i + 1
         }
         return m
     }
 
-    public SemaVisibilityKind getVisibility() { return this.visibility }
-    public void setVisibility(const SemaVisibilityKind visibility) { this.visibility = visibility }
-    public bool isConstant() { return this.constantFlag }
-    public void setConstant(const bool constantFlag) { this.constantFlag = constantFlag }
-    public bool isStatic() { return this.staticFlag }
-    public void setStatic(const bool staticFlag) { this.staticFlag = staticFlag }
-    public bool isAbstract() { return this.abstractFlag }
-    public void setAbstract(const bool abstractFlag) { this.abstractFlag = abstractFlag }
-    public bool isFinal() { return this.finalFlag }
-    public void setFinal(const bool finalFlag) { this.finalFlag = finalFlag }
+    public SemaVisibilityKind getVisibility() {
+        return this.visibility
+    }
+    public void setVisibility(const SemaVisibilityKind visibility) {
+        this.visibility = visibility
+    }
+    public bool isConstant() {
+        return this.constantFlag
+    }
+    public void setConstant(const bool constantFlag) {
+        this.constantFlag = constantFlag
+    }
+    public bool isStatic() {
+        return this.staticFlag
+    }
+    public void setStatic(const bool staticFlag) {
+        this.staticFlag = staticFlag
+    }
+    public bool isAbstract() {
+        return this.abstractFlag
+    }
+    public void setAbstract(const bool abstractFlag) {
+        this.abstractFlag = abstractFlag
+    }
+    public bool isFinal() {
+        return this.finalFlag
+    }
+    public void setFinal(const bool finalFlag) {
+        this.finalFlag = finalFlag
+    }
 }

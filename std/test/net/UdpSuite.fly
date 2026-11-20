@@ -50,14 +50,18 @@ suite UdpSuite {
     // ── the socket and the sender scratch ────────────────────────────────────
     void lifecycleTest() {
         case "a datagram socket is a valid handle": {
-            if skipSockets() { assert.assertTrue(true, 101) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 101)
+            } else {
                 long s = net.socketUdp()
                 assert.assertTrue(s >= 0, 101)
                 net.close(s)
             }
         }
         case "a datagram socket binds and reports its port": {
-            if skipSockets() { assert.assertTrue(true, 102) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 102)
+            } else {
                 long s = net.socketUdp()
                 assert.assertTrue(net.bind(s, net.loopback(), 0), 102)
                 assert.assertTrue(net.localPort(s) > 0, 103)
@@ -88,7 +92,9 @@ suite UdpSuite {
     // ── round-trip ───────────────────────────────────────────────────────────
     void roundTripTest() {
         case "a datagram arrives with the sender's address and port": {
-            if skipSockets() { assert.assertTrue(true, 201) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 201)
+            } else {
                 long srv = net.socketUdp()
                 assert.assertTrue(net.bind(srv, net.loopback(), 0), 201)
                 int sport = net.localPort(srv)
@@ -114,7 +120,9 @@ suite UdpSuite {
         case "a reply goes back to the address the scratch reported": {
             // The server-answers-the-client shape, which is the whole point of
             // carrying the sender along with the datagram.
-            if skipSockets() { assert.assertTrue(true, 208) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 208)
+            } else {
                 long srv = net.socketUdp()
                 net.bind(srv, net.loopback(), 0)
                 int sport = net.localPort(srv)
@@ -142,7 +150,9 @@ suite UdpSuite {
         case "several datagrams are received one per call": {
             // Datagram boundaries are preserved — unlike a stream, two sends do
             // NOT coalesce into one receive.
-            if skipSockets() { assert.assertTrue(true, 212) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 212)
+            } else {
                 long srv = net.socketUdp()
                 net.bind(srv, net.loopback(), 0)
                 int sport = net.localPort(srv)
@@ -160,7 +170,9 @@ suite UdpSuite {
             }
         }
         case "sendTo over a raw buffer reports the byte count": {
-            if skipSockets() { assert.assertTrue(true, 214) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 214)
+            } else {
                 long srv = net.socketUdp()
                 net.bind(srv, net.loopback(), 0)
                 int sport = net.localPort(srv)
@@ -201,7 +213,9 @@ suite UdpSuite {
             // What they agree on is that the tail is discarded, so the second
             // receive finds nothing. A caller must therefore size the buffer to
             // the protocol's maximum datagram rather than rely on either signal.
-            if skipSockets() { assert.assertTrue(true, 301) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 301)
+            } else {
                 long srv = net.socketUdp()
                 net.bind(srv, net.loopback(), 0)
                 int sport = net.localPort(srv)
@@ -230,7 +244,9 @@ suite UdpSuite {
             // recvFrom returning 0 means "empty datagram". On a stream socket the
             // same 0 means EOF — the two are genuinely different and a caller
             // must not treat them alike.
-            if skipSockets() { assert.assertTrue(true, 303) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 303)
+            } else {
                 long srv = net.socketUdp()
                 net.bind(srv, net.loopback(), 0)
                 int sport = net.localPort(srv)
@@ -250,7 +266,9 @@ suite UdpSuite {
             }
         }
         case "sending needs no bind — the source port is assigned on first send": {
-            if skipSockets() { assert.assertTrue(true, 306) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 306)
+            } else {
                 long srv = net.socketUdp()
                 net.bind(srv, net.loopback(), 0)
                 int sport = net.localPort(srv)
@@ -269,7 +287,9 @@ suite UdpSuite {
             }
         }
         case "a receive with nothing pending times out rather than blocking": {
-            if skipSockets() { assert.assertTrue(true, 310) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 310)
+            } else {
                 long srv = net.socketUdp()
                 net.bind(srv, net.loopback(), 0)
                 assert.assertTrue(net.setRecvTimeout(srv, 300), 310)
@@ -285,7 +305,9 @@ suite UdpSuite {
             // UDP has no handshake, so the send SUCCEEDS even though nothing is
             // listening — there is no connect() to fail. This is the single
             // biggest behavioural difference from TCP for a caller to absorb.
-            if skipSockets() { assert.assertTrue(true, 312) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 312)
+            } else {
                 long tmp = net.socketUdp()
                 net.bind(tmp, net.loopback(), 0)
                 int dead = net.localPort(tmp)
@@ -305,7 +327,9 @@ suite UdpSuite {
             // refuses SO_BROADCAST on a STREAM socket and accepts it here, so
             // the two cases together pin the real rule rather than one platform's
             // half of it.
-            if skipSockets() { assert.assertTrue(true, 401) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 401)
+            } else {
                 long s = net.socketUdp()
                 assert.assertTrue(net.setBroadcast(s, true), 401)
                 assert.assertTrue(net.setBroadcast(s, false), 402)
@@ -313,7 +337,9 @@ suite UdpSuite {
             }
         }
         case "a datagram socket takes the same buffer and timeout options": {
-            if skipSockets() { assert.assertTrue(true, 403) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 403)
+            } else {
                 long s = net.socketUdp()
                 assert.assertTrue(net.setRecvBuf(s, 65536), 403)
                 assert.assertTrue(net.setSendBuf(s, 65536), 404)
@@ -324,7 +350,9 @@ suite UdpSuite {
             }
         }
         case "a datagram socket can be watched by a poll set": {
-            if skipSockets() { assert.assertTrue(true, 408) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 408)
+            } else {
                 long srv = net.socketUdp()
                 net.bind(srv, net.loopback(), 0)
                 int sport = net.localPort(srv)

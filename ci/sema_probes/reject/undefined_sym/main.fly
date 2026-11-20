@@ -1,1 +1,3 @@
-void main() { int x = nope + 1 }
+void main() {
+    int x = nope + 1
+}

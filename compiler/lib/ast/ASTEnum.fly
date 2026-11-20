@@ -15,7 +15,8 @@ public class ASTEnum : ASTNode {
     string name
     List<ASTType> bases
 
-    public ASTEnum(const SourceLocation loc, const string name, const List<ASTModifier> modifiers, const List<ASTType> bases) {
+    public ASTEnum(const SourceLocation loc, const string name, const List<ASTModifier> modifiers,
+            const List<ASTType> bases) {
         super(ASTKind.ENUM, loc)
         this.name = name
         this.modifiers = modifiers
@@ -23,12 +24,26 @@ public class ASTEnum : ASTNode {
         this.nodes = new List<ASTNode>()
     }
 
-    public List<ASTNode> getNodes() { return this.nodes }
-    public List<ASTModifier> getModifiers() { return this.modifiers }
-    public string getName() { return this.name }
-    public List<ASTType> getBases() { return this.bases }
-    public void addNode(const ASTNode node) { this.nodes.add(node) }
-    public ASTEnum asEnum() { return this }
+    public List<ASTNode> getNodes() {
+        return this.nodes
+    }
+    public List<ASTModifier> getModifiers() {
+        return this.modifiers
+    }
+    public string getName() {
+        return this.name
+    }
+    public List<ASTType> getBases() {
+        return this.bases
+    }
+    public void addNode(const ASTNode node) {
+        this.nodes.add(node)
+    }
+    public ASTEnum asEnum() {
+        return this
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }

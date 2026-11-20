@@ -53,7 +53,9 @@ public class ConflictFetcher : ManifestFetcher {
 // Always returns null (fetch failure / no deps).
 public class NullFetcher : ManifestFetcher {
     public NullFetcher() { }
-    public Manifest fetch(const string name, const GitDep dep) { return null }
+    public Manifest fetch(const string name, const GitDep dep) {
+        return null
+    }
 }
 
 suite MVSResolverSuite {

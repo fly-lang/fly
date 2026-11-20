@@ -10,7 +10,9 @@ class Counter {
         this.total = 0
     }
 
-    private void add() { this.total = this.total + this.step }
+    private void add() {
+        this.total = this.total + this.step
+    }
 
     public int twice() {
         this.add()
@@ -22,6 +24,8 @@ class Counter {
 void main() {
     Counter c = new Counter(3)
     int n = c.twice()
-    if n != 6 { fail 1, "const field or private method misbehaved" }
+    if n != 6 {
+        fail 1, "const field or private method misbehaved"
+    }
     io.printLn(str.convert(n))
 }

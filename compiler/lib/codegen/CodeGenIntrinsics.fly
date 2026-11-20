@@ -164,8 +164,12 @@ public class CodeGenIntrinsics {
         // ptr*/strPoke — raw byte-address load/store accessors: addr =
         // intToPtr(ptr)+i (byte offset), value typed by the accessor name.
         bool isPtrRead = false
-        if str.equals(bn, "ptrByteAt") { isPtrRead = true }
-        if str.startsWith(bn, "ptrRead") { isPtrRead = true }
+        if str.equals(bn, "ptrByteAt") {
+            isPtrRead = true
+        }
+        if str.startsWith(bn, "ptrRead") {
+            isPtrRead = true
+        }
         if isPtrRead {
             pointer ra = CodeGenIntrinsics.slotAddr(cge, args.get(0), args.get(1))
             SemaExpr roe = args.get(2)
@@ -177,8 +181,12 @@ public class CodeGenIntrinsics {
             return
         }
         bool isPtrPoke = false
-        if str.startsWith(bn, "ptrPoke") { isPtrPoke = true }
-        if str.equals(bn, "strPoke") { isPtrPoke = true }
+        if str.startsWith(bn, "ptrPoke") {
+            isPtrPoke = true
+        }
+        if str.equals(bn, "strPoke") {
+            isPtrPoke = true
+        }
         if isPtrPoke {
             pointer pa = CodeGenIntrinsics.slotAddr(cge, args.get(0), args.get(1))
             SemaExpr pve = args.get(2)
@@ -274,7 +282,9 @@ public class CodeGenIntrinsics {
             SemaExpr se = args.get(2)
             SemaType st = se.getType()
             bool owned = false
-            if st != null { owned = st.isString() }
+            if st != null {
+                owned = st.isString()
+            }
             if owned {
                 pointer bp3 = CodeGenIntrinsics.slotAddr(cge, args.get(0), args.get(1))
                 CodeGenModule cgm3 = cge.getCgm()
@@ -313,12 +323,30 @@ public class CodeGenIntrinsics {
             CodeGenIntrinsics.floatMath(cge, node, bn, 1)
             return
         }
-        if str.equals(bn, "fmin") { CodeGenIntrinsics.floatMath(cge, node, "minnum", 2)  return }
-        if str.equals(bn, "fmax") { CodeGenIntrinsics.floatMath(cge, node, "maxnum", 2)  return }
-        if CodeGenIntrinsics.nameIn(bn, ";pow;copysign;") { CodeGenIntrinsics.floatMath(cge, node, bn, 2)  return }
-        if str.equals(bn, "fma") { CodeGenIntrinsics.floatMath(cge, node, "fma", 3)  return }
-        if CodeGenIntrinsics.nameIn(bn, ";ctlz;cttz;") { CodeGenIntrinsics.intCount(cge, node, bn, true)  return }
-        if str.equals(bn, "ctpop") { CodeGenIntrinsics.intCount(cge, node, "ctpop", false)  return }
+        if str.equals(bn, "fmin") {
+            CodeGenIntrinsics.floatMath(cge, node, "minnum", 2)
+            return
+        }
+        if str.equals(bn, "fmax") {
+            CodeGenIntrinsics.floatMath(cge, node, "maxnum", 2)
+            return
+        }
+        if CodeGenIntrinsics.nameIn(bn, ";pow;copysign;") {
+            CodeGenIntrinsics.floatMath(cge, node, bn, 2)
+            return
+        }
+        if str.equals(bn, "fma") {
+            CodeGenIntrinsics.floatMath(cge, node, "fma", 3)
+            return
+        }
+        if CodeGenIntrinsics.nameIn(bn, ";ctlz;cttz;") {
+            CodeGenIntrinsics.intCount(cge, node, bn, true)
+            return
+        }
+        if str.equals(bn, "ctpop") {
+            CodeGenIntrinsics.intCount(cge, node, "ctpop", false)
+            return
+        }
 
         io.printErrLn(str.concat(str.concat("error: fly.llvm.", bn), " is not yet supported by the self-host compiler"))
     }
@@ -351,7 +379,9 @@ public class CodeGenIntrinsics {
         cg.functionTypeN(dbl, ptys, false, fty)
         pointer fn
         llvm.getNamedFunction(cgm.getModule(), iname, fn)
-        if fn == 0 { llvm.addFunction(cgm.getModule(), iname, fty, fn) }
+        if fn == 0 {
+            llvm.addFunction(cgm.getModule(), iname, fty, fn)
+        }
         pointer rv
         cg.buildCallN(b, fty, fn, inArgs, "", rv)
         pointer addr = cge.genAddr(args.get(argc))
@@ -388,7 +418,9 @@ public class CodeGenIntrinsics {
         cg.functionTypeN(i64t, ptys, false, fty)
         pointer fn
         llvm.getNamedFunction(cgm.getModule(), iname, fn)
-        if fn == 0 { llvm.addFunction(cgm.getModule(), iname, fty, fn) }
+        if fn == 0 {
+            llvm.addFunction(cgm.getModule(), iname, fty, fn)
+        }
         pointer rv
         cg.buildCallN(b, fty, fn, inArgs, "", rv)
         CodeGenIntrinsics.storeIntOut(cge, rv, 64, args.get(1))
@@ -399,7 +431,9 @@ public class CodeGenIntrinsics {
     // non-const param receives the C return value, no error param. The archive
     // fly_runtime_lib.a defines these as unmangled C symbols.
     public static void genRuntime(const CodeGenExpr cge, const SemaCall node) {
-        if CodeGenIntrinsics.genAtomicBuiltin(cge, node) { return }
+        if CodeGenIntrinsics.genAtomicBuiltin(cge, node) {
+            return
+        }
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         CodeGenModule cgm = cge.getCgm()
@@ -432,7 +466,9 @@ public class CodeGenIntrinsics {
         string cname = fn.getName()
         pointer cfn
         llvm.getNamedFunction(cgm.getModule(), cname, cfn)
-        if cfn == 0 { llvm.addFunction(cgm.getModule(), cname, cty, cfn) }
+        if cfn == 0 {
+            llvm.addFunction(cgm.getModule(), cname, cty, cfn)
+        }
 
         // const args by value (coerced to the param type)
         List<pointer> cargs = new List<pointer>()
@@ -484,9 +520,15 @@ public class CodeGenIntrinsics {
         bool isCas = str.equals(fname, "__atomic_compare_exchange_4")
         bool isAdd = str.equals(fname, "__atomic_fetch_add_4")
         bool known = isLoad || isStore
-        if isCas { known = true }
-        if isAdd { known = true }
-        if known == false { return false }
+        if isCas {
+            known = true
+        }
+        if isAdd {
+            known = true
+        }
+        if known == false {
+            return false
+        }
 
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
@@ -516,7 +558,9 @@ public class CodeGenIntrinsics {
 
         // the i32 operand: arg 1 for store / fetch_add, arg 2 (desired) for cas
         int valIdx = 1
-        if isCas { valIdx = 2 }
+        if isCas {
+            valIdx = 2
+        }
         SemaExpr ve = args.get(valIdx)
         SemaParam vp = params.get(valIdx)
         pointer vv0 = cge.gen(ve)
@@ -567,8 +611,12 @@ public class CodeGenIntrinsics {
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         int w = 64
-        if t != null { w = cge.numWidth(t) }
-        if w >= 64 { return val }
+        if t != null {
+            w = cge.numWidth(t)
+        }
+        if w >= 64 {
+            return val
+        }
         pointer i64t
         llvm.int64TypeInContext(cge.getCgm().getCtx(), i64t)
         pointer r
@@ -613,15 +661,20 @@ public class CodeGenIntrinsics {
         llvm.int32TypeInContext(cgm.getCtx(), i32t)
 
         bool isStr = false
-        if t != null { isStr = t.isString() }
+        if t != null {
+            isStr = t.isString()
+        }
         if isStr == false {
             // integers/pointers/enums: the value itself, sized to i32
             pointer r = val
             if t != null {
                 if t.isInteger() {
                     int w = cge.numWidth(t)
-                    if w > 32 { llvm.buildTrunc(b, val, i32t, "hshT", r) }
-                    elsif w < 32 { llvm.buildZExt(b, val, i32t, "hshZ", r) }
+                    if w > 32 {
+                        llvm.buildTrunc(b, val, i32t, "hshT", r)
+                    } elsif w < 32 {
+                        llvm.buildZExt(b, val, i32t, "hshZ", r)
+                    }
                 }
             }
             return r
@@ -716,7 +769,9 @@ public class CodeGenIntrinsics {
         llvm.constInt(i32t, 4294967295, true, negOne)
 
         bool isStr = false
-        if t != null { isStr = t.isString() }
+        if t != null {
+            isStr = t.isString()
+        }
         if isStr {
             // memcmp(sp, kp, min(ss, ks)); tie on the shared prefix → ss - ks
             pointer sp
@@ -797,7 +852,9 @@ public class CodeGenIntrinsics {
         pointer i1res
 
         bool isStr = false
-        if t != null { isStr = t.isString() }
+        if t != null {
+            isStr = t.isString()
+        }
         if isStr == false {
             llvm.buildICmp(b, 32, a, b2, "veq", i1res)   // EQ
             return i1res
@@ -892,13 +949,23 @@ public class CodeGenIntrinsics {
     // memcpy. No-op for every other type — including CLASS handles, which are
     // reference types and must keep aliasing.
     public static pointer cloneIfStruct(const CodeGenExpr cge, const pointer val, const SemaType t) {
-        if t == null { return val }
+        if t == null {
+            return val
+        }
         SemaClassType ct = t.asClass()
-        if ct == null { return val }
-        if ct.getClassKind() != SemaClassKind.STRUCT { return val }
+        if ct == null {
+            return val
+        }
+        if ct.getClassKind() != SemaClassKind.STRUCT {
+            return val
+        }
         pointer sty = ct.getLlvmStructType()
-        if sty == 0 { return val }
-        if val == 0 { return val }
+        if sty == 0 {
+            return val
+        }
+        if val == 0 {
+            return val
+        }
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         pointer slot
@@ -913,8 +980,12 @@ public class CodeGenIntrinsics {
     // cloneIfString — deep-clone a %string value into a fresh malloc'd buffer so
     // each owner frees independently (no aliasing). No-op for other types.
     public static pointer cloneIfString(const CodeGenExpr cge, const pointer val, const SemaType t) {
-        if t == null { return val }
-        if t.isString() == false { return val }
+        if t == null {
+            return val
+        }
+        if t.isString() == false {
+            return val
+        }
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         CodeGenModule cgm = cge.getCgm()

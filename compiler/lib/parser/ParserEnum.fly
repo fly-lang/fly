@@ -20,8 +20,12 @@ public class ParserEnum {
         p.expectKw("enum")
         string nm = ""
         SourceLocation nloc = p.curLoc()      // the NAME token, for setNameLoc
-        if p.curIsNamePart() { nm = p.curText()  p.bump() }
-        else { p.reportErr(DiagID.err_parser_identifier_expected) }
+        if p.curIsNamePart() {
+            nm = p.curText()
+            p.bump()
+        } else {
+            p.reportErr(DiagID.err_parser_identifier_expected)
+        }
         List<ASTType> bases = new List<ASTType>()
         ASTEnum e = ASTBuilder.CreateEnum(p.getModule(), loc, nm, mods, bases)
         e.setNameLoc(nloc)
@@ -33,8 +37,11 @@ public class ParserEnum {
                 SourceLocation eloc = p.curLoc()
                 ASTEnumEntry entry = ASTBuilder.CreateEnumEntry(eloc, e, p.curText(), noMods)
                 p.bump()
-                if p.curIsPunct(",") { p.bump() }
-                else { go = false }
+                if p.curIsPunct(",") {
+                    p.bump()
+                } else {
+                    go = false
+                }
             } else {
                 go = false
             }

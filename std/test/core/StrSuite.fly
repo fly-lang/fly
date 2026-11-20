@@ -406,7 +406,9 @@ suite StrSuite {
             int i = 0
             while i < 100 {
                 string s = str.convert(i)
-                if str.contains(str.concat("[", str.concat(s, "]")), s) == false { bad = i }
+                if str.contains(str.concat("[", str.concat(s, "]")), s) == false {
+                    bad = i
+                }
                 i = i + 1
             }
             assert.assertEqI(bad, 0 - 1, 619)
@@ -459,7 +461,9 @@ suite StrSuite {
             while str.isEmpty(cur) == false {
                 int dot = str.lastIndexOf(cur, ".")
                 string next = ""
-                if dot >= 0 { next = str.substring(cur, 0, dot) }
+                if dot >= 0 {
+                    next = str.substring(cur, 0, dot)
+                }
                 cur = next                            // lvalue RHS → must clone
             }
             assert.assertStr(dotted, "a.b.c.d.e", 801)   // source untouched

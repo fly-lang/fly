@@ -109,7 +109,9 @@ suite QueueSuite {
             int n = 0
             while n < 30 {
                 int got = q.dequeue()
-                if got != n { bad = n }
+                if got != n {
+                    bad = n
+                }
                 q.enqueue(n + 6)
                 n = n + 1
             }
@@ -169,7 +171,9 @@ suite QueueSuite {
             i = 0
             int bad = 0 - 1
             while i < 8 {
-                if q.dequeue() != 100 + i { bad = i }
+                if q.dequeue() != 100 + i {
+                    bad = i
+                }
                 i = i + 1
             }
             assert.assertEqI(bad, 0 - 1, 406)
@@ -189,7 +193,9 @@ suite QueueSuite {
             int bad = 0 - 1
             i = 0
             while i < 40 {
-                if q.dequeue() != i { bad = i }
+                if q.dequeue() != i {
+                    bad = i
+                }
                 i = i + 1
             }
             assert.assertEqI(bad, 0 - 1, 410)
@@ -200,7 +206,9 @@ suite QueueSuite {
             int i = 0
             while i < 100 {
                 q.enqueue(i)
-                if i % 3 == 0 { q.dequeue() }
+                if i % 3 == 0 {
+                    q.dequeue()
+                }
                 i = i + 1
             }
             assert.assertEqI(q.size(), 66, 411)

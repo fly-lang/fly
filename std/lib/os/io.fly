@@ -127,7 +127,9 @@ public class BufReader : Reader {
     // left (only called once the cursor reached buf_fill). Returns the byte count
     // now buffered; 0 means EOF.
     public long refill() {
-        if this.buf_ptr == 0 { return 0 }
+        if this.buf_ptr == 0 {
+            return 0
+        }
         Buf tmp = new Buf()
         ulong capu = this.buf_cap
         tmp.ptr = this.buf_ptr
@@ -159,7 +161,10 @@ public class BufReader : Reader {
     // takeByte — consume exactly one buffered byte. The caller must have checked
     // available() (or refilled) first; on an empty buffer it yields 0.
     public void takeByte(byte b) {
-        if this.pos >= this.buf_fill { b = 0  return }
+        if this.pos >= this.buf_fill {
+            b = 0
+            return
+        }
         fly.llvm.ptrByteAt(this.buf_ptr, this.pos, b)
         this.pos = this.pos + 1
     }
@@ -167,7 +172,9 @@ public class BufReader : Reader {
     // read — serve up to n bytes from the internal buffer, refilling once if it is
     // exhausted. A short read is normal: callers loop until 0 (EOF).
     public long read(Buf buf, const ulong n) {
-        if this.buf_ptr == 0 { return 0 }
+        if this.buf_ptr == 0 {
+            return 0
+        }
         if this.pos >= this.buf_fill {
             Buf tmp = new Buf()
             ulong capu = this.buf_cap
@@ -185,7 +192,9 @@ public class BufReader : Reader {
         }
         pointer take = n
         pointer avail = this.buf_fill - this.pos
-        if avail < take { take = avail }
+        if avail < take {
+            take = avail
+        }
         if take == 0 {
             buf.size = 0
             return 0
@@ -228,7 +237,9 @@ public class BufWriter : Writer {
     // fills. A payload larger than the buffer is chunked rather than truncated, so
     // the caller never has to know the buffer size.
     public long write(Buf buf, const ulong n) {
-        if this.buf_ptr == 0 { return 0 }
+        if this.buf_ptr == 0 {
+            return 0
+        }
         pointer left = n
         pointer off = 0
         while left > 0 {
@@ -246,7 +257,9 @@ public class BufWriter : Writer {
                 room = this.buf_cap
             }
             pointer take = left
-            if room < take { take = room }
+            if room < take {
+                take = room
+            }
             pointer dst = this.buf_ptr + this.buf_fill
             pointer src = buf.ptr + off
             fly.llvm.memcpy(dst, src, take)
@@ -260,7 +273,9 @@ public class BufWriter : Writer {
 
     // flush — drain the buffer into the inner Writer, then flush that too.
     public void flush() {
-        if this.buf_ptr == 0 { return }
+        if this.buf_ptr == 0 {
+            return
+        }
         if this.buf_fill > 0 {
             Buf outb = new Buf()
             ulong fill = this.buf_fill
@@ -302,7 +317,9 @@ private long writeFd(const int fd, const pointer p, const ulong n) {
     while done < n {
         long nw = 0
         fly.runtime.fs_write(fd, p + done, n - done, nw)
-        if nw <= 0 { return 0 - 1 }
+        if nw <= 0 {
+            return 0 - 1
+        }
         ulong adv = nw
         done = done + adv
     }
@@ -313,7 +330,9 @@ private long writeFd(const int fd, const pointer p, const ulong n) {
 // bufFree releases a Buf's memory and empties it, so a second call is harmless.
 // Every Buf returned by readAll, readExact, peek or fs.read owns its bytes.
 public void bufFree(Buf b) {
-    if b.ptr != 0 { fly.runtime.mem_free(b.ptr, b.cap) }
+    if b.ptr != 0 {
+        fly.runtime.mem_free(b.ptr, b.cap)
+    }
     b.ptr = 0
     b.size = 0
     b.cap = 0
@@ -393,13 +412,17 @@ public Buf readAll(Reader r) {
 public Buf readExact(Reader r, const ulong n) {
     Buf res = new Buf()
     ulong cap = n
-    if cap == 0 { cap = 1 }
+    if cap == 0 {
+        cap = 1
+    }
     pointer buf = 0
     fly.runtime.mem_alloc(cap, buf)
     ulong total = 0
     bool done = false
     while done == false {
-        if total >= n { done = true } else {
+        if total >= n {
+            done = true
+        } else {
             ulong want = n - total
             pointer tmp = 0
             fly.runtime.mem_alloc(want, tmp)
@@ -409,7 +432,9 @@ public Buf readExact(Reader r, const ulong n) {
             chunk.cap = want
             long nread = 0
             nread = r.read(chunk, want)
-            if nread <= 0 { done = true } else {
+            if nread <= 0 {
+                done = true
+            } else {
                 ulong got = nread
                 ulong i = 0
                 while i < got {
@@ -535,8 +560,12 @@ public fly.os.env.StringArray readLines(Reader r) {
             }
         }
         bool add_line = false
-        if at_eof == false { add_line = true }
-        if pos > 0 { add_line = true }
+        if at_eof == false {
+            add_line = true
+        }
+        if pos > 0 {
+            add_line = true
+        }
         if add_line {
             if count >= arr_cap {
                 int newcap = arr_cap * 2
@@ -588,7 +617,9 @@ public bool writeString(Writer w, const string s) {
 // (cap 0 → a 4 KiB default).
 public BufReader readerNew(Reader inner, const ulong cap) {
     pointer want = cap
-    if want == 0 { want = 4096 }
+    if want == 0 {
+        want = 4096
+    }
     pointer p = 0
     fly.runtime.mem_alloc(want, p)
     BufReader r = new BufReader()
@@ -606,10 +637,14 @@ public BufReader readerNew(Reader inner, const ulong cap) {
 // size 0 at EOF) is normal — peek never spans more than one bufferful.
 public Buf peek(BufReader r, const ulong n) {
     Buf res = new Buf()
-    if r.available() == 0 { r.refill() }
+    if r.available() == 0 {
+        r.refill()
+    }
     pointer take = n
     pointer avail = r.available()
-    if avail < take { take = avail }
+    if avail < take {
+        take = avail
+    }
     ulong taken = take
     res.ptr = r.bufAt()
     res.size = taken
@@ -620,7 +655,9 @@ public Buf peek(BufReader r, const ulong n) {
 // fill refills the BufReader's internal buffer from its inner Reader once the
 // buffered bytes have all been consumed. A no-op while data is still pending.
 public void fill(BufReader r) {
-    if r.available() == 0 { r.refill() }
+    if r.available() == 0 {
+        r.refill()
+    }
 }
 
 // bufReadLine reads one newline-terminated line from a BufReader, returning it
@@ -635,7 +672,9 @@ public string bufReadLine(BufReader r) {
     bool done = false
     while done == false {
         if r.available() == 0 {
-            if r.refill() == 0 { done = true }
+            if r.refill() == 0 {
+                done = true
+            }
         }
         if done == false {
             byte b = 0
@@ -658,7 +697,9 @@ public string bufReadLine(BufReader r) {
     if len > 0 {
         byte last = 0
         fly.llvm.ptrByteAt(acc, len - 1, last)
-        if last == 13 { len = len - 1 }
+        if last == 13 {
+            len = len - 1
+        }
     }
     int n = (int)len
     fly.llvm.strMake(acc, n, res)
@@ -669,7 +710,9 @@ public string bufReadLine(BufReader r) {
 // (cap 0 → a 4 KiB default).
 public BufWriter writerNew(Writer inner, const ulong cap) {
     pointer want = cap
-    if want == 0 { want = 4096 }
+    if want == 0 {
+        want = 4096
+    }
     pointer p = 0
     fly.runtime.mem_alloc(want, p)
     BufWriter w = new BufWriter()
@@ -742,7 +785,11 @@ public long copy(Reader src, Writer dst) {
             ulong nread_u = nread
             long nwritten = 0
             nwritten = dst.write(chunk, nread_u)
-            if nwritten < 0 { done = true } else { total = total + nread }
+            if nwritten < 0 {
+                done = true
+            } else {
+                total = total + nread
+            }
         }
     }
     fly.runtime.mem_free(tmp, chunk_sz)
@@ -764,7 +811,9 @@ public long copyN(Reader src, Writer dst, const ulong n) {
         } else {
             ulong chunk_sz_u = chunk_sz
             ulong to_read = chunk_sz_u
-            if remaining < to_read { to_read = remaining }
+            if remaining < to_read {
+                to_read = remaining
+            }
             Buf chunk = new Buf()
             chunk.ptr = tmp
             chunk.size = 0
@@ -780,7 +829,9 @@ public long copyN(Reader src, Writer dst, const ulong n) {
                 ulong nread_u = nread
                 long nwritten = 0
                 nwritten = dst.write(chunk, nread_u)
-                if nwritten < 0 { done = true } else {
+                if nwritten < 0 {
+                    done = true
+                } else {
                     total = total + nread
                     remaining = remaining - nread_u
                 }

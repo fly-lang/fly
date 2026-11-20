@@ -17,7 +17,13 @@ public class SemaParam : SemaVar {
         super(paramAst, SemaKind.PARAM_VAR, type)
         this.synthetic = false
     }
-    public bool isSynthetic() { return this.synthetic }
-    public void setSynthetic(const bool s) { this.synthetic = s }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public bool isSynthetic() {
+        return this.synthetic
+    }
+    public void setSynthetic(const bool s) {
+        this.synthetic = s
+    }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }

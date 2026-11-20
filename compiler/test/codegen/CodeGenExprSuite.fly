@@ -27,7 +27,6 @@ import fly.test.util.*
 // cgIR — parse → resolve → codegen → verify → return the emitted LLVM IR text.
 // Codes 91/92 flag a parse / verify failure in the shared helper.
 
-
 suite CodeGenExprSuite {
 
     void arithTest() {

@@ -39,7 +39,9 @@ string argAt(const fly.os.env.StringArray args, const int i) {
     pointer base = args.items
     pointer ptr = mem.readPtr(base, i * 16)
     int len = mem.readInt(base, i * 16 + 8)
-    if len <= 0 { return "" }
+    if len <= 0 {
+        return ""
+    }
     pointer buf = 0
     fly.runtime.mem_alloc(len, buf)
     mem.copy(buf, ptr, len)
@@ -58,7 +60,9 @@ string argValue(const string name) {
     while i < n {
         string a = argAt(args, i)
         if str.equals(a, name) {
-            if i + 1 < n { return argAt(args, i + 1) }
+            if i + 1 < n {
+                return argAt(args, i + 1)
+            }
             // A flag with no value: report presence with a sentinel so callers
             // that only test presence (--once) still see it.
             return "1"
@@ -74,7 +78,9 @@ string argValue(const string name) {
 // parseInt — a non-negative decimal, or `dflt` when the text is not one.
 int parseInt(const string s, const int dflt) {
     int n = str.len(s)
-    if n == 0 { return dflt }
+    if n == 0 {
+        return dflt
+    }
     int v = 0
     int i = 0
     while i < n {
@@ -82,7 +88,9 @@ int parseInt(const string s, const int dflt) {
         int c = b
         c = c & 255
         bool digit = c >= 48 && c <= 57
-        if digit == false { return dflt }
+        if digit == false {
+            return dflt
+        }
         v = v * 10 + (c - 48)
         i = i + 1
     }
@@ -99,12 +107,18 @@ string readRequest(const long s) {
     int guard = 0
     while go {
         string chunk = net.recvStr(s, 8192)
-        if str.isEmpty(chunk) { go = false } else {
+        if str.isEmpty(chunk) {
+            go = false
+        } else {
             raw = str.concat(raw, chunk)
-            if http.isComplete(raw) { go = false }
+            if http.isComplete(raw) {
+                go = false
+            }
         }
         guard = guard + 1
-        if guard > 4096 { go = false }
+        if guard > 4096 {
+            go = false
+        }
     }
     return raw
 }
@@ -117,25 +131,37 @@ void main() {
             storage = path.join(home, "registry")
         } else {
             string h = env.get("HOME")
-            if str.isEmpty(h) { h = env.get("USERPROFILE") }
-            if str.isEmpty(h) { h = "." }
+            if str.isEmpty(h) {
+                h = env.get("USERPROFILE")
+            }
+            if str.isEmpty(h) {
+                h = "."
+            }
             storage = path.join(path.join(h, ".fly"), "registry")
         }
     }
     int port = parseInt(argValue("--port"), 5000)
     if port == 5000 {
         string p2 = argValue("-p")
-        if str.isEmpty(p2) == false { port = parseInt(p2, 5000) }
+        if str.isEmpty(p2) == false {
+            port = parseInt(p2, 5000)
+        }
     }
     string host = argValue("--host")
-    if str.isEmpty(host) { host = "0.0.0.0" }
+    if str.isEmpty(host) {
+        host = "0.0.0.0"
+    }
     string token = argValue("--token")
-    if str.isEmpty(token) { token = env.get("FLY_REGISTRY_TOKEN") }
+    if str.isEmpty(token) {
+        token = env.get("FLY_REGISTRY_TOKEN")
+    }
 
     RegistryHandler handler = new RegistryHandler(storage, token)
 
     string auth = "disabled"
-    if handler.requiresAuth() { auth = "Bearer token" }
+    if handler.requiresAuth() {
+        auth = "Bearer token"
+    }
     io.printLn("fly-registry")
     io.printLn(str.concat("  storage : ", storage))
     io.printLn(str.concat("  listen  : ",
@@ -145,7 +171,9 @@ void main() {
     int addr = net.anyAddr()
     if str.equals(host, "0.0.0.0") == false {
         addr = net.parseIp(host)
-        if addr == 0 { addr = net.resolve(host) }
+        if addr == 0 {
+            addr = net.resolve(host)
+        }
         if addr == 0 {
             io.printErrLn(str.concat("error: cannot resolve host: ", host))
             return
@@ -166,7 +194,9 @@ void main() {
     bool serving = true
     while serving {
         long client = net.accept(server)
-        if client < 0 { serving = false } else {
+        if client < 0 {
+            serving = false
+        } else {
             // A client that opens a connection and stalls would otherwise hold
             // this single-threaded server forever.
             net.setRecvTimeout(client, 15000)
@@ -182,7 +212,9 @@ void main() {
             }
             net.shutdownWrite(client)
             net.close(client)
-            if once { serving = false }
+            if once {
+                serving = false
+            }
         }
     }
     net.close(server)

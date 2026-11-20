@@ -31,12 +31,28 @@ public class SemaVar : SemaExpr {
         this.returnSlot = false
     }
 
-    public ASTVar getAST() { return this.varAst }
-    public string getName() { return this.varAst.getName() }
-    public bool isConstant() { return this.constant }
-    public void setConstant(const bool constant) { this.constant = constant }
-    public bool isReturnSlot() { return this.returnSlot }
-    public void setReturnSlot(const bool v) { this.returnSlot = v }
-    public pointer getLlvmAlloca() { return this.llvmAlloca }
-    public void setLlvmAlloca(const pointer a) { this.llvmAlloca = a }
+    public ASTVar getAST() {
+        return this.varAst
+    }
+    public string getName() {
+        return this.varAst.getName()
+    }
+    public bool isConstant() {
+        return this.constant
+    }
+    public void setConstant(const bool constant) {
+        this.constant = constant
+    }
+    public bool isReturnSlot() {
+        return this.returnSlot
+    }
+    public void setReturnSlot(const bool v) {
+        this.returnSlot = v
+    }
+    public pointer getLlvmAlloca() {
+        return this.llvmAlloca
+    }
+    public void setLlvmAlloca(const pointer a) {
+        this.llvmAlloca = a
+    }
 }

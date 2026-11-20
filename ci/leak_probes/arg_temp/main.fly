@@ -5,7 +5,9 @@ string mk(const int i) {
     return s
 }
 int size(const string s) {
-    if s == "" { return 0 }
+    if s == "" {
+        return 0
+    }
     return 1
 }
 void main() {

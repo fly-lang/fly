@@ -64,7 +64,9 @@ suite TlsSuite {
             assert.assertFalse(a, 102)
         }
         case "with no backend every connect fails cleanly": {
-            if skipSockets() { assert.assertTrue(true, 103) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 103)
+            } else {
                 if tls.tlsAvailable() == false {
                     // No network traffic at all: the availability check short-circuits.
                     assert.assertNull(tls.tlsConnect("example.org", 443), 103)
@@ -108,7 +110,9 @@ suite TlsSuite {
             // A plain socket is opened and NOT connected; with the stub linked the
             // handshake cannot even be attempted, so this must report failure
             // rather than hand back a handle that later misbehaves.
-            if skipSockets() { assert.assertTrue(true, 302) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 302)
+            } else {
                 long s = net.socket()
                 assert.assertTrue(s >= 0, 302)
                 pointer c = tls.tlsWrap(s, "example.org", true)
@@ -123,7 +127,9 @@ suite TlsSuite {
             }
         }
         case "an unresolvable host fails before any TLS work": {
-            if skipSockets() { assert.assertTrue(true, 304) } else {
+            if skipSockets() {
+                assert.assertTrue(true, 304)
+            } else {
                 assert.assertNull(tls.tlsConnectOpts("fly-no-such-host-xyzabc.invalid", 443, true, 1000), 304)
             }
         }
@@ -152,9 +158,15 @@ suite TlsSuite {
             // exactly why this suite's header says a green board does not prove
             // the handshake.
             bool run = onlineTests()
-            if tls.tlsAvailable() == false { run = false }
-            if skipSockets() { run = false }
-            if run == false { assert.assertTrue(true, 401) } else {
+            if tls.tlsAvailable() == false {
+                run = false
+            }
+            if skipSockets() {
+                run = false
+            }
+            if run == false {
+                assert.assertTrue(true, 401)
+            } else {
                 pointer c = tls.tlsConnectOpts("example.org", 443, true, 10000)
                 assert.assertNotNull(c, 401)
                 if c != 0 {
@@ -174,18 +186,32 @@ suite TlsSuite {
             // certificate from any CA. Connecting to example.org's IP while
             // claiming a different SNI/verification name must FAIL.
             bool run = onlineTests()
-            if tls.tlsAvailable() == false { run = false }
-            if skipSockets() { run = false }
-            if run == false { assert.assertTrue(true, 406) } else {
+            if tls.tlsAvailable() == false {
+                run = false
+            }
+            if skipSockets() {
+                run = false
+            }
+            if run == false {
+                assert.assertTrue(true, 406)
+            } else {
                 int addr = net.resolve("example.org")
-                if addr == 0 { assert.assertTrue(true, 406) } else {
+                if addr == 0 {
+                    assert.assertTrue(true, 406)
+                } else {
                     long s = net.socket()
                     bool ok = net.connect(s, addr, 443)
-                    if ok == false { assert.assertTrue(true, 406) } else {
+                    if ok == false {
+                        assert.assertTrue(true, 406)
+                    } else {
                         // Right server, WRONG expected name → must be refused.
                         pointer bad = tls.tlsWrap(s, "fly-wrong-name.invalid", true)
                         assert.assertNull(bad, 406)
-                        if bad != 0 { tls.tlsClose(bad) } else { net.close(s) }
+                        if bad != 0 {
+                            tls.tlsClose(bad)
+                        } else {
+                            net.close(s)
+                        }
                     }
                 }
             }

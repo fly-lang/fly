@@ -44,9 +44,15 @@ string execStringLocalCopy(const string s) {
 // constructor's store clones into the field, and `out = this.text` clones out.
 public class ExecStringBox {
     string text
-    public ExecStringBox(const string t) { this.text = t }
-    public string read() { return this.text }
-    public void write(const string t) { this.text = t }
+    public ExecStringBox(const string t) {
+        this.text = t
+    }
+    public string read() {
+        return this.text
+    }
+    public void write(const string t) {
+        this.text = t
+    }
 }
 
 suite ExecStringSuite {

@@ -173,12 +173,18 @@ suite RuntimeWindowsSuite {
             fs.writeStr(f, "hello fly!", 420)
             assert.assertTrue(fs.isFile(f), 54)
             assert.assertStr(fs.readStr(f), "hello fly!", 55)
-            if fs.size(f) != 10 { assert.errExit(56) }
+            if fs.size(f) != 10 {
+                assert.errExit(56)
+            }
 
             fs.appendStr(f, "++!", 420)
-            if fs.size(f) != 13 { assert.errExit(57) }
+            if fs.size(f) != 13 {
+                assert.errExit(57)
+            }
             fs.truncate(f, 5)
-            if fs.size(f) != 5 { assert.errExit(58) }
+            if fs.size(f) != 5 {
+                assert.errExit(58)
+            }
             fs.chmod(f, 384)
 
             string c = "rt_win_fs_dir/b.txt"
@@ -228,7 +234,9 @@ suite RuntimeWindowsSuite {
             fs.writeStr("rt_win_dir_list/one.txt", "1", 420)
             fs.writeStr("rt_win_dir_list/two.txt", "2", 420)
             fly.os.fs.DirEntries de = fs.dirRead(dir)
-            if de.len < 2 { assert.errExit(71) }
+            if de.len < 2 {
+                assert.errExit(71)
+            }
             fs.dirDeleteAll(dir)
         }
     }

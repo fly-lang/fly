@@ -28,7 +28,9 @@ public class CodeGenError {
     // inside a handle block, jump to the handle's continuation ("safe") block;
     // otherwise return early (the failing callee returns; the caller continues).
     public static void emitFail(const CodeGenExpr cge, const SemaFailStmt node) {
-        if cge.isTerminated() { return }
+        if cge.isTerminated() {
+            return
+        }
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         CodeGenModule cgm = cge.getCgm()
@@ -42,20 +44,26 @@ public class CodeGenError {
         if first != null {
             writeField(cge, errTy, errPtr, first)
             SemaType ft = first.getType()
-            if ft != null { wroteCode = isCodeField(ft) }
+            if ft != null {
+                wroteCode = isCodeField(ft)
+            }
         }
         if second != null {
             writeField(cge, errTy, errPtr, second)
             if wroteCode == false {
                 SemaType st = second.getType()
-                if st != null { wroteCode = isCodeField(st) }
+                if st != null {
+                    wroteCode = isCodeField(st)
+                }
             }
         }
         if third != null {
             writeField(cge, errTy, errPtr, third)
             if wroteCode == false {
                 SemaType tt = third.getType()
-                if tt != null { wroteCode = isCodeField(tt) }
+                if tt != null {
+                    wroteCode = isCodeField(tt)
+                }
             }
         }
 
@@ -132,7 +140,12 @@ public class CodeGenError {
         bool isStr = false
         SemaType t = e.getType()
         if t != null {
-            if isCodeField(t) { idx = 0 } elsif t.isString() { idx = 1  isStr = true }
+            if isCodeField(t) {
+                idx = 0
+            } elsif t.isString() {
+                idx = 1
+                isStr = true
+            }
         }
         pointer fp
         llvm.buildStructGEP2(b, errTy, errPtr, idx, "efld", fp)
@@ -176,9 +189,15 @@ public class CodeGenError {
 
     // isCodeField — operand types that land in the i32 code slot.
     public static bool isCodeField(const SemaType t) {
-        if t.isInteger() { return true }
-        if t.isBool() { return true }
-        if t.getKind() == SemaKind.TYPE_ENUM { return true }
+        if t.isInteger() {
+            return true
+        }
+        if t.isBool() {
+            return true
+        }
+        if t.getKind() == SemaKind.TYPE_ENUM {
+            return true
+        }
         return false
     }
 
@@ -208,7 +227,9 @@ public class CodeGenError {
         pointer savedSafe = cge.getHandleSafe()
         cge.setHandleSafe(safeBB)
         SemaBlockStmt block = node.getHandle()
-        if block != null { block.accept(cge) }
+        if block != null {
+            block.accept(cge)
+        }
         cge.setHandleSafe(savedSafe)
         cge.br(safeBB)
         cge.position(safeBB)

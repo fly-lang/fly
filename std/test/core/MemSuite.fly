@@ -168,7 +168,9 @@ suite MemSuite {
             long bad = 0 - 1
             i = 0
             while i < 100 {
-                if mem.readLong(p, i * 8) != i * 3 { bad = i }
+                if mem.readLong(p, i * 8) != i * 3 {
+                    bad = i
+                }
                 i = i + 1
             }
             assert.assertEqL(bad, 0 - 1, 314)
@@ -205,7 +207,9 @@ suite MemSuite {
             bool ok = true
             i = 0
             while i < 10 {
-                if mem.readPtr(table, i * 8) != blocks + i * 16 { ok = false }
+                if mem.readPtr(table, i * 8) != blocks + i * 16 {
+                    ok = false
+                }
                 i = i + 1
             }
             assert.assertTrue(ok, 405)
@@ -403,7 +407,9 @@ suite MemSuite {
             long bad = 0 - 1
             j = 0
             while j < 100 {
-                if mem.readLong(p, j * 8) != j { bad = j }
+                if mem.readLong(p, j * 8) != j {
+                    bad = j
+                }
                 j = j + 1
             }
             assert.assertEqL(bad, 0 - 1, 708)

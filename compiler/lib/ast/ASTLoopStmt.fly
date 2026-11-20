@@ -28,18 +28,44 @@ public class ASTLoopStmt : ASTStmt {
         this.post = new List<ASTStmt>()
     }
 
-    public bool hasVerifyConditionAtEnd() { return this.verifyConditionAtEnd }
-    public bool hasEndlessCond() { return this.endlessCond }
-    public void setEndlessCond(const bool v) { this.endlessCond = v }
-    public ASTExpr getExpr() { return this.expr }
-    public List<ASTStmt> getInit() { return this.init }
-    public ASTStmt getLoop() { return this.loopStmt }
-    public List<ASTStmt> getPost() { return this.post }
-    public void setExpr(const ASTExpr expr) { this.expr = expr }
-    public void setLoop(const ASTStmt s) { this.loopStmt = s }
-    public void addInit(const ASTStmt s) { this.init.add(s) }
-    public void addPost(const ASTStmt s) { this.post.add(s) }
-    public void setVerifyConditionAtEnd(const bool v) { this.verifyConditionAtEnd = v }
+    public bool hasVerifyConditionAtEnd() {
+        return this.verifyConditionAtEnd
+    }
+    public bool hasEndlessCond() {
+        return this.endlessCond
+    }
+    public void setEndlessCond(const bool v) {
+        this.endlessCond = v
+    }
+    public ASTExpr getExpr() {
+        return this.expr
+    }
+    public List<ASTStmt> getInit() {
+        return this.init
+    }
+    public ASTStmt getLoop() {
+        return this.loopStmt
+    }
+    public List<ASTStmt> getPost() {
+        return this.post
+    }
+    public void setExpr(const ASTExpr expr) {
+        this.expr = expr
+    }
+    public void setLoop(const ASTStmt s) {
+        this.loopStmt = s
+    }
+    public void addInit(const ASTStmt s) {
+        this.init.add(s)
+    }
+    public void addPost(const ASTStmt s) {
+        this.post.add(s)
+    }
+    public void setVerifyConditionAtEnd(const bool v) {
+        this.verifyConditionAtEnd = v
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }

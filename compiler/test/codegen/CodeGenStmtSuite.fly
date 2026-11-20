@@ -22,8 +22,6 @@ import fly.test.util.*
 // needs SemaLoopInStmt codegen + arrays. CGFor (C-style for) is covered below.
 // ─────────────────────────────────────────────────────────────────────────────
 
-
-
 suite CodeGenStmtSuite {
 
     void ifTest() {

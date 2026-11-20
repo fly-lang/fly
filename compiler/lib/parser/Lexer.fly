@@ -24,7 +24,9 @@ public class Lexer {
         this.sm = null
     }
 
-    public void setSourceManager(const SourceManager m) { this.sm = m }
+    public void setSourceManager(const SourceManager m) {
+        this.sm = m
+    }
 
     // spanText / tokenText — resolve a source slice to a fresh string (owned by
     // the caller, so safe to return and store as a local).
@@ -100,53 +102,143 @@ public class Lexer {
         int c2 = this.byteAt(this.pos + 1)
         int c3 = this.byteAt(this.pos + 2)
         // 3-char: <<=  >>=
-        if c1 == 60 && c2 == 60 && c3 == 61 { return "<<=" }
-        if c1 == 62 && c2 == 62 && c3 == 61 { return ">>=" }
+        if c1 == 60 && c2 == 60 && c3 == 61 {
+            return "<<="
+        }
+        if c1 == 62 && c2 == 62 && c3 == 61 {
+            return ">>="
+        }
         // 2-char
-        if c1 == 61 && c2 == 61 { return "==" }
-        if c1 == 33 && c2 == 61 { return "!=" }
-        if c1 == 60 && c2 == 61 { return "<=" }
-        if c1 == 62 && c2 == 61 { return ">=" }
-        if c1 == 38 && c2 == 38 { return "&&" }
-        if c1 == 124 && c2 == 124 { return "||" }
-        if c1 == 60 && c2 == 60 { return "<<" }
-        if c1 == 62 && c2 == 62 { return ">>" }
-        if c1 == 43 && c2 == 43 { return "++" }
-        if c1 == 45 && c2 == 45 { return "--" }
-        if c1 == 43 && c2 == 61 { return "+=" }
-        if c1 == 45 && c2 == 61 { return "-=" }
-        if c1 == 42 && c2 == 61 { return "*=" }
-        if c1 == 47 && c2 == 61 { return "/=" }
-        if c1 == 37 && c2 == 61 { return "%=" }
-        if c1 == 38 && c2 == 61 { return "&=" }
-        if c1 == 124 && c2 == 61 { return "|=" }
-        if c1 == 94 && c2 == 61 { return "^=" }
+        if c1 == 61 && c2 == 61 {
+            return "=="
+        }
+        if c1 == 33 && c2 == 61 {
+            return "!="
+        }
+        if c1 == 60 && c2 == 61 {
+            return "<="
+        }
+        if c1 == 62 && c2 == 61 {
+            return ">="
+        }
+        if c1 == 38 && c2 == 38 {
+            return "&&"
+        }
+        if c1 == 124 && c2 == 124 {
+            return "||"
+        }
+        if c1 == 60 && c2 == 60 {
+            return "<<"
+        }
+        if c1 == 62 && c2 == 62 {
+            return ">>"
+        }
+        if c1 == 43 && c2 == 43 {
+            return "++"
+        }
+        if c1 == 45 && c2 == 45 {
+            return "--"
+        }
+        if c1 == 43 && c2 == 61 {
+            return "+="
+        }
+        if c1 == 45 && c2 == 61 {
+            return "-="
+        }
+        if c1 == 42 && c2 == 61 {
+            return "*="
+        }
+        if c1 == 47 && c2 == 61 {
+            return "/="
+        }
+        if c1 == 37 && c2 == 61 {
+            return "%="
+        }
+        if c1 == 38 && c2 == 61 {
+            return "&="
+        }
+        if c1 == 124 && c2 == 61 {
+            return "|="
+        }
+        if c1 == 94 && c2 == 61 {
+            return "^="
+        }
         // 1-char
-        if c1 == 40 { return "(" }
-        if c1 == 41 { return ")" }
-        if c1 == 123 { return "{" }
-        if c1 == 125 { return "}" }
-        if c1 == 91 { return "[" }
-        if c1 == 93 { return "]" }
-        if c1 == 46 { return "." }
-        if c1 == 44 { return "," }
-        if c1 == 58 { return ":" }
-        if c1 == 59 { return ";" }
-        if c1 == 63 { return "?" }
-        if c1 == 64 { return "@" }
-        if c1 == 43 { return "+" }
-        if c1 == 45 { return "-" }
-        if c1 == 42 { return "*" }
-        if c1 == 47 { return "/" }
-        if c1 == 37 { return "%" }
-        if c1 == 61 { return "=" }
-        if c1 == 60 { return "<" }
-        if c1 == 62 { return ">" }
-        if c1 == 33 { return "!" }
-        if c1 == 38 { return "&" }
-        if c1 == 124 { return "|" }
-        if c1 == 94 { return "^" }
-        if c1 == 126 { return "~" }
+        if c1 == 40 {
+            return "("
+        }
+        if c1 == 41 {
+            return ")"
+        }
+        if c1 == 123 {
+            return "{"
+        }
+        if c1 == 125 {
+            return "}"
+        }
+        if c1 == 91 {
+            return "["
+        }
+        if c1 == 93 {
+            return "]"
+        }
+        if c1 == 46 {
+            return "."
+        }
+        if c1 == 44 {
+            return ","
+        }
+        if c1 == 58 {
+            return ":"
+        }
+        if c1 == 59 {
+            return ";"
+        }
+        if c1 == 63 {
+            return "?"
+        }
+        if c1 == 64 {
+            return "@"
+        }
+        if c1 == 43 {
+            return "+"
+        }
+        if c1 == 45 {
+            return "-"
+        }
+        if c1 == 42 {
+            return "*"
+        }
+        if c1 == 47 {
+            return "/"
+        }
+        if c1 == 37 {
+            return "%"
+        }
+        if c1 == 61 {
+            return "="
+        }
+        if c1 == 60 {
+            return "<"
+        }
+        if c1 == 62 {
+            return ">"
+        }
+        if c1 == 33 {
+            return "!"
+        }
+        if c1 == 38 {
+            return "&"
+        }
+        if c1 == 124 {
+            return "|"
+        }
+        if c1 == 94 {
+            return "^"
+        }
+        if c1 == 126 {
+            return "~"
+        }
         return ""
     }
 
@@ -173,7 +265,9 @@ public class Lexer {
         bool hex = false
         if this.byteAt(start) == 48 {
             int x = this.byteAt(start + 1)
-            if x == 120 || x == 88 { hex = true }      // 0x / 0X
+            if x == 120 || x == 88 { // 0x / 0X
+                hex = true
+            }
         }
         bool more = true
         while more && this.pos < this.len {
@@ -186,7 +280,9 @@ public class Lexer {
                     bool hasSign = sg == 43 || sg == 45  // + / -
                     if hasSign {
                         int nd = this.byteAt(this.pos + 1)
-                        if nd >= 48 && nd <= 57 { this.advance() }
+                        if nd >= 48 && nd <= 57 {
+                            this.advance()
+                        }
                     }
                 }
             } else {

@@ -17,6 +17,10 @@ public class SemaEnumList : SemaExpr {
         this.enumType = enumType
     }
 
-    public SemaEnumType getEnumType() { return this.enumType }
-    public void accept(const SemaVisitor v) { v.visit(this) }
+    public SemaEnumType getEnumType() {
+        return this.enumType
+    }
+    public void accept(const SemaVisitor v) {
+        v.visit(this)
+    }
 }

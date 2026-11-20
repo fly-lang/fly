@@ -57,14 +57,26 @@ public class Frontend {
     }
 
     // setModuleCache — reuse parsed modules across compiles (language server).
-    public void setModuleCache(const ASTModuleCache c) { this.modCache = c }
+    public void setModuleCache(const ASTModuleCache c) {
+        this.modCache = c
+    }
 
-    public int getStatInputFiles()    { return this.statInputFiles }
-    public int getStatDepModules()    { return this.statDepModules }
-    public int getStatHeaderModules() { return this.statHeaderModules }
-    public int getStatDirsScanned()   { return this.statDirsScanned }
+    public int getStatInputFiles() {
+        return this.statInputFiles
+    }
+    public int getStatDepModules() {
+        return this.statDepModules
+    }
+    public int getStatHeaderModules() {
+        return this.statHeaderModules
+    }
+    public int getStatDirsScanned() {
+        return this.statDirsScanned
+    }
 
-    public string getOutputFile() { return this.outputFile }
+    public string getOutputFile() {
+        return this.outputFile
+    }
 
     // checkTestFilter — true when `--test=<tf>` selects at least one *Test
     // method among the suites this build runs (all of them, or only the
@@ -88,8 +100,11 @@ public class Frontend {
                         while mi < ms.size() {
                             string nm = ms.get(mi).getName()
                             if str.endsWith(nm, "Test") {
-                                if str.equals(nm, tf) { anyMatch = true }
-                                elsif str.equals(nm, str.concat(tf, "Test")) { anyMatch = true }
+                                if str.equals(nm, tf) {
+                                    anyMatch = true
+                                } elsif str.equals(nm, str.concat(tf, "Test")) {
+                                    anyMatch = true
+                                }
                             }
                             mi = mi + 1
                         }
@@ -98,7 +113,9 @@ public class Frontend {
             }
             i = i + 1
         }
-        if anySuite == false { return true }
+        if anySuite == false {
+            return true
+        }
         return anyMatch
     }
 
@@ -124,8 +141,12 @@ public class Frontend {
         }
         int rc = this.executeImpl(objPath, noOutput)
         this.flushLog(wfo)
-        if wfo.getShowStats() { this.printStats() }
-        if str.isEmpty(wfo.getStatsFile()) == false { this.writeStatsFile(wfo.getStatsFile()) }
+        if wfo.getShowStats() {
+            this.printStats()
+        }
+        if str.isEmpty(wfo.getStatsFile()) == false {
+            this.writeStatsFile(wfo.getStatsFile())
+        }
         return rc
     }
 
@@ -144,10 +165,14 @@ public class Frontend {
     // statsJson — the --stats-file payload (fixed keys, numeric values).
     public string statsJson() {
         string q = quoteChar()
-        string p1 = str.concat(q, str.concat("input-files", str.concat(q, str.concat(":", str.convert(this.statInputFiles)))))
-        string p2 = str.concat(q, str.concat("dep-modules", str.concat(q, str.concat(":", str.convert(this.statDepModules)))))
-        string p3 = str.concat(q, str.concat("header-modules", str.concat(q, str.concat(":", str.convert(this.statHeaderModules)))))
-        string p4 = str.concat(q, str.concat("dirs-scanned", str.concat(q, str.concat(":", str.convert(this.statDirsScanned)))))
+        string p1 = str.concat(q,
+                str.concat("input-files", str.concat(q, str.concat(":", str.convert(this.statInputFiles)))))
+        string p2 = str.concat(q,
+                str.concat("dep-modules", str.concat(q, str.concat(":", str.convert(this.statDepModules)))))
+        string p3 = str.concat(q,
+                str.concat("header-modules", str.concat(q, str.concat(":", str.convert(this.statHeaderModules)))))
+        string p4 = str.concat(q,
+                str.concat("dirs-scanned", str.concat(q, str.concat(":", str.convert(this.statDirsScanned)))))
         string body = str.concat(p1, str.concat(",", str.concat(p2,
                       str.concat(",", str.concat(p3, str.concat(",", p4))))))
         return str.concat("{", str.concat(body, "}"))
@@ -239,14 +264,19 @@ public class Frontend {
         int ens = 0
         while ens < entryMods.size() {
             ASTNameSpace ns0 = entryMods.get(ens).getNameSpace()
-            if ns0 != null { entryNs.add(this.joinNames(ns0.getNames())) }
+            if ns0 != null {
+                entryNs.add(this.joinNames(ns0.getNames()))
+            }
             ens = ens + 1
         }
 
         List<ASTModule> mods = new List<ASTModule>()
         this.loadLibHeaders(fo, mods, entryNs)
         int emi = 0
-        while emi < entryMods.size() { mods.add(entryMods.get(emi))  emi = emi + 1 }
+        while emi < entryMods.size() {
+            mods.add(entryMods.get(emi))
+            emi = emi + 1
+        }
         // 2b) Import-based source discovery (port of Frontend.cpp::ResolveSourceDeps).
         // A fly project is compiled from its root: the CURRENT directory by default,
         // overridden by a single --src-dir. Runs BEFORE Sema so pulled modules resolve
@@ -269,10 +299,13 @@ public class Frontend {
         if fo.getTestMode() {
             CodeGenOptions cgo0 = this.ci.getCodeGenOptions()
             string tf0 = ""
-            if cgo0 != null { tf0 = cgo0.getTestFilter() }
+            if cgo0 != null {
+                tf0 = cgo0.getTestFilter()
+            }
             if str.isEmpty(tf0) == false {
                 if this.checkTestFilter(reg, cgo0.getSuiteName(), tf0) == false {
-                    io.printErrLn(str.concat(str.concat("error: --test filter '", tf0), "' matches no test method in the selected suites"))
+                    io.printErrLn(str.concat(str.concat("error: --test filter '", tf0),
+                            "' matches no test method in the selected suites"))
                     return 1
                 }
             }
@@ -343,7 +376,9 @@ public class Frontend {
                 }
             } else {
                 int fileType = 1                       // object
-                if action == 2 { fileType = 0 }        // assembly
+                if action == 2 { // assembly
+                    fileType = 0
+                }
                 bool eok = false
                 cgm.emitObjectOrAsm(ti, outPath, fileType, eok)
                 if eok == false {
@@ -371,7 +406,9 @@ public class Frontend {
         int di = 0
         while di < nd {
             string d = fo.libDirAt(di)
-            if str.isEmpty(d) == false { this.loadHeadersFromDir(d, mods, skipNs) }
+            if str.isEmpty(d) == false {
+                this.loadHeadersFromDir(d, mods, skipNs)
+            }
             di = di + 1
         }
     }
@@ -380,11 +417,15 @@ public class Frontend {
     // A header whose namespace is in `skipNs` (provided by an entry source in --lib mode)
     // is dropped, so the source definition isn't shadowed by a colliding declaration.
     public void loadHeadersFromDir(const string dir, List<ASTModule> mods, const List<string> skipNs) {
-        if path.isDir(dir) == false { return }
+        if path.isDir(dir) == false {
+            return
+        }
         this.statDirsScanned = this.statDirsScanned + 1
         fly.os.fs.DirEntries de = fs.dirRead(dir)
         pointer items = de.items
-        if items == 0 { return }
+        if items == 0 {
+            return
+        }
 
         // DirEntry stride is 56 bytes: name.ptr at +0 (i64), name.size at +8 (i32).
         // Read via readPtr/readInt with byte offsets (the Driver.argAt pattern) — no
@@ -412,7 +453,9 @@ public class Frontend {
                 // A cache hit was parsed successfully when it was stored, so
                 // only a miss checks isSuccess — and only a miss reads the file.
                 ASTModule hm = null
-                if this.modCache != null { hm = this.modCache.lookup(full) }
+                if this.modCache != null {
+                    hm = this.modCache.lookup(full)
+                }
                 if hm == null {
                     string src = fs.readStr(full)
                     if str.isEmpty(src) == false {
@@ -426,7 +469,9 @@ public class Frontend {
                         ASTModule parsed = hp.parseModule(full)
                         if hp.isSuccess() {
                             hm = parsed
-                            if this.modCache != null { this.modCache.store(full, hm) }
+                            if this.modCache != null {
+                                this.modCache.store(full, hm)
+                            }
                         }
                     }
                 }
@@ -434,7 +479,9 @@ public class Frontend {
                     // skip a header whose namespace is built from source (--lib entry)
                     ASTNameSpace hns = hm.getNameSpace()
                     string hnsStr = ""
-                    if hns != null { hnsStr = this.joinNames(hns.getNames()) }
+                    if hns != null {
+                        hnsStr = this.joinNames(hns.getNames())
+                    }
                     if this.listHas(skipNs, hnsStr) == false {
                         hm.setHeader(true)
                         mods.add(hm)
@@ -471,10 +518,14 @@ public class Frontend {
             // its basename belongs to the lib dir, not to this project. Counting it
             // meant a lib shipping `list.fly` silently swallowed a project file of
             // the same name — no diagnostic, just a namespace that would not resolve.
-            if mm.isHeader() == false { known.add(path.basename(mm.getName())) }
+            if mm.isHeader() == false {
+                known.add(path.basename(mm.getName()))
+            }
             if mm.isHeader() {
                 ASTNameSpace hns = mm.getNameSpace()
-                if hns != null { headerNs.add(this.joinNames(hns.getNames())) }
+                if hns != null {
+                    headerNs.add(this.joinNames(hns.getNames()))
+                }
             }
             mi = mi + 1
         }
@@ -498,7 +549,10 @@ public class Frontend {
                 if headerServed == false && imp.isWildcard() == false {
                     string hcand = this.dropLastSegment(ns)
                     while str.isEmpty(hcand) == false {
-                        if this.listHas(headerNs, hcand) { headerServed = true  break }
+                        if this.listHas(headerNs, hcand) {
+                            headerServed = true
+                            break
+                        }
                         string hcand2 = this.dropLastSegment(hcand)
                         hcand = hcand2
                     }
@@ -515,7 +569,9 @@ public class Frontend {
                             int di = 0
                             while di < sd {
                                 string d = fo.srcDirAt(di)
-                                if str.isEmpty(d) == false { this.scanSrcDir(d, mapNs, mapPath, known) }
+                                if str.isEmpty(d) == false {
+                                    this.scanSrcDir(d, mapNs, mapPath, known)
+                                }
                                 di = di + 1
                             }
                         }
@@ -531,11 +587,15 @@ public class Frontend {
                     if imp.isWildcard() == false && exactHit == false && descHit == false {
                         string cand = this.dropLastSegment(ns)
                         while str.isEmpty(cand) == false {
-                            if this.listHas(mapNs, cand) { break }
+                            if this.listHas(mapNs, cand) {
+                                break
+                            }
                             string cand2 = this.dropLastSegment(cand)
                             cand = cand2
                         }
-                        if str.isEmpty(cand) == false { ns = cand }
+                        if str.isEmpty(cand) == false {
+                            ns = cand
+                        }
                     }
                     if this.listHas(doneNs, ns) == false {
                         doneNs.add(ns)
@@ -580,7 +640,8 @@ public class Frontend {
     }
 
     // pullNamespace — parse every mapped source file of `ns` and append it to mods.
-    public bool pullNamespace(const string ns, const List<string> mapNs, const List<string> mapPath, List<string> known, List<ASTModule> mods) {
+    public bool pullNamespace(const string ns, const List<string> mapNs, const List<string> mapPath, List<string> known,
+            List<ASTModule> mods) {
         int k = 0
         while k < mapNs.size() {
             if str.equals(mapNs.get(k), ns) {
@@ -593,7 +654,9 @@ public class Frontend {
                     // which together are where a language-server compile spends
                     // nearly all of its time.
                     ASTModule dm = null
-                    if this.modCache != null { dm = this.modCache.lookup(p) }
+                    if this.modCache != null {
+                        dm = this.modCache.lookup(p)
+                    }
                     if dm == null {
                         string src = fs.readStr(p)
                         Parser dp = new Parser(src)
@@ -602,7 +665,9 @@ public class Frontend {
                             this.printDiags(dp.getSink())
                             return false
                         }
-                        if this.modCache != null { this.modCache.store(p, dm) }
+                        if this.modCache != null {
+                            this.modCache.store(p, dm)
+                        }
                     }
                     mods.add(dm)
                     this.statDepModules = this.statDepModules + 1
@@ -618,11 +683,15 @@ public class Frontend {
     // entry itself, typically) are skipped. Same DirEntry-stride read pattern as
     // loadHeadersFromDir.
     public void scanSrcDir(const string dir, List<string> mapNs, List<string> mapPath, const List<string> known) {
-        if path.isDir(dir) == false { return }
+        if path.isDir(dir) == false {
+            return
+        }
         this.statDirsScanned = this.statDirsScanned + 1
         fly.os.fs.DirEntries de = fs.dirRead(dir)
         pointer items = de.items
-        if items == 0 { return }
+        if items == 0 {
+            return
+        }
         long lenL = (long)de.len
         int n = 0
         fly.llvm.longToInt(lenL, n)
@@ -638,8 +707,11 @@ public class Frontend {
                 // of the driver discovery walk — fly.driver.discoverySkipsDir).
                 bool skipDir = false
                 byte b0 = str.byteAt(entry, 0)
-                if b0 == 46 { skipDir = true }
-                elsif str.equals(entry, "build") { skipDir = true }
+                if b0 == 46 {
+                    skipDir = true
+                } elsif str.equals(entry, "build") {
+                    skipDir = true
+                }
                 if skipDir == false {
                     this.scanSrcDir(full, mapNs, mapPath, known)
                 }
@@ -667,14 +739,22 @@ public class Frontend {
             int e = pos
             while e < n {
                 byte c = str.byteAt(src, e)
-                if c == 10 { break }
+                if c == 10 {
+                    break
+                }
                 e = e + 1
             }
             string line = str.trim(str.substring(src, pos, e))
             pos = e + 1
-            if str.isEmpty(line) { continue }
-            if str.startsWith(line, "/") { continue }
-            if str.startsWith(line, "*") { continue }
+            if str.isEmpty(line) {
+                continue
+            }
+            if str.startsWith(line, "/") {
+                continue
+            }
+            if str.startsWith(line, "*") {
+                continue
+            }
             if str.startsWith(line, "namespace ") {
                 string rest = str.trim(str.substring(line, 10, str.len(line)))
                 int sp = str.indexOf(rest, " ")
@@ -782,7 +862,9 @@ public class Frontend {
         int i = 0
         while i < n {
             string sep = ""
-            if i > 0 { sep = " " }
+            if i > 0 {
+                sep = " "
+            }
             string acc = str.concat(res, str.concat(sep, fo.inputAt(i)))
             res = acc
             i = i + 1
@@ -795,8 +877,12 @@ public class Frontend {
     // (reference EndSourceFile early-out); an unwritable path warns and the
     // compilation result stands (reference warn_fe_cc_log_diagnostics_failure).
     public void flushLog(const FrontendOptions fo) {
-        if this.logger == null { return }
-        if this.logger.count() == 0 { return }
+        if this.logger == null {
+            return
+        }
+        if this.logger.count() == 0 {
+            return
+        }
         string path = fo.getLogFile()
         string text = ""
         if str.equals(fo.getLogFormat(), "json") {

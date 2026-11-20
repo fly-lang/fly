@@ -39,13 +39,23 @@ public class CodeGenTrace {
     // because the hooks themselves live in fly.log (tracing them would recurse).
     public static bool shouldTrace(const CodeGenModule cgm, const SemaFunctionBase fn) {
         CodeGenOptions o = cgm.getCodeGenOpts()
-        if o == null { return false }
-        if o.getTraceCalls() == false { return false }
+        if o == null {
+            return false
+        }
+        if o.getTraceCalls() == false {
+            return false
+        }
         SemaBlockStmt body = fn.getBody()
-        if body == null { return false }
+        if body == null {
+            return false
+        }
         string ns = fn.getNamespaceName()
-        if str.equals(ns, "fly") { return false }
-        if str.startsWith(ns, "fly_") { return false }
+        if str.equals(ns, "fly") {
+            return false
+        }
+        if str.startsWith(ns, "fly_") {
+            return false
+        }
         return true
     }
 
@@ -55,7 +65,9 @@ public class CodeGenTrace {
     public static string prettyName(const SemaClassType cls, const SemaFunctionBase fn) {
         string base = ""
         string ns = fn.getNamespaceName()
-        if str.isEmpty(ns) == false { base = str.concat(ns, ".") }
+        if str.isEmpty(ns) == false {
+            base = str.concat(ns, ".")
+        }
         if cls != null {
             string c1 = str.concat(base, cls.getName())
             string c2 = str.concat(c1, ".")
@@ -68,7 +80,9 @@ public class CodeGenTrace {
     // Must run with the builder in the entry block, before the body.
     public static void emitEnter(const CodeGenModule cgm, const CodeGenExpr cge,
                                  const SemaClassType cls, const SemaFunctionBase fn) {
-        if shouldTrace(cgm, fn) == false { return }
+        if shouldTrace(cgm, fn) == false {
+            return
+        }
         string name = prettyName(cls, fn)
         cge.setTraceName(name)
         emitHook(cgm, "_F7fly_log5enter_Ss", name)
@@ -77,13 +91,17 @@ public class CodeGenTrace {
     // emitExit / emitExitFail — no-ops unless emitEnter armed this function.
     public static void emitExit(const CodeGenExpr cge) {
         string name = cge.getTraceName()
-        if str.isEmpty(name) { return }
+        if str.isEmpty(name) {
+            return
+        }
         emitHook(cge.getCgm(), "_F7fly_log4exit_Ss", name)
     }
 
     public static void emitExitFail(const CodeGenExpr cge) {
         string name = cge.getTraceName()
-        if str.isEmpty(name) { return }
+        if str.isEmpty(name) {
+            return
+        }
         emitHook(cge.getCgm(), "_F7fly_log8exitFail_Ss", name)
     }
 

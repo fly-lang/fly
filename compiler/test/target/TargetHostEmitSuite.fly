@@ -22,11 +22,17 @@ suite TargetHostEmitSuite {
     void hostEmitTest() {
         case "emit an object for the host architecture": {
             Arch ha = hostArch()
-            if ha == Arch.UNKNOWN { assert.assertTrue(true, 1)  return }
+            if ha == Arch.UNKNOWN {
+                assert.assertTrue(true, 1)
+                return
+            }
 
             string tri = hostTripleStr()
             TargetInfo ti = targetInfoCreate(new TargetOptions(tri))
-            if ti.isValid() == false { assert.assertTrue(true, 2)  return }
+            if ti.isValid() == false {
+                assert.assertTrue(true, 2)
+                return
+            }
 
             // `void main()`: a main that declares a return type is rejected now
             // (the exit code comes from the error protocol, never from `out`), and

@@ -145,7 +145,9 @@ public class CodeGenArray {
         // convenience of construction, not a transfer of responsibility.
         SemaType elemT = at.getElementType()
         SemaClassType elemCls = null
-        if elemT != null { elemCls = elemT.asClass() }
+        if elemT != null {
+            elemCls = elemT.asClass()
+        }
         if elemCls != null {
             if elemCls.getClassKind() != SemaClassKind.STRUCT {
                 CodeGenArray.fillWithInstances(cge, dataPtr, lenV, elemCls)
@@ -175,8 +177,12 @@ public class CodeGenArray {
     // The alloca is hoisted into the entry block by LLVM.buildAlloca, so a call in
     // a loop reuses one slot; the store stays here, where the value is computed.
     public static pointer slotOf(const CodeGenExpr cge, const SemaExpr e) {
-        if e.isVarExpr() { return cge.genAddr(e) }
-        if e.getKind() == SemaKind.MEMBER { return cge.genAddr(e) }
+        if e.isVarExpr() {
+            return cge.genAddr(e)
+        }
+        if e.getKind() == SemaKind.MEMBER {
+            return cge.genAddr(e)
+        }
         // A ROW of a nested array (`m[1]` in `m[1][2]`) is an inline %array inside
         // the outer buffer, and arrayAccess already hands back its ADDRESS — that
         // address IS the slot. Materialising it like a value stored the pointer
@@ -186,7 +192,9 @@ public class CodeGenArray {
         if e.getKind() == SemaKind.ARRAY_ACCESS {
             SemaType aet = e.getType()
             if aet != null {
-                if aet.isArray() { return cge.gen(e) }
+                if aet.isArray() {
+                    return cge.gen(e)
+                }
             }
         }
         LLVM llvm = cge.getLLVM()
@@ -220,7 +228,8 @@ public class CodeGenArray {
     // class-element buffer. A counted loop rather than N unrolled copies: the
     // length can be a runtime value, and even a constant one should not inline the
     // whole construction sequence per index.
-    public static void fillWithInstances(const CodeGenExpr cge, const pointer dataPtr, const pointer lenV, const SemaClassType cls) {
+    public static void fillWithInstances(const CodeGenExpr cge, const pointer dataPtr, const pointer lenV,
+            const SemaClassType cls) {
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         CodeGenModule cgm = cge.getCgm()
@@ -391,7 +400,9 @@ public class CodeGenArray {
         cge.position(freeBB)
         SemaType elemT = at.getElementType()
         SemaArrayType innerT = null
-        if elemT != null { innerT = elemT.asArray() }
+        if elemT != null {
+            innerT = elemT.asArray()
+        }
         if innerT != null {
             CodeGenArray.releaseElements(cge, slot, dataPtr, innerT)
         }
@@ -405,7 +416,8 @@ public class CodeGenArray {
     // buffer goes back. Each element is an inline %array, so its address is the
     // slot emitRelease already knows how to take, and the recursion needs no
     // special case.
-    public static void releaseElements(const CodeGenExpr cge, const pointer slot, const pointer dataPtr, const SemaArrayType innerT) {
+    public static void releaseElements(const CodeGenExpr cge, const pointer slot, const pointer dataPtr,
+            const SemaArrayType innerT) {
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         CodeGenModule cgm = cge.getCgm()
@@ -477,12 +489,18 @@ public class CodeGenArray {
     // retain gives `j` a scope-exit release on a buffer `obj` still points at. A
     // retain too many leaks; a retain too few corrupts.
     public static void retainValueIfLValue(const CodeGenExpr cge, const pointer arrVal, const SemaExpr rhs) {
-        if rhs == null { return }
+        if rhs == null {
+            return
+        }
         bool isLv = rhs.isVarExpr()
         if isLv == false {
-            if rhs.getKind() == SemaKind.MEMBER { isLv = true }
+            if rhs.getKind() == SemaKind.MEMBER {
+                isLv = true
+            }
         }
-        if isLv == false { return }
+        if isLv == false {
+            return
+        }
         LLVM llvm = cge.getLLVM()
         pointer dataPtr
         llvm.buildExtractValue(cge.getBuilder(), arrVal, 0, "aret.src", dataPtr)
@@ -492,7 +510,9 @@ public class CodeGenArray {
     // oobCode — the dedicated failure code for an out-of-range subscript, 0x0BAD.
     // It behaves like any other `fail`: it propagates, sets main's exit status,
     // and can be caught with `handle`.
-    public static int oobCode() { return 2989 }
+    public static int oobCode() {
+        return 2989
+    }
 
     // elementPtr — the ADDRESS of `base[index]`, bounds-checked.
     //
@@ -581,7 +601,9 @@ public class CodeGenArray {
             } else {
                 SemaClassType ec = et.asClass()
                 if ec != null {
-                    if ec.getClassKind() == SemaClassKind.STRUCT { inlineAggregate = true }
+                    if ec.getClassKind() == SemaClassKind.STRUCT {
+                        inlineAggregate = true
+                    }
                 }
             }
         }

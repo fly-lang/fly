@@ -50,7 +50,9 @@ public class LspServer {
     public void run() {
         while this.exited == false {
             string body = this.transport.readMessage()
-            if str.isEmpty(body) { this.exited = true } else {
+            if str.isEmpty(body) {
+                this.exited = true
+            } else {
                 this.dispatch(body)
             }
         }
@@ -59,7 +61,9 @@ public class LspServer {
     void dispatch(const string body) {
         int pe = 0
         pointer msg = json.parse(body, pe)
-        if pe != 0 { return }
+        if pe != 0 {
+            return
+        }
         if json.isObject(msg) == false {
             json.freeValue(msg)
             return
@@ -67,7 +71,11 @@ public class LspServer {
 
         string method = ""
         pointer mNode = json.get(msg, "method")
-        if mNode != 0 { if json.isString(mNode) { method = json.asString(mNode) } }
+        if mNode != 0 {
+            if json.isString(mNode) {
+                method = json.asString(mNode)
+            }
+        }
         if str.isEmpty(method) {
             json.freeValue(msg)
             return
@@ -85,35 +93,58 @@ public class LspServer {
 
         if this.initialized == false {
             if str.equals(method, "initialize") == false {
-                if isRequest { this.transport.sendError(idJson, 0 - 32002, "Server not initialized") }
+                if isRequest {
+                    this.transport.sendError(idJson, 0 - 32002, "Server not initialized")
+                }
                 json.freeValue(msg)
                 return
             }
         }
 
-        if str.equals(method, "initialize") { this.onInitialize(idJson, msg) }
-        elsif str.equals(method, "initialized") { }
-        elsif str.equals(method, "shutdown") { this.onShutdown(idJson) }
-        elsif str.equals(method, "exit") { this.exited = true }
-        elsif str.equals(method, "textDocument/didOpen") { this.onDidOpen(msg) }
-        elsif str.equals(method, "textDocument/didChange") { this.onDidChange(msg) }
-        elsif str.equals(method, "textDocument/didSave") { this.onDidSave(msg) }
-        elsif str.equals(method, "textDocument/didClose") { this.onDidClose(msg) }
-        elsif str.equals(method, "textDocument/definition") { this.onDefinition(idJson, msg) }
-        elsif str.equals(method, "textDocument/hover") { this.onHover(idJson, msg) }
-        elsif str.equals(method, "textDocument/references") { this.onReferences(idJson, msg) }
-        elsif str.equals(method, "textDocument/documentHighlight") { this.onDocumentHighlight(idJson, msg) }
-        elsif str.equals(method, "textDocument/documentSymbol") { this.onDocumentSymbol(idJson, msg) }
-        elsif str.equals(method, "textDocument/foldingRange") { this.onFoldingRange(idJson, msg) }
-        elsif str.equals(method, "textDocument/completion") { this.onCompletion(idJson, msg) }
-        elsif str.equals(method, "textDocument/signatureHelp") { this.onSignatureHelp(idJson, msg) }
-        elsif str.equals(method, "textDocument/semanticTokens/full") { this.onSemanticTokens(idJson, msg) }
-        elsif str.equals(method, "textDocument/inlayHint") { this.onInlayHint(idJson, msg) }
-        elsif str.equals(method, "textDocument/typeDefinition") { this.onTypeDefinition(idJson, msg) }
-        elsif str.equals(method, "textDocument/implementation") { this.onImplementation(idJson, msg) }
-        elsif str.equals(method, "textDocument/documentLink") { this.onDocumentLink(idJson, msg) }
-        elsif str.equals(method, "workspace/symbol") { this.onWorkspaceSymbol(idJson, msg) }
-        elsif isRequest {
+        if str.equals(method, "initialize") {
+            this.onInitialize(idJson, msg)
+        } elsif str.equals(method, "initialized") { }
+        elsif str.equals(method, "shutdown") {
+            this.onShutdown(idJson)
+        } elsif str.equals(method, "exit") {
+            this.exited = true
+        } elsif str.equals(method, "textDocument/didOpen") {
+            this.onDidOpen(msg)
+        } elsif str.equals(method, "textDocument/didChange") {
+            this.onDidChange(msg)
+        } elsif str.equals(method, "textDocument/didSave") {
+            this.onDidSave(msg)
+        } elsif str.equals(method, "textDocument/didClose") {
+            this.onDidClose(msg)
+        } elsif str.equals(method, "textDocument/definition") {
+            this.onDefinition(idJson, msg)
+        } elsif str.equals(method, "textDocument/hover") {
+            this.onHover(idJson, msg)
+        } elsif str.equals(method, "textDocument/references") {
+            this.onReferences(idJson, msg)
+        } elsif str.equals(method, "textDocument/documentHighlight") {
+            this.onDocumentHighlight(idJson, msg)
+        } elsif str.equals(method, "textDocument/documentSymbol") {
+            this.onDocumentSymbol(idJson, msg)
+        } elsif str.equals(method, "textDocument/foldingRange") {
+            this.onFoldingRange(idJson, msg)
+        } elsif str.equals(method, "textDocument/completion") {
+            this.onCompletion(idJson, msg)
+        } elsif str.equals(method, "textDocument/signatureHelp") {
+            this.onSignatureHelp(idJson, msg)
+        } elsif str.equals(method, "textDocument/semanticTokens/full") {
+            this.onSemanticTokens(idJson, msg)
+        } elsif str.equals(method, "textDocument/inlayHint") {
+            this.onInlayHint(idJson, msg)
+        } elsif str.equals(method, "textDocument/typeDefinition") {
+            this.onTypeDefinition(idJson, msg)
+        } elsif str.equals(method, "textDocument/implementation") {
+            this.onImplementation(idJson, msg)
+        } elsif str.equals(method, "textDocument/documentLink") {
+            this.onDocumentLink(idJson, msg)
+        } elsif str.equals(method, "workspace/symbol") {
+            this.onWorkspaceSymbol(idJson, msg)
+        } elsif isRequest {
             this.transport.sendError(idJson, 0 - 32601,
                 str.concat("Unknown method: ", method))
         }
@@ -123,12 +154,20 @@ public class LspServer {
     // extractPath — params.textDocument.uri → filesystem path, "" when absent.
     string extractPath(const pointer msg) {
         pointer params = json.get(msg, "params")
-        if params == 0 { return "" }
+        if params == 0 {
+            return ""
+        }
         pointer td = json.get(params, "textDocument")
-        if td == 0 { return "" }
+        if td == 0 {
+            return ""
+        }
         pointer uri = json.get(td, "uri")
-        if uri == 0 { return "" }
-        if json.isString(uri) == false { return "" }
+        if uri == 0 {
+            return ""
+        }
+        if json.isString(uri) == false {
+            return ""
+        }
         return fly.lsp.uriToPath(json.asString(uri))
     }
 
@@ -142,10 +181,14 @@ public class LspServer {
     // this handshake (rust-analyzer, gopls) rather than guessing per file.
     string extractRoot(const pointer msg) {
         pointer params = json.get(msg, "params")
-        if params == 0 { return "" }
+        if params == 0 {
+            return ""
+        }
         pointer ru = json.get(params, "rootUri")
         if ru != 0 {
-            if json.isString(ru) { return fly.lsp.uriToPath(json.asString(ru)) }
+            if json.isString(ru) {
+                return fly.lsp.uriToPath(json.asString(ru))
+            }
         }
         pointer wf = json.get(params, "workspaceFolders")
         if wf != 0 {
@@ -154,14 +197,18 @@ public class LspServer {
                 if f0 != 0 {
                     pointer u0 = json.get(f0, "uri")
                     if u0 != 0 {
-                        if json.isString(u0) { return fly.lsp.uriToPath(json.asString(u0)) }
+                        if json.isString(u0) {
+                            return fly.lsp.uriToPath(json.asString(u0))
+                        }
                     }
                 }
             }
         }
         pointer rp = json.get(params, "rootPath")
         if rp != 0 {
-            if json.isString(rp) { return json.asString(rp) }
+            if json.isString(rp) {
+                return json.asString(rp)
+            }
         }
         return ""
     }
@@ -250,16 +297,24 @@ public class LspServer {
         int i = 0
         bool found = false
         while i < this.openFiles.size() {
-            if str.equals(this.openFiles.get(i), path) { found = true  i = (int)this.openFiles.size() }
-            else { i = i + 1 }
+            if str.equals(this.openFiles.get(i), path) {
+                found = true
+                i = (int)this.openFiles.size()
+            } else {
+                i = i + 1
+            }
         }
         return found
     }
 
     void onDidOpen(const pointer msg) {
         string path = this.extractPath(msg)
-        if str.isEmpty(path) { return }
-        if this.isOpen(path) == false { this.openFiles.add(path) }
+        if str.isEmpty(path) {
+            return
+        }
+        if this.isOpen(path) == false {
+            this.openFiles.add(path)
+        }
         this.recompileAndPublish(path)
     }
 
@@ -272,18 +327,24 @@ public class LspServer {
 
     void onDidSave(const pointer msg) {
         string path = this.extractPath(msg)
-        if str.isEmpty(path) { return }
+        if str.isEmpty(path) {
+            return
+        }
         this.recompileAndPublish(path)
     }
 
     void onDidClose(const pointer msg) {
         string path = this.extractPath(msg)
-        if str.isEmpty(path) { return }
+        if str.isEmpty(path) {
+            return
+        }
         List<string> keep = new List<string>()
         int i = 0
         while i < this.openFiles.size() {
             string f = this.openFiles.get(i)
-            if str.equals(f, path) == false { keep.add(f) }
+            if str.equals(f, path) == false {
+                keep.add(f)
+            }
             i = i + 1
         }
         this.openFiles = keep
@@ -306,8 +367,12 @@ public class LspServer {
         bool found = false
         int i = 0
         while i < xs.size() {
-            if str.equals(xs.get(i), v) { found = true  i = (int)xs.size() }
-            else { i = i + 1 }
+            if str.equals(xs.get(i), v) {
+                found = true
+                i = (int)xs.size()
+            } else {
+                i = i + 1
+            }
         }
         return found
     }
@@ -327,7 +392,9 @@ public class LspServer {
         // restarts the same way, just by time window instead of content.
         uint crc = hash.crc32(fs.readStr(triggerFile))
         if str.equals(triggerFile, this.compiledPath) {
-            if crc == this.compiledCrc { return }
+            if crc == this.compiledCrc {
+                return
+            }
         }
         List<LspDiag> diags = this.analyzer.compileFile(triggerFile)
         this.compiledPath = triggerFile
@@ -348,7 +415,9 @@ public class LspServer {
             int di = 0
             while di < diags.size() {
                 LspDiag d = diags.get(di)
-                if str.equals(d.file, f) { json.add(arr, fly.lsp.mkDiagnostic(d)) }
+                if str.equals(d.file, f) {
+                    json.add(arr, fly.lsp.mkDiagnostic(d))
+                }
                 di = di + 1
             }
             this.publishFor(f, arr)
@@ -373,8 +442,12 @@ public class LspServer {
     // didOpen would have done) so navigation never answers from the wrong file.
 
     void ensureCompiled(const string path) {
-        if str.isEmpty(path) { return }
-        if str.equals(path, this.compiledPath) { return }
+        if str.isEmpty(path) {
+            return
+        }
+        if str.equals(path, this.compiledPath) {
+            return
+        }
         List<LspDiag> ignored = this.analyzer.compileFile(path)
         this.compiledPath = path
         // Keep the coalescing state truthful: this compile saw these bytes, so
@@ -385,21 +458,33 @@ public class LspServer {
     // extractLine/extractCol — params.position, converted to 1-based.
     int extractLine(const pointer msg) {
         pointer params = json.get(msg, "params")
-        if params == 0 { return 1 }
+        if params == 0 {
+            return 1
+        }
         pointer pos = json.get(params, "position")
-        if pos == 0 { return 1 }
+        if pos == 0 {
+            return 1
+        }
         pointer l = json.get(pos, "line")
-        if l == 0 { return 1 }
+        if l == 0 {
+            return 1
+        }
         return json.asInt(l) + 1
     }
 
     int extractCol(const pointer msg) {
         pointer params = json.get(msg, "params")
-        if params == 0 { return 1 }
+        if params == 0 {
+            return 1
+        }
         pointer pos = json.get(params, "position")
-        if pos == 0 { return 1 }
+        if pos == 0 {
+            return 1
+        }
         pointer c = json.get(pos, "character")
-        if c == 0 { return 1 }
+        if c == 0 {
+            return 1
+        }
         return json.asInt(c) + 1
     }
 
@@ -418,9 +503,15 @@ public class LspServer {
         string path = this.extractPath(msg)
         this.ensureCompiled(path)
         LspTarget t = this.analyzer.findTargetAt(this.extractLine(msg), this.extractCol(msg))
-        if t.kind == 0 { this.transport.sendResult(idJson, 0)  return }
+        if t.kind == 0 {
+            this.transport.sendResult(idJson, 0)
+            return
+        }
         LspLoc loc = this.analyzer.declLocationOf(t)
-        if loc.ok == false { this.transport.sendResult(idJson, 0)  return }
+        if loc.ok == false {
+            this.transport.sendResult(idJson, 0)
+            return
+        }
         this.transport.sendResult(idJson,
             this.mkLocation(loc.file, loc.line, loc.col, str.len(t.name)))
     }
@@ -430,7 +521,10 @@ public class LspServer {
         this.ensureCompiled(path)
         LspTarget t = this.analyzer.findTargetAt(this.extractLine(msg), this.extractCol(msg))
         string md = this.analyzer.hoverOf(t)
-        if str.isEmpty(md) { this.transport.sendResult(idJson, 0)  return }
+        if str.isEmpty(md) {
+            this.transport.sendResult(idJson, 0)
+            return
+        }
         pointer contents = json.newObject()
         json.put(contents, "kind", json.newString("markdown"))
         json.put(contents, "value", json.newString(md))
@@ -451,12 +545,16 @@ public class LspServer {
                 pointer ctx = json.get(params, "context")
                 if ctx != 0 {
                     pointer f = json.get(ctx, "includeDeclaration")
-                    if f != 0 { inclDecl = json.asBool(f) }
+                    if f != 0 {
+                        inclDecl = json.asBool(f)
+                    }
                 }
             }
             if inclDecl {
                 LspLoc dl = this.analyzer.declLocationOf(t)
-                if dl.ok { json.add(arr, this.mkLocation(dl.file, dl.line, dl.col, str.len(t.name))) }
+                if dl.ok {
+                    json.add(arr, this.mkLocation(dl.file, dl.line, dl.col, str.len(t.name)))
+                }
             }
             List<LspUse> uses = this.analyzer.collectUses(t.name)
             int i = 0
@@ -569,7 +667,10 @@ public class LspServer {
         string path = this.extractPath(msg)
         this.ensureCompiled(path)
         LspSignature sig = this.analyzer.signatureAt(this.extractLine(msg), this.extractCol(msg))
-        if sig.ok == false { this.transport.sendResult(idJson, 0)  return }
+        if sig.ok == false {
+            this.transport.sendResult(idJson, 0)
+            return
+        }
         pointer sio = json.newObject()
         json.put(sio, "label", json.newString(sig.label))
         pointer ps = json.newArray()
@@ -606,8 +707,14 @@ public class LspServer {
                 LspSym a = sorted.get(k)
                 LspSym b = sorted.get(best)
                 bool less = a.line < b.line
-                if less == false { if a.line == b.line { less = a.col < b.col } }
-                if less { best = k }
+                if less == false {
+                    if a.line == b.line {
+                        less = a.col < b.col
+                    }
+                }
+                if less {
+                    best = k
+                }
                 k = k + 1
             }
             if best != i {
@@ -627,7 +734,9 @@ public class LspServer {
             int col0 = t.col - 1
             int dLine = line0 - prevLine
             int dCol = col0
-            if dLine == 0 { dCol = col0 - prevCol }
+            if dLine == 0 {
+                dCol = col0 - prevCol
+            }
             json.add(data, json.newInt(dLine))
             json.add(data, json.newInt(dCol))
             json.add(data, json.newInt(str.len(t.name)))
@@ -655,12 +764,16 @@ public class LspServer {
                 pointer s = json.get(r, "start")
                 if s != 0 {
                     pointer sl = json.get(s, "line")
-                    if sl != 0 { startLine = json.asInt(sl) + 1 }
+                    if sl != 0 {
+                        startLine = json.asInt(sl) + 1
+                    }
                 }
                 pointer e = json.get(r, "end")
                 if e != 0 {
                     pointer el = json.get(e, "line")
-                    if el != 0 { endLine = json.asInt(el) + 1 }
+                    if el != 0 {
+                        endLine = json.asInt(el) + 1
+                    }
                 }
             }
         }
@@ -683,9 +796,15 @@ public class LspServer {
         string path = this.extractPath(msg)
         this.ensureCompiled(path)
         LspTarget t = this.analyzer.findTargetAt(this.extractLine(msg), this.extractCol(msg))
-        if t.kind == 0 { this.transport.sendResult(idJson, 0)  return }
+        if t.kind == 0 {
+            this.transport.sendResult(idJson, 0)
+            return
+        }
         LspLoc loc = this.analyzer.typeDefinitionOf(t)
-        if loc.ok == false { this.transport.sendResult(idJson, 0)  return }
+        if loc.ok == false {
+            this.transport.sendResult(idJson, 0)
+            return
+        }
         this.transport.sendResult(idJson,
             this.mkLocation(loc.file, loc.line, loc.col, str.len(t.varTypeName)))
     }
@@ -714,7 +833,11 @@ public class LspServer {
         pointer params = json.get(msg, "params")
         if params != 0 {
             pointer q = json.get(params, "query")
-            if q != 0 { if json.isString(q) { query = json.asString(q) } }
+            if q != 0 {
+                if json.isString(q) {
+                    query = json.asString(q)
+                }
+            }
         }
         List<LspSym> syms = this.analyzer.workspaceSymbols(query)
         pointer arr = json.newArray()

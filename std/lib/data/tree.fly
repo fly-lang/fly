@@ -174,7 +174,9 @@ public class Tree<K, V> {
                 }
             }
         }
-        if found == false { return }
+        if found == false {
+            return
+        }
         pointer left = 0
         fly.llvm.ptrReadLong(cur, leftOff, left)
         pointer right = 0

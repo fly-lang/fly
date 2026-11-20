@@ -33,17 +33,31 @@ public class CompilerInstance {
         this.sourceMgr = null
     }
 
-    public void createFileManager() { this.fileMgr = new FileManager() }
+    public void createFileManager() {
+        this.fileMgr = new FileManager()
+    }
 
     // createSourceManager — build the SourceManager for the entry file's buffer.
     public void createSourceManager(const string fileName, const string buffer) {
         this.sourceMgr = new SourceManager(fileName, buffer)
     }
 
-    public DiagnosticsEngine getDiagnostics()    { return this.diags }
-    public FileManager getFileManager()          { return this.fileMgr }
-    public SourceManager getSourceManager()      { return this.sourceMgr }
-    public FrontendOptions getFrontendOptions()  { return this.frontendOpts }
-    public CodeGenOptions getCodeGenOptions()    { return this.codeGenOpts }
-    public TargetOptions getTargetOptions()      { return this.targetOpts }
+    public DiagnosticsEngine getDiagnostics() {
+        return this.diags
+    }
+    public FileManager getFileManager() {
+        return this.fileMgr
+    }
+    public SourceManager getSourceManager() {
+        return this.sourceMgr
+    }
+    public FrontendOptions getFrontendOptions() {
+        return this.frontendOpts
+    }
+    public CodeGenOptions getCodeGenOptions() {
+        return this.codeGenOpts
+    }
+    public TargetOptions getTargetOptions() {
+        return this.targetOpts
+    }
 }

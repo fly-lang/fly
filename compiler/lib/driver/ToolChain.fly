@@ -41,14 +41,20 @@ import fly.str
 // fly.compiler.basic (compiler/lib/basic/StrList.fly), imported above.
 
 // llvmMajor — the LLVM major version the self-host targets (libLLVM-20).
-public string llvmMajor() { return "20" }
+public string llvmMajor() {
+    return "20"
+}
 
 // envPathSeparator — the $PATH list separator for host os name `osName`
 // (llvm::sys::EnvPathSeparator in the reference): ";" on Windows, whose PATH
 // entries are drive paths like "C:\...", ":" everywhere else. Pure, so
 // ToolChainSuite can pin both branches.
 public string envPathSeparator(const string osName) {
-    if str.equals(osName, "windows") { return ";" } else { return ":" }
+    if str.equals(osName, "windows") {
+        return ";"
+    } else {
+        return ":"
+    }
 }
 
 // windowsArtifactPath — the on-disk name the Windows link step gives `-o outFile`:
@@ -65,22 +71,38 @@ public string envPathSeparator(const string osName) {
 // cannot drift, and used by the driver to name the binary it launches.
 public string windowsArtifactPath(const string outFile, const bool buildDll) {
     string ext = ".exe"
-    if buildDll { ext = ".dll" }
+    if buildDll {
+        ext = ".dll"
+    }
     // case-insensitive, like the reference's ends_with_insensitive: Windows
     // paths are case-insensitive and `-o App.EXE` must not gain a second suffix.
     string lower = str.toLower(outFile)
-    if str.endsWith(lower, ext) { return outFile }
+    if str.endsWith(lower, ext) {
+        return outFile
+    }
     return str.concat(outFile, ext)
 }
 
 // archToCompilerRTSuffix — compiler-rt arch suffix; "" if unsupported.
 public string archToCompilerRTSuffix(const Arch a) {
-    if a == Arch.X86_64  { return "x86_64" }
-    if a == Arch.X86     { return "i386" }
-    if a == Arch.AARCH64 { return "aarch64" }
-    if a == Arch.ARM     { return "arm" }
-    if a == Arch.RISCV32 { return "riscv32" }
-    if a == Arch.RISCV64 { return "riscv64" }
+    if a == Arch.X86_64 {
+        return "x86_64"
+    }
+    if a == Arch.X86 {
+        return "i386"
+    }
+    if a == Arch.AARCH64 {
+        return "aarch64"
+    }
+    if a == Arch.ARM {
+        return "arm"
+    }
+    if a == Arch.RISCV32 {
+        return "riscv32"
+    }
+    if a == Arch.RISCV64 {
+        return "riscv64"
+    }
     return ""
 }
 
@@ -154,13 +176,17 @@ public class ToolChain {
     // the search can never hit), and on Windows each dir is probed for `name`
     // then `name.exe`, since the on-disk linker is `ld.lld.exe`.
     public string resolveProg(const string name) {
-        if str.contains(name, "/") || path.isAbsolute(name) { return name }
+        if str.contains(name, "/") || path.isAbsolute(name) {
+            return name
+        }
         string hostOs = env.osname()
         bool win = str.equals(hostOs, "windows")
         string sep = envPathSeparator(hostOs)
         string pathEnv = env.get("PATH")
         if str.isEmpty(pathEnv) {
-            if win { return "" }
+            if win {
+                return ""
+            }
             pathEnv = "/usr/bin:/bin"
         }
         int from = 0
@@ -171,17 +197,28 @@ public class ToolChain {
             string tail = str.substring(pathEnv, from, len)
             int rel = str.indexOf(tail, sep)
             int end = len
-            if rel >= 0 { end = from + rel }
+            if rel >= 0 {
+                end = from + rel
+            }
             string dir = str.substring(pathEnv, from, end)
             if str.isEmpty(dir) == false {
                 string cand = path.join(dir, name)
-                if fs.exists(cand) { found = cand  go = false }
-                elsif win {
+                if fs.exists(cand) {
+                    found = cand
+                    go = false
+                } elsif win {
                     string candExe = path.join(dir, str.concat(name, ".exe"))
-                    if fs.exists(candExe) { found = candExe  go = false }
+                    if fs.exists(candExe) {
+                        found = candExe
+                        go = false
+                    }
                 }
             }
-            if rel < 0 { go = false } else { from = end + 1 }
+            if rel < 0 {
+                go = false
+            } else {
+                from = end + 1
+            }
         }
         return found
     }
@@ -208,11 +245,18 @@ public class ToolChain {
             // Only original LLVM tool names are bundled (no fly-specific renames).
             string bundled = path.join(dir, prog)
             string bundledExe = path.join(dir, str.concat(prog, ".exe"))
-            if fs.exists(bundled) { p = bundled }
-            elsif fs.exists(bundledExe) { p = bundledExe }
+            if fs.exists(bundled) {
+                p = bundled
+            } elsif fs.exists(bundledExe) {
+                p = bundledExe
+            }
         }
-        if str.isEmpty(p) { p = this.resolveProg(prog) }
-        if str.isEmpty(p) { p = this.resolveProg(alt) }
+        if str.isEmpty(p) {
+            p = this.resolveProg(prog)
+        }
+        if str.isEmpty(p) {
+            p = this.resolveProg(alt)
+        }
         if str.isEmpty(p) {
             io.printErrLn(str.concat(str.concat("error: linker not found: ", prog), str.concat(" / ", alt)))
             return false
@@ -275,7 +319,9 @@ public class ToolChain {
         }
     }
 
-    public bool BuildLib() { return false }
+    public bool BuildLib() {
+        return false
+    }
 
     // dropHeaders — the ";"-list without any generated `.fly.h`. Those are
     // declaration files, not objects; handing one to the linker aborts the build
@@ -286,7 +332,9 @@ public class ToolChain {
         int i = 0
         while i < n {
             string f = segAt(filesSemi, i)
-            if str.endsWith(f, ".fly.h") == false { kept = segAppend(kept, f) }
+            if str.endsWith(f, ".fly.h") == false {
+                kept = segAppend(kept, f)
+            }
             i = i + 1
         }
         return kept
@@ -308,7 +356,9 @@ public class ToolChain {
         bool isStaticPIE = this.codeGenOpts.getStaticPIE()
         bool isStatic = this.codeGenOpts.getStatic() && this.codeGenOpts.getStaticPIE() == false
 
-        if isPIE { proc.argsAdd(h, "-pie") }
+        if isPIE {
+            proc.argsAdd(h, "-pie")
+        }
 
         if isStaticPIE {
             proc.argsAdd(h, "-static")
@@ -318,17 +368,27 @@ public class ToolChain {
             proc.argsAdd(h, "text")
         }
 
-        if this.codeGenOpts.getRDynamic() { proc.argsAdd(h, "-export-dynamic") }
+        if this.codeGenOpts.getRDynamic() {
+            proc.argsAdd(h, "-export-dynamic")
+        }
 
         // ARM endianness
         if this.t.isARM() || this.t.isThumb() || this.t.isAArch64() {
             bool isBE = this.isArmBigEndian()
-            if isBE { proc.argsAdd(h, "--be8") }
+            if isBE {
+                proc.argsAdd(h, "--be8")
+            }
             bool be2 = isBE || arch == Arch.AARCH64_BE
-            if be2 { proc.argsAdd(h, "-EB") } else { proc.argsAdd(h, "-EL") }
+            if be2 {
+                proc.argsAdd(h, "-EB")
+            } else {
+                proc.argsAdd(h, "-EL")
+            }
         }
 
-        if isAndroid { proc.argsAdd(h, "--warn-shared-textrel") }
+        if isAndroid {
+            proc.argsAdd(h, "--warn-shared-textrel")
+        }
 
         proc.argsAdd(h, "--eh-frame-hdr")
 
@@ -352,13 +412,20 @@ public class ToolChain {
         }
 
         if isStatic == false {
-            if this.codeGenOpts.getRDynamic() { proc.argsAdd(h, "-export-dynamic") }
+            if this.codeGenOpts.getRDynamic() {
+                proc.argsAdd(h, "-export-dynamic")
+            }
             if this.codeGenOpts.getShared() == false && isStaticPIE == false {
                 string dynLinker = ""
-                if arch == Arch.X86_64      { dynLinker = "/lib64/ld-linux-x86-64.so.2" }
-                elsif arch == Arch.AARCH64  { dynLinker = "/lib/ld-linux-aarch64.so.1" }
-                elsif arch == Arch.ARM      { dynLinker = "/lib/ld-linux-armhf.so.3" }
-                elsif arch == Arch.RISCV64  { dynLinker = "/lib/ld-linux-riscv64-lp64d.so.1" }
+                if arch == Arch.X86_64 {
+                    dynLinker = "/lib64/ld-linux-x86-64.so.2"
+                } elsif arch == Arch.AARCH64 {
+                    dynLinker = "/lib/ld-linux-aarch64.so.1"
+                } elsif arch == Arch.ARM {
+                    dynLinker = "/lib/ld-linux-armhf.so.3"
+                } elsif arch == Arch.RISCV64 {
+                    dynLinker = "/lib/ld-linux-riscv64-lp64d.so.1"
+                }
                 if str.isEmpty(dynLinker) == false && fs.exists(dynLinker) {
                     proc.argsAdd(h, "-dynamic-linker")
                     proc.argsAdd(h, dynLinker)
@@ -377,9 +444,13 @@ public class ToolChain {
         if isAndroid == false && isIAMCU == false {
             string crt1 = ""
             if this.codeGenOpts.getShared() == false {
-                if isPIE { crt1 = "Scrt1.o" }
-                elsif isStaticPIE { crt1 = "rcrt1.o" }
-                else { crt1 = "crt1.o" }
+                if isPIE {
+                    crt1 = "Scrt1.o"
+                } elsif isStaticPIE {
+                    crt1 = "rcrt1.o"
+                } else {
+                    crt1 = "crt1.o"
+                }
             }
             if str.isEmpty(crt1) == false {
                 proc.argsAdd(h, this.GetFilePath(crt1, pathList))
@@ -441,7 +512,9 @@ public class ToolChain {
             proc.argsAdd(h, str.concat("-L", llvmLibDir))
         }
 
-        if isStatic || isStaticPIE { proc.argsAdd(h, "--start-group") }
+        if isStatic || isStaticPIE {
+            proc.argsAdd(h, "--start-group")
+        }
 
         proc.argsAdd(h, "-lc")
         proc.argsAdd(h, "-lm")
@@ -464,9 +537,13 @@ public class ToolChain {
         }
         proc.argsAdd(h, builtins)
 
-        if isIAMCU { proc.argsAdd(h, "-lgloss") }
+        if isIAMCU {
+            proc.argsAdd(h, "-lgloss")
+        }
 
-        if isStatic || isStaticPIE { proc.argsAdd(h, "--end-group") }
+        if isStatic || isStaticPIE {
+            proc.argsAdd(h, "--end-group")
+        }
 
         if isIAMCU {
             proc.argsAdd(h, "--as-needed")
@@ -476,7 +553,9 @@ public class ToolChain {
 
         if isIAMCU == false && isAndroid == false {
             string crtn = this.GetFilePath("crtn.o", pathList)
-            if str.isEmpty(crtn) == false { proc.argsAdd(h, crtn) }
+            if str.isEmpty(crtn) == false {
+                proc.argsAdd(h, crtn)
+            }
         }
 
         bool ok = false
@@ -535,7 +614,10 @@ public class ToolChain {
 
         int ni = segCount(inFilesSemi)
         int i = 0
-        while i < ni { proc.argsAdd(h, segAt(inFilesSemi, i))  i = i + 1 }
+        while i < ni {
+            proc.argsAdd(h, segAt(inFilesSemi, i))
+            i = i + 1
+        }
 
         if this.requireFlyArchives() == false {
             proc.argsFree(h)
@@ -548,7 +630,10 @@ public class ToolChain {
         string lo = this.codeGenOpts.getLinkerOptions()
         int nl = segCount(lo)
         int li = 0
-        while li < nl { proc.argsAdd(h, segAt(lo, li))  li = li + 1 }
+        while li < nl {
+            proc.argsAdd(h, segAt(lo, li))
+            li = li + 1
+        }
         proc.argsAdd(h, "-lSystem")
 
         bool ok = false
@@ -578,7 +663,9 @@ public class ToolChain {
         bool buildDll = this.codeGenOpts.getShared()
         string outPath = windowsArtifactPath(outFile, buildDll)
         proc.argsAdd(h, str.concat("/out:", outPath))
-        if buildDll { proc.argsAdd(h, "/dll") }
+        if buildDll {
+            proc.argsAdd(h, "/dll")
+        }
 
         if str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
             proc.argsAdd(h, str.concat("/libpath:", this.codeGenOpts.getToolchainLibDir()))
@@ -591,13 +678,20 @@ public class ToolChain {
         // VS toolchain + UCRT + Windows SDK lib paths are discovered via COM/
         // registry in the C++ — not expressible in pure Fly, so stubbed (skipped).
         string ucrt = ""
-        if this.getUniversalCRTLibraryPath() == true { proc.argsAdd(h, ucrt) }
+        if this.getUniversalCRTLibraryPath() == true {
+            proc.argsAdd(h, ucrt)
+        }
         string sdk = ""
-        if this.getWindowsSDKLibraryPath() == true { proc.argsAdd(h, sdk) }
+        if this.getWindowsSDKLibraryPath() == true {
+            proc.argsAdd(h, sdk)
+        }
 
         int ni = segCount(inFilesSemi)
         int i = 0
-        while i < ni { proc.argsAdd(h, segAt(inFilesSemi, i))  i = i + 1 }
+        while i < ni {
+            proc.argsAdd(h, segAt(inFilesSemi, i))
+            i = i + 1
+        }
 
         if this.requireFlyArchives() == false {
             proc.argsFree(h)
@@ -633,8 +727,12 @@ public class ToolChain {
     }
 
     // Windows VS/SDK discovery needs COM + registry — not portable. Stubs.
-    public bool getUniversalCRTLibraryPath() { return false }
-    public bool getWindowsSDKLibraryPath()   { return false }
+    public bool getUniversalCRTLibraryPath() {
+        return false
+    }
+    public bool getWindowsSDKLibraryPath() {
+        return false
+    }
 
     // ── LinkWindowsGNU — link a PE/COFF exe against the bundled mingw/UCRT sysroot
     // (llvm-mingw), needing NO Visual Studio. Mirrors the fork's fly-lang bootstrap
@@ -702,7 +800,10 @@ public class ToolChain {
         // User objects.
         int ni = segCount(inFilesSemi)
         int i = 0
-        while i < ni { proc.argsAdd(h, segAt(inFilesSemi, i))  i = i + 1 }
+        while i < ni {
+            proc.argsAdd(h, segAt(inFilesSemi, i))
+            i = i + 1
+        }
 
         // The Fly std + runtime archives.
         if this.requireFlyArchives() == false {
@@ -730,7 +831,9 @@ public class ToolChain {
 
         // mingw import libs + compiler-rt builtins (libmingw32 brackets the group).
         proc.argsAdd(h, "-lmingw32")
-        if fs.exists(builtinsLib) { proc.argsAdd(h, builtinsLib) }
+        if fs.exists(builtinsLib) {
+            proc.argsAdd(h, builtinsLib)
+        }
         proc.argsAdd(h, "-lmoldname")
         proc.argsAdd(h, "-lmingwex")
         proc.argsAdd(h, "-lmsvcrt")
@@ -765,16 +868,22 @@ public class ToolChain {
     public string getMingwSysrootDir() {
         string ovr = this.codeGenOpts.getMingwSysrootDir()
         if str.isEmpty(ovr) == false {
-            if fs.exists(ovr) { return ovr }
+            if fs.exists(ovr) {
+                return ovr
+            }
         }
         string exe = env.exePath()
         if str.isEmpty(exe) == false {
             string dir = path.dirname(exe)
             string s1 = path.join(dir, "mingw")
-            if fs.exists(s1) { return s1 }
+            if fs.exists(s1) {
+                return s1
+            }
             string build = path.dirname(path.dirname(dir))
             string s2 = path.join(build, "mingw")
-            if fs.exists(s2) { return s2 }
+            if fs.exists(s2) {
+                return s2
+            }
         }
         return ""
     }
@@ -817,7 +926,9 @@ public class ToolChain {
     public string getLLVMLibDir() {
         string ovr = this.codeGenOpts.getLlvmLibDir()
         if str.isEmpty(ovr) == false {
-            if fs.exists(ovr) { return ovr }
+            if fs.exists(ovr) {
+                return ovr
+            }
         }
         string exe = env.exePath()
         if str.isEmpty(exe) == false {
@@ -833,7 +944,9 @@ public class ToolChain {
                 } else {
                     rest = ""
                 }
-                if fs.exists(cand) { return cand }
+                if fs.exists(cand) {
+                    return cand
+                }
             }
         }
         return ""
@@ -842,38 +955,84 @@ public class ToolChain {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     public bool getPIE() {
-        if this.codeGenOpts.getShared() || this.codeGenOpts.getStatic() { return false }
+        if this.codeGenOpts.getShared() || this.codeGenOpts.getStatic() {
+            return false
+        }
         return this.codeGenOpts.getPIE()
     }
 
-    public bool isArmBigEndian() { return this.t.getArch() == Arch.ARMEB }
+    public bool isArmBigEndian() {
+        return this.t.getArch() == Arch.ARMEB
+    }
 
     // getLDMOption — arch → ld emulation name ("" = unknown). (cpp:1031-1086)
     public string getLDMOption() {
         Arch a = this.t.getArch()
         if a == Arch.X86 {
-            if this.t.isOSIAMCU() { return "elf_iamcu" } else { return "elf_i386" }
+            if this.t.isOSIAMCU() {
+                return "elf_iamcu"
+            } else {
+                return "elf_i386"
+            }
         }
         if a == Arch.X86_64 {
-            if this.t.isX32() { return "elf32_x86_64" } else { return "elf_x86_64" }
+            if this.t.isX32() {
+                return "elf32_x86_64"
+            } else {
+                return "elf_x86_64"
+            }
         }
-        if a == Arch.AARCH64    { return "aarch64linux" }
-        if a == Arch.AARCH64_BE { return "aarch64linuxb" }
-        if a == Arch.ARM        { return "armelf_linux_eabi" }
-        if a == Arch.ARMEB      { return "armelfb_linux_eabi" }
-        if a == Arch.PPC        { return "elf32ppclinux" }
-        if a == Arch.PPC64      { return "elf64ppc" }
-        if a == Arch.PPC64LE    { return "elf64lppc" }
-        if a == Arch.RISCV32    { return "elf32lriscv" }
-        if a == Arch.RISCV64    { return "elf64lriscv" }
-        if a == Arch.SPARC      { return "elf32_sparc" }
-        if a == Arch.SPARCV9    { return "elf64_sparc" }
-        if a == Arch.MIPS       { return "elf32btsmip" }
-        if a == Arch.MIPSEL     { return "elf32ltsmip" }
-        if a == Arch.MIPS64     { return "elf64btsmip" }
-        if a == Arch.MIPS64EL   { return "elf64ltsmip" }
-        if a == Arch.SYSTEMZ    { return "elf64_s390" }
-        if a == Arch.VE         { return "elf64ve" }
+        if a == Arch.AARCH64 {
+            return "aarch64linux"
+        }
+        if a == Arch.AARCH64_BE {
+            return "aarch64linuxb"
+        }
+        if a == Arch.ARM {
+            return "armelf_linux_eabi"
+        }
+        if a == Arch.ARMEB {
+            return "armelfb_linux_eabi"
+        }
+        if a == Arch.PPC {
+            return "elf32ppclinux"
+        }
+        if a == Arch.PPC64 {
+            return "elf64ppc"
+        }
+        if a == Arch.PPC64LE {
+            return "elf64lppc"
+        }
+        if a == Arch.RISCV32 {
+            return "elf32lriscv"
+        }
+        if a == Arch.RISCV64 {
+            return "elf64lriscv"
+        }
+        if a == Arch.SPARC {
+            return "elf32_sparc"
+        }
+        if a == Arch.SPARCV9 {
+            return "elf64_sparc"
+        }
+        if a == Arch.MIPS {
+            return "elf32btsmip"
+        }
+        if a == Arch.MIPSEL {
+            return "elf32ltsmip"
+        }
+        if a == Arch.MIPS64 {
+            return "elf64btsmip"
+        }
+        if a == Arch.MIPS64EL {
+            return "elf64ltsmip"
+        }
+        if a == Arch.SYSTEMZ {
+            return "elf64_s390"
+        }
+        if a == Arch.VE {
+            return "elf64ve"
+        }
         return ""
     }
 
@@ -885,7 +1044,9 @@ public class ToolChain {
             string dir = segAt(pathList, i)
             if str.isEmpty(dir) == false {
                 string p = path.join(dir, name)
-                if fs.exists(p) { return p }
+                if fs.exists(p) {
+                    return p
+                }
             }
             i = i + 1
         }
@@ -897,7 +1058,9 @@ public class ToolChain {
         int i = 0
         while i < n {
             string p = path.join(segAt(pathList, i), name)
-            if fs.exists(p) { return p }
+            if fs.exists(p) {
+                return p
+            }
             i = i + 1
         }
         return ""
@@ -908,47 +1071,99 @@ public class ToolChain {
         Arch a = this.t.getArch()
         bool isAndroid = this.t.isAndroid()
         if a == Arch.ARM {
-            if isAndroid { return "arm-linux-androideabi" }
-            if fs.exists("/lib/arm-linux-gnueabihf") { return "arm-linux-gnueabihf" }
-            if fs.exists("/lib/arm-linux-gnueabi")   { return "arm-linux-gnueabi" }
+            if isAndroid {
+                return "arm-linux-androideabi"
+            }
+            if fs.exists("/lib/arm-linux-gnueabihf") {
+                return "arm-linux-gnueabihf"
+            }
+            if fs.exists("/lib/arm-linux-gnueabi") {
+                return "arm-linux-gnueabi"
+            }
         } elsif a == Arch.ARMEB {
-            if fs.exists("/lib/armeb-linux-gnueabi") { return "armeb-linux-gnueabi" }
+            if fs.exists("/lib/armeb-linux-gnueabi") {
+                return "armeb-linux-gnueabi"
+            }
         } elsif a == Arch.X86 {
-            if isAndroid { return "i686-linux-android" }
-            if fs.exists("/lib/i386-linux-gnu") { return "i386-linux-gnu" }
+            if isAndroid {
+                return "i686-linux-android"
+            }
+            if fs.exists("/lib/i386-linux-gnu") {
+                return "i386-linux-gnu"
+            }
         } elsif a == Arch.X86_64 {
-            if isAndroid { return "x86_64-linux-android" }
-            if this.t.isX32() == false && fs.exists("/lib/x86_64-linux-gnu") { return "x86_64-linux-gnu" }
+            if isAndroid {
+                return "x86_64-linux-android"
+            }
+            if this.t.isX32() == false && fs.exists("/lib/x86_64-linux-gnu") {
+                return "x86_64-linux-gnu"
+            }
         } elsif a == Arch.AARCH64 {
-            if isAndroid { return "aarch64-linux-android" }
-            if fs.exists("/lib/aarch64-linux-gnu") { return "aarch64-linux-gnu" }
+            if isAndroid {
+                return "aarch64-linux-android"
+            }
+            if fs.exists("/lib/aarch64-linux-gnu") {
+                return "aarch64-linux-gnu"
+            }
         } elsif a == Arch.AARCH64_BE {
-            if fs.exists("/lib/aarch64_be-linux-gnu") { return "aarch64_be-linux-gnu" }
+            if fs.exists("/lib/aarch64_be-linux-gnu") {
+                return "aarch64_be-linux-gnu"
+            }
         } elsif a == Arch.MIPS {
-            if fs.exists("/lib/mips-linux-gnu") { return "mips-linux-gnu" }
+            if fs.exists("/lib/mips-linux-gnu") {
+                return "mips-linux-gnu"
+            }
         } elsif a == Arch.MIPSEL {
-            if isAndroid { return "mipsel-linux-android" }
-            if fs.exists("/lib/mipsel-linux-gnu") { return "mipsel-linux-gnu" }
+            if isAndroid {
+                return "mipsel-linux-android"
+            }
+            if fs.exists("/lib/mipsel-linux-gnu") {
+                return "mipsel-linux-gnu"
+            }
         } elsif a == Arch.MIPS64 {
-            if fs.exists("/lib/mips64-linux-gnuabi64") { return "mips64-linux-gnuabi64" }
-            if fs.exists("/lib/mips64-linux-gnu")      { return "mips64-linux-gnu" }
+            if fs.exists("/lib/mips64-linux-gnuabi64") {
+                return "mips64-linux-gnuabi64"
+            }
+            if fs.exists("/lib/mips64-linux-gnu") {
+                return "mips64-linux-gnu"
+            }
         } elsif a == Arch.MIPS64EL {
-            if isAndroid { return "mips64el-linux-android" }
-            if fs.exists("/lib/mips64el-linux-gnuabi64") { return "mips64el-linux-gnuabi64" }
-            if fs.exists("/lib/mips64el-linux-gnu")      { return "mips64el-linux-gnu" }
+            if isAndroid {
+                return "mips64el-linux-android"
+            }
+            if fs.exists("/lib/mips64el-linux-gnuabi64") {
+                return "mips64el-linux-gnuabi64"
+            }
+            if fs.exists("/lib/mips64el-linux-gnu") {
+                return "mips64el-linux-gnu"
+            }
         } elsif a == Arch.PPC {
-            if fs.exists("/lib/powerpc-linux-gnuspe") { return "powerpc-linux-gnuspe" }
-            if fs.exists("/lib/powerpc-linux-gnu")    { return "powerpc-linux-gnu" }
+            if fs.exists("/lib/powerpc-linux-gnuspe") {
+                return "powerpc-linux-gnuspe"
+            }
+            if fs.exists("/lib/powerpc-linux-gnu") {
+                return "powerpc-linux-gnu"
+            }
         } elsif a == Arch.PPC64 {
-            if fs.exists("/lib/powerpc64-linux-gnu") { return "powerpc64-linux-gnu" }
+            if fs.exists("/lib/powerpc64-linux-gnu") {
+                return "powerpc64-linux-gnu"
+            }
         } elsif a == Arch.PPC64LE {
-            if fs.exists("/lib/powerpc64le-linux-gnu") { return "powerpc64le-linux-gnu" }
+            if fs.exists("/lib/powerpc64le-linux-gnu") {
+                return "powerpc64le-linux-gnu"
+            }
         } elsif a == Arch.SPARC {
-            if fs.exists("/lib/sparc-linux-gnu") { return "sparc-linux-gnu" }
+            if fs.exists("/lib/sparc-linux-gnu") {
+                return "sparc-linux-gnu"
+            }
         } elsif a == Arch.SPARCV9 {
-            if fs.exists("/lib/sparc64-linux-gnu") { return "sparc64-linux-gnu" }
+            if fs.exists("/lib/sparc64-linux-gnu") {
+                return "sparc64-linux-gnu"
+            }
         } elsif a == Arch.SYSTEMZ {
-            if fs.exists("/lib/s390x-linux-gnu") { return "s390x-linux-gnu" }
+            if fs.exists("/lib/s390x-linux-gnu") {
+                return "s390x-linux-gnu"
+            }
         }
         return this.t.getTriple()
     }
@@ -956,10 +1171,20 @@ public class ToolChain {
     // getOSLibDir — lib / lib64 / lib32 / libx32. (cpp:1260-1301)
     public string getOSLibDir() {
         Arch a = this.t.getArch()
-        if a == Arch.X86 || a == Arch.PPC { return "lib32" }
-        if a == Arch.X86_64 && this.t.isX32() { return "libx32" }
-        if a == Arch.RISCV32 { return "lib32" }
-        if this.t.isArch32Bit() { return "lib" } else { return "lib64" }
+        if a == Arch.X86 || a == Arch.PPC {
+            return "lib32"
+        }
+        if a == Arch.X86_64 && this.t.isX32() {
+            return "libx32"
+        }
+        if a == Arch.RISCV32 {
+            return "lib32"
+        }
+        if this.t.isArch32Bit() {
+            return "lib"
+        } else {
+            return "lib64"
+        }
     }
 
     // CreatePathList — the ";"-delimited library search path list. (cpp:1303-1366)
@@ -969,20 +1194,34 @@ public class ToolChain {
         string osLibDir = this.getOSLibDir()
 
         string osLib = str.concat("/", osLibDir)
-        if fs.exists(osLib) { list = segAppend(list, osLib) }
+        if fs.exists(osLib) {
+            list = segAppend(list, osLib)
+        }
 
         if str.equals(osLib, "/lib") == false {
-            if fs.exists("/lib") { list = segAppend(list, "/lib") }
+            if fs.exists("/lib") {
+                list = segAppend(list, "/lib")
+            }
         }
-        if fs.exists("/usr/lib") { list = segAppend(list, "/usr/lib") }
-        if fs.exists("/usr/local/lib") { list = segAppend(list, "/usr/local/lib") }
+        if fs.exists("/usr/lib") {
+            list = segAppend(list, "/usr/lib")
+        }
+        if fs.exists("/usr/local/lib") {
+            list = segAppend(list, "/usr/local/lib")
+        }
 
         string usrLocalArch = path.join("/usr/local/lib", multiarch)
-        if fs.exists(usrLocalArch) { list = segAppend(list, usrLocalArch) }
+        if fs.exists(usrLocalArch) {
+            list = segAppend(list, usrLocalArch)
+        }
         string libArch = path.join("/lib", multiarch)
-        if fs.exists(libArch) { list = segAppend(list, libArch) }
+        if fs.exists(libArch) {
+            list = segAppend(list, libArch)
+        }
         string usrLibArch = path.join("/usr/lib", multiarch)
-        if fs.exists(usrLibArch) { list = segAppend(list, usrLibArch) }
+        if fs.exists(usrLibArch) {
+            list = segAppend(list, usrLibArch)
+        }
 
         // GCC dir (libgcc_eh.a etc.). The C++ scans the directory for the newest
         // version subdir; the self-host appends the base dir plus a fixed probe of
@@ -993,7 +1232,9 @@ public class ToolChain {
             int gv = 15
             while gv >= 9 {
                 string vdir = path.join(gccBase, str.convert(gv))
-                if fs.exists(vdir) { list = segAppend(list, vdir) }
+                if fs.exists(vdir) {
+                    list = segAppend(list, vdir)
+                }
                 gv = gv - 1
             }
         }
@@ -1008,11 +1249,13 @@ public class ToolChain {
         bool ok = true
         string base = this.codeGenOpts.getRuntimeLibDir()
         if str.isEmpty(this.GetStdLibPath()) {
-            io.printErrLn(str.concat(str.concat("error: fly_std_lib archive not found under '", base), "' (set --runtime-lib-dir)"))
+            io.printErrLn(str.concat(str.concat("error: fly_std_lib archive not found under '", base),
+                    "' (set --runtime-lib-dir)"))
             ok = false
         }
         if str.isEmpty(this.GetRuntimeLibPath()) {
-            io.printErrLn(str.concat(str.concat("error: fly_runtime_lib archive not found under '", base), "' (set --runtime-lib-dir)"))
+            io.printErrLn(str.concat(str.concat("error: fly_runtime_lib archive not found under '", base),
+                    "' (set --runtime-lib-dir)"))
             ok = false
         }
         return ok
@@ -1022,18 +1265,26 @@ public class ToolChain {
     public string GetStdLibPath() {
         string base = this.codeGenOpts.getRuntimeLibDir()
         string p1 = path.join(base, "fly_std_lib.a")
-        if fs.exists(p1) { return p1 }
+        if fs.exists(p1) {
+            return p1
+        }
         string p2 = path.join(base, "fly_std_lib.lib")
-        if fs.exists(p2) { return p2 }
+        if fs.exists(p2) {
+            return p2
+        }
         return ""
     }
 
     public string GetRuntimeLibPath() {
         string base = this.codeGenOpts.getRuntimeLibDir()
         string p1 = path.join(base, "fly_runtime_lib.a")
-        if fs.exists(p1) { return p1 }
+        if fs.exists(p1) {
+            return p1
+        }
         string p2 = path.join(base, "fly_runtime_lib.lib")
-        if fs.exists(p2) { return p2 }
+        if fs.exists(p2) {
+            return p2
+        }
         return ""
     }
 
@@ -1054,18 +1305,26 @@ public class ToolChain {
     public string GetTlsLibPath() {
         string base = this.codeGenOpts.getRuntimeLibDir()
         string p1 = path.join(base, "fly_tls_lib.a")
-        if fs.exists(p1) { return p1 }
+        if fs.exists(p1) {
+            return p1
+        }
         string p2 = path.join(base, "fly_tls_lib.lib")
-        if fs.exists(p2) { return p2 }
+        if fs.exists(p2) {
+            return p2
+        }
         return ""
     }
 
     public string GetTlsStubPath() {
         string base = this.codeGenOpts.getRuntimeLibDir()
         string p1 = path.join(base, "fly_tls_stub.a")
-        if fs.exists(p1) { return p1 }
+        if fs.exists(p1) {
+            return p1
+        }
         string p2 = path.join(base, "fly_tls_stub.lib")
-        if fs.exists(p2) { return p2 }
+        if fs.exists(p2) {
+            return p2
+        }
         return ""
     }
 
@@ -1084,8 +1343,12 @@ public class ToolChain {
             string real = this.GetTlsLibPath()
             if str.isEmpty(real) == false {
                 proc.argsAdd(h, real)
-                if str.isEmpty(dep1) == false { proc.argsAdd(h, dep1) }
-                if str.isEmpty(dep2) == false { proc.argsAdd(h, dep2) }
+                if str.isEmpty(dep1) == false {
+                    proc.argsAdd(h, dep1)
+                }
+                if str.isEmpty(dep2) == false {
+                    proc.argsAdd(h, dep2)
+                }
                 tookReal = true
             }
         }
@@ -1103,14 +1366,18 @@ public class ToolChain {
         // the stub exists for builds with no backend.
         if tookReal == false {
             string stub = this.GetTlsStubPath()
-            if str.isEmpty(stub) == false { proc.argsAdd(h, stub) }
+            if str.isEmpty(stub) == false {
+                proc.argsAdd(h, stub)
+            }
         }
     }
 
     // GetCompilerRTBuiltinsPath — libclang_rt.builtins for the target. (cpp:1383)
     public string GetCompilerRTBuiltinsPath() {
         string suffix = archToCompilerRTSuffix(this.t.getArch())
-        if str.isEmpty(suffix) { return "" }
+        if str.isEmpty(suffix) {
+            return ""
+        }
 
         string major = llvmMajor()
         string tripleDir = this.t.getTriple()
@@ -1137,19 +1404,28 @@ public class ToolChain {
                 } else {
                     rest = ""
                 }
-                if fs.exists(cand) { return cand }
+                if fs.exists(cand) {
+                    return cand
+                }
             }
         }
 
         // 1) system new-style: /usr/lib/llvm-20/lib/clang/20/lib/<triple>/libclang_rt.builtins.a
-        string c1 = path.join(path.join(path.join(sysBase, str.concat("lib/clang/", str.concat(major, "/lib"))), tripleDir), newLib)
-        if fs.exists(c1) { return c1 }
+        string c1 = path.join(path.join(path.join(sysBase, str.concat("lib/clang/", str.concat(major, "/lib"))),
+                tripleDir), newLib)
+        if fs.exists(c1) {
+            return c1
+        }
         // 2) system legacy: .../lib/clang/20/lib/linux/libclang_rt.builtins-<arch>.a
         string c2 = path.join(path.join(sysBase, str.concat("lib/clang/", str.concat(major, "/lib/linux"))), oldLib)
-        if fs.exists(c2) { return c2 }
+        if fs.exists(c2) {
+            return c2
+        }
         // 3) /usr/lib/clang/20/lib/linux/libclang_rt.builtins-<arch>.a
         string c3 = path.join(str.concat("/usr/lib/clang/", str.concat(major, "/lib/linux")), oldLib)
-        if fs.exists(c3) { return c3 }
+        if fs.exists(c3) {
+            return c3
+        }
         return ""
     }
 }

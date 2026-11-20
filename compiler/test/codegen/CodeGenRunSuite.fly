@@ -23,8 +23,6 @@ import fly.test.util.*
 // checks live in the CodeGen<Feature>Suite files.)
 // ─────────────────────────────────────────────────────────────────────────────
 
-
-
 suite CodeGenRunSuite {
 
     void programTest() {

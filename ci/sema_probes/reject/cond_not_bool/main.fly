@@ -1,2 +1,6 @@
-void main() { int a = 3
- if a { a = 1 } }
+void main() {
+    int a = 3
+ if a {
+     a = 1
+ }
+}

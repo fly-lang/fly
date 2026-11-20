@@ -11,5 +11,7 @@ public class ASTBreakStmt : ASTStmt {
         super(loc, ASTStmtKind.STMT_BREAK)
     }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }

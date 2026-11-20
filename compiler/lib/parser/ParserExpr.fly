@@ -19,7 +19,9 @@ public class ParserExpr {
     public ParserExpr() { }
 
     // parse — entry point: an assignment expression.
-    public static ASTExpr parse(const Parser p) { return ParserExpr.parseAssign(p) }
+    public static ASTExpr parse(const Parser p) {
+        return ParserExpr.parseAssign(p)
+    }
 
     public static ASTExpr parseAssign(const Parser p) {
         ASTExpr left = ParserExpr.parseTernary(p)
@@ -35,17 +37,29 @@ public class ParserExpr {
             string cop = p.curText()
             ASTBinaryKind ck = ASTBinaryKind.OP_BINARY_ASSIGN
             bool isCompound = true
-            if cop == "+=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_ADD }
-            elsif cop == "-=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_SUB }
-            elsif cop == "*=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_MUL }
-            elsif cop == "/=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_DIV }
-            elsif cop == "%=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_MOD }
-            elsif cop == "&=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_AND }
-            elsif cop == "|=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_OR }
-            elsif cop == "^=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_XOR }
-            elsif cop == "<<=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_SHIFT_L }
-            elsif cop == ">>=" { ck = ASTBinaryKind.OP_BINARY_ASSIGN_SHIFT_R }
-            else { isCompound = false }
+            if cop == "+=" {
+                ck = ASTBinaryKind.OP_BINARY_ASSIGN_ADD
+            } elsif cop == "-=" {
+                ck = ASTBinaryKind.OP_BINARY_ASSIGN_SUB
+            } elsif cop == "*=" {
+                ck = ASTBinaryKind.OP_BINARY_ASSIGN_MUL
+            } elsif cop == "/=" {
+                ck = ASTBinaryKind.OP_BINARY_ASSIGN_DIV
+            } elsif cop == "%=" {
+                ck = ASTBinaryKind.OP_BINARY_ASSIGN_MOD
+            } elsif cop == "&=" {
+                ck = ASTBinaryKind.OP_BINARY_ASSIGN_AND
+            } elsif cop == "|=" {
+                ck = ASTBinaryKind.OP_BINARY_ASSIGN_OR
+            } elsif cop == "^=" {
+                ck = ASTBinaryKind.OP_BINARY_ASSIGN_XOR
+            } elsif cop == "<<=" {
+                ck = ASTBinaryKind.OP_BINARY_ASSIGN_SHIFT_L
+            } elsif cop == ">>=" {
+                ck = ASTBinaryKind.OP_BINARY_ASSIGN_SHIFT_R
+            } else {
+                isCompound = false
+            }
             if isCompound {
                 SourceLocation oploc = p.curLoc()
                 p.bump()
@@ -64,8 +78,11 @@ public class ParserExpr {
             p.bump()
             ASTExpr t = ParserExpr.parse(p)
             SourceLocation floc = p.curLoc()
-            if p.curIsPunct(":") { p.bump() }
-            else { p.reportErr(DiagID.err_parser_ternary_expr) }
+            if p.curIsPunct(":") {
+                p.bump()
+            } else {
+                p.reportErr(DiagID.err_parser_ternary_expr)
+            }
             ASTExpr f = ParserExpr.parseTernary(p)
             return ASTBuilder.CreateTernary(cond, tloc, t, floc, f)
         }
@@ -77,7 +94,9 @@ public class ParserExpr {
         bool go = true
         while go {
             string op = ""
-            if p.curIsAnyPunct() { op = p.curText() }
+            if p.curIsAnyPunct() {
+                op = p.curText()
+            }
             int prec = binPrec(op)
             if prec >= minPrec && prec > 0 {
                 SourceLocation oploc = p.curLoc()
@@ -131,8 +150,13 @@ public class ParserExpr {
                 p.bump()
                 SourceLocation loc = p.curLoc()
                 string nm = ""
-                if p.curIsNamePart() { nm = p.curText()  p.bump() }
-                else { p.reportErr(DiagID.err_parser_identifier_expected)  go = false }
+                if p.curIsNamePart() {
+                    nm = p.curText()
+                    p.bump()
+                } else {
+                    p.reportErr(DiagID.err_parser_identifier_expected)
+                    go = false
+                }
                 if p.curIsPunct("(") {
                     ASTCall call = ParserExpr.parseCallTail(p, loc, nm, ASTCallKind.CALL_DIRECT, e)
                     e = call
@@ -175,9 +199,12 @@ public class ParserExpr {
     }
 
     // parseCallTail — parse '(' args ')' for a call named `nm` with parent `parent`.
-    public static ASTCall parseCallTail(const Parser p, const SourceLocation loc, const string nm, const ASTCallKind kind, const ASTExpr parent) {
+    public static ASTCall parseCallTail(const Parser p, const SourceLocation loc, const string nm,
+            const ASTCallKind kind, const ASTExpr parent) {
         ASTCall call = new ASTCall(loc, nm, kind)
-        if parent != null { call.setParent(parent) }
+        if parent != null {
+            call.setParent(parent)
+        }
         p.expectPunct("(")
         bool go = p.curIsPunct(")") == false
         int idx = 0
@@ -186,8 +213,11 @@ public class ParserExpr {
             ASTArg arg = new ASTArg(loc, a, idx)
             call.addArg(arg)
             idx = idx + 1
-            if p.curIsPunct(",") { p.bump() }
-            else { go = false }
+            if p.curIsPunct(",") {
+                p.bump()
+            } else {
+                go = false
+            }
         }
         p.expectPunct(")")
         return call
@@ -208,9 +238,18 @@ public class ParserExpr {
             p.bump()
             return s
         }
-        if p.curIsKw("true")  { p.bump()  return ASTBuilder.CreateBoolValue(loc, true) }
-        if p.curIsKw("false") { p.bump()  return ASTBuilder.CreateBoolValue(loc, false) }
-        if p.curIsKw("null")  { p.bump()  return ASTBuilder.CreateNullValue(loc) }
+        if p.curIsKw("true") {
+            p.bump()
+            return ASTBuilder.CreateBoolValue(loc, true)
+        }
+        if p.curIsKw("false") {
+            p.bump()
+            return ASTBuilder.CreateBoolValue(loc, false)
+        }
+        if p.curIsKw("null") {
+            p.bump()
+            return ASTBuilder.CreateNullValue(loc)
+        }
         return null
     }
 
@@ -282,9 +321,15 @@ public class ParserExpr {
             elems.add(e)
             if p.curIsPunct(",") {
                 p.bump()
-                if p.curIsPunct("}") { go = false }
-            } else { go = false }
-            if p.hadErr() { go = false }
+                if p.curIsPunct("}") {
+                    go = false
+                }
+            } else {
+                go = false
+            }
+            if p.hadErr() {
+                go = false
+            }
         }
         p.expectPunct("}")
         return ASTBuilder.CreateArrayValue(loc, elems)
@@ -297,18 +342,29 @@ public class ParserExpr {
         bool go = p.curIsPunct("}") == false && p.hadErr() == false
         while go {
             string nm = ""
-            if p.curIsIdent() { nm = p.curText()  p.bump() }
-            else { p.reportErr(DiagID.err_parser_identifier_expected)  go = false }
+            if p.curIsIdent() {
+                nm = p.curText()
+                p.bump()
+            } else {
+                p.reportErr(DiagID.err_parser_identifier_expected)
+                go = false
+            }
             if go {
                 p.expectPunct("=")
                 ASTExpr v = ParserExpr.parse(p)
                 st.addField(nm, v)
                 if p.curIsPunct(",") {
                     p.bump()
-                    if p.curIsPunct("}") { go = false }
-                } else { go = false }
+                    if p.curIsPunct("}") {
+                        go = false
+                    }
+                } else {
+                    go = false
+                }
             }
-            if p.hadErr() { go = false }
+            if p.hadErr() {
+                go = false
+            }
         }
         p.expectPunct("}")
         return st
@@ -323,8 +379,12 @@ public class ParserExpr {
         // where the name actually is, four columns further.
         SourceLocation nloc = p.curLoc()
         string nm = ""
-        if p.curIsNamePart() { nm = p.curText()  p.bump() }
-        else { p.reportErr(DiagID.err_parser_new_instance) }
+        if p.curIsNamePart() {
+            nm = p.curText()
+            p.bump()
+        } else {
+            p.reportErr(DiagID.err_parser_new_instance)
+        }
         // optional generic type args: new Wrapper<int>(...)
         List<ASTType> targs = new List<ASTType>()
         if p.curIsPunct("<") {
@@ -333,7 +393,11 @@ public class ParserExpr {
             while go {
                 ASTType ta = p.parseType()
                 targs.add(ta)
-                if p.curIsPunct(",") { p.bump() } else { go = false }
+                if p.curIsPunct(",") {
+                    p.bump()
+                } else {
+                    go = false
+                }
             }
             p.closeTypeArgs()
         }

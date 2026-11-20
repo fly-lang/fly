@@ -217,7 +217,9 @@ suite OsProcSuite {
             bool allSet = true
             i = 0
             while i < 40 {
-                if mem.isNull(mem.readPtr(items, i * 8)) { allSet = false }
+                if mem.isNull(mem.readPtr(items, i * 8)) {
+                    allSet = false
+                }
                 i = i + 1
             }
             assert.assertTrue(allSet, 206)

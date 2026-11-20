@@ -20,8 +20,6 @@ import fly.test.util.*
 // pointers (not parsed in the self-host), refcount, escape analysis.
 // ─────────────────────────────────────────────────────────────────────────────
 
-
-
 suite CodeGenAllocSuite {
 
     void scopeExitFreeTest() {

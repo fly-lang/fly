@@ -26,16 +26,27 @@ public struct Duration {
 
 // Convert digit value (0–9) to its ASCII byte representation.
 private byte digitToChar(const long d) {
-    if d <= 0 { return 48 }
-    elsif d == 1 { return 49 }
-    elsif d == 2 { return 50 }
-    elsif d == 3 { return 51 }
-    elsif d == 4 { return 52 }
-    elsif d == 5 { return 53 }
-    elsif d == 6 { return 54 }
-    elsif d == 7 { return 55 }
-    elsif d == 8 { return 56 }
-    else { return 57 }
+    if d <= 0 {
+        return 48
+    } elsif d == 1 {
+        return 49
+    } elsif d == 2 {
+        return 50
+    } elsif d == 3 {
+        return 51
+    } elsif d == 4 {
+        return 52
+    } elsif d == 5 {
+        return 53
+    } elsif d == 6 {
+        return 54
+    } elsif d == 7 {
+        return 55
+    } elsif d == 8 {
+        return 56
+    } else {
+        return 57
+    }
 }
 
 // Append the decimal representation of val into buf at position pos.
@@ -97,16 +108,27 @@ private int append4Padded(const long val, const pointer buf, const int pos) {
 
 // Convert an ASCII digit byte ('0'–'9') to its integer value.
 private int digitToInt(const byte d) {
-    if d == 48 { return 0 }
-    elsif d == 49 { return 1 }
-    elsif d == 50 { return 2 }
-    elsif d == 51 { return 3 }
-    elsif d == 52 { return 4 }
-    elsif d == 53 { return 5 }
-    elsif d == 54 { return 6 }
-    elsif d == 55 { return 7 }
-    elsif d == 56 { return 8 }
-    else { return 9 }
+    if d == 48 {
+        return 0
+    } elsif d == 49 {
+        return 1
+    } elsif d == 50 {
+        return 2
+    } elsif d == 51 {
+        return 3
+    } elsif d == 52 {
+        return 4
+    } elsif d == 53 {
+        return 5
+    } elsif d == 54 {
+        return 6
+    } elsif d == 55 {
+        return 7
+    } elsif d == 56 {
+        return 8
+    } else {
+        return 9
+    }
 }
 
 // Parse two consecutive ASCII decimal digits from s at pos into a long value.
@@ -170,7 +192,9 @@ public Time monotonic() {
 // Negative or zero durations return immediately.
 public void sleep(Duration d) {
     long ns = d.nsec
-    if ns <= 0 { return }
+    if ns <= 0 {
+        return
+    }
     long ns_per_sec = 1000000000
     long sec = ns / ns_per_sec
     long rem = ns - sec * ns_per_sec
@@ -289,8 +313,12 @@ public string format(Time t, const string pattern) {
     long mp = (5 * doy + 2) / 153
     long day = doy - (153 * mp + 2) / 5 + 1
     long month = mp + 3
-    if mp >= 10 { month = mp - 9 }
-    if month <= 2 { year = year + 1 }
+    if mp >= 10 {
+        month = mp - 9
+    }
+    if month <= 2 {
+        year = year + 1
+    }
     long hour = sec_of_day / 3600
     long min = (sec_of_day - hour * 3600) / 60
     long sec2 = sec_of_day - hour * 3600 - min * 60
@@ -412,8 +440,12 @@ public string formatSec(const long sec, const string pattern) {
     long mp = (5 * doy + 2) / 153
     long day = doy - (153 * mp + 2) / 5 + 1
     long month = mp + 3
-    if mp >= 10 { month = mp - 9 }
-    if month <= 2 { year = year + 1 }
+    if mp >= 10 {
+        month = mp - 9
+    }
+    if month <= 2 {
+        year = year + 1
+    }
     long hour = sec_of_day / 3600
     long min = (sec_of_day - hour * 3600) / 60
     long sec2 = sec_of_day - hour * 3600 - min * 60
@@ -432,21 +464,29 @@ public string formatSec(const long sec, const string pattern) {
         fly.llvm.strByteAt(pattern, pi, pb0)
         bool matched = false
 
-        if pb0 == 50 { if pi + 3 < plen {
+        if pb0 == 50 {
+            if pi + 3 < plen {
             byte pb1 = 0
             byte pb2 = 0
             byte pb3 = 0
             fly.llvm.strByteAt(pattern, pi + 1, pb1)
             fly.llvm.strByteAt(pattern, pi + 2, pb2)
             fly.llvm.strByteAt(pattern, pi + 3, pb3)
-            if pb1 == 48 { if pb2 == 48 { if pb3 == 54 {
+            if pb1 == 48 {
+                if pb2 == 48 {
+                    if pb3 == 54 {
                 bpos2 = append4Padded(year, buf, bpos)
                 bpos = bpos2
                 pi = pi + 4
                 matched = true
-            }}}
-        }}
-        if matched == false { if pb0 == 49 { if pi + 1 < plen {
+            }
+                }
+            }
+        }
+        }
+        if matched == false {
+            if pb0 == 49 {
+                if pi + 1 < plen {
             byte pb1 = 0
             fly.llvm.strByteAt(pattern, pi + 1, pb1)
             if pb1 == 53 {
@@ -455,8 +495,12 @@ public string formatSec(const long sec, const string pattern) {
                 pi = pi + 2
                 matched = true
             }
-        }}}
-        if matched == false { if pb0 == 48 { if pi + 1 < plen {
+        }
+            }
+        }
+        if matched == false {
+            if pb0 == 48 {
+                if pi + 1 < plen {
             byte pb1 = 0
             fly.llvm.strByteAt(pattern, pi + 1, pb1)
             if pb1 == 49 {
@@ -465,25 +509,33 @@ public string formatSec(const long sec, const string pattern) {
                 pi = pi + 2
                 matched = true
             }
-            if matched == false { if pb1 == 50 {
+            if matched == false {
+                if pb1 == 50 {
                 bpos2 = append2Padded(day, buf, bpos)
                 bpos = bpos2
                 pi = pi + 2
                 matched = true
-            }}
-            if matched == false { if pb1 == 52 {
+            }
+            }
+            if matched == false {
+                if pb1 == 52 {
                 bpos2 = append2Padded(min, buf, bpos)
                 bpos = bpos2
                 pi = pi + 2
                 matched = true
-            }}
-            if matched == false { if pb1 == 53 {
+            }
+            }
+            if matched == false {
+                if pb1 == 53 {
                 bpos2 = append2Padded(sec2, buf, bpos)
                 bpos = bpos2
                 pi = pi + 2
                 matched = true
-            }}
-        }}}
+            }
+            }
+        }
+            }
+        }
         if matched == false {
             fly.llvm.strPoke(buf, bpos, pb0)
             bpos = bpos + 1
@@ -609,11 +661,15 @@ public Time parse(const string s, const string pattern) {
 
     long y = year
     long m = month
-    if m <= 2 { y = y - 1 }
+    if m <= 2 {
+        y = y - 1
+    }
     long era = y / 400
     long yoe = y - era * 400
     long m3 = m - 3
-    if m <= 2 { m3 = m + 9 }
+    if m <= 2 {
+        m3 = m + 9
+    }
     long doy2 = (153 * m3 + 2) / 5 + day - 1
     long doe2 = yoe * 365 + yoe / 4 - yoe / 100 + doy2
     long days = doe2 + era * 146097 - 719468
@@ -645,22 +701,30 @@ public long parseToSec(const string s, const string pattern) {
         fly.llvm.strByteAt(pattern, pi, pb0)
         bool matched = false
 
-        if pb0 == 50 { if pi + 3 < plen {
+        if pb0 == 50 {
+            if pi + 3 < plen {
             byte pb1 = 0
             byte pb2 = 0
             byte pb3 = 0
             fly.llvm.strByteAt(pattern, pi + 1, pb1)
             fly.llvm.strByteAt(pattern, pi + 2, pb2)
             fly.llvm.strByteAt(pattern, pi + 3, pb3)
-            if pb1 == 48 { if pb2 == 48 { if pb3 == 54 {
+            if pb1 == 48 {
+                if pb2 == 48 {
+                    if pb3 == 54 {
                 parsed = parse4Digits(s, si)
                 year = parsed
                 si = si + 4
                 pi = pi + 4
                 matched = true
-            }}}
-        }}
-        if matched == false { if pb0 == 49 { if pi + 1 < plen {
+            }
+                }
+            }
+        }
+        }
+        if matched == false {
+            if pb0 == 49 {
+                if pi + 1 < plen {
             byte pb1 = 0
             fly.llvm.strByteAt(pattern, pi + 1, pb1)
             if pb1 == 53 {
@@ -670,8 +734,12 @@ public long parseToSec(const string s, const string pattern) {
                 pi = pi + 2
                 matched = true
             }
-        }}}
-        if matched == false { if pb0 == 48 { if pi + 1 < plen {
+        }
+            }
+        }
+        if matched == false {
+            if pb0 == 48 {
+                if pi + 1 < plen {
             byte pb1 = 0
             fly.llvm.strByteAt(pattern, pi + 1, pb1)
             if pb1 == 49 {
@@ -681,28 +749,36 @@ public long parseToSec(const string s, const string pattern) {
                 pi = pi + 2
                 matched = true
             }
-            if matched == false { if pb1 == 50 {
+            if matched == false {
+                if pb1 == 50 {
                 parsed = parse2Digits(s, si)
                 day = parsed
                 si = si + 2
                 pi = pi + 2
                 matched = true
-            }}
-            if matched == false { if pb1 == 52 {
+            }
+            }
+            if matched == false {
+                if pb1 == 52 {
                 parsed = parse2Digits(s, si)
                 min = parsed
                 si = si + 2
                 pi = pi + 2
                 matched = true
-            }}
-            if matched == false { if pb1 == 53 {
+            }
+            }
+            if matched == false {
+                if pb1 == 53 {
                 parsed = parse2Digits(s, si)
                 sec2 = parsed
                 si = si + 2
                 pi = pi + 2
                 matched = true
-            }}
-        }}}
+            }
+            }
+        }
+            }
+        }
         if matched == false {
             si = si + 1
             pi = pi + 1
@@ -711,11 +787,15 @@ public long parseToSec(const string s, const string pattern) {
 
     long y = year
     long m = month
-    if m <= 2 { y = y - 1 }
+    if m <= 2 {
+        y = y - 1
+    }
     long era = y / 400
     long yoe = y - era * 400
     long m3 = m - 3
-    if m <= 2 { m3 = m + 9 }
+    if m <= 2 {
+        m3 = m + 9
+    }
     long doy2 = (153 * m3 + 2) / 5 + day - 1
     long doe2 = yoe * 365 + yoe / 4 - yoe / 100 + doy2
     long days = doe2 + era * 146097 - 719468
@@ -746,7 +826,9 @@ public long durationMicros(Duration d) {
 public string durationFormat(Duration d) {
     string res = ""
     long ns = d.nsec
-    if ns < 0 { ns = 0 - ns }
+    if ns < 0 {
+        ns = 0 - ns
+    }
     if ns == 0 {
         pointer b0 = 0
         fly.runtime.mem_alloc(4, b0)
@@ -778,9 +860,15 @@ public string durationFormat(Duration d) {
     int pos = 0
 
     bool has_large = false
-    if hours > 0 { has_large = true }
-    if mins > 0  { has_large = true }
-    if secs > 0  { has_large = true }
+    if hours > 0 {
+        has_large = true
+    }
+    if mins > 0 {
+        has_large = true
+    }
+    if secs > 0 {
+        has_large = true
+    }
 
     int p2 = 0
     if has_large {
@@ -791,8 +879,12 @@ public string durationFormat(Duration d) {
             pos = pos + 1
         }
         bool has_hm = false
-        if hours > 0 { has_hm = true }
-        if mins > 0  { has_hm = true }
+        if hours > 0 {
+            has_hm = true
+        }
+        if mins > 0 {
+            has_hm = true
+        }
         if has_hm {
             if hours > 0 {
                 if mins < 10 {
@@ -857,7 +949,9 @@ public long nowSec() {
 public string durationFormatNsec(const long nsec) {
     string res = ""
     long ns = nsec
-    if ns < 0 { ns = 0 - ns }
+    if ns < 0 {
+        ns = 0 - ns
+    }
     if ns == 0 {
         pointer b0 = 0
         fly.runtime.mem_alloc(4, b0)
@@ -889,9 +983,15 @@ public string durationFormatNsec(const long nsec) {
     int pos = 0
 
     bool has_large = false
-    if hours > 0 { has_large = true }
-    if mins > 0  { has_large = true }
-    if secs > 0  { has_large = true }
+    if hours > 0 {
+        has_large = true
+    }
+    if mins > 0 {
+        has_large = true
+    }
+    if secs > 0 {
+        has_large = true
+    }
 
     int p2 = 0
     if has_large {
@@ -902,8 +1002,12 @@ public string durationFormatNsec(const long nsec) {
             pos = pos + 1
         }
         bool has_hm = false
-        if hours > 0 { has_hm = true }
-        if mins > 0  { has_hm = true }
+        if hours > 0 {
+            has_hm = true
+        }
+        if mins > 0 {
+            has_hm = true
+        }
         if has_hm {
             if hours > 0 {
                 if mins < 10 {

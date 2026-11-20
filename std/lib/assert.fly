@@ -160,7 +160,9 @@ public void assertEmpty(const string s, const int code) {
 
 public void assertApprox(const double got, const double exp, const int code) {
     double diff = got - exp
-    if diff < 0.0 { diff = 0.0 - diff }
+    if diff < 0.0 {
+        diff = 0.0 - diff
+    }
     double eps = 0.000000001
     if diff > eps {
         fail code, "assertApprox: values differ beyond 1e-9"
@@ -169,7 +171,9 @@ public void assertApprox(const double got, const double exp, const int code) {
 
 public void assertApproxEps(const double got, const double exp, const double eps, const int code) {
     double diff = got - exp
-    if diff < 0.0 { diff = 0.0 - diff }
+    if diff < 0.0 {
+        diff = 0.0 - diff
+    }
     if diff > eps {
         fail code, "assertApproxEps: values differ beyond epsilon"
     }

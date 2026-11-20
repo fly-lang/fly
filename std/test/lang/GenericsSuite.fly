@@ -47,10 +47,18 @@ public class Pair<A, B> {
         this.a = x
         this.b = y
     }
-    public A first() { return this.a }
-    public B second() { return this.b }
-    public void setFirst(const A x) { this.a = x }
-    public void setSecond(const B y) { this.b = y }
+    public A first() {
+        return this.a
+    }
+    public B second() {
+        return this.b
+    }
+    public void setFirst(const A x) {
+        this.a = x
+    }
+    public void setSecond(const B y) {
+        this.b = y
+    }
 }
 
 // A user class used as a generic type argument (handle semantics).
@@ -247,8 +255,12 @@ suite GenericsSuite {
             int bad = 0 - 1
             int i = 0
             while i < 50 {
-                if identity(i) != i { bad = i }
-                if pickMax(i, i + 1) != i + 1 { bad = i }
+                if identity(i) != i {
+                    bad = i
+                }
+                if pickMax(i, i + 1) != i + 1 {
+                    bad = i
+                }
                 i = i + 1
             }
             assert.assertEqI(bad, 0 - 1, 518)
@@ -337,7 +349,9 @@ suite GenericsSuite {
             int i = 0
             while i < 50 {
                 Wrapper<int> w = new Wrapper<int>(i)
-                if w.get() != i { bad = i }
+                if w.get() != i {
+                    bad = i
+                }
                 i = i + 1
             }
             assert.assertEqI(bad, 0 - 1, 712)

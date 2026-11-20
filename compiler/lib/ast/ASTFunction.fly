@@ -32,7 +32,8 @@ public class ASTFunction : ASTNode {
     List<ASTReturnStmt> returnStmts
     List<string> localNames
 
-    public ASTFunction(const SourceLocation loc, const List<ASTModifier> modifiers, const string name, const List<ASTParam> params, const ASTFunctionKind functionKind) {
+    public ASTFunction(const SourceLocation loc, const List<ASTModifier> modifiers, const string name,
+            const List<ASTParam> params, const ASTFunctionKind functionKind) {
         super(ASTKind.FUNCTION, loc)
         this.modifiers = modifiers
         this.name = name
@@ -44,22 +45,56 @@ public class ASTFunction : ASTNode {
         this.localNames = new List<string>()
     }
 
-    public string getName() { return this.name }
-    public List<ASTModifier> getModifiers() { return this.modifiers }
-    public List<ASTParam> getParams() { return this.params }
-    public List<ASTType> getTypeParams() { return this.typeParams }
-    public ASTType getReturnType() { return this.returnType }
-    public void setReturnType(const ASTType returnType) { this.returnType = returnType }
-    public List<ASTType> getReturnTypes() { return this.returnTypes }
-    public void setReturnTypes(const List<ASTType> returnTypes) { this.returnTypes = returnTypes }
-    public List<ASTReturnStmt> getReturnStmts() { return this.returnStmts }
-    public void addReturnStmt(const ASTReturnStmt r) { this.returnStmts.add(r) }
-    public List<string> getLocalNames() { return this.localNames }
-    public void addLocalName(const string n) { this.localNames.add(n) }
-    public ASTFunction asFunction() { return this }
-    public ASTFunctionKind getFunctionKind() { return this.functionKind }
-    public ASTBlockStmt getBody() { return this.body }
-    public void setBody(const ASTBlockStmt body) { this.body = body }
+    public string getName() {
+        return this.name
+    }
+    public List<ASTModifier> getModifiers() {
+        return this.modifiers
+    }
+    public List<ASTParam> getParams() {
+        return this.params
+    }
+    public List<ASTType> getTypeParams() {
+        return this.typeParams
+    }
+    public ASTType getReturnType() {
+        return this.returnType
+    }
+    public void setReturnType(const ASTType returnType) {
+        this.returnType = returnType
+    }
+    public List<ASTType> getReturnTypes() {
+        return this.returnTypes
+    }
+    public void setReturnTypes(const List<ASTType> returnTypes) {
+        this.returnTypes = returnTypes
+    }
+    public List<ASTReturnStmt> getReturnStmts() {
+        return this.returnStmts
+    }
+    public void addReturnStmt(const ASTReturnStmt r) {
+        this.returnStmts.add(r)
+    }
+    public List<string> getLocalNames() {
+        return this.localNames
+    }
+    public void addLocalName(const string n) {
+        this.localNames.add(n)
+    }
+    public ASTFunction asFunction() {
+        return this
+    }
+    public ASTFunctionKind getFunctionKind() {
+        return this.functionKind
+    }
+    public ASTBlockStmt getBody() {
+        return this.body
+    }
+    public void setBody(const ASTBlockStmt body) {
+        this.body = body
+    }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }

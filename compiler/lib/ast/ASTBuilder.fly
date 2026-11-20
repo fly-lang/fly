@@ -36,12 +36,14 @@ public class ASTBuilder {
     public static ASTName CreateName(const string name, const SourceLocation loc) {
         return new ASTName(loc, name)
     }
-    public static ASTNameSpace CreateNameSpace(const ASTModule module, const SourceLocation loc, const List<ASTName> names) {
+    public static ASTNameSpace CreateNameSpace(const ASTModule module, const SourceLocation loc,
+            const List<ASTName> names) {
         ASTNameSpace ns = new ASTNameSpace(loc, names)
         module.setNameSpace(ns)
         return ns
     }
-    public static ASTImport CreateImport(const ASTModule module, const SourceLocation loc, const List<ASTName> names, const List<ASTName> alias, const bool wildcard) {
+    public static ASTImport CreateImport(const ASTModule module, const SourceLocation loc, const List<ASTName> names,
+            const List<ASTName> alias, const bool wildcard) {
         ASTImport imp = new ASTImport(loc, names, alias, wildcard)
         module.addNode(imp)
         module.addImport(imp)
@@ -49,7 +51,8 @@ public class ASTBuilder {
     }
 
     // ── Function / class / attribute / method / enum ─────────────────────────
-    public static ASTFunction CreateFunction(const ASTModule module, const SourceLocation loc, const string name, const List<ASTModifier> modifiers, const List<ASTParam> params, const ASTBlockStmt body) {
+    public static ASTFunction CreateFunction(const ASTModule module, const SourceLocation loc, const string name,
+            const List<ASTModifier> modifiers, const List<ASTParam> params, const ASTBlockStmt body) {
         ASTFunction function = new ASTFunction(loc, modifiers, name, params, ASTFunctionKind.F_FUNCTION)
         if body != null {
             ASTBuilder.CreateBody(function, body)
@@ -57,12 +60,14 @@ public class ASTBuilder {
         module.addNode(function)
         return function
     }
-    public static ASTClass CreateClass(const ASTModule module, const SourceLocation loc, const ASTClassKind classKind, const string name, const List<ASTModifier> modifiers, const List<ASTType> bases) {
+    public static ASTClass CreateClass(const ASTModule module, const SourceLocation loc, const ASTClassKind classKind,
+            const string name, const List<ASTModifier> modifiers, const List<ASTType> bases) {
         ASTClass cls = new ASTClass(classKind, modifiers, loc, name, bases)
         module.addNode(cls)
         return cls
     }
-    public static ASTAttribute CreateClassAttribute(const SourceLocation loc, const ASTClass cls, const ASTType type, const string name, const List<ASTModifier> modifiers, const ASTExpr expr) {
+    public static ASTAttribute CreateClassAttribute(const SourceLocation loc, const ASTClass cls, const ASTType type,
+            const string name, const List<ASTModifier> modifiers, const ASTExpr expr) {
         ASTAttribute attr = new ASTAttribute(loc, type, name, modifiers)
         attr.setExpr(expr)
         cls.addNode(attr)
@@ -79,7 +84,8 @@ public class ASTBuilder {
         // NOT added to the class: the Resolver registers the default ctor at the Sema level.
         return method
     }
-    public static ASTMethod CreateClassMethod(const SourceLocation loc, const ASTClass cls, const string name, const List<ASTModifier> modifiers, const List<ASTParam> params, const ASTBlockStmt body) {
+    public static ASTMethod CreateClassMethod(const SourceLocation loc, const ASTClass cls, const string name,
+            const List<ASTModifier> modifiers, const List<ASTParam> params, const ASTBlockStmt body) {
         ASTMethod method = new ASTMethod(loc, modifiers, name, params)
         if body != null {
             ASTBuilder.CreateBody(method, body)
@@ -87,12 +93,14 @@ public class ASTBuilder {
         cls.addNode(method)
         return method
     }
-    public static ASTEnum CreateEnum(const ASTModule module, const SourceLocation loc, const string name, const List<ASTModifier> modifiers, const List<ASTType> enumTypes) {
+    public static ASTEnum CreateEnum(const ASTModule module, const SourceLocation loc, const string name,
+            const List<ASTModifier> modifiers, const List<ASTType> enumTypes) {
         ASTEnum e = new ASTEnum(loc, name, modifiers, enumTypes)
         module.addNode(e)
         return e
     }
-    public static ASTEnumEntry CreateEnumEntry(const SourceLocation loc, const ASTEnum e, const string name, const List<ASTModifier> modifiers) {
+    public static ASTEnumEntry CreateEnumEntry(const SourceLocation loc, const ASTEnum e, const string name,
+            const List<ASTModifier> modifiers) {
         ASTEnumEntry entry = new ASTEnumEntry(loc, e, name)
         List<ASTNode> nodes = e.getNodes()
         // Index starts from 1 since 0 is reserved for the 'unset' value.
@@ -105,22 +113,53 @@ public class ASTBuilder {
     }
 
     // ── Types ────────────────────────────────────────────────────────────────
-    public static ASTType CreateBoolType(const SourceLocation loc)    { return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_BOOL) }
-    public static ASTType CreateByteType(const SourceLocation loc)    { return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_BYTE) }
-    public static ASTType CreateUShortType(const SourceLocation loc)  { return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_USHORT) }
-    public static ASTType CreateShortType(const SourceLocation loc)   { return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_SHORT) }
-    public static ASTType CreateUIntType(const SourceLocation loc)    { return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_UINT) }
-    public static ASTType CreateIntType(const SourceLocation loc)     { return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_INT) }
-    public static ASTType CreateULongType(const SourceLocation loc)   { return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_ULONG) }
-    public static ASTType CreateLongType(const SourceLocation loc)    { return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_LONG) }
-    public static ASTType CreatePtrSizeType(const SourceLocation loc) { return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_POINTER) }
-    public static ASTType CreateFloatType(const SourceLocation loc)   { return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_FLOAT) }
-    public static ASTType CreateDoubleType(const SourceLocation loc)  { return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_DOUBLE) }
-    public static ASTType CreateComplexType(const SourceLocation loc) { return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_COMPLEX) }
-    public static ASTType CreateVoidType(const SourceLocation loc)    { return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_VOID) }
-    public static ASTType CreateStringType(const SourceLocation loc)  { return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_STRING) }
-    public static ASTType CreateErrorType(const SourceLocation loc)   { return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_ERROR) }
-    public static ASTArrayType CreateArrayType(const SourceLocation loc, const ASTType elementType, const ASTExpr sizeExpr) {
+    public static ASTType CreateBoolType(const SourceLocation loc) {
+        return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_BOOL)
+    }
+    public static ASTType CreateByteType(const SourceLocation loc) {
+        return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_BYTE)
+    }
+    public static ASTType CreateUShortType(const SourceLocation loc) {
+        return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_USHORT)
+    }
+    public static ASTType CreateShortType(const SourceLocation loc) {
+        return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_SHORT)
+    }
+    public static ASTType CreateUIntType(const SourceLocation loc) {
+        return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_UINT)
+    }
+    public static ASTType CreateIntType(const SourceLocation loc) {
+        return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_INT)
+    }
+    public static ASTType CreateULongType(const SourceLocation loc) {
+        return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_ULONG)
+    }
+    public static ASTType CreateLongType(const SourceLocation loc) {
+        return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_LONG)
+    }
+    public static ASTType CreatePtrSizeType(const SourceLocation loc) {
+        return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_POINTER)
+    }
+    public static ASTType CreateFloatType(const SourceLocation loc) {
+        return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_FLOAT)
+    }
+    public static ASTType CreateDoubleType(const SourceLocation loc) {
+        return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_DOUBLE)
+    }
+    public static ASTType CreateComplexType(const SourceLocation loc) {
+        return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_COMPLEX)
+    }
+    public static ASTType CreateVoidType(const SourceLocation loc) {
+        return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_VOID)
+    }
+    public static ASTType CreateStringType(const SourceLocation loc) {
+        return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_STRING)
+    }
+    public static ASTType CreateErrorType(const SourceLocation loc) {
+        return new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_ERROR)
+    }
+    public static ASTArrayType CreateArrayType(const SourceLocation loc, const ASTType elementType,
+            const ASTExpr sizeExpr) {
         return new ASTArrayType(loc, elementType, sizeExpr)
     }
     public static ASTType CreateType(const SourceLocation loc, const List<ASTName> names) {
@@ -128,11 +167,21 @@ public class ASTBuilder {
     }
 
     // ── Values ───────────────────────────────────────────────────────────────
-    public static ASTNullValue CreateNullValue(const SourceLocation loc)   { return new ASTNullValue(loc) }
-    public static ASTUnsetValue CreateUnsetValue(const SourceLocation loc) { return new ASTUnsetValue(loc) }
-    public static ASTBoolValue CreateBoolValue(const SourceLocation loc, const bool val) { return new ASTBoolValue(loc, val) }
-    public static ASTNumberValue CreateNumberValue(const SourceLocation loc, const string val) { return new ASTNumberValue(loc, val) }
-    public static ASTStringValue CreateStringValue(const SourceLocation loc, const string val) { return new ASTStringValue(loc, val) }
+    public static ASTNullValue CreateNullValue(const SourceLocation loc) {
+        return new ASTNullValue(loc)
+    }
+    public static ASTUnsetValue CreateUnsetValue(const SourceLocation loc) {
+        return new ASTUnsetValue(loc)
+    }
+    public static ASTBoolValue CreateBoolValue(const SourceLocation loc, const bool val) {
+        return new ASTBoolValue(loc, val)
+    }
+    public static ASTNumberValue CreateNumberValue(const SourceLocation loc, const string val) {
+        return new ASTNumberValue(loc, val)
+    }
+    public static ASTStringValue CreateStringValue(const SourceLocation loc, const string val) {
+        return new ASTStringValue(loc, val)
+    }
     public static ASTArrayValue CreateArrayValue(const SourceLocation loc, const List<ASTExpr> values) {
         ASTArrayValue arr = new ASTArrayValue(loc)
         arr.setValues(values)
@@ -143,22 +192,27 @@ public class ASTBuilder {
     }
 
     // ── Vars ─────────────────────────────────────────────────────────────────
-    public static ASTParam CreateParam(const SourceLocation loc, const ASTType type, const string name, const List<ASTModifier> modifiers, const ASTValue defaultValue) {
+    public static ASTParam CreateParam(const SourceLocation loc, const ASTType type, const string name,
+            const List<ASTModifier> modifiers, const ASTValue defaultValue) {
         ASTParam param = new ASTParam(loc, type, name, modifiers)
         // Only a REAL default is stored. Passing a null ASTValue on to
         // setExpr(ASTExpr) is an upcast, and the seed-built compiler turned that
         // null into a non-null pointer: every parameter then looked defaulted,
         // the no-argument constructor was never synthesized, and stage 3 (the
         // compiler rebuilt by itself) differed from stage 2.
-        if defaultValue != null { param.setExpr(defaultValue) }
+        if defaultValue != null {
+            param.setExpr(defaultValue)
+        }
         return param
     }
-    public static ASTLocalVar CreateLocalVar(const SourceLocation loc, const ASTType type, const string name, const List<ASTModifier> modifiers) {
+    public static ASTLocalVar CreateLocalVar(const SourceLocation loc, const ASTType type, const string name,
+            const List<ASTModifier> modifiers) {
         return new ASTLocalVar(loc, type, name, modifiers)
     }
 
     // ── Expressions ──────────────────────────────────────────────────────────
-    public static ASTCall CreateCall(const SourceLocation loc, const string name, const List<ASTExpr> args, const ASTCallKind callKind, const ASTExpr parent) {
+    public static ASTCall CreateCall(const SourceLocation loc, const string name, const List<ASTExpr> args,
+            const ASTCallKind callKind, const ASTExpr parent) {
         ASTCall call = new ASTCall(loc, name, callKind)
         if parent != null {
             call.setParent(parent)
@@ -197,15 +251,18 @@ public class ASTBuilder {
     public static ASTCast CreateCast(const ASTExpr expr, const ASTType toType) {
         return new ASTCast(expr, toType)
     }
-    public static ASTBinary CreateBinary(const SourceLocation opLocation, const ASTBinaryKind opKind, const ASTExpr leftExpr, const ASTExpr rightExpr) {
+    public static ASTBinary CreateBinary(const SourceLocation opLocation, const ASTBinaryKind opKind,
+            const ASTExpr leftExpr, const ASTExpr rightExpr) {
         return new ASTBinary(opKind, opLocation, leftExpr, rightExpr)
     }
-    public static ASTTernary CreateTernary(const ASTExpr conditionExpr, const SourceLocation trueOpLocation, const ASTExpr trueExpr, const SourceLocation falseOpLocation, const ASTExpr falseExpr) {
+    public static ASTTernary CreateTernary(const ASTExpr conditionExpr, const SourceLocation trueOpLocation,
+            const ASTExpr trueExpr, const SourceLocation falseOpLocation, const ASTExpr falseExpr) {
         return new ASTTernary(conditionExpr, trueOpLocation, trueExpr, falseOpLocation, falseExpr)
     }
 
     // ── Statements ───────────────────────────────────────────────────────────
-    public static ASTDeclStmt CreateDeclStmt(const ASTBlockStmt parent, const SourceLocation loc, const ASTLocalVar var) {
+    public static ASTDeclStmt CreateDeclStmt(const ASTBlockStmt parent, const SourceLocation loc,
+            const ASTLocalVar var) {
         ASTDeclStmt stmt = new ASTDeclStmt(loc, var)
         parent.addContent(stmt)
         return stmt
@@ -225,7 +282,8 @@ public class ASTBuilder {
         parent.addContent(stmt)
         return stmt
     }
-    public static ASTHandleStmt CreateHandleStmt(const ASTBlockStmt parent, const SourceLocation loc, const ASTBlockStmt blockStmt) {
+    public static ASTHandleStmt CreateHandleStmt(const ASTBlockStmt parent, const SourceLocation loc,
+            const ASTBlockStmt blockStmt) {
         ASTHandleStmt handleStmt = new ASTHandleStmt(loc)
         parent.addContent(handleStmt)
         handleStmt.setHandle(blockStmt)
@@ -244,7 +302,8 @@ public class ASTBuilder {
         cont.setParent(parent)
         return cont
     }
-    public static ASTDeleteStmt CreateDeleteStmt(const ASTBlockStmt parent, const SourceLocation loc, const ASTIdentifier varRef) {
+    public static ASTDeleteStmt CreateDeleteStmt(const ASTBlockStmt parent, const SourceLocation loc,
+            const ASTIdentifier varRef) {
         ASTDeleteStmt del = new ASTDeleteStmt(loc, varRef)
         parent.addContent(del)
         del.setParent(parent)
@@ -263,7 +322,8 @@ public class ASTBuilder {
         block.setParent(parent)
         return block
     }
-    public static ASTCaseStmt CreateCaseStmt(const ASTBlockStmt parent, const SourceLocation loc, const ASTExpr expr, const ASTBlockStmt body) {
+    public static ASTCaseStmt CreateCaseStmt(const ASTBlockStmt parent, const SourceLocation loc, const ASTExpr expr,
+            const ASTBlockStmt body) {
         ASTCaseStmt c = new ASTCaseStmt(loc)
         c.setExpr(expr)
         c.setStmt(body)

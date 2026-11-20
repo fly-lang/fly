@@ -32,17 +32,25 @@ public class CodeGenType {
         this.targetInfo = null
     }
 
-    public void setStringTy(const pointer t) { this.stringTy = t }
-    public void setArrayTy(const pointer t) { this.arrayTy = t }
+    public void setStringTy(const pointer t) {
+        this.stringTy = t
+    }
+    public void setArrayTy(const pointer t) {
+        this.arrayTy = t
+    }
 
     // setTargetInfo — supply the active target so pointer lowers to its pointer
     // width. Called by CodeGenModule.configureTarget before lowering.
-    public void setTargetInfo(const TargetInfo ti) { this.targetInfo = ti }
+    public void setTargetInfo(const TargetInfo ti) {
+        this.targetInfo = ti
+    }
 
     // pointerWidth — the target pointer width in bits (default 64 when no target
     // is configured, e.g. unit tests that never call configureTarget).
     public int pointerWidth() {
-        if this.targetInfo == null { return 64 }
+        if this.targetInfo == null {
+            return 64
+        }
         return this.targetInfo.getPointerWidth()
     }
 
@@ -61,20 +69,32 @@ public class CodeGenType {
             if str.equals(nm, "pointer") {
                 // pointer → the target pointer width (16/32/64).
                 int pw = this.pointerWidth()
-                if pw <= 16 { llvm.int16TypeInContext(this.ctx, r) }
-                elsif pw <= 32 { llvm.int32TypeInContext(this.ctx, r) }
-                else { llvm.int64TypeInContext(this.ctx, r) }
+                if pw <= 16 {
+                    llvm.int16TypeInContext(this.ctx, r)
+                } elsif pw <= 32 {
+                    llvm.int32TypeInContext(this.ctx, r)
+                } else {
+                    llvm.int64TypeInContext(this.ctx, r)
+                }
             } else {
                 int rank = t.getRank()
-                if rank <= 8 { llvm.int8TypeInContext(this.ctx, r) }
-                elsif rank <= 16 { llvm.int16TypeInContext(this.ctx, r) }
-                elsif rank <= 32 { llvm.int32TypeInContext(this.ctx, r) }
-                else { llvm.int64TypeInContext(this.ctx, r) }
+                if rank <= 8 {
+                    llvm.int8TypeInContext(this.ctx, r)
+                } elsif rank <= 16 {
+                    llvm.int16TypeInContext(this.ctx, r)
+                } elsif rank <= 32 {
+                    llvm.int32TypeInContext(this.ctx, r)
+                } else {
+                    llvm.int64TypeInContext(this.ctx, r)
+                }
             }
         } elsif t.isFloat() {
             int rank = t.getRank()
-            if rank <= 32 { llvm.floatTypeInContext(this.ctx, r) }
-            else { llvm.doubleTypeInContext(this.ctx, r) }
+            if rank <= 32 {
+                llvm.floatTypeInContext(this.ctx, r)
+            } else {
+                llvm.doubleTypeInContext(this.ctx, r)
+            }
         } elsif t.getKind() == SemaKind.TYPE_ENUM {
             // enums are plain i32 (each entry is its integer index)
             llvm.int32TypeInContext(this.ctx, r)

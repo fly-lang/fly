@@ -1,2 +1,4 @@
 abstract class A { public A() {} }
-void main() { A a = new A() }
+void main() {
+    A a = new A()
+}

@@ -84,8 +84,10 @@ public void LocalFree(const pointer ptr, pointer out) {}
 // WSABUF on x64: len u32@0, buf ptr@8 — 16 bytes. WSASend takes dwFlags BY
 // VALUE, WSARecv takes lpFlags as a POINTER; both report the byte count through
 // an out DWORD and return 0 on success.
-public void WSASend(const long s, const pointer bufs, const int count, const pointer sentOut, const int flags, const pointer ov, const pointer cr, int out) {}
-public void WSARecv(const long s, const pointer bufs, const int count, const pointer recvdOut, const pointer flagsInOut, const pointer ov, const pointer cr, int out) {}
+public void WSASend(const long s, const pointer bufs, const int count, const pointer sentOut, const int flags,
+        const pointer ov, const pointer cr, int out) {}
+public void WSARecv(const long s, const pointer bufs, const int count, const pointer recvdOut, const pointer flagsInOut,
+        const pointer ov, const pointer cr, int out) {}
 
 public void AcquireCredentialsHandleA(const pointer principal, const pointer package,
                                       const int credUse, const pointer logonId,
@@ -149,7 +151,9 @@ public void tls_available(int out) {
 // call can be dropped, so everything it calls from that point on is an extern.
 public void tls_connect(const long sock, const pointer sniHost, const int verify, pointer out) {
     out = 0
-    if sock < 0 { return }
+    if sock < 0 {
+        return
+    }
 
     // The SSPI package name, built FIRST — this is the one internal call in the
     // function, and it has to happen before any ptrPoke for the C-ABI emission
@@ -198,7 +202,9 @@ public void tls_connect(const long sock, const pointer sniHost, const int verify
     pointer discard = 0
 
     bool alloced = h != 0 && cred != 0 && ctxh != 0 && sc != 0 && encBuf != 0
-    if alloced == false { return }
+    if alloced == false {
+        return
+    }
 
     fly.llvm.memset(h, 0, 96)
     fly.llvm.memset(cred, 0, 16)
@@ -212,7 +218,9 @@ public void tls_connect(const long sock, const pointer sniHost, const int verify
     // SCH_CRED_MANUAL_CRED_VALIDATION (8) when the caller asked for no checking.
     fly.llvm.ptrPokeInt(sc, 0, 4)
     int credFlags = 48
-    if verify == 0 { credFlags = 24 }
+    if verify == 0 {
+        credFlags = 24
+    }
     fly.llvm.ptrPokeInt(sc, 72, credFlags)
 
     int st = 0
@@ -302,10 +310,17 @@ public void tls_connect(const long sock, const pointer sniHost, const int verify
                     int rc = 0
                     fly.runtime.WSASend(sock, wsaBuf, 1, nbuf, 0, 0, 0, rc)
                     int wrote = 0
-                    if rc == 0 { fly.llvm.ptrReadInt(nbuf, 0, wrote) }
-                    if wrote <= 0 { sending = false  failed = true } else {
+                    if rc == 0 {
+                        fly.llvm.ptrReadInt(nbuf, 0, wrote)
+                    }
+                    if wrote <= 0 {
+                        sending = false
+                        failed = true
+                    } else {
                         off = off + wrote
-                        if off >= tokLen { sending = false }
+                        if off >= tokLen {
+                            sending = false
+                        }
                     }
                 }
                 int fr = 0
@@ -313,7 +328,9 @@ public void tls_connect(const long sock, const pointer sniHost, const int verify
             }
         }
 
-        if failed { done = true } else {
+        if failed {
+            done = true
+        } else {
             if st == 0 {
                 // Handshake complete. Anything Schannel did not consume is the
                 // first application data and must survive into tls_recv.
@@ -329,13 +346,22 @@ public void tls_connect(const long sock, const pointer sniHost, const int verify
                             // can dereference.
                             fly.llvm.memcpy(encBuf, encBuf + (encLen - xLen), xLen)
                             encLen = xLen
-                        } else { encLen = 0 }
-                    } else { encLen = 0 }
-                } else { encLen = 0 }
+                        } else {
+                            encLen = 0
+                        }
+                    } else {
+                        encLen = 0
+                    }
+                } else {
+                    encLen = 0
+                }
                 done = true
             } else {
                 bool more = st == 590610 || st == -2146893032
-                if more == false { failed = true  done = true } else {
+                if more == false {
+                    failed = true
+                    done = true
+                } else {
                     if st == 590610 {
                         // The round consumed our buffer unless it said otherwise.
                         int xType = 0
@@ -346,12 +372,19 @@ public void tls_connect(const long sock, const pointer sniHost, const int verify
                             if xLen > 0 {
                                 fly.llvm.memcpy(encBuf, encBuf + (encLen - xLen), xLen)
                                 encLen = xLen
-                            } else { encLen = 0 }
-                        } else { encLen = 0 }
+                            } else {
+                                encLen = 0
+                            }
+                        } else {
+                            encLen = 0
+                        }
                     }
                     // SEC_E_INCOMPLETE_MESSAGE keeps encLen as it stands: the
                     // bytes are a partial record and the rest is still in flight.
-                    if encLen >= encCap { failed = true  done = true } else {
+                    if encLen >= encCap {
+                        failed = true
+                        done = true
+                    } else {
                         fly.llvm.ptrPokeInt(wsaBuf, 0, encCap - encLen)
                         fly.llvm.ptrPokeLong(wsaBuf, 8, encBuf + encLen)
                         fly.llvm.ptrPokeInt(nbuf, 0, 0)
@@ -359,8 +392,13 @@ public void tls_connect(const long sock, const pointer sniHost, const int verify
                         int rc = 0
                         fly.runtime.WSARecv(sock, wsaBuf, 1, nbuf, flagsBuf, 0, 0, rc)
                         int got = 0
-                        if rc == 0 { fly.llvm.ptrReadInt(nbuf, 0, got) }
-                        if got <= 0 { failed = true  done = true } else {
+                        if rc == 0 {
+                            fly.llvm.ptrReadInt(nbuf, 0, got)
+                        }
+                        if got <= 0 {
+                            failed = true
+                            done = true
+                        } else {
                             encLen = encLen + got
                         }
                     }
@@ -370,7 +408,10 @@ public void tls_connect(const long sock, const pointer sniHost, const int verify
         guard = guard + 1
         // A peer that neither completes nor errors would otherwise spin here
         // forever. No real handshake takes anything like this many rounds.
-        if guard > 64 { failed = true  done = true }
+        if guard > 64 {
+            failed = true
+            done = true
+        }
     }
 
     if failed {
@@ -474,8 +515,13 @@ public void tls_connect(const long sock, const pointer sniHost, const int verify
 // which is what a caller can compare against what it asked for; < 0 on error.
 public void tls_send(const pointer ctx, const pointer buf, const int n, long out) {
     out = 0 - 1
-    if ctx == 0 { return }
-    if n <= 0 { out = 0  return }
+    if ctx == 0 {
+        return
+    }
+    if n <= 0 {
+        out = 0
+        return
+    }
 
     long sockL = 0
     fly.llvm.ptrReadLong(ctx, 0, sockL)
@@ -503,15 +549,23 @@ public void tls_send(const pointer ctx, const pointer buf, const int n, long out
     pointer nbuf = 0
     fly.runtime.LocalAlloc(64, 4, nbuf)
     pointer discard = 0
-    if msgDesc == 0 { return }
-    if bufs == 0 { return }
+    if msgDesc == 0 {
+        return
+    }
+    if bufs == 0 {
+        return
+    }
 
     int sent = 0
     bool bad = false
     while sent < n {
-        if bad { sent = n } else {
+        if bad {
+            sent = n
+        } else {
             int chunk = n - sent
-            if chunk > cbMax { chunk = cbMax }
+            if chunk > cbMax {
+                chunk = cbMax
+            }
             // The three parts must be laid out CONTIGUOUSLY in one buffer:
             // Schannel writes header and trailer around the payload in place,
             // and the record then goes out as a single write.
@@ -535,7 +589,9 @@ public void tls_send(const pointer ctx, const pointer buf, const int n, long out
 
             int st = 0
             fly.runtime.EncryptMessage(ctxh, 0, msgDesc, 0, st)
-            if st != 0 { bad = true } else {
+            if st != 0 {
+                bad = true
+            } else {
                 // The encrypted sizes come BACK in the buffers: the trailer in
                 // particular is not always cbTrailer.
                 int h0 = 0
@@ -553,10 +609,19 @@ public void tls_send(const pointer ctx, const pointer buf, const int n, long out
                     int rc = 0
                     fly.runtime.WSASend(sockL, wsaBuf, 1, nbuf, 0, 0, 0, rc)
                     int wrote = 0
-                    if rc == 0 { fly.llvm.ptrReadInt(nbuf, 0, wrote) }
-                    if wrote <= 0 { bad = true  off = total } else { off = off + wrote }
+                    if rc == 0 {
+                        fly.llvm.ptrReadInt(nbuf, 0, wrote)
+                    }
+                    if wrote <= 0 {
+                        bad = true
+                        off = total
+                    } else {
+                        off = off + wrote
+                    }
                 }
-                if bad == false { sent = sent + chunk }
+                if bad == false {
+                    sent = sent + chunk
+                }
             }
         }
     }
@@ -577,8 +642,13 @@ public void tls_send(const pointer ctx, const pointer buf, const int n, long out
 // session, < 0 on error. Short reads are normal and expected: this is a stream.
 public void tls_recv(const pointer ctx, const pointer buf, const int n, long out) {
     out = 0 - 1
-    if ctx == 0 { return }
-    if n <= 0 { out = 0  return }
+    if ctx == 0 {
+        return
+    }
+    if n <= 0 {
+        out = 0
+        return
+    }
 
     // Anything already decrypted goes out first — a single TLS record can hold
     // more than the caller asked for, and the remainder has to survive.
@@ -593,7 +663,9 @@ public void tls_recv(const pointer ctx, const pointer buf, const int n, long out
     if decOff < decLen {
         int avail = decLen - decOff
         int take = avail
-        if take > n { take = n }
+        if take > n {
+            take = n
+        }
         fly.llvm.memcpy(buf, decBuf + decOff, take)
         fly.llvm.ptrPokeInt(ctx, 68, decOff + take)
         out = take
@@ -628,8 +700,12 @@ public void tls_recv(const pointer ctx, const pointer buf, const int n, long out
     pointer flagsBuf = 0
     fly.runtime.LocalAlloc(64, 4, flagsBuf)
     pointer discard = 0
-    if msgDesc == 0 { return }
-    if bufs == 0 { return }
+    if msgDesc == 0 {
+        return
+    }
+    if bufs == 0 {
+        return
+    }
 
     long result = 0 - 1
     bool settled = false
@@ -643,9 +719,19 @@ public void tls_recv(const pointer ctx, const pointer buf, const int n, long out
             int rc = 0
             fly.runtime.WSARecv(sockL, wsaBuf, 1, nbuf, flagsBuf, 0, 0, rc)
             int got = 0 - 1
-            if rc == 0 { fly.llvm.ptrReadInt(nbuf, 0, got) }
-            if got == 0 { result = 0  settled = true } else {
-                if got < 0 { result = 0 - 1  settled = true } else { encLen = got }
+            if rc == 0 {
+                fly.llvm.ptrReadInt(nbuf, 0, got)
+            }
+            if got == 0 {
+                result = 0
+                settled = true
+            } else {
+                if got < 0 {
+                    result = 0 - 1
+                    settled = true
+                } else {
+                    encLen = got
+                }
             }
         }
         if settled == false {
@@ -671,7 +757,10 @@ public void tls_recv(const pointer ctx, const pointer buf, const int n, long out
                 // SEC_E_INCOMPLETE_MESSAGE — a partial record. Keep what we have
                 // and read more; this is the normal case on a busy connection,
                 // not an error.
-                if encLen >= encCap { result = 0 - 1  settled = true } else {
+                if encLen >= encCap {
+                    result = 0 - 1
+                    settled = true
+                } else {
                     fly.llvm.ptrPokeInt(wsaBuf, 0, encCap - encLen)
                     fly.llvm.ptrPokeLong(wsaBuf, 8, encBuf + encLen)
                     fly.llvm.ptrPokeInt(nbuf, 0, 0)
@@ -679,12 +768,22 @@ public void tls_recv(const pointer ctx, const pointer buf, const int n, long out
                     int rc2 = 0
                     fly.runtime.WSARecv(sockL, wsaBuf, 1, nbuf, flagsBuf, 0, 0, rc2)
                     int got2 = 0
-                    if rc2 == 0 { fly.llvm.ptrReadInt(nbuf, 0, got2) }
-                    if got2 <= 0 { result = 0 - 1  settled = true } else { encLen = encLen + got2 }
+                    if rc2 == 0 {
+                        fly.llvm.ptrReadInt(nbuf, 0, got2)
+                    }
+                    if got2 <= 0 {
+                        result = 0 - 1
+                        settled = true
+                    } else {
+                        encLen = encLen + got2
+                    }
                 }
             } else {
                 bool okStatus = st == 0 || st == 590615
-                if okStatus == false { result = 0 - 1  settled = true } else {
+                if okStatus == false {
+                    result = 0 - 1
+                    settled = true
+                } else {
                     // Walk the four buffers: one comes back SECBUFFER_DATA with
                     // the plaintext, and one may come back SECBUFFER_EXTRA with
                     // the start of the NEXT record. Their positions are not
@@ -725,7 +824,9 @@ public void tls_recv(const pointer ctx, const pointer buf, const int n, long out
                         if plainLen > 0 {
                             if plainPtr != 0 {
                                 int keep = plainLen
-                                if keep > decCap { keep = decCap }
+                                if keep > decCap {
+                                    keep = decCap
+                                }
                                 fly.llvm.memcpy(decBuf, plainPtr, keep)
                                 decLen = keep
                                 decOff = 0
@@ -739,12 +840,18 @@ public void tls_recv(const pointer ctx, const pointer buf, const int n, long out
                             if extraPtr != 0 {
                                 fly.llvm.memcpy(encBuf, extraPtr, extraLen)
                                 encLen = extraLen
-                            } else { encLen = 0 }
-                        } else { encLen = 0 }
+                            } else {
+                                encLen = 0
+                            }
+                        } else {
+                            encLen = 0
+                        }
 
                         if copied > 0 {
                             int take = copied
-                            if take > n { take = n }
+                            if take > n {
+                                take = n
+                            }
                             fly.llvm.memcpy(buf, decBuf, take)
                             decOff = take
                             result = take
@@ -759,7 +866,10 @@ public void tls_recv(const pointer ctx, const pointer buf, const int n, long out
         }
         guard = guard + 1
         if guard > 64 {
-            if settled == false { result = 0 - 1  settled = true }
+            if settled == false {
+                result = 0 - 1
+                settled = true
+            }
         }
     }
 
@@ -779,10 +889,14 @@ public void tls_recv(const pointer ctx, const pointer buf, const int n, long out
 // worth reporting to a caller that is closing anyway.
 public void tls_shutdown(const pointer ctx) {
     pointer discard = 0
-    if ctx == 0 { return }
+    if ctx == 0 {
+        return
+    }
     int hasCtx = 0
     fly.llvm.ptrReadInt(ctx, 76, hasCtx)
-    if hasCtx == 0 { return }
+    if hasCtx == 0 {
+        return
+    }
 
     long sockL = 0
     fly.llvm.ptrReadLong(ctx, 0, sockL)
@@ -813,8 +927,12 @@ public void tls_shutdown(const pointer ctx) {
     fly.runtime.LocalAlloc(64, 16, wsaBuf)
     pointer nbuf = 0
     fly.runtime.LocalAlloc(64, 4, nbuf)
-    if desc == 0 { return }
-    if sb == 0 { return }
+    if desc == 0 {
+        return
+    }
+    if sb == 0 {
+        return
+    }
 
     // SCHANNEL_SHUTDOWN = 1, handed in as a one-DWORD SECBUFFER_TOKEN.
     fly.llvm.ptrPokeInt(tokenVal, 0, 1)
@@ -869,7 +987,9 @@ public void tls_shutdown(const pointer ctx) {
 // close the underlying socket, which belongs to the caller.
 public void tls_free(const pointer ctx) {
     pointer discard = 0
-    if ctx == 0 { return }
+    if ctx == 0 {
+        return
+    }
     int hasCtx = 0
     fly.llvm.ptrReadInt(ctx, 76, hasCtx)
     long ctxhL = 0
@@ -898,23 +1018,38 @@ public void tls_free(const pointer ctx) {
         fly.runtime.DeleteSecurityContext(ctxh, d1)
     }
     int d2 = 0
-    if cred != 0 { fly.runtime.FreeCredentialsHandle(cred, d2) }
+    if cred != 0 {
+        fly.runtime.FreeCredentialsHandle(cred, d2)
+    }
     // Cleared before the free so a double tls_free finds a null context rather
     // than a dangling one.
     fly.llvm.ptrPokeInt(ctx, 76, 0)
     fly.llvm.ptrPokeLong(ctx, 16, 0)
     fly.llvm.ptrPokeLong(ctx, 8, 0)
-    if encBuf != 0 { fly.runtime.LocalFree(encBuf, discard) }
-    if decBuf != 0 { fly.runtime.LocalFree(decBuf, discard) }
-    if ioBuf != 0 { fly.runtime.LocalFree(ioBuf, discard) }
-    if ctxh != 0 { fly.runtime.LocalFree(ctxh, discard) }
-    if cred != 0 { fly.runtime.LocalFree(cred, discard) }
+    if encBuf != 0 {
+        fly.runtime.LocalFree(encBuf, discard)
+    }
+    if decBuf != 0 {
+        fly.runtime.LocalFree(decBuf, discard)
+    }
+    if ioBuf != 0 {
+        fly.runtime.LocalFree(ioBuf, discard)
+    }
+    if ctxh != 0 {
+        fly.runtime.LocalFree(ctxh, discard)
+    }
+    if cred != 0 {
+        fly.runtime.LocalFree(cred, discard)
+    }
     fly.runtime.LocalFree(ctx, discard)
 }
 
 // tls_last_error — the backend's last error code for this context, 0 when none.
 public void tls_last_error(const pointer ctx, int out) {
-    if ctx == 0 { out = 0  return }
+    if ctx == 0 {
+        out = 0
+        return
+    }
     int e = 0
     fly.llvm.ptrReadInt(ctx, 36, e)
     out = e

@@ -44,7 +44,8 @@ public class ASTBinary : ASTExpr {
     ASTExpr leftExpr
     ASTExpr rightExpr
 
-    public ASTBinary(const ASTBinaryKind binaryKind, const SourceLocation opLocation, const ASTExpr leftExpr, const ASTExpr rightExpr) {
+    public ASTBinary(const ASTBinaryKind binaryKind, const SourceLocation opLocation, const ASTExpr leftExpr,
+            const ASTExpr rightExpr) {
         super(leftExpr.getLoc(), ASTExprKind.EXPR_BINARY)
         this.binaryKind = binaryKind
         this.opLocation = opLocation
@@ -52,10 +53,18 @@ public class ASTBinary : ASTExpr {
         this.rightExpr = rightExpr
     }
 
-    public ASTBinaryKind getBinaryKind() { return this.binaryKind }
-    public SourceLocation getOpLocation() { return this.opLocation }
-    public ASTExpr getLeftExpr() { return this.leftExpr }
-    public ASTExpr getRightExpr() { return this.rightExpr }
+    public ASTBinaryKind getBinaryKind() {
+        return this.binaryKind
+    }
+    public SourceLocation getOpLocation() {
+        return this.opLocation
+    }
+    public ASTExpr getLeftExpr() {
+        return this.leftExpr
+    }
+    public ASTExpr getRightExpr() {
+        return this.rightExpr
+    }
 
     // isArith — true for the arithmetic/bitwise/shift operators (their result type
     // is the numeric type of the operands, subject to promotion). Comparisons and
@@ -92,5 +101,7 @@ public class ASTBinary : ASTExpr {
         return r
     }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }

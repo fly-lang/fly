@@ -24,13 +24,31 @@ public class SemaModule {
         this.nodes = new List<SemaNode>()
     }
 
-    public ASTModule getAST() { return this.moduleAst }
-    public SymbolTable getSymbols() { return this.symbols }
-    public string getName() { return this.moduleAst.getName() }
-    public SemaNameSpace getNameSpace() { return this.nameSpace }
-    public void setNameSpace(const SemaNameSpace nameSpace) { this.nameSpace = nameSpace }
-    public List<SemaImport> getImports() { return this.imports }
-    public void addImport(const SemaImport imp) { this.imports.add(imp) }
-    public List<SemaNode> getNodes() { return this.nodes }
-    public void addNode(const SemaNode node) { this.nodes.add(node) }
+    public ASTModule getAST() {
+        return this.moduleAst
+    }
+    public SymbolTable getSymbols() {
+        return this.symbols
+    }
+    public string getName() {
+        return this.moduleAst.getName()
+    }
+    public SemaNameSpace getNameSpace() {
+        return this.nameSpace
+    }
+    public void setNameSpace(const SemaNameSpace nameSpace) {
+        this.nameSpace = nameSpace
+    }
+    public List<SemaImport> getImports() {
+        return this.imports
+    }
+    public void addImport(const SemaImport imp) {
+        this.imports.add(imp)
+    }
+    public List<SemaNode> getNodes() {
+        return this.nodes
+    }
+    public void addNode(const SemaNode node) {
+        this.nodes.add(node)
+    }
 }

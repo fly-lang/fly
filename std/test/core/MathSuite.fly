@@ -194,8 +194,12 @@ suite MathSuite {
                 double x = i
                 double back = math.log(math.exp(x))
                 double diff = back - x
-                if diff < 0.0 { diff = 0.0 - diff }
-                if diff > 0.0000001 { bad = x }
+                if diff < 0.0 {
+                    diff = 0.0 - diff
+                }
+                if diff > 0.0000001 {
+                    bad = x
+                }
                 i = i + 1
             }
             assert.assertApprox(bad, 0.0, 332)
@@ -382,7 +386,9 @@ suite MathSuite {
             long i = 1
             while i < 300 {
                 if math.isPow2(i) {
-                    if math.nextPow2(i) != i { bad = i }
+                    if math.nextPow2(i) != i {
+                        bad = i
+                    }
                 }
                 i = i + 1
             }
@@ -516,7 +522,9 @@ suite MathSuite {
             bool same = true
             int i = 0
             while i < 50 {
-                if math.rngNext(a) != math.rngNext(b) { same = false }
+                if math.rngNext(a) != math.rngNext(b) {
+                    same = false
+                }
                 i = i + 1
             }
             assert.assertTrue(same, 903)
@@ -529,7 +537,9 @@ suite MathSuite {
             bool differed = false
             int i = 0
             while i < 20 {
-                if math.rngNext(a) != math.rngNext(b) { differed = true }
+                if math.rngNext(a) != math.rngNext(b) {
+                    differed = true
+                }
                 i = i + 1
             }
             assert.assertTrue(differed, 904)
@@ -544,7 +554,9 @@ suite MathSuite {
             bool varied = false
             int i = 0
             while i < 20 {
-                if math.rngNext(r) != first { varied = true }
+                if math.rngNext(r) != first {
+                    varied = true
+                }
                 i = i + 1
             }
             assert.assertTrue(varied, 906)
@@ -558,10 +570,18 @@ suite MathSuite {
             int i = 0
             while i < 500 {
                 double d = math.randFloat(r)
-                if d < 0.0 { inRange = false }
-                if d >= 1.0 { inRange = false }
-                if d < 0.5 { sawLow = true }
-                if d >= 0.5 { sawHigh = true }
+                if d < 0.0 {
+                    inRange = false
+                }
+                if d >= 1.0 {
+                    inRange = false
+                }
+                if d < 0.5 {
+                    sawLow = true
+                }
+                if d >= 0.5 {
+                    sawHigh = true
+                }
                 i = i + 1
             }
             assert.assertTrue(inRange, 907)
@@ -575,8 +595,12 @@ suite MathSuite {
             int i = 0
             while i < 500 {
                 long v = math.randInt(r, 10, 20)
-                if v < 10 { inRange = false }
-                if v > 20 { inRange = false }
+                if v < 10 {
+                    inRange = false
+                }
+                if v > 20 {
+                    inRange = false
+                }
                 i = i + 1
             }
             assert.assertTrue(inRange, 910)
@@ -594,8 +618,12 @@ suite MathSuite {
             int i = 0
             while i < 300 {
                 long v = math.randInt(r, 0 - 5, 5)
-                if v < 0 - 5 { inRange = false }
-                if v > 5 { inRange = false }
+                if v < 0 - 5 {
+                    inRange = false
+                }
+                if v > 5 {
+                    inRange = false
+                }
                 i = i + 1
             }
             assert.assertTrue(inRange, 913)
@@ -608,7 +636,9 @@ suite MathSuite {
             int i = 0
             while i < 500 {
                 double d = math.randNormal(r, 10.0, 1.0)
-                if math.isFinite(d) == false { finite = false }
+                if math.isFinite(d) == false {
+                    finite = false
+                }
                 sum = sum + d
                 i = i + 1
             }

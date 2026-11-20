@@ -9,9 +9,12 @@ import fly.data.List
 
 public class ASTParam : ASTVar {
 
-    public ASTParam(const SourceLocation loc, const ASTType type, const string name, const List<ASTModifier> modifiers) {
+    public ASTParam(const SourceLocation loc, const ASTType type, const string name,
+            const List<ASTModifier> modifiers) {
         super(loc, type, name, modifiers)
     }
 
-    public void accept(const ASTVisitor v) { v.visit(this) }
+    public void accept(const ASTVisitor v) {
+        v.visit(this)
+    }
 }
