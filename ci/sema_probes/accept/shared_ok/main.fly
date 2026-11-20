@@ -1,0 +1,59 @@
+public class Res {
+
+    public static int freed
+
+    public Res() {
+    }
+
+    public void free() {
+        Res.freed = Res.freed + 1
+    }
+}
+
+void lend(const Res r) {
+}
+
+void copies() {
+    Res a = new shared Res()
+    Res b = a
+    lend(b)
+    delete a
+    if Res.freed != 0 {
+        fail 1, "an object with a holder left must not be destroyed"
+    }
+}
+
+Res make() {
+    Res r = new shared Res()
+    return r
+}
+
+void reassigned() {
+    Res a = new shared Res()
+    Res b = a
+    a = new shared Res()
+    b = a
+    a = null
+}
+
+// A `new shared` object lives while it has a holder: copies count, lending does
+// not, `delete` and `= null` let one holder go, and the last one destroys it
+// (free() runs once). A returned holder hands its count to the caller.
+void main() {
+    copies()
+    if Res.freed != 1 {
+        fail 2, "the last holder destroys the object once"
+    }
+    Res m = make()
+    if Res.freed != 1 {
+        fail 3, "a returned holder keeps the object alive"
+    }
+    m = null
+    if Res.freed != 2 {
+        fail 4, "releasing the caller's holder destroys the returned object"
+    }
+    reassigned()
+    if Res.freed != 4 {
+        fail 5, "reassigning holders destroys each object when its last holder goes"
+    }
+}

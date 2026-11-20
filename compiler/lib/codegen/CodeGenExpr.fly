@@ -500,6 +500,15 @@ public class CodeGenExpr : SemaVisitor {
                     j = j + 1
                     continue
                 }
+                // A `new shared` HOLDER lets go of its reference: one count less,
+                // the object destroyed when it was the last (a return moved it out
+                // and left the slot null, so nothing is released twice).
+                if v.isSharedHolder() {
+                    SemaType sty = v.getType()
+                    CodeGenStmt.emitReleaseSlot(this, sty.asClass(), v.getLlvmAlloca())
+                    j = j + 1
+                    continue
+                }
                 // ESCAPED handles (passed as a call argument or assigned away —
                 // see the Stage-7 escape marking in ResolverCall/ResolverExpr)
                 // may be retained elsewhere: freeing them here left dangling
@@ -598,6 +607,16 @@ public class CodeGenExpr : SemaVisitor {
         SemaExpr moved = node.getMoveFrom()
         if moved != null {
             CodeGenStmt.emitNullStore(this, this.genAddr(moved))
+        }
+        // `C y = x` with x a shared holder: y is a second holder, so count it.
+        SemaLocalVar hv = node.getVar()
+        SemaExpr hinit = node.getExpr()
+        if hv != null && hinit != null {
+            if hv.isSharedHolder() && hinit.isSharedHolder() {
+                pointer held
+                this.llvm.buildLoad2(this.builder, this.ptrType(), hv.getLlvmAlloca(), "held", held)
+                CodeGenStmt.emitRetain(this, held)
+            }
         }
         CodeGenDebug dbg = this.cgm.getDebug()
         if dbg != null {

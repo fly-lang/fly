@@ -1,0 +1,21 @@
+public class Res {
+
+    int v
+
+    public Res() {
+        this.v = 1
+    }
+
+    public int value() {
+        return this.v
+    }
+}
+
+// `delete h` lets go of h's reference and leaves h null: a later use through h
+// stops on the null trap (the object itself lives on while another holder has it).
+void main() {
+    Res a = new shared Res()
+    Res b = a
+    delete a
+    int n = a.value()
+}

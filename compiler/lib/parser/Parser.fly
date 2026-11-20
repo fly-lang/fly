@@ -124,6 +124,7 @@ public class Parser {
     List<ASTReturnStmt> bodyReturns   // every `return` in the body being parsed
     List<string> bodyLocals           // every local name declared in that body
     List<string> bodyOwners           // the locals that own a `new unique` object (by init or move)
+    List<string> bodyShared           // the locals holding a `new shared` reference (by init or copy)
     ASTClass curClass                 // the class whose body is being parsed (owning fields); null outside
     // Every block parsed, in order, for `fly fmt` (which needs where each block
     // and each of its statements starts). Off unless asked for: compiling never
@@ -164,6 +165,7 @@ public class Parser {
         this.paramGroupId = 0
         this.bodyLocals = new List<string>()
         this.bodyOwners = new List<string>()
+        this.bodyShared = new List<string>()
         this.curClass = null
         this.cur = this.lx.next()
         this.nxt = this.lx.next()
@@ -535,11 +537,15 @@ public class Parser {
     // owns its object. Recorded per body so the resolver knows, BEFORE resolving
     // any body, which functions hand an owner back through `return` (their
     // callers then own the result) — resolution order cannot decide that.
+    // The same for `new shared`: `C name = new shared C()` or `C name = holder` (a
+    // counted copy) makes `name` a shared holder.
     public void noteOwner(const string name, const ASTExpr init) {
         ASTCall ic = init.asCall()
         if ic != null {
             if ic.getCallKind() == ASTCallKind.CALL_NEW_UNIQUE {
                 this.bodyOwners.add(name)
+            } elsif ic.getCallKind() == ASTCallKind.CALL_NEW_SHARED {
+                this.bodyShared.add(name)
             }
             return
         }
@@ -550,13 +556,10 @@ public class Parser {
         if id.getParent() != null {
             return
         }
-        int i = 0
-        while i < this.bodyOwners.size() {
-            if str.equals(this.bodyOwners.get(i), id.getName()) {
-                this.bodyOwners.add(name)
-                return
-            }
-            i = i + 1
+        if listHas(this.bodyOwners, id.getName()) {
+            this.bodyOwners.add(name)
+        } elsif listHas(this.bodyShared, id.getName()) {
+            this.bodyShared.add(name)
         }
     }
 
@@ -615,6 +618,7 @@ public class Parser {
         this.bodyReturns = new List<ASTReturnStmt>()
         this.bodyLocals = new List<string>()
         this.bodyOwners = new List<string>()
+        this.bodyShared = new List<string>()
     }
     public void endBody(const ASTFunction f) {
         if f == null {
@@ -634,6 +638,11 @@ public class Parser {
         while k < this.bodyOwners.size() {
             f.addOwnerLocal(this.bodyOwners.get(k))
             k = k + 1
+        }
+        int s = 0
+        while s < this.bodyShared.size() {
+            f.addSharedLocal(this.bodyShared.get(s))
+            s = s + 1
         }
         this.beginBody()
     }
@@ -1765,4 +1774,16 @@ public class Parser {
 // newParser — convenience factory.
 public Parser newParser(const string src) {
     return new Parser(src)
+}
+
+// listHas — `names` contains `n`.
+public bool listHas(const List<string> names, const string n) {
+    int i = 0
+    while i < names.size() {
+        if str.equals(names.get(i), n) {
+            return true
+        }
+        i = i + 1
+    }
+    return false
 }

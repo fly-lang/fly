@@ -1,0 +1,1 @@
+a holder takes only a 'new shared' object

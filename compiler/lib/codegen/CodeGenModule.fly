@@ -49,6 +49,8 @@ public class CodeGenModule {
     List<string> dropNames // `@__fly_drop.<class>` helpers built so far (delete bodies), by name
     List<pointer> dropFns
     pointer dropFnTyV      // their common type: void (ptr err, ptr slot)
+    pointer retainFnV      // `@__fly_retain`, counts one more holder of a shared object; 0 until first use
+    pointer retainFnTyV    // its type: void (ptr obj)
     CodeGenOptions codeGenOpts    // linker flags sink (CLang bridge); null in unit tests
     CodeGenDebug dbg              // DWARF line tables (--debug-symbols); null otherwise
     bool machO                    // the target emits Mach-O (set by configureTarget)
@@ -65,6 +67,8 @@ public class CodeGenModule {
         this.dropNames = new List<string>()
         this.dropFns = new List<pointer>()
         this.dropFnTyV = 0
+        this.retainFnV = 0
+        this.retainFnTyV = 0
         this.codeGenOpts = null
         this.cg = new CodeGenLLVM()
         LLVM llvm = this.cg.getLLVM()
@@ -1505,8 +1509,109 @@ public class CodeGenModule {
     // BEFORE its body is built, so a class owning a field of its own type calls
     // itself instead of expanding forever.
     public pointer dropFn(const SemaClassType cls) {
+        return this.classFn("__fly_drop.", cls, false)
+    }
+
+    public pointer retainFnTy() {
+        if this.retainFnTyV == 0 {
+            LLVM llvm = this.cg.getLLVM()
+            pointer voidTy
+            llvm.voidTypeInContext(this.ctx, voidTy)
+            List<pointer> ps = new List<pointer>()
+            ps.add(this.types.ptrType())
+            pointer fty
+            this.cg.functionTypeN(voidTy, ps, false, fty)
+            this.retainFnTyV = fty
+        }
+        return this.retainFnTyV
+    }
+
+    // retainFn — `void @__fly_retain(ptr obj)`: when obj is not null, one more on
+    // the strong count of its shared header (16 bytes before it). One per module,
+    // LinkOnceODR + COMDAT. Class-independent: the header is the same for all.
+    public pointer retainFn() {
+        if this.retainFnV != 0 {
+            return this.retainFnV
+        }
+        LLVM llvm = this.cg.getLLVM()
+        pointer b = this.builder
+        pointer fty = this.retainFnTy()
+        string name = "__fly_retain"
+        pointer fn
+        llvm.getNamedFunction(this.module, name, fn)
+        if fn == 0 {
+            llvm.addFunction(this.module, name, fty, fn)
+        }
+        this.retainFnV = fn
+        llvm.setLinkage(fn, 3)
+        this.setWeakComdat(fn, name)
+
+        pointer savedLoc = 0
+        if this.dbg != null {
+            savedLoc = this.dbg.suspend()
+        }
+        pointer callerBB
+        llvm.getInsertBlock(b, callerBB)
+        pointer entryBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "entry", entryBB)
+        pointer incBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "inc", incBB)
+        pointer endBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "end", endBB)
+        llvm.positionBuilderAtEnd(b, entryBB)
+        pointer obj
+        llvm.getParam(fn, 0, obj)
+        pointer ptrTy = this.types.ptrType()
+        pointer nul
+        llvm.constPointerNull(ptrTy, nul)
+        pointer notNull
+        llvm.buildICmp(b, 33, obj, nul, "nn", notNull)
+        pointer br
+        llvm.buildCondBr(b, notNull, incBB, endBB, br)
+        llvm.positionBuilderAtEnd(b, incBB)
+        pointer i8Ty
+        llvm.int8TypeInContext(this.ctx, i8Ty)
+        pointer i64Ty
+        llvm.int64TypeInContext(this.ctx, i64Ty)
+        pointer minus16
+        llvm.constInt(i64Ty, 0 - 16, true, minus16)
+        List<pointer> idx = new List<pointer>()
+        idx.add(minus16)
+        pointer hdr
+        this.cg.buildGEP2N(b, i8Ty, obj, idx, "hdr", hdr)
+        pointer strong
+        llvm.buildLoad2(b, i64Ty, hdr, "strong", strong)
+        pointer one
+        llvm.constInt(i64Ty, 1, false, one)
+        pointer more
+        llvm.buildAdd(b, strong, one, "strong.more", more)
+        llvm.buildStore(b, more, hdr)
+        pointer br2
+        llvm.buildBr(b, endBB, br2)
+        llvm.positionBuilderAtEnd(b, endBB)
+        pointer rv
+        llvm.buildRetVoid(b, rv)
+
+        if callerBB != 0 {
+            llvm.positionBuilderAtEnd(b, callerBB)
+        }
+        if this.dbg != null {
+            this.dbg.resume(savedLoc)
+        }
+        return fn
+    }
+
+    // releaseFn — `void @__fly_release.<ns>.<Class>(ptr err, ptr slot)`: the last
+    // step of a `new shared` holder (CodeGenStmt.emitReleaseBody), built like dropFn.
+    public pointer releaseFn(const SemaClassType cls) {
+        return this.classFn("__fly_release.", cls, true)
+    }
+
+    // classFn — the per-class helper `<prefix><ns>.<Class>`, built once: the delete
+    // body, or (release) the release body of a shared holder.
+    public pointer classFn(const string prefix, const SemaClassType cls, const bool release) {
         string qual = str.concat(SemaBuilder.classNsFlat(cls), str.concat(".", cls.getName()))
-        string name = str.concat("__fly_drop.", qual)
+        string name = str.concat(prefix, qual)
         int i = 0
         while i < this.dropNames.size() {
             if str.equals(this.dropNames.get(i), name) {
@@ -1544,7 +1649,11 @@ public class CodeGenModule {
         dcg.setErrPtr(errP)
         pointer slotP
         llvm.getParam(fn, 1, slotP)
-        CodeGenStmt.emitDeleteBody(dcg, cls, slotP)
+        if release {
+            CodeGenStmt.emitReleaseBody(dcg, cls, slotP)
+        } else {
+            CodeGenStmt.emitDeleteBody(dcg, cls, slotP)
+        }
         pointer rv
         llvm.buildRetVoid(b, rv)
         if callerBB != 0 {

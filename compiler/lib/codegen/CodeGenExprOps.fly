@@ -31,6 +31,21 @@ public class CodeGenExprOps {
         // object the owner held is deleted (free(), release), then the new one is
         // stored; a move from another owner leaves that owner null. The resolver
         // accepted only what an owner may delete later (see ownedSource).
+        // A `new shared` HOLDER destination: count the incoming reference when it
+        // is a copy of another holder (a fresh `new shared` or a held result already
+        // carries its count), THEN release the old one, then store — counting first
+        // keeps `h = h2` correct when both name the same object.
+        if left.isSharedHolder() {
+            SemaType hty = left.getType()
+            if right.isSharedHolder() {
+                CodeGenStmt.emitRetain(cge, rhs)
+            }
+            pointer haddr = cge.genAddr(left)
+            CodeGenStmt.emitReleaseSlot(cge, hty.asClass(), haddr)
+            cge.getLLVM().buildStore(cge.getBuilder(), rhs, haddr)
+            node.setLlvmValue(rhs)
+            return
+        }
         if left.isUniqueOwner() {
             SemaType oty = left.getType()
             pointer oaddr = cge.genAddr(left)

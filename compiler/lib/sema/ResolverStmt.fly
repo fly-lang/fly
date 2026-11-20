@@ -869,8 +869,23 @@ public class ResolverStmt {
                     return
                 }
                 slv.setUniqueOwner(true)
-            } elsif k == ASTCallKind.CALL_NEW_SHARED || k == ASTCallKind.CALL_NEW_WEAK {
-                r.diagStr(node.getLoc(), DiagID.err_sema_not_supported, "'new shared' and 'new weak' (coming after 'new unique')")
+            } elsif k == ASTCallKind.CALL_NEW_SHARED {
+                SemaClassType sc = ic.getType().asClass()
+                if sc != null && sc.getClassKind() == SemaClassKind.STRUCT {
+                    r.diagStr(node.getLoc(), DiagID.err_sema_shared_ref,
+                            "a struct is a value on the stack: create it with a plain 'new'")
+                    return
+                }
+                slv.setSharedHolder(true)
+            } elsif k == ASTCallKind.CALL_NEW_WEAK {
+                r.diagStr(node.getLoc(), DiagID.err_sema_not_supported, "'new weak' (coming after 'new shared')")
+            } elsif ResolverStmt.callReturnsShared(ic) {
+                // `C y = make()` where make returns a holder: y holds that reference.
+                slv.setSharedHolder(true)
+                SemaBlockStmt sblk = r.getCurrentSemaBlock()
+                if sblk != null {
+                    sblk.addAlloc(slv)
+                }
             } elsif ResolverStmt.callReturnsOwned(ic) {
                 // `C y = make()` where make returns an owner: y owns the result.
                 slv.setUniqueOwner(true)
@@ -889,10 +904,31 @@ public class ResolverStmt {
                 blk.addAlloc(slv)
             }
         }
+        // `C y = x` with x a shared holder: y holds a COUNTED copy (codegen retains).
+        if init.isSharedHolder() && init.getKind() == SemaKind.LOCAL_VAR {
+            slv.setSharedHolder(true)
+            SemaBlockStmt hblk = r.getCurrentSemaBlock()
+            if hblk != null {
+                hblk.addAlloc(slv)
+            }
+        }
     }
 
     // callReturnsOwned — is `c` a call (not a `new`) to a function that hands back
     // an owner through `return`?
+    // callReturnsShared — is `c` a call (not a `new`) to a function that hands back
+    // a shared holder through `return`?
+    public static bool callReturnsShared(const SemaCall c) {
+        if c.isNew() {
+            return false
+        }
+        SemaFunctionBase fn = c.getFunction()
+        if fn == null {
+            return false
+        }
+        return fn.returnsShared()
+    }
+
     public static bool callReturnsOwned(const SemaCall c) {
         if c.isNew() {
             return false

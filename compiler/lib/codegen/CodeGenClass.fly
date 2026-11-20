@@ -621,6 +621,8 @@ public class CodeGenClass {
         pointer obj
         if isStruct {
             llvm.buildAlloca(b, structTy, "sobj", obj)
+        } elsif node.getAST().getCallKind() == ASTCallKind.CALL_NEW_SHARED {
+            obj = allocShared(cge, structTy)
         } else {
             llvm.buildMalloc(b, structTy, "obj", obj)
         }
@@ -1059,6 +1061,43 @@ public class CodeGenClass {
     //   CLASS:  1 + position in the FLATTENED list (slot 0 = vtable) — inherited
     //           fields included, which the old header layout could not reach;
     //   STRUCT: plain position (no vtable slot).
+    // allocShared — memory for a `new shared` object: a 16-byte header (strong count
+    // 1, weak count 0) followed by the object, whose address is returned. Freed
+    // from the header by the last release (CodeGenStmt.emitReleaseBody).
+    public static pointer allocShared(const CodeGenExpr cge, const pointer structTy) {
+        CodeGenModule cgm = cge.getCgm()
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        pointer i8Ty
+        llvm.int8TypeInContext(cgm.getCtx(), i8Ty)
+        pointer i64Ty
+        llvm.int64TypeInContext(cgm.getCtx(), i64Ty)
+        pointer objSize
+        llvm.sizeOf(structTy, objSize)
+        pointer sixteen
+        llvm.constInt(i64Ty, 16, false, sixteen)
+        pointer total
+        llvm.buildAdd(b, objSize, sixteen, "shsize", total)
+        pointer hdr = cgm.emitMalloc(total)
+        pointer one
+        llvm.constInt(i64Ty, 1, false, one)
+        llvm.buildStore(b, one, hdr)
+        pointer eight
+        llvm.constInt(i64Ty, 8, false, eight)
+        List<pointer> wIdx = new List<pointer>()
+        wIdx.add(eight)
+        pointer weakP
+        cgm.getCg().buildGEP2N(b, i8Ty, hdr, wIdx, "shweak", weakP)
+        pointer zero
+        llvm.constInt(i64Ty, 0, false, zero)
+        llvm.buildStore(b, zero, weakP)
+        List<pointer> oIdx = new List<pointer>()
+        oIdx.add(sixteen)
+        pointer obj
+        cgm.getCg().buildGEP2N(b, i8Ty, hdr, oIdx, "shobj", obj)
+        return obj
+    }
+
     // findFreeMethod — the class's `free()` with no parameters (its own or
     // inherited), which `delete` calls before releasing the object; null if the
     // class has none.

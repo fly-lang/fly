@@ -113,7 +113,20 @@ public class SemaFunctionBase : SemaNode {
         if this.funcAst == null {
             return false
         }
-        List<string> owners = this.funcAst.getOwnerLocals()
+        return this.returnsOneOf(this.funcAst.getOwnerLocals())
+    }
+
+    // returnsShared — the same for `new shared`: a `return` hands back a holder,
+    // so the caller's declaration holds (and counts) the reference.
+    public bool returnsShared() {
+        if this.funcAst == null {
+            return false
+        }
+        return this.returnsOneOf(this.funcAst.getSharedLocals())
+    }
+
+    // returnsOneOf — does some `return` hand back exactly one of `owners`?
+    public bool returnsOneOf(const List<string> owners) {
         if owners.size() == 0 {
             return false
         }

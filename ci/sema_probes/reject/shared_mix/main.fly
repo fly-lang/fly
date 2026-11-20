@@ -1,0 +1,11 @@
+public class Res {
+
+    public Res() {
+    }
+}
+
+void main() {
+    Res a = new shared Res()
+    Res u = new unique Res()
+    a = u
+}

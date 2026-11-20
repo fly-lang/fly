@@ -1,0 +1,11 @@
+public class Res {
+
+    public Res() {
+    }
+}
+
+void main() {
+    Res a = new shared Res()
+    Res p = null
+    p = a
+}

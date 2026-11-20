@@ -63,6 +63,26 @@ public class ResolverExpr {
     // ownedSource — may an owner take this value? A `new unique` object, another
     // owner (moved), the result of a call that returns an owner, or null (which
     // just deletes what the owner held).
+    // sharedSource — may a shared holder take this value? A `new shared` object,
+    // another LOCAL holder (counted copy), the result of a call that returns a
+    // holder, or null (which just releases what the holder had).
+    public static bool sharedSource(const SemaExpr e) {
+        if e.isSharedHolder() {
+            return e.getKind() == SemaKind.LOCAL_VAR
+        }
+        if e.getKind() == SemaKind.VALUE && e.getType() == null {
+            return true
+        }
+        SemaCall c = e.asCall()
+        if c == null {
+            return false
+        }
+        if c.getAST().getCallKind() == ASTCallKind.CALL_NEW_SHARED {
+            return true
+        }
+        return ResolverStmt.callReturnsShared(c)
+    }
+
     public static bool ownedSource(const SemaExpr e) {
         if e.isUniqueOwner() {
             // only a LOCAL owner moves; an owning field lends, it never gives up
@@ -90,7 +110,8 @@ public class ResolverExpr {
         // right side is a place where `new unique` is allowed.
         bool ownerTarget = false
         if left != null {
-            ownerTarget = node.getBinaryKind() == ASTBinaryKind.OP_BINARY_ASSIGN && left.isUniqueOwner()
+            bool owningLeft = left.isUniqueOwner() || left.isSharedHolder()
+            ownerTarget = node.getBinaryKind() == ASTBinaryKind.OP_BINARY_ASSIGN && owningLeft
         }
         ASTExpr savedSite = r.getUniqueSite()
         if ownerTarget {
@@ -179,10 +200,23 @@ public class ResolverExpr {
                 // new declaration or a return: anything else would leave two names
                 // for one owned object.
                 if left != null && right != null {
+                    bool rLocal = right.getKind() == SemaKind.LOCAL_VAR
                     if r.isReturnAssign() {
-                        if right.isUniqueOwner() && right.getKind() == SemaKind.LOCAL_VAR {
+                        // a returned owner OR holder hands its reference to the caller:
+                        // the local is left null, so its scope end neither deletes nor
+                        // releases it
+                        bool handsOut = right.isUniqueOwner() || right.isSharedHolder()
+                        if handsOut && rLocal {
                             r.getReturnMoves().add(right)
                         }
+                    } elsif left.isSharedHolder() {
+                        if ResolverExpr.sharedSource(right) == false {
+                            r.diagStr(node.getOpLocation(), DiagID.err_sema_shared_ref,
+                                    "a holder takes only a 'new shared' object, a holder, a held result or null")
+                        }
+                    } elsif right.isSharedHolder() && rLocal {
+                        r.diagStr(node.getOpLocation(), DiagID.err_sema_shared_ref,
+                                "a holder is copied only into another holder, a new declaration (C y = x) or a return")
                     } elsif left.isUniqueOwner() {
                         if left == right {
                             r.diagStr(node.getOpLocation(), DiagID.err_sema_unique_move,

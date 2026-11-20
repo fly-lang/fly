@@ -39,6 +39,8 @@ public class SemaExpr : SemaNode {
     bool uniqueOwner    // this expression IS a variable that OWNS its object (`new unique`):
                         // deleted at scope end, left null by a move. On the base class with a
                         // plain accessor, like constVar: a narrowing virtual mis-dispatches.
+    bool sharedHolder   // this expression IS a variable holding a counted `new shared` reference:
+                        // released at scope end; copying it into another holder counts it.
 
     public SemaExpr(const SemaKind kind, const SemaType type) {
         super(kind)
@@ -48,6 +50,7 @@ public class SemaExpr : SemaNode {
         this.ownedStrTemp = false
         this.constVar = false
         this.uniqueOwner = false
+        this.sharedHolder = false
     }
 
     public SemaType getType() {
@@ -67,6 +70,12 @@ public class SemaExpr : SemaNode {
     }
     public void setOwnedStrTemp(const bool o) {
         this.ownedStrTemp = o
+    }
+    public bool isSharedHolder() {
+        return this.sharedHolder
+    }
+    public void setSharedHolder(const bool v) {
+        this.sharedHolder = v
     }
     public bool isUniqueOwner() {
         return this.uniqueOwner

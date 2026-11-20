@@ -237,6 +237,12 @@ public class ResolverCall {
                 r.diagStr(node.getLoc(), DiagID.err_sema_unique_move,
                         "it must initialize a variable declaration, which then owns the object (C x = new unique C())")
             }
+        } elsif ck == ASTCallKind.CALL_NEW_SHARED {
+            ASTExpr ssite = r.getUniqueSite()
+            if ssite != node {
+                r.diagStr(node.getLoc(), DiagID.err_sema_shared_ref,
+                        "it must initialize a variable declaration, which then holds it (C x = new shared C())")
+            }
         }
 
         // Multi-assignment verification (B027): the parser lowered `q, r = f(x)`
