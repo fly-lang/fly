@@ -86,7 +86,9 @@ public class ResolverStmt {
         ASTExpr ie = node.getExpr()
         if ie != null {
             r.setExpectedType(slv.getType())    // so `T[] a = {...}` types the literal
+            r.setUniqueSite(ie)                 // the one place `new unique` may appear
             ie.accept(r)
+            r.setUniqueSite(null)
             r.setExpectedType(null)
             init = r.getCurrentExpr()
             // the initializer must be assignable to the declared type (the
@@ -148,6 +150,7 @@ public class ResolverStmt {
         // direct new-into-local; escape analysis / smart-pointer ownership is the
         // soundness follow-up.)
         if init != null {
+            ResolverStmt.trackUnique(r, node, slv, init, ds)
             SemaCall ic = init.asCall()
             if ic != null {
                 if ic.isNew() {
@@ -216,6 +219,7 @@ public class ResolverStmt {
         SemaBlockStmt blk = r.getCurrentSemaBlock()
         List<SemaParam> retParams = ResolverStmt.returnParamsOf(r)
         List<ASTExpr> values = node.getExprs()
+        List<SemaExpr> moves = new List<SemaExpr>()     // unique owners this return hands out
 
         if values.size() == 0 {
             // A bare `return` is an early exit, valid only where no value is due.
@@ -240,7 +244,15 @@ public class ResolverStmt {
                 } else {
                     ASTExpr lhs = ASTBuilder.CreateIdentifier(node.getLoc(), slot.getName(), null)
                     ASTExpr assign = ASTBuilder.CreateBinary(node.getLoc(), ASTBinaryKind.OP_BINARY_ASSIGN, lhs, value)
+                    r.setReturnAssign(true)
                     assign.accept(r)
+                    r.setReturnAssign(false)
+                    List<SemaExpr> rm = r.getReturnMoves()
+                    int mi = 0
+                    while mi < rm.size() {
+                        moves.add(rm.get(mi))
+                        mi = mi + 1
+                    }
                     SemaExprStmt es = SemaBuilder.CreateExprStmt(node, r.getCurrentExpr())
                     blk.addContent(es)
                 }
@@ -249,6 +261,11 @@ public class ResolverStmt {
         }
 
         SemaReturnStmt rs = SemaBuilder.CreateReturnStmt(node, null)
+        int mj = 0
+        while mj < moves.size() {
+            rs.addMove(moves.get(mj))
+            mj = mj + 1
+        }
         blk.addContent(rs)
         r.setStmtExits(true)
     }
@@ -829,6 +846,40 @@ public class ResolverStmt {
             if re != null {
                 SemaDeleteStmt sd = SemaBuilder.CreateDeleteStmt(node, re)
                 blk.addContent(sd)
+            }
+        }
+    }
+
+    // trackUnique — ownership for a declaration `C y = init`:
+    //   init is `new unique C(...)`  → y owns the object: deleted at scope end;
+    //   init is a unique owner x     → the object MOVES to y, which owns it, and x
+    //                                  is left null (codegen, via moveFrom);
+    //   init is `new shared` / `new weak` → not implemented yet: an error, so a
+    //                                  program never silently gets the plain form.
+    public static void trackUnique(const Resolver r, const ASTStmt node, const SemaLocalVar slv,
+            const SemaExpr init, const SemaDeclStmt ds) {
+        SemaCall ic = init.asCall()
+        if ic != null {
+            ASTCallKind k = ic.getAST().getCallKind()
+            if k == ASTCallKind.CALL_NEW_UNIQUE {
+                SemaClassType uc = ic.getType().asClass()
+                if uc != null && uc.getClassKind() == SemaClassKind.STRUCT {
+                    r.diagStr(node.getLoc(), DiagID.err_sema_unique_move,
+                            "a struct is a value on the stack: create it with a plain 'new'")
+                    return
+                }
+                slv.setUniqueOwner(true)
+            } elsif k == ASTCallKind.CALL_NEW_SHARED || k == ASTCallKind.CALL_NEW_WEAK {
+                r.diagStr(node.getLoc(), DiagID.err_sema_not_supported, "'new shared' and 'new weak' (coming after 'new unique')")
+            }
+            return
+        }
+        if init.isUniqueOwner() {
+            slv.setUniqueOwner(true)
+            ds.setMoveFrom(init)
+            SemaBlockStmt blk = r.getCurrentSemaBlock()
+            if blk != null {
+                blk.addAlloc(slv)
             }
         }
     }

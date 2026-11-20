@@ -491,6 +491,15 @@ public class CodeGenExpr : SemaVisitor {
                     j = j + 1
                     continue
                 }
+                // A `new unique` OWNER is deleted whatever happened to it: passing
+                // it to a call only lent it, and a move left it null (so the
+                // delete finds nothing). free() runs first, like `delete`.
+                if v.isUniqueOwner() {
+                    SemaType uty = v.getType()
+                    CodeGenStmt.emitDeleteSlot(this, uty.asClass(), v.getLlvmAlloca())
+                    j = j + 1
+                    continue
+                }
                 // ESCAPED handles (passed as a call argument or assigned away —
                 // see the Stage-7 escape marking in ResolverCall/ResolverExpr)
                 // may be retained elsewhere: freeing them here left dangling
@@ -585,6 +594,11 @@ public class CodeGenExpr : SemaVisitor {
     }
     public void visit(const SemaDeclStmt node) {
         CodeGenStmt.decl(this, node)
+        // `C y = x` with x a `new unique` owner: y now owns the object, x is null.
+        SemaExpr moved = node.getMoveFrom()
+        if moved != null {
+            CodeGenStmt.emitNullStore(this, this.genAddr(moved))
+        }
         CodeGenDebug dbg = this.cgm.getDebug()
         if dbg != null {
             SemaLocalVar dv = node.getVar()

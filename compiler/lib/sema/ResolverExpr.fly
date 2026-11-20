@@ -140,6 +140,23 @@ public class ResolverExpr {
                         }
                     }
                 }
+                // `new unique` ownership (step U1): an owner moves only into a new
+                // declaration (`C y = x`) or out through `return`; every other
+                // assignment would leave two names for one owned object, or an owner
+                // holding something it does not own. Reassignment comes with step U2.
+                if left != null && right != null {
+                    if r.isReturnAssign() {
+                        if right.isUniqueOwner() {
+                            r.getReturnMoves().add(right)
+                        }
+                    } elsif right.isUniqueOwner() {
+                        r.diagStr(node.getOpLocation(), DiagID.err_sema_unique_move,
+                                "the owner moves only into a new declaration (C y = x) or a return")
+                    } elsif left.isUniqueOwner() {
+                        r.diagStr(node.getOpLocation(), DiagID.err_sema_unique_move,
+                                "an owner cannot be reassigned yet: declare a new variable instead")
+                    }
+                }
                 // Assignment compatibility: the assignee's type must accept the RHS
                 if left != null {
                     if right != null {

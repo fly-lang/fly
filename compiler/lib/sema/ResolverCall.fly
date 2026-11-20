@@ -47,7 +47,7 @@ public class ResolverCall {
         // the value-receiver path below is skipped for namespace calls.
         List<string> nsPath = null
         SemaClassType staticCls = null
-        if parent != null && ck != ASTCallKind.CALL_NEW && superRecv == false {
+        if parent != null && isNewKind(ck) == false && superRecv == false {
             List<string> cand = ResolverCall.flattenNsPath(parent)
             if cand != null {
                 // A VALUE symbol (local/param/field) named like the FIRST segment
@@ -190,7 +190,7 @@ public class ResolverCall {
         }
 
         SemaCall sema = null
-        if ck == ASTCallKind.CALL_NEW {
+        if isNewKind(ck) {
             sema = ResolverCall.resolveNew(r, node, savedScope, argTypes)
         } elsif superCtor || superRecv {
             sema = ResolverCall.resolveSuper(r, node, superCtor, argTypes)
@@ -231,6 +231,13 @@ public class ResolverCall {
         }
 
         ResolverCall.checkPrivileged(r, node, sema)
+        if ck == ASTCallKind.CALL_NEW_UNIQUE {
+            ASTExpr site = r.getUniqueSite()
+            if site != node {
+                r.diagStr(node.getLoc(), DiagID.err_sema_unique_move,
+                        "it must initialize a variable declaration, which then owns the object (C x = new unique C())")
+            }
+        }
 
         // Multi-assignment verification (B027): the parser lowered `q, r = f(x)`
         // to the full call form and recorded the receiver count — the matched
@@ -979,4 +986,12 @@ public class ResolverCall {
         cf.addLocalVar(v)
         return v
     }
+}
+
+// isNewKind — any `new` form: plain, `new unique`, `new shared`, `new weak`.
+public bool isNewKind(const ASTCallKind k) {
+    if k == ASTCallKind.CALL_NEW || k == ASTCallKind.CALL_NEW_UNIQUE {
+        return true
+    }
+    return k == ASTCallKind.CALL_NEW_SHARED || k == ASTCallKind.CALL_NEW_WEAK
 }

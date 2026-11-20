@@ -1,0 +1,12 @@
+public class Res {
+
+    public Res() {
+    }
+}
+
+void take(const Res r) {
+}
+
+void main() {
+    take(new unique Res())
+}

@@ -5,19 +5,28 @@ import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaStmt
 import fly.compiler.sema.SemaExpr
 import fly.compiler.ast.ASTStmt
+import fly.data.List
 
 // SemaReturnStmt — a return (with optional value, via the out-param model). 1:1.
 public class SemaReturnStmt : SemaStmt {
 
     SemaExpr expr
+    List<SemaExpr> moves  // unique owners this return moves out: left null before scope cleanup
 
     public SemaReturnStmt(const ASTStmt ast, const SemaExpr expr) {
         super(SemaKind.STMT_RETURN, ast)
         this.expr = expr
+        this.moves = new List<SemaExpr>()
     }
 
     public SemaExpr getExpr() {
         return this.expr
+    }
+    public List<SemaExpr> getMoves() {
+        return this.moves
+    }
+    public void addMove(const SemaExpr e) {
+        this.moves.add(e)
     }
     public void accept(const SemaVisitor v) {
         v.visit(this)

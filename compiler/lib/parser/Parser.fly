@@ -496,6 +496,9 @@ public class Parser {
     public bool curIsIdent() {
         return this.cur.kind == TokenKind.IDENT
     }
+    public bool nxtIsIdent() {
+        return this.nxt.kind == TokenKind.IDENT
+    }
     // Coarse token-kind predicates used by the ParserExpr companion (no direct `cur` field access).
     public bool curIsNumber() {
         return this.cur.kind == TokenKind.NUMBER

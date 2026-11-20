@@ -213,12 +213,26 @@ public class CodeGenStmt {
     // the scope-exit release of a local created with `new`, a no-op instead of a
     // double free.
     public static void deleteStmt(const CodeGenExpr cge, const SemaDeleteStmt node) {
-        LLVM llvm = cge.getLLVM()
-        pointer b = cge.getBuilder()
         SemaExpr target = node.getExpr()
         SemaClassType cls = target.getType().asClass()
-        pointer ptrTy = cge.ptrType()
         pointer slot = cge.genAddr(target)
+        CodeGenStmt.emitDeleteSlot(cge, cls, slot)
+    }
+
+    // emitNullStore — store null into a reference slot: what a move leaves behind.
+    public static void emitNullStore(const CodeGenExpr cge, const pointer slot) {
+        LLVM llvm = cge.getLLVM()
+        pointer nul
+        llvm.constPointerNull(cge.ptrType(), nul)
+        llvm.buildStore(cge.getBuilder(), nul, slot)
+    }
+
+    // emitDeleteSlot — the body of `delete`, for the reference stored at `slot`;
+    // also what a `new unique` owner runs when its scope ends.
+    public static void emitDeleteSlot(const CodeGenExpr cge, const SemaClassType cls, const pointer slot) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        pointer ptrTy = cge.ptrType()
         pointer obj
         llvm.buildLoad2(b, ptrTy, slot, "del", obj)
         pointer nul
@@ -249,6 +263,14 @@ public class CodeGenStmt {
         SemaExpr e = node.getExpr()
         if e != null {
             pointer ignore = cge.gen(e)
+        }
+        // `return x` with x a `new unique` owner: the object now belongs to the
+        // caller, so x is left null and its scope-exit delete finds nothing.
+        List<SemaExpr> moves = node.getMoves()
+        int mi = 0
+        while mi < moves.size() {
+            CodeGenStmt.emitNullStore(cge, cge.genAddr(moves.get(mi)))
+            mi = mi + 1
         }
         // The value is already in the return slot (strings cloned, arrays
         // retained, the returned handle spared), so every scope's locals can go.

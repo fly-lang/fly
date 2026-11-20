@@ -40,6 +40,9 @@ public class Resolver : ASTVisitor {
 
     SymbolTable currentScope
     SemaModule currentModule
+    ASTExpr uniqueSite      // the initializer of the declaration being resolved: where `new unique` is allowed
+    bool returnAssign       // resolving the hidden `slot = value` of a `return`
+    List<SemaExpr> returnMoves  // unique owners that `return` moves out (collected while returnAssign)
     SemaClassType currentClass
     SemaEnumType currentEnum
     SemaFunctionBase currentFunction
@@ -226,6 +229,24 @@ public class Resolver : ASTVisitor {
     }
     public void setCurrentScope(const SymbolTable s) {
         this.currentScope = s
+    }
+    public bool isReturnAssign() {
+        return this.returnAssign
+    }
+    public void setReturnAssign(const bool v) {
+        this.returnAssign = v
+        if v {
+            this.returnMoves = new List<SemaExpr>()
+        }
+    }
+    public List<SemaExpr> getReturnMoves() {
+        return this.returnMoves
+    }
+    public ASTExpr getUniqueSite() {
+        return this.uniqueSite
+    }
+    public void setUniqueSite(const ASTExpr e) {
+        this.uniqueSite = e
     }
     public SemaModule getCurrentModule() {
         return this.currentModule

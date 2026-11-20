@@ -4,6 +4,7 @@ import fly.compiler.basic.*
 import fly.compiler.ast.*
 import fly.compiler.parser.*
 import fly.data.*
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ParserExpr — expression parsing, split out of Parser to mirror the C++
@@ -373,6 +374,24 @@ public class ParserExpr {
     public static ASTExpr parseNew(const Parser p) {
         SourceLocation loc = p.curLoc()
         p.expectKw("new")
+        // `new unique C()`, `new shared C()`, `new weak C()`: the ownership
+        // qualifiers are CONTEXTUAL — a qualifier only right after `new` and only
+        // when a class name follows (`new unique()` still constructs a class named
+        // `unique`), so they stay usable as ordinary names everywhere else.
+        ASTCallKind newKind = ASTCallKind.CALL_NEW
+        if p.curIsIdent() && p.nxtIsIdent() {
+            string q = p.curText()
+            if str.equals(q, "unique") {
+                newKind = ASTCallKind.CALL_NEW_UNIQUE
+                p.bump()
+            } elsif str.equals(q, "shared") {
+                newKind = ASTCallKind.CALL_NEW_SHARED
+                p.bump()
+            } elsif str.equals(q, "weak") {
+                newKind = ASTCallKind.CALL_NEW_WEAK
+                p.bump()
+            }
+        }
         // The NAME token, for setNameLoc. `loc` is the `new` keyword and stays the
         // call's start (diagnostics, signature help); anything that has to find
         // the TYPE by position — a ctrl-click on `Point` in `new Point()` — needs
@@ -401,7 +420,7 @@ public class ParserExpr {
             }
             p.closeTypeArgs()
         }
-        ASTCall call = ParserExpr.parseCallTail(p, loc, nm, ASTCallKind.CALL_NEW, null)
+        ASTCall call = ParserExpr.parseCallTail(p, loc, nm, newKind, null)
         call.setNameLoc(nloc)
         int i = 0
         while i < targs.size() {
