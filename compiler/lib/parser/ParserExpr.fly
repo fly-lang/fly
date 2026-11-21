@@ -279,7 +279,7 @@ public class ParserExpr {
             return n
         }
         if p.curIsStringLit() {
-            ASTStringValue s = ASTBuilder.CreateStringValue(loc, p.curText())
+            ASTStringValue s = ASTBuilder.CreateStringValue(loc, p.curStringValue())
             p.bump()
             return s
         }

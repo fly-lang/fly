@@ -14,10 +14,16 @@ string dq() {
     return res
 }
 
-// mkJson — turn a `|`-placeholder template into real JSON by replacing every
-// `|` with a double quote, so a case can spell a payload readably.
+// mkJson — turn a placeholder template into real JSON: every `|` becomes a double
+// quote and every `~` a backslash, so a case can spell a payload readably. The
+// suite is compiled by the seed (literals raw) and by the self-host (escapes
+// decoded), so no literal here may hold a real backslash: `~` stands for one.
 string mkJson(const string tpl) {
-    return str.replace(tpl, "|", dq())
+    string bs = ""
+    pointer buf = mem.alloc(1)
+    mem.writeByte(buf, 0, 92)
+    bs = str.fromBytes(buf, 1)
+    return str.replace(str.replace(tpl, "|", dq()), "~", bs)
 }
 
 // byteOf — the i-th byte of s as an int (byte widens to int by zero extension).
@@ -299,7 +305,7 @@ suite JsonSuite {
         }
         case "an unknown escape is 304": {
             int e = 0
-            pointer v = json.parse(mkJson("|a\qb|"), e)
+            pointer v = json.parse(mkJson("|a~qb|"), e)
             assert.assertEqI(e, 304, 404)
             json.freeValue(v)
         }
@@ -329,25 +335,25 @@ suite JsonSuite {
         }
         case "a short unicode escape is 309": {
             int e = 0
-            pointer v = json.parse(mkJson("|\u12|"), e)
+            pointer v = json.parse(mkJson("|~u12|"), e)
             assert.assertEqI(e, 309, 409)
             json.freeValue(v)
         }
         case "a non-hex unicode escape is 309": {
             int e = 0
-            pointer v = json.parse(mkJson("|\u12zz|"), e)
+            pointer v = json.parse(mkJson("|~u12zz|"), e)
             assert.assertEqI(e, 309, 410)
             json.freeValue(v)
         }
         case "a lone high surrogate is 310": {
             int e = 0
-            pointer v = json.parse(mkJson("|\ud83d|"), e)
+            pointer v = json.parse(mkJson("|~ud83d|"), e)
             assert.assertEqI(e, 310, 411)
             json.freeValue(v)
         }
         case "a lone low surrogate is 310": {
             int e = 0
-            pointer v = json.parse(mkJson("|\ude00|"), e)
+            pointer v = json.parse(mkJson("|~ude00|"), e)
             assert.assertEqI(e, 310, 412)
             json.freeValue(v)
         }
@@ -363,7 +369,7 @@ suite JsonSuite {
     void escapeReadTest() {
         case "the two-character escapes decode to their control bytes": {
             int e = 0
-            pointer v = json.parse(mkJson("|a\nb|"), e)
+            pointer v = json.parse(mkJson("|a~nb|"), e)
             assert.assertEqI(e, 0, 501)
             string s = json.asString(v)
             assert.assertEqI(str.len(s), 3, 502)
@@ -372,7 +378,7 @@ suite JsonSuite {
         }
         case "tab, backspace, formfeed and carriage return": {
             int e = 0
-            pointer v = json.parse(mkJson("|\t\b\f\r|"), e)
+            pointer v = json.parse(mkJson("|~t~b~f~r|"), e)
             assert.assertEqI(e, 0, 504)
             string s = json.asString(v)
             assert.assertEqI(str.len(s), 4, 505)
@@ -384,7 +390,7 @@ suite JsonSuite {
         }
         case "quote, backslash and solidus": {
             int e = 0
-            pointer v = json.parse(mkJson("|\|\\\/|"), e)
+            pointer v = json.parse(mkJson("|~|~~~/|"), e)
             assert.assertEqI(e, 0, 510)
             string s = json.asString(v)
             assert.assertEqI(str.len(s), 3, 511)
@@ -393,16 +399,16 @@ suite JsonSuite {
             assert.assertEqI(byteOf(s, 2), 47, 514)
             json.freeValue(v)
         }
-        case "an ASCII code point via \u is one byte": {
+        case "an ASCII code point in a u-escape is one byte": {
             int e = 0
-            pointer v = json.parse(mkJson("|\u0041|"), e)
+            pointer v = json.parse(mkJson("|~u0041|"), e)
             assert.assertEqI(e, 0, 515)
             assert.assertStr(json.asString(v), "A", 516)
             json.freeValue(v)
         }
         case "a Latin-1 code point becomes two UTF-8 bytes": {
             int e = 0
-            pointer v = json.parse(mkJson("|\u00e9|"), e)
+            pointer v = json.parse(mkJson("|~u00e9|"), e)
             assert.assertEqI(e, 0, 517)
             string s = json.asString(v)
             assert.assertEqI(str.len(s), 2, 518)
@@ -412,7 +418,7 @@ suite JsonSuite {
         }
         case "a BMP code point becomes three UTF-8 bytes": {
             int e = 0
-            pointer v = json.parse(mkJson("|\u20ac|"), e)
+            pointer v = json.parse(mkJson("|~u20ac|"), e)
             assert.assertEqI(e, 0, 521)
             string s = json.asString(v)
             assert.assertEqI(str.len(s), 3, 522)
@@ -423,7 +429,7 @@ suite JsonSuite {
         }
         case "a surrogate pair becomes four UTF-8 bytes": {
             int e = 0
-            pointer v = json.parse(mkJson("|\ud83d\ude00|"), e)
+            pointer v = json.parse(mkJson("|~ud83d~ude00|"), e)
             assert.assertEqI(e, 0, 526)
             string s = json.asString(v)
             assert.assertEqI(str.len(s), 4, 527)
@@ -435,7 +441,7 @@ suite JsonSuite {
         }
         case "an escaped object key decodes too": {
             int e = 0
-            pointer v = json.parse(mkJson("{|a\tb|:1}"), e)
+            pointer v = json.parse(mkJson("{|a~tb|:1}"), e)
             assert.assertEqI(e, 0, 532)
             string k = json.keyAt(v, 0)
             assert.assertEqI(str.len(k), 3, 533)
@@ -444,12 +450,12 @@ suite JsonSuite {
         }
         case "unescape decodes a bare body and reports its own errors": {
             int e1 = 0
-            string ok = json.unescape(mkJson("x\ny"), e1)
+            string ok = json.unescape(mkJson("x~ny"), e1)
             assert.assertEqI(e1, 0, 535)
             assert.assertEqI(byteOf(ok, 1), 10, 536)
 
             int e2 = 0
-            string bad = json.unescape(mkJson("x\qy"), e2)
+            string bad = json.unescape(mkJson("x~qy"), e2)
             assert.assertEqI(e2, 304, 537)
             assert.assertNotEmpty(bad, 538)
         }
@@ -466,7 +472,7 @@ suite JsonSuite {
         }
         case "the named control escapes come back as two characters": {
             int e = 0
-            pointer v = json.parse(mkJson("|\n\t|"), e)
+            pointer v = json.parse(mkJson("|~n~t|"), e)
             string raw = json.asString(v)
             string esc = json.escape(raw)
             assert.assertEqI(str.len(esc), 4, 604)
@@ -475,16 +481,16 @@ suite JsonSuite {
             assert.assertEqI(byteOf(esc, 3), 116, 607)
             json.freeValue(v)
         }
-        case "an unnamed control byte becomes \u00XX": {
+        case "an unnamed control byte becomes a u00XX escape": {
             int e = 0
-            pointer v = json.parse(mkJson("|\u0001|"), e)
+            pointer v = json.parse(mkJson("|~u0001|"), e)
             string esc = json.escape(json.asString(v))
-            assert.assertStr(esc, "\u0001", 608)
+            assert.assertStr(esc, mkJson("~u0001"), 608)
             json.freeValue(v)
         }
         case "bytes above 0x7f pass through — the input is already UTF-8": {
             int e = 0
-            pointer v = json.parse(mkJson("|\u00e9|"), e)
+            pointer v = json.parse(mkJson("|~u00e9|"), e)
             string esc = json.escape(json.asString(v))
             assert.assertEqI(str.len(esc), 2, 609)
             assert.assertEqI(byteOf(esc, 0), 195, 610)
@@ -495,7 +501,7 @@ suite JsonSuite {
         }
         case "escape and unescape round-trip": {
             int e0 = 0
-            pointer v = json.parse(mkJson("|a\nb\|c|"), e0)
+            pointer v = json.parse(mkJson("|a~nb~|c|"), e0)
             string raw = json.asString(v)
             int e1 = 0
             string back = json.unescape(json.escape(raw), e1)
@@ -529,7 +535,7 @@ suite JsonSuite {
         }
         case "a string is quoted and escaped": {
             pointer s = json.newString(mkJson("a|b"))
-            assert.assertStr(json.write(s), mkJson("|a\|b|"), 706)
+            assert.assertStr(json.write(s), mkJson("|a~|b|"), 706)
             json.freeValue(s)
         }
         case "an array of numbers": {
@@ -601,7 +607,7 @@ suite JsonSuite {
             json.freeValue(v)
         }
         case "a control byte survives the parse and write round-trip": {
-            string doc = mkJson("{|k|:|a\nb|}")
+            string doc = mkJson("{|k|:|a~nb|}")
             int e = 0
             pointer v = json.parse(doc, e)
             assert.assertEqI(e, 0, 723)

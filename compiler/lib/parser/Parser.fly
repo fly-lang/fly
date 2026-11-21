@@ -5,6 +5,7 @@ import fly.compiler.ast.*
 import fly.compiler.parser.*
 import fly.data.*
 import fly.str
+import fly.mem
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Parser — recursive descent over the token stream, building the inheritance AST
@@ -462,7 +463,111 @@ public class Parser {
     public bool curIsEof() {
         return this.cur.isEof()
     }
-    public string curText() {
+    // curStringValue — the value of the current string literal: a raw `"""…"""`
+    // literal as written, an ordinary one with its escape sequences decoded.
+    public string curStringValue() {
+        string text = this.curText()
+        if this.cur.isRaw() {
+            return text
+        }
+        return this.decodeEscapes(text)
+    }
+
+    // decodeEscapes — the bytes an ordinary string literal stands for: a backslash
+    // followed by n t r 0, a backslash, a quote or an apostrophe; xHH (one byte);
+    // u{H…} (a code point up to 10FFFF, not a surrogate, written as UTF-8). Any
+    // other backslash sequence is an error: a raw literal (three double quotes)
+    // keeps backslashes as written. Up to 0.14 every literal was raw. No literal
+    // of this function contains a backslash (see Escapes.fly).
+    public string decodeEscapes(const string text) {
+        int n = str.len(text)
+        string bs = byteString(92)
+        if str.indexOf(text, bs) < 0 {
+            return text
+        }
+        pointer buf = mem.alloc(n + 1)
+        int o = 0
+        int i = 0
+        while i < n {
+            int c = str.byteAt(text, i) & 255
+            if c != 92 || i + 1 >= n {
+                mem.writeByte(buf, o, (byte)c)
+                o = o + 1
+                i = i + 1
+                continue
+            }
+            int e = str.byteAt(text, i + 1) & 255
+            int v = -1
+            int used = 2
+            if e == 110 {
+                v = 10
+            } elsif e == 116 {
+                v = 9
+            } elsif e == 114 {
+                v = 13
+            } elsif e == 48 {
+                v = 0
+            } elsif e == 92 || e == 34 || e == 39 {
+                v = e
+            } elsif e == 120 {
+                // xHH: exactly two hex digits
+                int h1 = -1
+                int h2 = -1
+                if i + 3 < n {
+                    h1 = hexDigit(str.byteAt(text, i + 2) & 255)
+                    h2 = hexDigit(str.byteAt(text, i + 3) & 255)
+                }
+                if h1 < 0 || h2 < 0 {
+                    int xe = i + 4
+                    if xe > n {
+                        xe = n
+                    }
+                    this.reportErrStr(DiagID.err_parser_bad_escape, str.substring(text, i, xe))
+                    return text
+                }
+                v = h1 * 16 + h2
+                used = 4
+            } elsif e == 117 {
+                // u{H…}: one to six hex digits naming a code point, encoded as UTF-8
+                int j = i + 2
+                int cp = 0
+                int digits = 0
+                bool ok = j < n && (str.byteAt(text, j) & 255) == 123
+                if ok {
+                    j = j + 1
+                    while j < n && hexDigit(str.byteAt(text, j) & 255) >= 0 && digits < 7 {
+                        if digits < 6 {
+                            cp = cp * 16 + hexDigit(str.byteAt(text, j) & 255)
+                        }
+                        digits = digits + 1
+                        j = j + 1
+                    }
+                    ok = digits >= 1 && digits <= 6 && j < n && (str.byteAt(text, j) & 255) == 125
+                }
+                if ok && (cp > 1114111 || (cp >= 55296 && cp <= 57343)) {
+                    ok = false
+                }
+                if ok == false {
+                    int ue = j + 1
+                    if ue > n {
+                        ue = n
+                    }
+                    this.reportErrStr(DiagID.err_parser_bad_escape, str.substring(text, i, ue))
+                    return text
+                }
+                o = o + utf8Encode(buf, o, cp)
+                i = j + 1
+                continue
+            } else {
+                this.reportErrStr(DiagID.err_parser_bad_escape, str.substring(text, i, i + 2))
+                return text
+            }
+            mem.writeByte(buf, o, (byte)v)
+            o = o + 1
+            i = i + used
+        }
+        return str.fromBytes(buf, o)
+    }    public string curText() {
         return this.lx.tokenText(this.cur)
     }
     public SourceLocation curLoc() {

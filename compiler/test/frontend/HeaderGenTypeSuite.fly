@@ -38,7 +38,8 @@ string genPath(const string name, const string src) {
     string dir = str.concat(str.concat(tmpBase(), "/"), name)
     fs.dirCreateAll(dir, 493)
     string mpath = str.concat(dir, "/m.fly")
-    // Literal "\n" is two raw characters in this dialect; make them newlines.
+    // From 0.15 "\n" in a literal is already a newline, so this replace changes
+    // nothing; it dates from when literals were raw.
     fs.writeStr(mpath, str.replace(src, "\n", nl()), 420)
     Parser p = new Parser(fs.readStr(mpath))
     ASTModule m = p.parseModule(mpath)

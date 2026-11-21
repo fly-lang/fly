@@ -1,0 +1,5 @@
+// From 0.15 a backslash in an ordinary literal starts an escape sequence, and an
+// unknown one is an error: write \ for a backslash, or use a raw literal.
+void main() {
+    string s = "a\qb"
+}

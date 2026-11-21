@@ -124,7 +124,8 @@ public enum DiagID {
     err_sema_sign_compare,
     warn_sema_unused_import,
     warn_sema_lossy_conversion,
-    warn_sema_non_exhaustive_switch
+    warn_sema_non_exhaustive_switch,
+    err_parser_bad_escape
 }
 
 // getDiagClass — the class column for a diagnostic id.
@@ -204,6 +205,9 @@ public string getDescription(const DiagID id) {
     }
     if id == DiagID.err_parser_identifier_expected {
         return "expected an identifier here"
+    }
+    if id == DiagID.err_parser_bad_escape {
+        return "invalid escape sequence '%0' in a string literal: a backslash takes n, t, r, 0, a backslash, a quote, an apostrophe, xHH (two hex digits) or u{H} (a code point up to 10FFFF); a raw literal between three double quotes keeps backslashes as written"
     }
     if id == DiagID.err_parser_ternary_expr {
         return "expected ':' in ternary expression"

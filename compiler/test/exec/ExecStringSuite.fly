@@ -4,10 +4,10 @@ import fly.str
 // ─────────────────────────────────────────────────────────────────────────────
 // ExecStringSuite — EXECUTED string value semantics (bug-hunt Phase 1):
 // equality (operator vs str.equals), rebinding under clone-on-store, const
-// strings, strings returned via out, concat chains, raw escapes.
+// strings, strings returned via out, concat chains, escapes and raw literals.
 //
 // Assert codes: 1xx equality, 2xx rebinding, 3xx out-returns, 4xx concat,
-// 5xx raw literals.
+// 5xx escapes and raw literals.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // FREE function on purpose: a suite helper called through `this` AVs (B018).
@@ -239,15 +239,43 @@ suite ExecStringSuite {
         }
     }
 
-    void rawLiteralTest() {
-        case "backslash-n stays two raw characters": {
-            string s = "a\nb"
-            assert.assertEqI(str.len(s), 4, 501)         // a, backslash, n, b
+    // From 0.15 an ordinary literal decodes its escapes; a raw literal between
+    // three double quotes keeps every byte as written, newlines included.
+    void escapeTest() {
+        case "the escape sequences are one byte each": {
+            string s = "a\nb\tc\rd\0e"
+            assert.assertEqI(str.len(s), 9, 501)
+            assert.assertEqI((int)str.byteAt(s, 1) & 255, 10, 502)
+            assert.assertEqI((int)str.byteAt(s, 3) & 255, 9, 503)
+            assert.assertEqI((int)str.byteAt(s, 5) & 255, 13, 504)
+            assert.assertEqI((int)str.byteAt(s, 7) & 255, 0, 505)
         }
-        case "substring picks out the raw backslash pair": {
-            string s = "x\ty"
-            string mid = str.substring(s, 1, 3)
-            assert.assertEqI(str.len(mid), 2, 511)
+        case "backslash, quote and apostrophe": {
+            string s = "\\\"\'"
+            assert.assertEqI(str.len(s), 3, 511)
+            assert.assertEqI((int)str.byteAt(s, 0) & 255, 92, 512)
+            assert.assertEqI((int)str.byteAt(s, 1) & 255, 34, 513)
+            assert.assertEqI((int)str.byteAt(s, 2) & 255, 39, 514)
+        }
+        case "xHH is one byte, u{...} a code point in UTF-8": {
+            assert.assertStr("\x41\x42", "AB", 521)
+            string e = "\u{E9}"
+            assert.assertEqI(str.len(e), 2, 522)
+            assert.assertEqI(str.runeAt(e, 0), 233, 523)
+            string smile = "\u{1F600}"
+            assert.assertEqI(str.len(smile), 4, 524)
+            assert.assertEqI(str.runeAt(smile, 0), 128512, 525)
+        }
+        case "a raw literal keeps backslashes and spans lines": {
+            string r = """C:\dir\n"""
+            assert.assertEqI(str.len(r), 8, 531)
+            assert.assertEqI((int)str.byteAt(r, 2) & 255, 92, 532)
+            string m = """a
+b"""
+            assert.assertEqI(str.len(m), 3, 533)
+            assert.assertEqI((int)str.byteAt(m, 1) & 255, 10, 534)
+            string q = """say "hi" """
+            assert.assertEqI(str.len(q), 9, 535)
         }
     }
 }

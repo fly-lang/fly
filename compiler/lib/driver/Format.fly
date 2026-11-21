@@ -321,10 +321,29 @@ public string tidyLines(const string src) {
     int start = 0
     int blanks = 0
     bool any = false
+    bool inRaw = false
     while start < n {
         int end = start
         while end < n && (str.byteAt(src, end) & 255) != 10 {
             end = end + 1
+        }
+        // a line inside a raw literal (three double quotes) is part of its text:
+        // kept exactly as written, blank lines and trailing blanks included
+        bool rawAtStart = inRaw
+        inRaw = rawStateAfter(src, start, end, inRaw)
+        if rawAtStart || inRaw {
+            int ke = end
+            if ke > start && (str.byteAt(src, ke - 1) & 255) == 13 {
+                ke = ke - 1
+            }
+            if rawAtStart == false && any && blanks > 0 {
+                out = str.concat(out, eol)
+            }
+            out = str.concat(out, str.concat(str.substring(src, start, ke), eol))
+            blanks = 0
+            any = true
+            start = end + 1
+            continue
         }
         // the line without its terminator (and a CR before it) or trailing blanks
         int e = end
@@ -354,4 +373,43 @@ public bool isBlankAt(const string s, const int i, const bool orCr) {
         return true
     }
     return orCr && c == 13
+}
+
+// rawStateAfter — whether the line src[start, end) ends inside a raw literal
+// (three double quotes), given whether it starts inside one. Ordinary string
+// literals and `//` comments are skipped, so their quotes do not count.
+public bool rawStateAfter(const string src, const int start, const int end, const bool inRaw) {
+    bool raw = inRaw
+    int i = start
+    while i < end {
+        int c = str.byteAt(src, i) & 255
+        bool triple = c == 34 && i + 2 < end && (str.byteAt(src, i + 1) & 255) == 34 &&
+                (str.byteAt(src, i + 2) & 255) == 34
+        if raw {
+            if triple {
+                raw = false
+                i = i + 3
+            } else {
+                i = i + 1
+            }
+        } elsif triple {
+            raw = true
+            i = i + 3
+        } elsif c == 34 {
+            // an ordinary literal: to its closing quote, a backslash escaping one byte
+            i = i + 1
+            while i < end && (str.byteAt(src, i) & 255) != 34 {
+                if (str.byteAt(src, i) & 255) == 92 {
+                    i = i + 1
+                }
+                i = i + 1
+            }
+            i = i + 1
+        } elsif c == 47 && i + 1 < end && (str.byteAt(src, i + 1) & 255) == 47 {
+            return raw
+        } else {
+            i = i + 1
+        }
+    }
+    return raw
 }

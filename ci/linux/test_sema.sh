@@ -150,6 +150,21 @@ for probe in ci/sema_probes/warn/*/; do
         echo "  ok    warn/$name"
     fi
 done
+# Seed-compiled sources: std/lib, std/test, runtime/lib and compiler/lib are
+# compiled by the seed (string literals RAW) as well as by the self-host (escapes
+# decoded, from 0.15). A literal holding a backslash, or a raw literal between
+# three double quotes, would mean one thing to each, and nothing else would
+# notice: the stage 3 fixpoint compares two self-host builds. Build such bytes
+# from their value instead (Escapes.byteString, mem.writeByte).
+count=$((count + 1))
+seedlit="$(grep -rnE '^[^/]*("[^"]*[\]|""")' --include='*.fly' std/lib std/test runtime/lib compiler/lib || true)"
+if [ -n "$seedlit" ]; then
+    echo "  FAIL  seed-literals - a literal the seed reads differently:"
+    echo "$seedlit" | head -n 5 | sed 's/^/        /'
+    failed=$((failed + 1))
+else
+    echo "  ok    seed-literals"
+fi
 if [ "$failed" -gt 0 ]; then echo "test_sema: $failed of $count probe(s) failed"; exit 1; fi
 echo "test_sema: all $count probes behave as specified"
 exit 0

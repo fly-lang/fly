@@ -645,3 +645,149 @@ public string convertL(const long src) {
     fly.llvm.strMake(buf, len, res)
     return res
 }
+
+// ── UTF-8 ──────────────────────────────────────────────────────────────────
+//
+// A string is a sequence of BYTES: len, byteAt and substring count bytes. Text
+// is UTF-8, and these functions read it by CODE POINT ("rune"): a sequence of
+// 1 to 4 bytes. A byte that does not start a valid sequence (a stray
+// continuation byte, an overlong form, a surrogate, a value past 10FFFF, a
+// truncated sequence) is read as ONE rune, U+FFFD, of length 1, so every byte
+// belongs to exactly one rune and a loop over runeLen always advances.
+
+// runeLen — the length in bytes (1 to 4) of the rune that starts at byte `at`;
+// 0 when `at` is outside the string.
+public int runeLen(const string s, const int at) {
+    int n = fly.str.len(s)
+    if at < 0 || at >= n {
+        return 0
+    }
+    int b0 = fly.str.byteAt(s, at) & 255
+    if b0 < 128 {
+        return 1
+    }
+    int need = 0
+    int min = 0
+    int cp = 0
+    if b0 >= 194 && b0 <= 223 {
+        need = 1
+        min = 128
+        cp = b0 & 31
+    } elsif b0 >= 224 && b0 <= 239 {
+        need = 2
+        min = 2048
+        cp = b0 & 15
+    } elsif b0 >= 240 && b0 <= 244 {
+        need = 3
+        min = 65536
+        cp = b0 & 7
+    } else {
+        return 1
+    }
+    if at + need >= n {
+        return 1
+    }
+    int k = 1
+    while k <= need {
+        int b = fly.str.byteAt(s, at + k) & 255
+        if (b & 192) != 128 {
+            return 1
+        }
+        cp = (cp << 6) | (b & 63)
+        k = k + 1
+    }
+    if cp < min || cp > 1114111 || (cp >= 55296 && cp <= 57343) {
+        return 1
+    }
+    return need + 1
+}
+
+// runeAt — the code point of the rune that starts at byte `at`; U+FFFD (65533)
+// for an invalid sequence, -1 when `at` is outside the string.
+public int runeAt(const string s, const int at) {
+    int rl = fly.str.runeLen(s, at)
+    if rl == 0 {
+        return -1
+    }
+    int b0 = fly.str.byteAt(s, at) & 255
+    if rl == 1 {
+        if b0 < 128 {
+            return b0
+        }
+        return 65533
+    }
+    int cp = b0 & 31
+    if rl == 3 {
+        cp = b0 & 15
+    } elsif rl == 4 {
+        cp = b0 & 7
+    }
+    int k = 1
+    while k < rl {
+        cp = (cp << 6) | (fly.str.byteAt(s, at + k) & 63)
+        k = k + 1
+    }
+    return cp
+}
+
+// runeCount — the number of runes (code points) of `s`; an invalid byte counts
+// as one.
+public int runeCount(const string s) {
+    int n = fly.str.len(s)
+    int count = 0
+    int i = 0
+    while i < n {
+        i = i + fly.str.runeLen(s, i)
+        count = count + 1
+    }
+    return count
+}
+
+// isUtf8 — is every byte of `s` part of a valid UTF-8 sequence?
+public bool isUtf8(const string s) {
+    int n = fly.str.len(s)
+    int i = 0
+    while i < n {
+        int rl = fly.str.runeLen(s, i)
+        if rl == 1 && (fly.str.byteAt(s, i) & 255) >= 128 {
+            return false
+        }
+        i = i + rl
+    }
+    return true
+}
+
+// fromRune — the UTF-8 encoding of code point `r` (1 to 4 bytes); U+FFFD for a
+// value that is not a code point (negative, a surrogate, past 10FFFF).
+public string fromRune(const int r) {
+    int cp = r
+    if cp < 0 || cp > 1114111 || (cp >= 55296 && cp <= 57343) {
+        cp = 65533
+    }
+    int n = 4
+    if cp < 128 {
+        n = 1
+    } elsif cp < 2048 {
+        n = 2
+    } elsif cp < 65536 {
+        n = 3
+    }
+    pointer buf = 0
+    fly.runtime.mem_alloc((ulong)n, buf)
+    if n == 1 {
+        fly.llvm.strPoke(buf, 0, (byte)cp)
+    } elsif n == 2 {
+        fly.llvm.strPoke(buf, 0, (byte)(192 | (cp >> 6)))
+        fly.llvm.strPoke(buf, 1, (byte)(128 | (cp & 63)))
+    } elsif n == 3 {
+        fly.llvm.strPoke(buf, 0, (byte)(224 | (cp >> 12)))
+        fly.llvm.strPoke(buf, 1, (byte)(128 | ((cp >> 6) & 63)))
+        fly.llvm.strPoke(buf, 2, (byte)(128 | (cp & 63)))
+    } else {
+        fly.llvm.strPoke(buf, 0, (byte)(240 | (cp >> 18)))
+        fly.llvm.strPoke(buf, 1, (byte)(128 | ((cp >> 12) & 63)))
+        fly.llvm.strPoke(buf, 2, (byte)(128 | ((cp >> 6) & 63)))
+        fly.llvm.strPoke(buf, 3, (byte)(128 | (cp & 63)))
+    }
+    return fly.str.fromBytes(buf, n)
+}

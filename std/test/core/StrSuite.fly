@@ -2,10 +2,11 @@ import fly.str
 import fly.mem
 import fly.assert
 
-// asciiChar — a one-byte string for a given ASCII code. Fly string literals keep
-// escapes RAW (`"\t"` is the two chars backslash+t, NOT a tab — see the note in
-// compiler/lib/frontend/TextDiagnostic.fly), so the whitespace bytes the trim
-// tests need have to be built byte-wise.
+// asciiChar — a one-byte string for a given byte value. This suite is compiled by
+// the seed, which reads literals raw, and by the self-host, which decodes escapes
+// (from 0.15): no literal here may hold a backslash, so the whitespace bytes the
+// trim tests need, and the UTF-8 bytes of the rune tests, are built byte-wise.
+// (The escapes themselves are tested in compiler/test/exec/ExecStringSuite.)
 string asciiChar(const int code) {
     string res
     pointer buf = mem.alloc(1)
@@ -32,7 +33,7 @@ string asciiChar(const int code) {
 // double-free (0xC0000374 on Windows, a Valgrind error on Linux).
 //
 // Assert codes: 1xx query, 2xx search, 3xx case/trim, 4xx slice/build,
-// 5xx replace, 6xx convert, 7xx operators, 8xx ownership.
+// 5xx replace, 6xx convert, 7xx operators, 8xx ownership, 9xx UTF-8.
 // ─────────────────────────────────────────────────────────────────────────────
 
 suite StrSuite {
@@ -43,8 +44,6 @@ suite StrSuite {
             assert.assertEqI(str.len("hello"), 5, 101)
             assert.assertEqI(str.len(""), 0, 102)
             assert.assertEqI(str.len(" "), 1, 103)
-            // Escapes are raw: this literal really is 4 chars (a, \, t, b).
-            assert.assertEqI(str.len("a\tb"), 4, 104)
             assert.assertEqI(str.len(asciiChar(9)), 1, 126)
         }
         case "three byte-built strings held at once stay distinct": {
@@ -508,6 +507,53 @@ suite StrSuite {
                 i = i + 1
             }
             assert.assertStr(s, "abc", 810)
+        }
+    }
+
+    // ── UTF-8: runeLen / runeAt / runeCount / isUtf8 / fromRune ──────────────
+    void runeTest() {
+        case "runes of 1, 2, 3 and 4 bytes": {
+            // "Aé€😀": 41 | C3 A9 | E2 82 AC | F0 9F 98 80 — 10 bytes, 4 runes
+            string s = str.concat("A", str.concat(asciiChar(195), asciiChar(169)))
+            s = str.concat(s, str.concat(asciiChar(226), str.concat(asciiChar(130), asciiChar(172))))
+            string emoji = str.concat(asciiChar(240), asciiChar(159))
+            emoji = str.concat(emoji, str.concat(asciiChar(152), asciiChar(128)))
+            s = str.concat(s, emoji)
+            assert.assertEqI(str.len(s), 10, 901)
+            assert.assertEqI(str.runeCount(s), 4, 902)
+            assert.assertEqI(str.runeLen(s, 0), 1, 903)
+            assert.assertEqI(str.runeLen(s, 1), 2, 904)
+            assert.assertEqI(str.runeLen(s, 3), 3, 905)
+            assert.assertEqI(str.runeLen(s, 6), 4, 906)
+            assert.assertEqI(str.runeAt(s, 1), 233, 907)
+            assert.assertEqI(str.runeAt(s, 3), 8364, 908)
+            assert.assertEqI(str.runeAt(s, 6), 128512, 909)
+            assert.assertTrue(str.isUtf8(s), 910)
+            assert.assertEqI(str.runeLen(s, 10), 0, 911)
+            assert.assertEqI(str.runeAt(s, 10), 0 - 1, 912)
+        }
+        case "an invalid byte is one rune, U+FFFD": {
+            string lone = asciiChar(128)                                    // stray continuation
+            assert.assertEqI(str.runeLen(lone, 0), 1, 921)
+            assert.assertEqI(str.runeAt(lone, 0), 65533, 922)
+            assert.assertFalse(str.isUtf8(lone), 923)
+            string overlong = str.concat(asciiChar(192), asciiChar(128))    // C0 80
+            assert.assertEqI(str.runeCount(overlong), 2, 924)
+            string surrogate = str.concat(asciiChar(237), str.concat(asciiChar(160), asciiChar(128)))
+            assert.assertEqI(str.runeLen(surrogate, 0), 1, 925)
+            assert.assertFalse(str.isUtf8(surrogate), 926)
+            string cut = str.concat(asciiChar(226), asciiChar(130))         // truncated
+            assert.assertEqI(str.runeCount(cut), 2, 927)
+        }
+        case "fromRune encodes, and round-trips through runeAt": {
+            assert.assertStr(str.fromRune(65), "A", 931)
+            assert.assertEqI(str.len(str.fromRune(233)), 2, 932)
+            assert.assertEqI(str.len(str.fromRune(8364)), 3, 933)
+            assert.assertEqI(str.len(str.fromRune(128512)), 4, 934)
+            assert.assertEqI(str.runeAt(str.fromRune(128512), 0), 128512, 935)
+            assert.assertEqI(str.runeAt(str.fromRune(55296), 0), 65533, 936)    // a surrogate
+            assert.assertEqI(str.runeAt(str.fromRune(0 - 1), 0), 65533, 937)
+            assert.assertEqI(str.runeAt(str.fromRune(1114112), 0), 65533, 938)
         }
     }
 }

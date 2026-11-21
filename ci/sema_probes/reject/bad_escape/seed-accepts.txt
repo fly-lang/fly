@@ -1,0 +1,3 @@
+Up to 0.14 (the seed) every literal is raw: "a\qb" is the four bytes a, backslash,
+q, b. From 0.15 a backslash starts an escape sequence, and an unknown one is an
+error.
