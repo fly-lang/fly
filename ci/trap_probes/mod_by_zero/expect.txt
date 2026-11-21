@@ -1,0 +1,3 @@
+134
+division by zero at 
+main.fly:5:5

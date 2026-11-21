@@ -349,8 +349,67 @@ public class CodeGenExprOps {
         l = cge.coerce(l, left.getType(), t)
         r = cge.coerce(r, right.getType(), t)
         bool uns = cge.isUnsignedInt(t)
+        r = CodeGenExprOps.divCheck(cge, k, l, r, isF, uns)
         pointer v = CodeGenExprOps.arithValues(cge, k, l, r, isF, uns)
         node.setLlvmValue(v)
+    }
+
+    // divCheck — before an integer `/` or `%`, in every build: a zero divisor stops
+    // the program with "error 134: division by zero at <file>:<line>:<col>", and a
+    // signed `/` of the minimum value by -1 (whose result does not fit) with
+    // "integer overflow: ...". A signed `%` by -1 is 0, as in mathematics: the
+    // divisor is replaced by 1 rather than reaching srem's undefined case. Returns
+    // the divisor to use. A constant divisor folds every test away (trapIf).
+    public static pointer divCheck(const CodeGenExpr cge, const ASTBinaryKind k, const pointer l,
+            const pointer r, const bool isF, const bool uns) {
+        if isF {
+            return r
+        }
+        bool isDiv = k == ASTBinaryKind.OP_BINARY_ARITH_DIV
+        bool isMod = k == ASTBinaryKind.OP_BINARY_ARITH_MOD
+        if isDiv == false && isMod == false {
+            return r
+        }
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        pointer ty
+        llvm.typeOf(r, ty)
+        pointer zero
+        llvm.constNull(ty, zero)
+        pointer isZero
+        llvm.buildICmp(b, 32, r, zero, "divzero", isZero)
+        cge.trapIf(isZero, "division by zero", "div")
+        if uns {
+            return r
+        }
+        pointer minusOne
+        llvm.constInt(ty, -1, true, minusOne)
+        pointer isM1
+        llvm.buildICmp(b, 32, r, minusOne, "divm1", isM1)
+        // a constant divisor other than -1: nothing can overflow
+        if llvm.isFalseConstant(isM1) {
+            return r
+        }
+        if isMod {
+            pointer one
+            llvm.constInt(ty, 1, false, one)
+            pointer safe
+            llvm.buildSelect(b, isM1, one, r, "remdiv", safe)
+            return safe
+        }
+        // the minimum value is the only non-zero one equal to its own negation
+        pointer neg
+        llvm.buildNeg(b, l, "divneg", neg)
+        pointer selfNeg
+        llvm.buildICmp(b, 32, l, neg, "divself", selfNeg)
+        pointer nz
+        llvm.buildICmp(b, 33, l, zero, "divnz", nz)
+        pointer isMin
+        llvm.buildAnd(b, selfNeg, nz, "divmin", isMin)
+        pointer ovf
+        llvm.buildAnd(b, isMin, isM1, "divovf", ovf)
+        cge.trapIf(ovf, "integer overflow: the minimum value divided by -1", "ovf")
+        return r
     }
 
     // arithValues — emit one arithmetic/bitwise/shift op over two ALREADY
@@ -480,6 +539,7 @@ public class CodeGenExprOps {
         }
         bool uns = cge.isUnsignedInt(at)
         ASTBinaryKind ak = CodeGenExprOps.toArithKind(ck)
+        r = CodeGenExprOps.divCheck(cge, ak, l, r, isF, uns)
         pointer v = CodeGenExprOps.arithValues(cge, ak, l, r, isF, uns)
         v = cge.coerce(v, at, lt)
         llvm.buildStore(cge.getBuilder(), v, addr)

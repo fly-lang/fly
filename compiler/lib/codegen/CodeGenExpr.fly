@@ -218,17 +218,27 @@ public class CodeGenExpr : SemaVisitor {
         this.llvm.constPointerNull(ptrTy, nul)
         pointer isNull
         this.llvm.buildICmp(this.builder, 32, obj, nul, "isnull", isNull)
-        pointer trapBB = this.newBlock("null.trap")
-        pointer okBB = this.newBlock("null.ok")
+        this.trapIf(isNull, str.concat("null reference: ", what), "null")
+    }
+
+    // trapIf — stop the program with "error 134: <what> at <file>:<line>:<col>" when
+    // the i1 `cond` is true; code generation continues on the path where it is
+    // false. A condition the builder already folded to `false` (both sides were
+    // constants: `x / 2`) emits nothing. `tag` names the blocks ("null", "div").
+    public void trapIf(const pointer cond, const string what, const string tag) {
+        if this.llvm.isFalseConstant(cond) {
+            return
+        }
+        pointer trapBB = this.newBlock(str.concat(tag, ".trap"))
+        pointer okBB = this.newBlock(str.concat(tag, ".ok"))
         pointer br
-        this.llvm.buildCondBr(this.builder, isNull, trapBB, okBB, br)
+        this.llvm.buildCondBr(this.builder, cond, trapBB, okBB, br)
         this.position(trapBB)
-        string msg = str.concat("null reference: ", what)
         string where = this.stmtWhere()
         if str.isEmpty(where) {
-            this.cgm.emitNullTrap(msg)
+            this.cgm.emitNullTrap(what)
         } else {
-            string full = str.concat(msg, str.concat(" at ", where))
+            string full = str.concat(what, str.concat(" at ", where))
             this.cgm.emitNullTrap(full)
         }
         this.position(okBB)

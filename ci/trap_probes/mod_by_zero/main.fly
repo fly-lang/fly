@@ -1,0 +1,6 @@
+// `%` and the compound `%=` are checked like `/`.
+void main() {
+    long x = 17
+    long d = 0
+    x %= d
+}

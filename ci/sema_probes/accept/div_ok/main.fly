@@ -1,0 +1,47 @@
+// Division and remainder that must NOT trap: constant and variable divisors,
+// negative operands, unsigned types, and `%` by -1, which is 0 (also for the
+// minimum value, where `/` would overflow).
+void main() {
+    int a = 17
+    int d = 5
+    if a / d != 3 {
+        fail 1, "17 / 5"
+    }
+    if a % d != 2 {
+        fail 2, "17 % 5"
+    }
+    if a / 2 != 8 {
+        fail 3, "constant divisor"
+    }
+    int neg = -17
+    if neg / d != -3 {
+        fail 4, "division truncates toward zero"
+    }
+    if neg % d != -2 {
+        fail 5, "the remainder takes the sign of the dividend"
+    }
+    int min = -2147483647 - 1
+    int m1 = -1
+    if min % m1 != 0 {
+        fail 6, "the minimum value % -1 is 0"
+    }
+    if a / m1 != -17 {
+        fail 7, "division by -1"
+    }
+    uint u = 4000000000
+    uint ud = 3
+    if u / ud != 1333333333 {
+        fail 8, "unsigned division"
+    }
+    long big = 10
+    big /= 4
+    if big != 2 {
+        fail 9, "compound /="
+    }
+    double f = 1.0
+    double z = 0.0
+    double inf = f / z
+    if inf < 1000000.0 {
+        fail 10, "a float division by zero is IEEE infinity, not a trap"
+    }
+}

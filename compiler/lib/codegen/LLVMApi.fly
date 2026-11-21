@@ -2393,6 +2393,22 @@ public class LLVM {
         return r != 0
     }
 
+    // isFalseConstant — is `val` the integer constant 0 (an i1 `false`, typically a
+    // comparison the builder folded because both sides were constants)?
+    public bool isFalseConstant(const pointer val) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = val
+        pointer ci
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMIsAConstantInt", a, ci)
+        if ci == 0 {
+            return false
+        }
+        pointer z
+        lib.call("LLVMConstIntGetZExtValue", a, z)
+        return z == 0
+    }
+
     // diCreateDerefExpression — DW_OP_deref (0x06): the storage holds the
     // ADDRESS of the variable, not the variable itself.
     public void diCreateDerefExpression(const pointer db, pointer v) {
