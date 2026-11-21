@@ -93,6 +93,10 @@ public class ParserExpr {
 
     public static ASTExpr parseBin(const Parser p, const int minPrec) {
         ASTExpr left = ParserExpr.parseUnary(p)
+        // the operator at the top of `left` when `left` is a binary built HERE, so
+        // without parentheses ("" otherwise: a parenthesized operand comes back
+        // from parsePrimary and is never a naked binary)
+        string leftOp = ""
         bool go = true
         while go {
             string op = ""
@@ -104,13 +108,42 @@ public class ParserExpr {
                 SourceLocation oploc = p.curLoc()
                 p.bump()
                 ASTExpr right = ParserExpr.parseBin(p, prec + 1)
+                string rightOp = p.getLastBinOp()
+                ParserExpr.checkMix(p, oploc, op, leftOp)
+                ParserExpr.checkMix(p, oploc, op, rightOp)
                 ASTBinaryKind bk = binKindFor(op)
                 left = ASTBuilder.CreateBinary(oploc, bk, left, right)
+                leftOp = op
             } else {
                 go = false
             }
         }
+        p.setLastBinOp(leftOp)
         return left
+    }
+
+    // checkMix — `op` takes an operand whose top operator, unparenthesized, is
+    // `inner`. Fly's precedence is flat where C's is not, so two readings would
+    // both look natural; the program must say which one it means:
+    //   - `|| && | ^ & << >>` share one level, left to right: two DIFFERENT ones in
+    //     a chain (`a || b && c`, `x << 2 | y`) need parentheses; the same one
+    //     repeated (`a && b && c`) does not;
+    //   - a comparison under a bitwise or shift operator: `a & b == c` is
+    //     `a & (b == c)` in Fly, `(a & b) == c` in C. A comparison under `&&` or
+    //     `||` (`a == b && c < d`) means the same everywhere and stays legal.
+    public static void checkMix(const Parser p, const SourceLocation oploc, const string op, const string inner) {
+        if str.isEmpty(inner) {
+            return
+        }
+        if binPrec(op) != 2 {
+            return
+        }
+        int ip = binPrec(inner)
+        if ip == 2 && str.equals(inner, op) == false {
+            p.noteMix(oploc, false, inner, op)
+        } elsif ip == 3 && str.equals(op, "&&") == false && str.equals(op, "||") == false {
+            p.noteMix(oploc, true, op, inner)
+        }
     }
 
     public static ASTExpr parseUnary(const Parser p) {

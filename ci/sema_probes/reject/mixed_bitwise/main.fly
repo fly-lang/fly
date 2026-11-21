@@ -1,0 +1,9 @@
+// Shifts and bitwise operators share one level too: this is (a << 2) | b here,
+// but a << (2 | b) would be just as natural a reading.
+int pack(const int a, const int b) {
+    return a << 2 | b
+}
+
+void main() {
+    int r = pack(1, 2)
+}

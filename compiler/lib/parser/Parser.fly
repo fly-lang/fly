@@ -148,12 +148,18 @@ public class Parser {
     ASTModule module
     int prevLine             // line of the last CONSUMED token (0 before the first bump):
                              // lets postfix ++/-- require same-line adjacency (B014)
+    string lastBinOp         // top operator of the last parseBin result ("" = none)
+    List<SourceLocation> mixLocs // ambiguous operator mixes found (see ParserExpr.checkMix),
+    List<string> mixArgs         // reported when the module ends: "id;a;b" per entry
 
     public Parser(const string src) {
         this.lx = new Lexer(src)
         this.sm = new SourceManager("<input>", src)
         this.lx.setSourceManager(this.sm)   // before the first next(): every token is tagged
         this.sink = new StoringDiagnosticConsumer()
+        this.lastBinOp = ""
+        this.mixLocs = new List<SourceLocation>()
+        this.mixArgs = new List<string>()
         DiagnosticOptions opts = new DiagnosticOptions()
         this.diags = new DiagnosticsEngine(opts, this.sink, this.sm)
         this.pending = new List<Token>()
@@ -777,6 +783,50 @@ public class Parser {
             this.reportErrStr(DiagID.err_parser_reserved_name, this.curText())
         }
     }
+    // noteMix — record an ambiguous operator mix (ParserExpr.checkMix). It is a rule
+    // about meaning, not syntax: the parse goes on, and parseModule reports every
+    // one at the end, so one mix neither hides the next nor makes the parser give
+    // up on the block (an error makes it stop at once). `comparison`: a comparison
+    // under a bitwise operator, else two operators of the flat level.
+    public void noteMix(const SourceLocation loc, const bool comparison, const string a0, const string a1) {
+        this.mixLocs.add(loc)
+        string kind = "m"
+        if comparison {
+            kind = "c"
+        }
+        this.mixArgs.add(str.concat(kind, str.concat(";", str.concat(a0, str.concat(";", a1)))))
+    }
+
+    // flushMixes — report the mixes noteMix recorded.
+    public void flushMixes() {
+        int i = 0
+        while i < this.mixLocs.size() {
+            string e = this.mixArgs.get(i)
+            int s1 = str.indexOf(e, ";")
+            string rest = str.substring(e, s1 + 1, str.len(e))
+            int s2 = str.indexOf(rest, ";")
+            DiagID id = DiagID.err_parser_mixed_operators
+            if str.startsWith(e, "c") {
+                id = DiagID.err_parser_comparison_operand
+            }
+            DiagnosticBuilder b = this.diags.report(this.mixLocs.get(i), id)
+            b.addStr(str.substring(rest, 0, s2))
+            b.addStr(str.substring(rest, s2 + 1, str.len(rest)))
+            b.emit()
+            i = i + 1
+        }
+    }
+
+    // getLastBinOp / setLastBinOp — the operator at the top of the expression the last
+    // ParserExpr.parseBin call built, "" when it built no binary (see checkMix).
+    public string getLastBinOp() {
+        return this.lastBinOp
+    }
+
+    public void setLastBinOp(const string op) {
+        this.lastBinOp = op
+    }
+
     public void reportErrStr(const DiagID id, const string arg) {
         DiagnosticBuilder b = this.diags.report(this.curLoc(), id)
         b.addStr(arg)
@@ -864,6 +914,7 @@ public class Parser {
                 }
             }
         }
+        this.flushMixes()
         return m
     }
 

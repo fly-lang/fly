@@ -1,0 +1,9 @@
+// `||` and `&&` share one precedence level in Fly, applied left to right: this is
+// (x || y) && z, where C would read x || (y && z). Parentheses must say which.
+bool pick(const bool x, const bool y, const bool z) {
+    return x || y && z
+}
+
+void main() {
+    bool r = pick(true, false, false)
+}

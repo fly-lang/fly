@@ -4,8 +4,9 @@ import fly.assert
 // ExecPrecedenceSuite — EXECUTED checks of the precedence table (bug-hunt
 // Phase 1). The docs (Appendix B) specify ONE shared left-to-right level for
 // || && | & ^ << >> and the reference implements exactly that; since the B011
-// fix the self-host binPrec is FLAT too (the 3xx cases pin the flat values,
-// STAGE=0-arbitrated).
+// fix the self-host binPrec is FLAT too. From 0.15 two different operators of
+// that level, or a comparison under a bitwise one, need parentheses: the 3xx
+// cases pin the same-operator chains and the parenthesized groupings.
 //
 // Assert codes: 1xx arithmetic levels, 2xx shift placement, 3xx one-level
 // group, 4xx comparisons+ternary, 5xx short-circuit (B017 pins).
@@ -54,22 +55,35 @@ suite ExecPrecedenceSuite {
         }
     }
 
+    // From 0.15 two DIFFERENT operators of the one-level group need parentheses
+    // (the unparenthesized forms are rejected: ci/sema_probes/reject/mixed_*);
+    // the same operator still chains left to right.
     void bitwiseOneLevelTest() {
-        case "or then and shares one level left-to-right": {
-            int r = 4 | 2 & 3
-            assert.assertEqI(r, 2, 301)                  // (4|2)&3 — flat table
+        case "the same operator chains left to right": {
+            int r = 12 & 6 & 4
+            assert.assertEqI(r, 4, 301)
+            int s = 32 >> 2 >> 1
+            assert.assertEqI(s, 4, 302)
+            bool t = true && true && false
+            assert.assertFalse(t, 303)
         }
-        case "or then xor shares one level": {
-            int r = 1 | 2 ^ 3
-            assert.assertEqI(r, 0, 311)                  // (1|2)^3
+        case "parentheses pick the grouping of or and and": {
+            int r = (4 | 2) & 3
+            assert.assertEqI(r, 2, 311)
+            int s = 4 | (2 & 3)
+            assert.assertEqI(s, 6, 312)
         }
-        case "or then shift shares one level": {
-            int r = 1 | 8 >> 2
-            assert.assertEqI(r, 2, 321)                  // (1|8)>>2
+        case "parentheses pick the grouping of or, xor and shift": {
+            int r = (1 | 2) ^ 3
+            assert.assertEqI(r, 0, 321)
+            int s = (1 | 8) >> 2
+            assert.assertEqI(s, 2, 322)
         }
-        case "logic or and and share the level too": {
-            bool r = true || false && false
-            assert.assertFalse(r, 331)                   // (true||false)&&false
+        case "parentheses pick the grouping of logic or and and": {
+            bool r = (true || false) && false
+            assert.assertFalse(r, 331)
+            bool s = true || (false && false)
+            assert.assertTrue(s, 332)
         }
     }
 
