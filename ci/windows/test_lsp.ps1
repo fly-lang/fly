@@ -39,6 +39,9 @@ import fly.str
 
 void main() {
     int n = fly.str.len("abc")
+    if n != 3 {
+        fail 1, "len"
+    }
 }
 "@ | Set-Content -NoNewline -Encoding ascii "$D/clean.fly"
 # Navigation fixture: a call, a local, a class — every nav feature has a target.

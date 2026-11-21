@@ -27,11 +27,11 @@ suite OsEnvSuite {
         case "set then get": {
             env.set("FLY_ENV_TEST_VAR", "hello_env")
             assert.assertStr(env.get("FLY_ENV_TEST_VAR"), "hello_env", 101)
-            env.delete("FLY_ENV_TEST_VAR")
+            env.del("FLY_ENV_TEST_VAR")
         }
-        case "delete removes the variable": {
+        case "del removes the variable": {
             env.set("FLY_ENV_TEST_VAR", "hello_env")
-            env.delete("FLY_ENV_TEST_VAR")
+            env.del("FLY_ENV_TEST_VAR")
             assert.assertEmpty(env.get("FLY_ENV_TEST_VAR"), 102)
         }
         case "get on an unset variable yields the empty string": {
@@ -41,20 +41,20 @@ suite OsEnvSuite {
             env.set("FLY_ENV_TEST_VAR", "first")
             env.set("FLY_ENV_TEST_VAR", "second")
             assert.assertStr(env.get("FLY_ENV_TEST_VAR"), "second", 104)
-            env.delete("FLY_ENV_TEST_VAR")
+            env.del("FLY_ENV_TEST_VAR")
         }
         case "an empty value round-trips": {
             env.set("FLY_ENV_TEST_EMPTY", "")
             assert.assertEmpty(env.get("FLY_ENV_TEST_EMPTY"), 105)
-            env.delete("FLY_ENV_TEST_EMPTY")
+            env.del("FLY_ENV_TEST_EMPTY")
         }
         case "values with spaces and punctuation survive": {
             env.set("FLY_ENV_TEST_VAR", "a b=c:d/e")
             assert.assertStr(env.get("FLY_ENV_TEST_VAR"), "a b=c:d/e", 106)
-            env.delete("FLY_ENV_TEST_VAR")
+            env.del("FLY_ENV_TEST_VAR")
         }
         case "deleting an already-absent variable is a no-op": {
-            env.delete("FLY_ENV_TEST_NEVER_SET_XYZ")
+            env.del("FLY_ENV_TEST_NEVER_SET_XYZ")
             assert.assertEmpty(env.get("FLY_ENV_TEST_NEVER_SET_XYZ"), 107)
         }
         case "several variables are independent": {
@@ -62,10 +62,10 @@ suite OsEnvSuite {
             env.set("FLY_ENV_TEST_B", "two")
             assert.assertStr(env.get("FLY_ENV_TEST_A"), "one", 108)
             assert.assertStr(env.get("FLY_ENV_TEST_B"), "two", 109)
-            env.delete("FLY_ENV_TEST_A")
+            env.del("FLY_ENV_TEST_A")
             assert.assertEmpty(env.get("FLY_ENV_TEST_A"), 110)
             assert.assertStr(env.get("FLY_ENV_TEST_B"), "two", 111)   // untouched
-            env.delete("FLY_ENV_TEST_B")
+            env.del("FLY_ENV_TEST_B")
         }
     }
 
@@ -74,12 +74,12 @@ suite OsEnvSuite {
         case "$VAR form": {
             env.set("FLY_ENV_EXP", "world")
             assert.assertStr(env.expand("hello $FLY_ENV_EXP"), "hello world", 201)
-            env.delete("FLY_ENV_EXP")
+            env.del("FLY_ENV_EXP")
         }
         case "${VAR} form": {
             env.set("FLY_ENV_EXP", "world")
             assert.assertStr(env.expand("${FLY_ENV_EXP}!"), "world!", 202)
-            env.delete("FLY_ENV_EXP")
+            env.del("FLY_ENV_EXP")
         }
         case "values larger than the output estimate": {
             // three 3000-byte values from a short input: the output buffer was
@@ -89,14 +89,14 @@ suite OsEnvSuite {
             string out = env.expand("$FLY_ENV_TEST_BIG-$FLY_ENV_TEST_BIG-${FLY_ENV_TEST_BIG}")
             assert.assertEqI(str.len(out), 9002, 212)
             assert.assertTrue(str.startsWith(out, "vvv"), 213)
-            env.delete("FLY_ENV_TEST_BIG")
+            env.del("FLY_ENV_TEST_BIG")
         }
         case "a variable name longer than 256 bytes": {
             // the name went into a fixed 256-byte buffer
             string name = str.concat("FLY_ENV_TEST_", str.repeat("N", 300))
             env.set(name, "ok")
             assert.assertStr(env.expand(str.concat("[${", str.concat(name, "}]"))), "[ok]", 214)
-            env.delete(name)
+            env.del(name)
         }
         case "a string with no references is returned as-is": {
             assert.assertStr(env.expand("plain text"), "plain text", 203)
@@ -107,15 +107,15 @@ suite OsEnvSuite {
             env.set("FLY_ENV_EXP_B", "two")
             assert.assertStr(env.expand("${FLY_ENV_EXP_A}-${FLY_ENV_EXP_B}"), "one-two", 205)
             assert.assertStr(env.expand("$FLY_ENV_EXP_A $FLY_ENV_EXP_B"), "one two", 206)
-            env.delete("FLY_ENV_EXP_A")
-            env.delete("FLY_ENV_EXP_B")
+            env.del("FLY_ENV_EXP_A")
+            env.del("FLY_ENV_EXP_B")
         }
         case "a reference at the very start and the very end": {
             env.set("FLY_ENV_EXP", "X")
             assert.assertStr(env.expand("$FLY_ENV_EXP tail"), "X tail", 207)
             assert.assertStr(env.expand("head $FLY_ENV_EXP"), "head X", 208)
             assert.assertStr(env.expand("$FLY_ENV_EXP"), "X", 209)
-            env.delete("FLY_ENV_EXP")
+            env.del("FLY_ENV_EXP")
         }
         case "an unset reference expands to nothing": {
             assert.assertStr(env.expand("[${FLY_ENV_TEST_UNSET_XYZ}]"), "[]", 210)
@@ -123,7 +123,7 @@ suite OsEnvSuite {
         case "expansion inserts the value verbatim": {
             env.set("FLY_ENV_EXP", "a/b c")
             assert.assertStr(env.expand("p=${FLY_ENV_EXP}"), "p=a/b c", 211)
-            env.delete("FLY_ENV_EXP")
+            env.del("FLY_ENV_EXP")
         }
     }
 
@@ -146,12 +146,12 @@ suite OsEnvSuite {
     // ── process argv ─────────────────────────────────────────────────────────
     void argsTest() {
         case "argsCount is at least 1": {
-            assert.assertGtI(env.argsCount(), 0, 401)
+            assert.assertGtI((int)env.argsCount(), 0, 401)
         }
         case "argsGet agrees with argsCount and has a non-empty argv[0]": {
             fly.os.env.StringArray a = env.argsGet()
-            assert.assertEqI(a.count, env.argsCount(), 402)
-            assert.assertGtI(a.count, 0, 403)
+            assert.assertEqI((int)a.count, (int)env.argsCount(), 402)
+            assert.assertGtI((int)a.count, 0, 403)
         }
         case "exePath is a non-empty absolute-looking path": {
             string p = env.exePath()
@@ -200,26 +200,26 @@ suite OsEnvSuite {
     // ── all() / allCount() ───────────────────────────────────────────────────
     void listingTest() {
         case "allCount is positive": {
-            assert.assertGtI(env.allCount(), 0, 601)
+            assert.assertGtI((int)env.allCount(), 0, 601)
         }
         case "all() agrees with allCount": {
             fly.os.env.StringArray vars = env.all()
-            assert.assertEqI(vars.count, env.allCount(), 602)
-            assert.assertGtI(vars.count, 0, 603)
+            assert.assertEqI((int)vars.count, (int)env.allCount(), 602)
+            assert.assertGtI((int)vars.count, 0, 603)
         }
         case "setting a new variable adds exactly one to the count": {
-            env.delete("FLY_ENV_TEST_COUNTED")            // make sure it is absent
+            env.del("FLY_ENV_TEST_COUNTED")            // make sure it is absent
             // allCount() is pointer-sized; the reference refuses the implicit
             // pointer→int narrowing (the self-host coerces), so cast.
             int before = (int)env.allCount()
             env.set("FLY_ENV_TEST_COUNTED", "yes")
-            assert.assertEqI(env.allCount(), before + 1, 604)
+            assert.assertEqI((int)env.allCount(), before + 1, 604)
             assert.assertStr(env.get("FLY_ENV_TEST_COUNTED"), "yes", 605)
             // Overwriting an existing variable must NOT add another entry.
             env.set("FLY_ENV_TEST_COUNTED", "no")
-            assert.assertEqI(env.allCount(), before + 1, 606)
-            env.delete("FLY_ENV_TEST_COUNTED")
-            assert.assertEqI(env.allCount(), before, 607)  // and delete removes it
+            assert.assertEqI((int)env.allCount(), before + 1, 606)
+            env.del("FLY_ENV_TEST_COUNTED")
+            assert.assertEqI((int)env.allCount(), before, 607)  // and del removes it
         }
     }
 }

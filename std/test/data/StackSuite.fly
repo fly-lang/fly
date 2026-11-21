@@ -25,7 +25,7 @@ suite StackSuite {
     void emptyTest() {
         case "fresh stack": {
             Stack<long> s = new Stack<long>()
-            assert.assertEqI(s.size(), 0, 101)
+            assert.assertEqI((int)s.size(), 0, 101)
             assert.assertTrue(s.isEmpty(), 102)
             s.free()
         }
@@ -34,13 +34,13 @@ suite StackSuite {
             Stack<long> s = new Stack<long>()
             assert.assertEqL(s.pop(), 0, 103)
             assert.assertEqL(s.peek(), 0, 104)
-            assert.assertEqI(s.size(), 0, 105)
+            assert.assertEqI((int)s.size(), 0, 105)
             s.free()
         }
         case "free on a never-used stack": {
             Stack<long> s = new Stack<long>()
             s.free()
-            assert.assertEqI(s.size(), 0, 106)
+            assert.assertEqI((int)s.size(), 0, 106)
         }
         case "drained stack behaves like a fresh one": {
             Stack<long> s = new Stack<long>()
@@ -60,10 +60,10 @@ suite StackSuite {
             s.push(1)
             s.push(2)
             s.push(3)
-            assert.assertEqI(s.size(), 3, 201)
+            assert.assertEqI((int)s.size(), 3, 201)
             assert.assertEqL(s.peek(), 3, 202)
             assert.assertEqL(s.peek(), 3, 203)      // peek is idempotent
-            assert.assertEqI(s.size(), 3, 204)
+            assert.assertEqI((int)s.size(), 3, 204)
             s.free()
         }
         case "pop returns in reverse push order": {
@@ -87,7 +87,7 @@ suite StackSuite {
             assert.assertEqL(s.peek(), 30, 211)
             assert.assertEqL(s.pop(), 30, 212)
             assert.assertEqL(s.pop(), 10, 213)
-            assert.assertEqI(s.size(), 0, 214)
+            assert.assertEqI((int)s.size(), 0, 214)
             s.free()
         }
         case "reuse after full drain": {
@@ -95,7 +95,7 @@ suite StackSuite {
             s.push(1)
             s.pop()
             s.push(2)
-            assert.assertEqI(s.size(), 1, 215)
+            assert.assertEqI((int)s.size(), 1, 215)
             assert.assertEqL(s.peek(), 2, 216)
             s.free()
         }
@@ -111,7 +111,7 @@ suite StackSuite {
                 s.push(i)
                 i = i + 1
             }
-            assert.assertEqI(s.size(), 40, 301)
+            assert.assertEqI((int)s.size(), 40, 301)
             assert.assertEqL(s.peek(), 39, 302)
             s.free()
         }
@@ -144,13 +144,13 @@ suite StackSuite {
             while s.isEmpty() == false {
                 s.pop()
             }
-            assert.assertEqI(s.size(), 0, 305)
+            assert.assertEqI((int)s.size(), 0, 305)
             i = 0
             while i < 20 {
                 s.push(i * 2)
                 i = i + 1
             }
-            assert.assertEqI(s.size(), 20, 306)
+            assert.assertEqI((int)s.size(), 20, 306)
             assert.assertEqI(s.peek(), 38, 307)
             s.free()
         }
@@ -163,7 +163,7 @@ suite StackSuite {
             string built = str.concat("foo", "bar")
             s.push(built)
             s.push("baz")
-            assert.assertEqI(s.size(), 2, 401)
+            assert.assertEqI((int)s.size(), 2, 401)
             assert.assertStr(s.peek(), "baz", 402)
             assert.assertStr(built, "foobar", 403)
             s.free()
@@ -184,7 +184,7 @@ suite StackSuite {
             string b = s.peek()
             assert.assertStr(a, "only", 406)
             assert.assertStr(b, "only", 407)
-            assert.assertEqI(s.size(), 1, 408)
+            assert.assertEqI((int)s.size(), 1, 408)
             s.free()
             assert.assertStr(a, "only", 409)
         }
@@ -201,7 +201,7 @@ suite StackSuite {
                 s.push(str.concat("s", str.convert(i)))
                 i = i + 1
             }
-            assert.assertEqI(s.size(), 20, 412)
+            assert.assertEqI((int)s.size(), 20, 412)
             assert.assertStr(s.pop(), "s19", 413)
             assert.assertStr(s.peek(), "s18", 414)
             s.free()                                  // frees the 19 still live

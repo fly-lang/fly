@@ -527,7 +527,7 @@ public void dir_open(const pointer path, pointer out) {
     int pl = 0
     fly.llvm.longToInt((long)plen, pl)
     pointer pat = 0                                     // pattern = path + "\*" + NUL
-    fly.runtime.mem_alloc(pl + 3, pat)
+    fly.runtime.mem_alloc((ulong)(pl + 3), pat)
     int k = 0
     while k < pl {
         byte b = 0
@@ -551,7 +551,7 @@ public void dir_open(const pointer path, pointer out) {
         out = 0
         return
     }
-    fly.llvm.ptrPokeLong(ctx, 0, h)                    // store the HANDLE (pointer, no cast)
+    fly.llvm.ptrPokeLong(ctx, 0, (long)h)                    // store the HANDLE (pointer, no cast)
     fly.llvm.ptrPokeInt(ctx, 8, 1)                     // hasPending
     out = ctx
 }
@@ -683,7 +683,7 @@ private void toCStr(const string s, pointer out) {
     pointer src = 0
     fly.llvm.strGetPtr(s, src)
     pointer buf = 0
-    fly.runtime.malloc(n + 1, buf)
+    fly.runtime.malloc((ulong)(n + 1), buf)
     int i = 0
     while i < n {
         byte b = 0
@@ -1153,7 +1153,7 @@ private void scanToken(const pointer cl, const int pos, const pointer out3) {
 }
 // env_init — accessors are stateless; kept as a defined no-op.
 public void env_init(const int argc, const pointer argv) {
-    int unused = argc
+    int _unused = argc
 }
 
 // fillSlotFromCStr — copy the NUL-terminated string at cstr into a slot.
@@ -1167,7 +1167,7 @@ private void fillSlotFromCStr(const pointer arr_base, const int idx, const point
 // fillSlotLen — copy `len` bytes from src into a fresh buffer; write it as slot idx.
 private void fillSlotLen(const pointer arr_base, const int idx, const pointer src, const int len) {
     pointer dst = 0
-    fly.runtime.malloc(len + 1, dst)
+    fly.runtime.malloc((ulong)(len + 1), dst)
     int j = 0
     while j < len {
         byte b = 0
@@ -1331,9 +1331,9 @@ public void proc_exec_redirect(const pointer path, const pointer argv, const poi
     zeroMem(si, 104)
     fly.llvm.ptrPokeInt(si, 0, 104)                    // si.cb
     fly.llvm.ptrPokeInt(si, 60, 256)                   // dwFlags = STARTF_USESTDHANDLES
-    fly.llvm.ptrPokeLong(si, 80, hIn)
-    fly.llvm.ptrPokeLong(si, 88, hOut)
-    fly.llvm.ptrPokeLong(si, 96, hErr)
+    fly.llvm.ptrPokeLong(si, 80, (long)hIn)
+    fly.llvm.ptrPokeLong(si, 88, (long)hOut)
+    fly.llvm.ptrPokeLong(si, 96, (long)hErr)
     pointer pi = 0
     fly.runtime.malloc(24, pi)
     zeroMem(pi, 24)
@@ -1773,7 +1773,8 @@ public void net_connect(const long s, const int addr, const int port, int out) {
 // net_send — ONE send attempt; may write LESS than n. <0 on error. Winsock takes
 // and returns an int length, so the count is widened here.
 public void net_send(const long s, const pointer buf, const int n, long out) {
-    if s < 0 {
+    // a negative length would reach the OS as an enormous size_t
+    if s < 0 || n < 0 {
         out = 0 - 1
         return
     }
@@ -1785,7 +1786,8 @@ public void net_send(const long s, const pointer buf, const int n, long out) {
 // net_recv — ONE blocking receive of up to n bytes. >0 = bytes, 0 = orderly peer
 // shutdown (EOF), <0 = error.
 public void net_recv(const long s, const pointer buf, const int n, long out) {
-    if s < 0 {
+    // a negative length would reach the OS as an enormous size_t
+    if s < 0 || n < 0 {
         out = 0 - 1
         return
     }
@@ -1849,7 +1851,8 @@ public void net_socket_udp(long out) {
 // net_send_to — one datagram to addr:port; bytes accepted, <0 on error. A
 // datagram is sent whole or not at all, so there is no short write to loop over.
 public void net_send_to(const long s, const pointer buf, const int n, const int addr, const int port, long out) {
-    if s < 0 {
+    // a negative length would reach the OS as an enormous size_t
+    if s < 0 || n < 0 {
         out = 0 - 1
         return
     }
@@ -1877,7 +1880,8 @@ public void net_send_to(const long s, const pointer buf, const int n, const int 
 // `from` scratch. 0 is a legal EMPTY datagram, not end-of-stream; <0 is an error
 // or a receive timeout. A longer datagram is TRUNCATED — UDP semantics.
 public void net_recv_from(const long s, const pointer buf, const int n, const pointer from, long out) {
-    if s < 0 {
+    // a negative length would reach the OS as an enormous size_t
+    if s < 0 || n < 0 {
         out = 0 - 1
         return
     }
@@ -1949,7 +1953,7 @@ private void wideOf(const pointer s, pointer out) {
     int n = 0
     fly.llvm.longToInt((long)lenU, n)
     pointer w = 0
-    fly.runtime.malloc(n * 2 + 2, w)
+    fly.runtime.malloc((ulong)(n * 2 + 2), w)
     int i = 0
     while i < n {
         byte b = 0
@@ -2131,7 +2135,7 @@ public void net_poll(const pointer entries, const int count, const int timeoutMs
         return
     }
     pointer fds = 0
-    fly.runtime.malloc(count * 16, fds)
+    fly.runtime.malloc((ulong)(count * 16), fds)
     int i = 0
     while i < count {
         long sv = 0
@@ -2413,7 +2417,7 @@ public void net_resolve4(const pointer host, int out) {
 // ── Fly string-array slot helpers ────────────────────────────────────────────
 public void str_slot_set(const pointer arr_base, const int idx, const pointer ptr, const int size) {
     int off = idx * 16
-    fly.llvm.ptrPokeLong(arr_base, off, ptr)
+    fly.llvm.ptrPokeLong(arr_base, off, (long)ptr)
     fly.llvm.ptrPokeInt(arr_base, off + 8, size)
     fly.llvm.ptrPokeInt(arr_base, off + 12, 0)
 }
@@ -2504,7 +2508,7 @@ private void wrDec(const int fd, const int v) {
     } else {
         while t > 0 {
             int d = t - (t / 10) * 10
-            fly.llvm.ptrPokeByte(buf, i, 48 + d)
+            fly.llvm.ptrPokeByte(buf, i, (byte)(48 + d))
             i = i - 1
             t = t / 10
         }

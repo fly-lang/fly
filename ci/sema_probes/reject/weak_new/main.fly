@@ -1,0 +1,9 @@
+public class Res {
+
+    public Res() {
+    }
+}
+
+void main() {
+    Res w = new weak Res()
+}

@@ -32,7 +32,7 @@ suite SymbolTableSuite {
             assert.assertTrue(ok, 10)
             List<Symbol> found = t.lookup("x")
             assert.assertTrue(found != null, 11)
-            assert.assertEqI(found.size(), 1, 12)
+            assert.assertEqI((int)found.size(), 1, 12)
             List<Symbol> miss = t.lookup("nope")
             assert.assertTrue(miss == null, 13)
         }
@@ -49,7 +49,7 @@ suite SymbolTableSuite {
             assert.assertTrue(f1, 16)
             assert.assertTrue(f2, 17)
             List<Symbol> fs = t.lookup("f")
-            assert.assertEqI(fs.size(), 2, 18)
+            assert.assertEqI((int)fs.size(), 2, 18)
         }
     }
 
@@ -65,9 +65,9 @@ suite SymbolTableSuite {
             assert.assertTrue(local == null, 21)
             List<Symbol> up = child.lookupInParents("g")
             assert.assertTrue(up != null, 22)
-            assert.assertEqI(up.size(), 1, 23)
+            assert.assertEqI((int)up.size(), 1, 23)
             List<SymbolTable> kids = root.getChildren()
-            assert.assertEqI(kids.size(), 1, 24)
+            assert.assertEqI((int)kids.size(), 1, 24)
         }
     }
 

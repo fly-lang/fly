@@ -40,6 +40,8 @@ public class Frontend {
     int statDepModules    // project modules pulled via imports
     int statHeaderModules // .fly.h header modules loaded
     int statDirsScanned   // directories walked (header + source discovery)
+    List<string> entryDefs // names the entry sources define (functions, classes), or null:
+                           // see loadHeadersFromDir
 
     // Optional cross-compile parse cache (setModuleCache). null = parse every
     // time, which is what a one-shot CLI compile wants.
@@ -54,6 +56,7 @@ public class Frontend {
         this.statHeaderModules = 0
         this.statDirsScanned = 0
         this.modCache = null
+        this.entryDefs = null
     }
 
     // setModuleCache — reuse parsed modules across compiles (language server).
@@ -241,6 +244,9 @@ public class Frontend {
         // errors render carets (the CI's SourceManager supplies the source line).
         this.trace("resolving")
         DiagnosticOptions opts = new DiagnosticOptions()
+        opts.setIgnoreWarnings(fo.getNoWarnings())
+        opts.setWarningsAsErrors(fo.getWarningsAsErrors())
+        opts.setDisabledWarnings(fo.getDisabledWarnings())
         TextDiagnosticPrinter printer = new TextDiagnosticPrinter()
         // --log-file: chain the stderr printer with the log collector so every
         // Sema diagnostic reaches both (reference ChainedDiagnosticConsumer).
@@ -270,6 +276,7 @@ public class Frontend {
             ens = ens + 1
         }
 
+        this.entryDefs = this.topLevelNames(entryMods)
         List<ASTModule> mods = new List<ASTModule>()
         this.loadLibHeaders(fo, mods, entryNs)
         int emi = 0
@@ -287,7 +294,7 @@ public class Frontend {
             return 1
         }
         SemaContext ctx = new SemaContext(diags)
-        List<SemaModule> resModules = ctx.Resolve(mods, fo.getTestMode())
+        List<SemaModule> _resModules = ctx.Resolve(mods, fo.getTestMode())
         if diags.hasErrorOccurred() {
             return 1
         }
@@ -413,7 +420,45 @@ public class Frontend {
         }
     }
 
-    // loadHeadersFromDir — walk one directory, parse each `*.fly.h` as a header module.
+    // topLevelNames — the names of the functions and classes `mods` declare at
+    // top level.
+    public List<string> topLevelNames(const List<ASTModule> mods) {
+        List<string> res = new List<string>()
+        int i = 0
+        while i < mods.size() {
+            List<ASTNode> nodes = mods.get(i).getNodes()
+            int j = 0
+            while j < nodes.size() {
+                ASTNode nd = nodes.get(j)
+                ASTFunction f = nd.asFunction()
+                ASTClass c = nd.asClass()
+                if f != null {
+                    res.add(f.getName())
+                } elsif c != null {
+                    res.add(c.getName())
+                }
+                j = j + 1
+            }
+            i = i + 1
+        }
+        return res
+    }
+
+    // declaresAny — does header module `hm` declare a function or class named in
+    // `names`?
+    public bool declaresAny(const ASTModule hm, const List<string> names) {
+        List<ASTModule> one = new List<ASTModule>()
+        one.add(hm)
+        List<string> decl = this.topLevelNames(one)
+        int i = 0
+        while i < decl.size() {
+            if this.listHas(names, decl.get(i)) {
+                return true
+            }
+            i = i + 1
+        }
+        return false
+    }    // loadHeadersFromDir — walk one directory, parse each `*.fly.h` as a header module.
     // A header whose namespace is in `skipNs` (provided by an entry source in --lib mode)
     // is dropped, so the source definition isn't shadowed by a colliding declaration.
     public void loadHeadersFromDir(const string dir, List<ASTModule> mods, const List<string> skipNs) {
@@ -482,7 +527,17 @@ public class Frontend {
                     if hns != null {
                         hnsStr = this.joinNames(hns.getNames())
                     }
-                    if this.listHas(skipNs, hnsStr) == false {
+                    // A header of a namespace the entry sources also build is dropped only
+                    // when it declares something they define (the collision). Another
+                    // module of that namespace keeps it: the TLS stub (namespace
+                    // fly.runtime) needs runtime.fly.h, or fly.runtime.mem_alloc is missing
+                    // from the generic List bodies a std header pulls in. Without
+                    // entryDefs (the language server) the whole namespace is dropped.
+                    bool skip = this.listHas(skipNs, hnsStr)
+                    if skip && this.entryDefs != null && this.declaresAny(hm, this.entryDefs) == false {
+                        skip = false
+                    }
+                    if skip == false {
                         hm.setHeader(true)
                         mods.add(hm)
                         this.statHeaderModules = this.statHeaderModules + 1

@@ -2,6 +2,9 @@ namespace fly.compiler.codegen
 
 import fly.compiler.sema.*
 import fly.compiler.ast.*
+import fly.compiler.basic.SourceLocation
+import fly.compiler.basic.SourceManager
+import fly.compiler.basic.CodeGenOptions
 import fly.compiler.codegen.CodeGenModule
 import fly.compiler.codegen.CodeGenLLVM
 import fly.compiler.codegen.CodeGenDebug
@@ -12,7 +15,6 @@ import fly.compiler.codegen.CodeGenCall
 import fly.compiler.codegen.CodeGenClass
 import fly.compiler.codegen.CodeGenError
 import llvm.api.*
-import fly.mem
 import fly.data.List
 import fly.str
 
@@ -55,6 +57,7 @@ public class CodeGenExpr : SemaVisitor {
                            // to the return slot). Its stored value is a RETURNED heap
                            // handle, which must NOT be freed at scope exit (ownership
                            // escapes). Empty = no class is returned (free every handle).
+    SemaStmt curStmt       // the statement being generated: where a null trap reports
 
     public CodeGenExpr(const CodeGenModule cgm) {
         this.cgm = cgm
@@ -73,6 +76,7 @@ public class CodeGenExpr : SemaVisitor {
         this.lastErrPtr = 0
         this.handleSafe = 0
         this.lastStrLit = ""
+        this.curStmt = null
         this.traceName = ""
         this.outSlots = new List<pointer>()
     }
@@ -200,6 +204,78 @@ public class CodeGenExpr : SemaVisitor {
     public void position(const pointer bb) {
         this.llvm.positionBuilderAtEnd(this.builder, bb)
         this.terminated = false
+    }
+
+    // nullCheck — stop the program with a diagnostic when the object reference
+    // `obj` is null, before anything reads through it. Always emitted, in every
+    // build (maintainer's decision for phase 2): a null reference ends with
+    // "error 134: null reference: <what> at <file>:<line>:<col>", never a crash.
+    // `what` says what was attempted ("calling 'size' on a null 'Box'"). The
+    // position is the statement's: expressions carry no location of their own.
+    public void nullCheck(const pointer obj, const string what) {
+        pointer ptrTy = this.ptrType()
+        pointer nul
+        this.llvm.constPointerNull(ptrTy, nul)
+        pointer isNull
+        this.llvm.buildICmp(this.builder, 32, obj, nul, "isnull", isNull)
+        this.trapIf(isNull, str.concat("null reference: ", what), "null")
+    }
+
+    // trapIf — stop the program with "error 134: <what> at <file>:<line>:<col>" when
+    // the i1 `cond` is true; code generation continues on the path where it is
+    // false. A condition the builder already folded to `false` (both sides were
+    // constants: `x / 2`) emits nothing. `tag` names the blocks ("null", "div").
+    public void trapIf(const pointer cond, const string what, const string tag) {
+        if this.llvm.isFalseConstant(cond) {
+            return
+        }
+        pointer trapBB = this.newBlock(str.concat(tag, ".trap"))
+        pointer okBB = this.newBlock(str.concat(tag, ".ok"))
+        pointer br
+        this.llvm.buildCondBr(this.builder, cond, trapBB, okBB, br)
+        this.position(trapBB)
+        string where = this.stmtWhere()
+        if str.isEmpty(where) {
+            this.cgm.emitNullTrap(what)
+        } else {
+            string full = str.concat(what, str.concat(" at ", where))
+            this.cgm.emitNullTrap(full)
+        }
+        this.position(okBB)
+    }
+
+    // stmtWhere — "<file>:<line>:<col>" of the statement being generated, or ""
+    // when it has no usable location.
+    public string stmtWhere() {
+        if this.curStmt == null {
+            return ""
+        }
+        ASTStmt ast = this.curStmt.getAST()
+        if ast == null {
+            return ""
+        }
+        SourceLocation loc = ast.getLoc()
+        if loc == null {
+            return ""
+        }
+        if loc.isInvalid() {
+            return ""
+        }
+        SourceManager sm = loc.getSourceManager()
+        if sm == null {
+            return ""
+        }
+        // the same --debug-prefix-map as the DWARF: a std header read from the
+        // compiler's own lib directory reads "lib/map.fly.h", not a machine path
+        string path = sm.getFilename()
+        CodeGenOptions o = this.cgm.getCodeGenOpts()
+        if o != null {
+            path = remapPath(path, o.getDebugPrefixMap())
+        }
+        string file = str.concat(path, ":")
+        string line = str.concat(str.convert(sm.getLineNumber(loc)), ":")
+        string fileLine = str.concat(file, line)
+        return str.concat(fileLine, str.convert(sm.getColumnNumber(loc)))
     }
 
     // newBlock — append a fresh basic block to the current function.
@@ -353,6 +429,7 @@ public class CodeGenExpr : SemaVisitor {
         CodeGenDebug dbg = this.cgm.getDebug()
         while i < content.size() {
             SemaStmt s = content.get(i)
+            this.curStmt = s
             if dbg != null {
                 dbg.atStmt(s)
             }
@@ -428,6 +505,30 @@ public class CodeGenExpr : SemaVisitor {
             while j < allocs.size() {
                 SemaLocalVar v = allocs.get(j)
                 if v.getLlvmAlloca() == 0 {
+                    j = j + 1
+                    continue
+                }
+                // A `new unique` OWNER is deleted whatever happened to it: passing
+                // it to a call only lent it, and a move left it null (so the
+                // delete finds nothing). free() runs first, like `delete`.
+                if v.isUniqueOwner() {
+                    SemaType uty = v.getType()
+                    CodeGenStmt.emitDeleteSlot(this, uty.asClass(), v.getLlvmAlloca())
+                    j = j + 1
+                    continue
+                }
+                // A `new shared` HOLDER lets go of its reference: one count less,
+                // the object destroyed when it was the last (a return moved it out
+                // and left the slot null, so nothing is released twice).
+                if v.isSharedHolder() {
+                    SemaType sty = v.getType()
+                    CodeGenStmt.emitReleaseSlot(this, sty.asClass(), v.getLlvmAlloca())
+                    j = j + 1
+                    continue
+                }
+                // A WEAK local lets go of its weak reference.
+                if v.isWeakRef() {
+                    CodeGenStmt.emitWeakReleaseSlot(this, v.getLlvmAlloca())
                     j = j + 1
                     continue
                 }
@@ -525,6 +626,24 @@ public class CodeGenExpr : SemaVisitor {
     }
     public void visit(const SemaDeclStmt node) {
         CodeGenStmt.decl(this, node)
+        // `C y = x` with x a `new unique` owner: y now owns the object, x is null.
+        SemaExpr moved = node.getMoveFrom()
+        if moved != null {
+            CodeGenStmt.emitNullStore(this, this.genAddr(moved))
+        }
+        // `C y = x` with x a shared holder: y is a second holder, so count it.
+        SemaLocalVar hv = node.getVar()
+        SemaExpr hinit = node.getExpr()
+        if hv != null && hinit != null {
+            // (a weak initializer is a PROMOTION: its read already yielded the object
+            // if it lives, or null, which retain ignores)
+            bool counted = hinit.isSharedHolder() || hinit.isWeakRef()
+            if hv.isSharedHolder() && counted {
+                pointer held
+                this.llvm.buildLoad2(this.builder, this.ptrType(), hv.getLlvmAlloca(), "held", held)
+                CodeGenStmt.emitRetain(this, held)
+            }
+        }
         CodeGenDebug dbg = this.cgm.getDebug()
         if dbg != null {
             SemaLocalVar dv = node.getVar()
@@ -623,6 +742,10 @@ public class CodeGenExpr : SemaVisitor {
             pointer ty = this.lowerType(v.getType())
             pointer loaded
             this.llvm.buildLoad2(this.builder, ty, addr, "ld", loaded)
+            // a weak reference reads as the object only while it lives
+            if v.isWeakRef() {
+                loaded = CodeGenStmt.emitWeakGet(this, loaded)
+            }
             v.setLlvmValue(loaded)
         }
     }
@@ -661,6 +784,9 @@ public class CodeGenExpr : SemaVisitor {
             pointer fty = this.lowerType(a.getType())
             pointer loaded
             this.llvm.buildLoad2(this.builder, fty, fldPtr, "fldv", loaded)
+            if a.isWeakRef() {
+                loaded = CodeGenStmt.emitWeakGet(this, loaded)
+            }
             a.setLlvmValue(loaded)
         }
     }
@@ -839,7 +965,9 @@ public class CodeGenExpr : SemaVisitor {
     public void visit(const SemaLoopInStmt node) {
         CodeGenArray.loopIn(this, node)
     }
-    public void visit(const SemaDeleteStmt node) { }
+    public void visit(const SemaDeleteStmt node) {
+        CodeGenStmt.deleteStmt(this, node)
+    }
 
     // emitCaseFailFast — called after each statement of a case body: if the case's
     // %error slot holds a code, branch to the case end (skipping the rest). Else

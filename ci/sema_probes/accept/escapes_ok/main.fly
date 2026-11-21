@@ -1,0 +1,23 @@
+import fly.str
+
+// Escape sequences in ordinary literals, and raw literals between three double
+// quotes that keep backslashes and newlines as written.
+void main() {
+    string s = "tab\there\n"
+    if str.len(s) != 9 {
+        fail 1, "two one-byte escapes"
+    }
+    string u = "caf\u{E9} \x41"
+    if str.len(u) != 7 || str.charCount(u) != 6 {
+        fail 2, "u{...} is UTF-8, xHH one byte"
+    }
+    string p = """C:\Users\fly"""
+    if str.len(p) != 12 {
+        fail 3, "a raw literal keeps its backslashes"
+    }
+    string m = """first
+second"""
+    if str.indexOf(m, "\n") != 5 {
+        fail 4, "a raw literal spans lines"
+    }
+}

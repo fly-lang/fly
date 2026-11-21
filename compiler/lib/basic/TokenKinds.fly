@@ -92,12 +92,12 @@ public enum TokenKind {
     kw_break,
     kw_byte,
     kw_case,
-    kw_char,
     kw_class,
     kw_complex,
     kw_const,
     kw_continue,
     kw_default,
+    kw_delete,
     kw_double,
     kw_elsif,
     kw_else,
@@ -176,9 +176,6 @@ public TokenKind getKeywordKind(const string w) {
     if w == "case" {
         return TokenKind.kw_case
     }
-    if w == "char" {
-        return TokenKind.kw_char
-    }
     if w == "class" {
         return TokenKind.kw_class
     }
@@ -193,6 +190,9 @@ public TokenKind getKeywordKind(const string w) {
     }
     if w == "default" {
         return TokenKind.kw_default
+    }
+    if w == "delete" {
+        return TokenKind.kw_delete
     }
     if w == "double" {
         return TokenKind.kw_double

@@ -3,14 +3,12 @@
 # PowerShell counterpart of ci/linux/build_runtime.sh; see stage1.ps1 for the
 # stage map.
 #
-# Windows targets x86_64-w64-windows-gnu (llvm-mingw / UCRT), so the runtime is
-# COMPILED FROM runtime/lib/RuntimeWindows.fly with the stage0 reference compiler
-# for that triple — NOT copied from the MSVC seed. stage0 emits the runtime as
-# flat C-ABI, unmangled symbols with NO MSVCRT/OLDNAMES directive (CRT-neutral),
-# which is exactly what links against the mingw/UCRT sysroot. (The self-host
-# compiler mis-emits these definitions with the ordinary Fly ABI — see the
-# selfhost-runtime-cabi note — so the runtime is stage0-built at BOTH stages until
-# that is fixed; STAGE=2 re-runs this same stage0 recompile.)
+# Windows targets x86_64-w64-windows-gnu (llvm-mingw / UCRT): the runtime is
+# COMPILED FROM runtime/lib/RuntimeWindows.fly for that triple, at every stage, by
+# a self-host compiler — the seed (a self-host release since 0.15) at stage 1, the
+# stage-1 fly at stage 2. `fly.runtime` definitions get flat C-ABI, unmangled
+# wrappers (CodeGenModule.emitRuntimeCABIWrapper), which is what links against
+# the mingw/UCRT sysroot.
 #
 # Output: $LIB/fly_runtime_lib.lib + runtime.fly.h + llvm.fly.h.
 # -----------------------------------------------------------------------------
@@ -33,11 +31,9 @@ function Split-GenericClosers($file) {
     Set-Content $file $c -NoNewline
 }
 
-# -- Compiler: STAGE 1 uses the stage0 reference (hardlinked as fly0.exe so its
-#    <exe>\..\lib discovery serves build\stage1\lib); STAGE 2 SELF-HOSTS with the
-#    stage1 fly.exe. The self-host emits `fly.runtime` defs with the correct flat
-#    C-ABI (unmangled wrappers — see CodeGenModule.emitRuntimeCABIWrapper), so its
-#    runtime archive is link-compatible with the reference's. ---------------------
+# -- Compiler: STAGE 1 uses the seed (hardlinked as fly0.exe so its <exe>\..\lib
+#    discovery serves build\stage1\lib, not the seed's own lib); STAGE 2 the
+#    stage-1 fly.exe. -------------------------------------------------------------
 if ($STAGE -eq '1') {
     if (-not (Test-Path 'build/stage0/bin/fly.exe' -PathType Leaf)) {
         Write-Host "error: stage0 compiler missing - run ci\windows\stage0.ps1 first."; exit 1
@@ -66,12 +62,15 @@ $T = 'build/tmp_runtime'
 Remove-Item $T -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $T | Out-Null
 $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
+# A warning in the tree's own code fails the build when the self-host compiles it
+# (the seed predates --warnings-as-errors).
+$WERR = @(); if ($STAGE -ne '1') { $WERR = @('--warnings-as-errors') }
 Write-Host "stage${STAGE}: compiling runtime/lib/RuntimeWindows.fly (codegen gnu, link mingw) ...$(if ($DBG) { ' (+debug-symbols)' })"
 # DIRECTORY CLI: --lib compiles the whole --src-dir; stage the one runtime
 # source into the temp dir so exactly that file is the library (its
 # same-namespace siblings RuntimeLinux/RuntimeMacos must stay out).
 Copy-Item runtime/lib/RuntimeWindows.fly "$T/RuntimeWindows.fly" -Force
-& $FLY --lib @DBG @FLY_TARGET_ARGS -o "$T/fly_runtime_lib" -L $LIB --src-dir $T
+& $FLY --lib @DBG @WERR @FLY_TARGET_ARGS -o "$T/fly_runtime_lib" -L $LIB --src-dir $T
 Assert-LastExit 'runtime --lib build'
 # stage0 --lib emits a `.a`/`.lib` ARCHIVE; the self-host emits ONE merged OBJECT
 # (`fly_runtime_lib`, no extension). Both go to `fly_runtime_lib.lib` — ld.lld links
@@ -116,7 +115,7 @@ Remove-Item $T2 -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $T2 | Out-Null
 Write-Host "stage${STAGE}: compiling runtime/lib/TlsStub.fly ..."
 Copy-Item runtime/lib/TlsStub.fly "$T2/TlsStub.fly" -Force
-& $FLY --lib @DBG @FLY_TARGET_ARGS -o "$T2/fly_tls_stub" -L $LIB --src-dir $T2
+& $FLY --lib @DBG @WERR @FLY_TARGET_ARGS -o "$T2/fly_tls_stub" -L $LIB --src-dir $T2
 Assert-LastExit 'tls stub --lib build'
 $emittedTls = @("$T2/fly_tls_stub.lib", "$T2/fly_tls_stub.a", "$T2/fly_tls_stub") | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $emittedTls) { Write-Host "error: tls stub library not emitted."; exit 1 }
@@ -145,7 +144,7 @@ Remove-Item $T2 -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $T2 | Out-Null
 Write-Host "stage${STAGE}: compiling runtime/lib/TlsSchannel.fly (real backend, --tls only) ..."
 Copy-Item runtime/lib/TlsSchannel.fly "$T2/TlsSchannel.fly" -Force
-& $FLY --lib @DBG @FLY_TARGET_ARGS -o "$T2/fly_tls_lib" -L $LIB --src-dir $T2
+& $FLY --lib @DBG @WERR @FLY_TARGET_ARGS -o "$T2/fly_tls_lib" -L $LIB --src-dir $T2
 Assert-LastExit 'tls backend --lib build'
 $emittedReal = @("$T2/fly_tls_lib.lib", "$T2/fly_tls_lib.a", "$T2/fly_tls_lib") | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $emittedReal) { Write-Host "error: tls backend library not emitted."; exit 1 }

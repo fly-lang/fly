@@ -334,7 +334,8 @@ public class RegistryHandler {
             return new RegResponse(400, "text/plain", "body is not a gzip archive")
         }
         int ge = 0
-        string tarBytes = targz.gunzip(body, ge)
+        // decompressed only to check the member is whole; the gzip is what is stored
+        string _tarBytes = targz.gunzip(body, ge)
         if ge != 0 {
             return new RegResponse(400, "text/plain", "corrupt gzip payload")
         }
@@ -396,9 +397,9 @@ public class RegistryHandler {
 
     // ── dispatch ─────────────────────────────────────────────────────────────
 
-    // handle — route one parsed request. `authHeader` is the Authorization
+    // route — route one parsed request (`handle` is a reserved word). `authHeader` is the Authorization
     // header value ("" when absent).
-    public RegResponse handle(const string method, const string path, const string query,
+    public RegResponse route(const string method, const string path, const string query,
                               const string authHeader, const string body) {
         // GET /v1/search?q=…
         if str.equals(method, "GET") {

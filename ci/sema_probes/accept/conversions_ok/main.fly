@@ -1,0 +1,38 @@
+// Conversions that stay implicit: widening, literals that fit, unsigned into a
+// wider signed type, `pointer` arithmetic, a variable as an out argument, a
+// comparison the signed type can hold exactly, and any explicit cast.
+void fill(long out) {
+    out = 64
+}
+
+void take(const byte b, const uint u, const ulong z) {
+}
+
+void main() {
+    int i = 5
+    long l = i
+    double d = i
+    uint u = 7
+    long lu = u
+    take(200, 0, 4096)
+    pointer p = 100
+    long back = -8
+    pointer q = p + back
+    pointer got = 0
+    fill(got)
+    if l != 5 || d < 4.0 || lu != 7 || q != 92 || got != 64 {
+        fail 1, "implicit conversions"
+    }
+    long neg = -1
+    if neg >= u {
+        fail 2, "long holds every uint value: the comparison is exact"
+    }
+    int m = -1
+    if m >= (int)u {
+        fail 3, "an explicit cast picks the comparison"
+    }
+    ulong size = (ulong)i
+    if size != 5 {
+        fail 4, "explicit cast"
+    }
+}

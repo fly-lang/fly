@@ -16,6 +16,7 @@
 #   accept/<name>/main.fly    must compile, link and exit 0 - the edge cases a
 #                             check must keep allowing (a literal that fits, a
 #                             shadowing declaration, an overload that differs).
+#   warn/<name>/main.fly      must compile with the warnings its expect.txt lists.
 #
 # A reject probe fails three ways, and they are told apart on purpose:
 #   ACCEPTED   the compiler took the program - the check is gone;
@@ -66,7 +67,9 @@ done
 # be a recorded decision, not an accident. A probe the seed is known to accept
 # carries a seed-accepts.txt saying why; anything else must be refused by both.
 # A seed that starts accepting or refusing something else fails here, which is
-# exactly the moment a seed re-cut changed the language.
+# exactly the moment a seed re-cut changed the language. Since 0.15 the seed is
+# the previous self-host release, which enforces every rule: no probe carries a
+# seed-accepts.txt (those recorded where the C++ seed was more permissive).
 SEED="build/stage0/bin/fly"
 SEEDLIB="build/stage1/lib"
 if [ -x "$SEED" ] && [ -d "$SEEDLIB" ]; then
@@ -113,6 +116,55 @@ for probe in ci/sema_probes/accept/*/; do
     fi
 done
 
+# warn/<name>/main.fly must compile, link and exit 0, and its compile log must
+# hold every line of expect.txt; a line starting with '!' must NOT appear (the
+# cases a warning must stay quiet about). Warnings never stop a build, so like a
+# missing check, a missing warning is invisible to every suite.
+for probe in ci/sema_probes/warn/*/; do
+    [ -d "$probe" ] || continue
+    name="$(basename "$probe")"
+    count=$((count + 1))
+    dir="$OUT/warn_$name"
+    mkdir -p "$dir"
+    rm -f "$dir/$name"
+    "$FLY" --src-dir "$probe" -o "$name" --out-dir "$dir" > "$dir/compile.log" 2>&1
+    if [ $? -ne 0 ] || [ ! -x "$dir/$name" ]; then
+        echo "  FAIL  warn/$name - REJECTED (a warning must not stop the build)"
+        head -n 5 "$dir/compile.log" | sed 's/^/        /'
+        failed=$((failed + 1)); continue
+    fi
+    bad=""
+    while IFS= read -r line || [ -n "$line" ]; do
+        line="${line%$'\r'}"
+        [ -z "$line" ] && continue
+        case "$line" in
+            '!'*)
+                if grep -qF -- "${line#!}" "$dir/compile.log"; then bad="unexpected: ${line#!}"; break; fi ;;
+            *)
+                if ! grep -qF -- "$line" "$dir/compile.log"; then bad="missing: $line"; break; fi ;;
+        esac
+    done < "$probe/expect.txt"
+    if [ -n "$bad" ]; then
+        echo "  FAIL  warn/$name - $bad"; failed=$((failed + 1))
+    else
+        echo "  ok    warn/$name"
+    fi
+done
+# Seed-compiled sources: std/lib, std/test, runtime/lib and compiler/lib are
+# compiled by the seed (string literals RAW) as well as by the self-host (escapes
+# decoded, from 0.15). A literal holding a backslash, or a raw literal between
+# three double quotes, would mean one thing to each, and nothing else would
+# notice: the stage 3 fixpoint compares two self-host builds. Build such bytes
+# from their value instead (Escapes.byteString, mem.writeByte).
+count=$((count + 1))
+seedlit="$(grep -rnE '^[^/]*("[^"]*[\]|""")' --include='*.fly' std/lib std/test runtime/lib compiler/lib || true)"
+if [ -n "$seedlit" ]; then
+    echo "  FAIL  seed-literals - a literal the seed reads differently:"
+    echo "$seedlit" | head -n 5 | sed 's/^/        /'
+    failed=$((failed + 1))
+else
+    echo "  ok    seed-literals"
+fi
 if [ "$failed" -gt 0 ]; then echo "test_sema: $failed of $count probe(s) failed"; exit 1; fi
 echo "test_sema: all $count probes behave as specified"
 exit 0

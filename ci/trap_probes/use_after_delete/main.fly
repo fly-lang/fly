@@ -1,0 +1,20 @@
+public class Box {
+
+    int v
+
+    public Box() {
+        this.v = 1
+    }
+
+    public int size() {
+        return this.v
+    }
+}
+
+// After `delete b` the variable is null, so a later use stops on the null trap
+// instead of reading freed memory.
+void main() {
+    Box b = new Box()
+    delete b
+    int n = b.size()
+}

@@ -38,6 +38,9 @@ public class FrontendOptions {
                          // self-host builds DiagnosticOptions inside Frontend, so
                          // FrontendOptions is the carrier.
     string logFormat     // (--log-format) "txt" | "json", default txt
+    bool noWarnings      // -w: no warning is reported
+    bool warningsAsErrors // --warnings-as-errors: a warning fails the build
+    string disabledWarnings // --no-warn=<name>, ";a;b;"
 
     public FrontendOptions(const string outputFile) {
         this.inputFiles = ";"
@@ -61,6 +64,9 @@ public class FrontendOptions {
         this.statsFile = ""
         this.logFile = ""
         this.logFormat = "txt"
+        this.noWarnings = false
+        this.warningsAsErrors = false
+        this.disabledWarnings = ";"
     }
 
     public string getOutputFile() {
@@ -176,6 +182,30 @@ public class FrontendOptions {
     }
     public void setLogFormat(const string f) {
         this.logFormat = f
+    }
+
+    public bool getNoWarnings() {
+        return this.noWarnings
+    }
+
+    public void setNoWarnings(const bool v) {
+        this.noWarnings = v
+    }
+
+    public bool getWarningsAsErrors() {
+        return this.warningsAsErrors
+    }
+
+    public void setWarningsAsErrors(const bool v) {
+        this.warningsAsErrors = v
+    }
+
+    public string getDisabledWarnings() {
+        return this.disabledWarnings
+    }
+
+    public void setDisabledWarnings(const string v) {
+        this.disabledWarnings = v
     }
 
     // ── LibDirs (-L) ──

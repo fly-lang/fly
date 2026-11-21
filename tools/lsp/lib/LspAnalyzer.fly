@@ -283,7 +283,7 @@ public class LspAnalyzer {
         Duration d = time.diff(start, time.monotonic())
         long ms = d.nsec / 1000000
         io.printErrLn(str.concat("[lsp-timing] ", str.concat(name,
-                      str.concat(" ", str.concat(str.convert(ms), " ms")))))
+                      str.concat(" ", str.concat(str.convertL(ms), " ms")))))
     }
 
     // compileFile — parse + sema `file`, returning every diagnostic. An empty

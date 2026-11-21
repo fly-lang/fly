@@ -1,3 +1,5 @@
+namespace fly.registry
+
 import fly.str
 import fly.mem
 import fly.llvm
@@ -43,7 +45,7 @@ string argAt(const fly.os.env.StringArray args, const int i) {
         return ""
     }
     pointer buf = 0
-    fly.runtime.mem_alloc(len, buf)
+    fly.runtime.mem_alloc((ulong)len, buf)
     mem.copy(buf, ptr, len)
     string s = str.fromBytes(buf, len)
     return s
@@ -207,7 +209,7 @@ void main() {
                 string query = http.query(raw)
                 string authHdr = http.header(raw, "Authorization")
                 string body = http.body(raw)
-                RegResponse resp = handler.handle(method, path, query, authHdr, body)
+                RegResponse resp = handler.route(method, path, query, authHdr, body)
                 net.sendStr(client, resp.toHttp())
             }
             net.shutdownWrite(client)

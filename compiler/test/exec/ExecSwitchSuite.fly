@@ -2,13 +2,13 @@ import fly.assert
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ExecSwitchSuite — EXECUTED switch/case semantics (bug-hunt Phase 1).
-// B021 and B023 are FIXED: braced case bodies lower (nested-block adoption in
-// the Resolver) and an open case body falls through C-style to the next body
-// (doc 9.4, aligned with the reference after its B024 fix) — the 2xx/6xx cases
-// below are the regression pins. STAGE=0 needs the re-cut seed (the pinned one
-// cannot parse this switch form).
+// B021 is FIXED: braced case bodies lower (nested-block adoption in the
+// Resolver; the 6xx cases pin it). From 0.15 no case falls into the next one
+// (it did up to 0.14, C-style: doc 9.4, B023/B024) and `case 3, 4:` lists
+// several values; an empty case is rejected (ci/sema_probes/reject/empty_case).
+// STAGE=0 needs the re-cut seed (the pinned one cannot parse this switch form).
 //
-// Assert codes: 1xx dispatch, 2xx fallthrough, 3xx stacked/empty cases,
+// Assert codes: 1xx dispatch, 2xx no fall-through, 3xx value lists,
 // 4xx default, 5xx interactions, 6xx braced bodies.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -42,7 +42,7 @@ suite ExecSwitchSuite {
     }
 
     void fallthroughTest() {
-        case "case without break falls through to the next body": {
+        case "a case without break does not fall into the next": {
             int hits = 0
             int v = 1
             switch v {
@@ -50,14 +50,12 @@ suite ExecSwitchSuite {
                     hits = hits + 1
                 case 2:
                     hits = hits + 10
-                    break
                 case 3:
                     hits = hits + 100
-                    break
             }
-            assert.assertEqI(hits, 11, 201)              // doc 9.4: C fallthrough
+            assert.assertEqI(hits, 1, 201)               // from 0.15: no fall-through
         }
-        case "last open case falls into default": {
+        case "the last case does not fall into default": {
             int hits = 0
             int v = 3
             switch v {
@@ -66,38 +64,58 @@ suite ExecSwitchSuite {
                 default:
                     hits = hits + 10
             }
-            assert.assertEqI(hits, 11, 211)
+            assert.assertEqI(hits, 1, 211)
+        }
+        case "break still leaves a case early": {
+            int hits = 0
+            int v = 2
+            switch v {
+                case 2:
+                    hits = hits + 1
+                    if hits == 1 {
+                        break
+                    }
+                    hits = hits + 10
+                default:
+                    hits = hits + 100
+            }
+            assert.assertEqI(hits, 1, 221)
         }
     }
 
     void stackedCasesTest() {
-        case "stacked empty cases share the body": {
+        case "one case lists several values": {
             int r = 0
             int v = 3
             switch v {
-                case 3:
-                case 4:
+                case 3, 4:
                     r = 34
-                    break
                 case 5:
                     r = 5
-                    break
             }
             assert.assertEqI(r, 34, 301)
         }
-        case "second of the stacked labels matches too": {
+        case "every value of the list matches": {
             int r = 0
             int v = 4
             switch v {
-                case 3:
-                case 4:
+                case 2, 3, 4:
                     r = 34
-                    break
                 default:
                     r = 9
-                    break
             }
             assert.assertEqI(r, 34, 311)
+        }
+        case "a value outside the list goes to default": {
+            int r = 0
+            int v = 6
+            switch v {
+                case 3, 4:
+                    r = 34
+                default:
+                    r = 9
+            }
+            assert.assertEqI(r, 9, 321)
         }
     }
 

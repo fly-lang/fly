@@ -327,7 +327,7 @@ public string format(Time t, const string pattern) {
     fly.llvm.strSize(pattern, plen)
     // sized from the pattern: the fixed 128 bytes overflowed on a long one
     pointer buf = 0
-    fly.runtime.mem_alloc(plen * 8 + 32, buf)
+    fly.runtime.mem_alloc((ulong)(plen * 8 + 32), buf)
     int bpos = 0
     int bpos2 = 0
     int pi = 0
@@ -454,7 +454,7 @@ public string formatSec(const long sec, const string pattern) {
     fly.llvm.strSize(pattern, plen)
     // sized from the pattern: the fixed 128 bytes overflowed on a long one
     pointer buf = 0
-    fly.runtime.mem_alloc(plen * 8 + 32, buf)
+    fly.runtime.mem_alloc((ulong)(plen * 8 + 32), buf)
     int bpos = 0
     int bpos2 = 0
     int pi = 0

@@ -1,0 +1,133 @@
+namespace fly.compiler.sema
+
+import fly.compiler.ast.ASTName
+import fly.compiler.sema.SemaImport
+import fly.data.List
+import fly.data.Map
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SourceIdentifiers — the identifiers a source file writes, for the
+// unused-import warning (Resolver.warnUnusedImports). A plain scan of the text:
+// comments, string and character literals, and the `import` / `namespace` lines
+// are skipped, so a name counts only where code uses it.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// sourceIdentifiers — every identifier of `src` outside comments, literals and
+// the import/namespace lines, as the keys of a map.
+public Map<string, bool> sourceIdentifiers(const string src) {
+    Map<string, bool> ids = new Map<string, bool>()
+    int n = str.len(src)
+    int i = 0
+    bool lineStart = true
+    while i < n {
+        int c = str.byteAt(src, i) & 255
+        if lineStart {
+            // a line that is an import or the namespace declaration names the
+            // imports themselves: skip it whole
+            int j = i
+            while j < n && isBlank(str.byteAt(src, j) & 255) {
+                j = j + 1
+            }
+            if startsWord(src, j, "import") || startsWord(src, j, "namespace") {
+                while i < n && (str.byteAt(src, i) & 255) != 10 {
+                    i = i + 1
+                }
+                continue
+            }
+            lineStart = false
+        }
+        if c == 10 {
+            lineStart = true
+            i = i + 1
+        } elsif c == 47 && i + 1 < n && (str.byteAt(src, i + 1) & 255) == 47 {
+            // `//` comment: to the end of the line
+            while i < n && (str.byteAt(src, i) & 255) != 10 {
+                i = i + 1
+            }
+        } elsif c == 47 && i + 1 < n && (str.byteAt(src, i + 1) & 255) == 42 {
+            // `/* */` comment
+            i = i + 2
+            while i + 1 < n && ((str.byteAt(src, i) & 255) != 42 || (str.byteAt(src, i + 1) & 255) != 47) {
+                i = i + 1
+            }
+            i = i + 2
+        } elsif c == 34 || c == 39 {
+            // string or character literal (escapes are raw: it ends at the next quote)
+            i = i + 1
+            while i < n && (str.byteAt(src, i) & 255) != c && (str.byteAt(src, i) & 255) != 10 {
+                i = i + 1
+            }
+            i = i + 1
+        } elsif isIdentStart(c) {
+            int s = i
+            while i < n && isIdentPart(str.byteAt(src, i) & 255) {
+                i = i + 1
+            }
+            ids.put(str.substring(src, s, i), true)
+        } else {
+            i = i + 1
+        }
+    }
+    return ids
+}
+
+// importDisplayName — the dotted path of an import as written (`fly.str`,
+// `fly.str.*`), for its diagnostic.
+public string importDisplayName(const SemaImport imp) {
+    List<ASTName> names = imp.getNames()
+    string res = ""
+    int i = 0
+    while i < names.size() {
+        ASTName nm = names.get(i)
+        if i > 0 {
+            res = str.concat(res, ".")
+        }
+        res = str.concat(res, nm.getName())
+        i = i + 1
+    }
+    if imp.isWildcard() {
+        res = str.concat(res, ".*")
+    }
+    return res
+}
+
+bool isBlank(const int c) {
+    return c == 32 || c == 9 || c == 13
+}
+
+bool isIdentStart(const int c) {
+    return (c >= 97 && c <= 122) || (c >= 65 && c <= 90) || c == 95
+}
+
+bool isIdentPart(const int c) {
+    return isIdentStart(c) || (c >= 48 && c <= 57)
+}
+
+// startsWord — does `src` hold the keyword `w` at `at`, followed by a non-identifier byte?
+bool startsWord(const string src, const int at, const string w) {
+    int n = str.len(src)
+    int wl = str.len(w)
+    if at + wl > n {
+        return false
+    }
+    if str.equals(str.substring(src, at, at + wl), w) == false {
+        return false
+    }
+    if at + wl == n {
+        return true
+    }
+    return isIdentPart(str.byteAt(src, at + wl) & 255) == false
+}
+
+// listHasName — is `name` one of `names`?
+public bool listHasName(const List<string> names, const string name) {
+    int i = 0
+    while i < names.size() {
+        if str.equals(names.get(i), name) {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}

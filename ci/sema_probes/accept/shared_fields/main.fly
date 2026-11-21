@@ -1,0 +1,52 @@
+public class Res {
+
+    public static int freed
+
+    public Res() {
+    }
+
+    public void free() {
+        Res.freed = Res.freed + 1
+    }
+}
+
+public class Box {
+
+    Res held
+
+    public Box() {
+        Res h = new shared Res()
+        this.held = h
+    }
+
+    public void put() {
+        Res x = new shared Res()
+        this.held = x
+    }
+
+    public Res take() {
+        Res c = this.held
+        return c
+    }
+}
+
+// A holding field (filled with `new shared` or a holder) counts as a holder:
+// reassigning it releases what it held, a copy out of it counts (and a method
+// returning that copy hands the count to its caller), and destroying the object
+// releases it — so the shared object outlives the box while someone else holds it.
+void main() {
+    Box a = new unique Box()
+    Res keep = a.take()
+    a.put()
+    if Res.freed != 0 {
+        fail 1, "the first object is still held by keep"
+    }
+    delete a
+    if Res.freed != 1 {
+        fail 2, "deleting the box releases its field: the second object had no other holder"
+    }
+    keep = null
+    if Res.freed != 2 {
+        fail 3, "the last holder of the first object releases it"
+    }
+}

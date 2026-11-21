@@ -1,5 +1,6 @@
 namespace fly.compiler.basic
 import fly.compiler.basic.*
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DiagnosticIDs — diagnostic identifiers, their default class/level and message
@@ -36,6 +37,7 @@ public enum DiagClass {
 public enum DiagID {
     err_parser_syntax_error,
     err_parser_identifier_expected,
+    err_parser_reserved_name,
     err_parser_ternary_expr,
     err_parser_expr_close_paren,
     err_parser_expr_expected_primary,
@@ -108,7 +110,22 @@ public enum DiagID {
     err_sema_unreachable_code,
     err_sema_condition_not_bool,
     err_sema_duplicate_function,
-    warn_header_private_shipped
+    err_sema_delete_target,
+    err_sema_unique_move,
+    err_sema_shared_ref,
+    err_sema_weak_ref,
+    err_sema_privileged_call,
+    warn_header_private_shipped,
+    warn_sema_unused_variable,
+    warn_sema_shadow,
+    err_parser_mixed_operators,
+    err_parser_comparison_operand,
+    err_sema_empty_case,
+    err_sema_sign_compare,
+    warn_sema_unused_import,
+    warn_sema_lossy_conversion,
+    warn_sema_non_exhaustive_switch,
+    err_parser_bad_escape
 }
 
 // getDiagClass — the class column for a diagnostic id.
@@ -117,6 +134,21 @@ public DiagClass getDiagClass(const DiagID id) {
         return DiagClass.CLASS_ERROR
     }
     if id == DiagID.warn_header_private_shipped {
+        return DiagClass.CLASS_WARNING
+    }
+    if id == DiagID.warn_sema_unused_variable {
+        return DiagClass.CLASS_WARNING
+    }
+    if id == DiagID.warn_sema_shadow {
+        return DiagClass.CLASS_WARNING
+    }
+    if id == DiagID.warn_sema_unused_import {
+        return DiagClass.CLASS_WARNING
+    }
+    if id == DiagID.warn_sema_lossy_conversion {
+        return DiagClass.CLASS_WARNING
+    }
+    if id == DiagID.warn_sema_non_exhaustive_switch {
         return DiagClass.CLASS_WARNING
     }
     // every other id in this subset is a hard error
@@ -168,11 +200,29 @@ public string getDescription(const DiagID id) {
     if id == DiagID.err_parser_syntax_error {
         return "unexpected token; cannot determine what statement or declaration this begins"
     }
+    if id == DiagID.err_parser_reserved_name {
+        return "'%0' is a reserved word and cannot be used as a name"
+    }
     if id == DiagID.err_parser_identifier_expected {
         return "expected an identifier here"
     }
+    if id == DiagID.err_parser_bad_escape {
+        return "invalid escape sequence '%0' in a string literal: a backslash takes n, t, r, 0, a backslash, a quote, an apostrophe, xHH (two hex digits) or u{H} (a code point up to 10FFFF); a raw literal between three double quotes keeps backslashes as written"
+    }
     if id == DiagID.err_parser_ternary_expr {
         return "expected ':' in ternary expression"
+    }
+    if id == DiagID.err_sema_sign_compare {
+        return "comparing a signed '%0' with an unsigned '%1' is done in '%1', where a negative value reads as a huge one: cast one side"
+    }
+    if id == DiagID.err_sema_empty_case {
+        return "a case with no statements: cases do not fall into the next one; list the values together (case 3, 4:), or write break for a case that does nothing"
+    }
+    if id == DiagID.err_parser_mixed_operators {
+        return "'%0' and '%1' share one precedence level in Fly and apply left to right: add parentheses to say which comes first"
+    }
+    if id == DiagID.err_parser_comparison_operand {
+        return "'%0' binds looser than the comparison '%1' in Fly ('a & b == c' means 'a & (b == c)'): add parentheses"
     }
     if id == DiagID.err_parser_expr_close_paren {
         return "missing ')' to close the sub-expression"
@@ -282,6 +332,21 @@ public string getDescription(const DiagID id) {
     if id == DiagID.warn_header_private_shipped {
         return "private '%0' is shipped as readable source in '%1' because a generic template in this module uses it"
     }
+    if id == DiagID.warn_sema_unused_variable {
+        return "unused variable '%0'"
+    }
+    if id == DiagID.warn_sema_shadow {
+        return "'%0' shadows the %1 of the same name declared in an enclosing scope"
+    }
+    if id == DiagID.warn_sema_unused_import {
+        return "unused import '%0': no name of it is used in this file"
+    }
+    if id == DiagID.warn_sema_lossy_conversion {
+        return "'%0' to '%1' may round: the value can have more digits than '%1' holds (write '(%1)expr' if that is intended)"
+    }
+    if id == DiagID.warn_sema_non_exhaustive_switch {
+        return "switch over '%0' has no default and does not handle: %1"
+    }
     if id == DiagID.err_sema_bad_type_args {
         return "invalid type arguments for '%0': wrong argument count, not a generic type, or unresolved argument"
     }
@@ -384,8 +449,67 @@ public string getDescription(const DiagID id) {
     if id == DiagID.err_sema_condition_not_bool {
         return "a condition must be 'bool', not '%0'; compare explicitly (e.g. 'x != 0')"
     }
+    if id == DiagID.err_sema_privileged_call {
+        return "'%0' can only be called from the standard library (namespace fly.*): use fly.mem or a std function"
+    }
+    if id == DiagID.err_sema_weak_ref {
+        return "'weak': %0"
+    }
+    if id == DiagID.err_sema_shared_ref {
+        return "'new shared': %0"
+    }
+    if id == DiagID.err_sema_unique_move {
+        return "'new unique': %0"
+    }
+    if id == DiagID.err_sema_delete_target {
+        return "'delete' frees an object: %0"
+    }
     if id == DiagID.err_sema_duplicate_function {
         return "'%0' is already defined in this file with the same parameter types; overloads must differ in their parameters"
     }
     return "unknown diagnostic"
+}
+
+// warningName — the name a warning is switched off by (`--no-warn=<name>`), shown
+// after its message as "[<name>]"; "" for an id that is not a warning.
+public string warningName(const DiagID id) {
+    if id == DiagID.warn_sema_unused_variable {
+        return "unused-variable"
+    }
+    if id == DiagID.warn_sema_shadow {
+        return "shadow"
+    }
+    if id == DiagID.warn_sema_unused_import {
+        return "unused-import"
+    }
+    if id == DiagID.warn_sema_lossy_conversion {
+        return "lossy-conversion"
+    }
+    if id == DiagID.warn_sema_non_exhaustive_switch {
+        return "non-exhaustive-switch"
+    }
+    if id == DiagID.warn_header_private_shipped {
+        return "header-private"
+    }
+    return ""
+}
+
+// isWarningName — is `name` one of the warnings `--no-warn=` accepts?
+public bool isWarningName(const string name) {
+    if str.equals(name, "unused-variable") {
+        return true
+    }
+    if str.equals(name, "shadow") {
+        return true
+    }
+    if str.equals(name, "unused-import") {
+        return true
+    }
+    if str.equals(name, "lossy-conversion") {
+        return true
+    }
+    if str.equals(name, "non-exhaustive-switch") {
+        return true
+    }
+    return str.equals(name, "header-private")
 }

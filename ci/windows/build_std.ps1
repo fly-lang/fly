@@ -5,17 +5,17 @@
 # fly.runtime / fly.llvm). Output: fly_std_lib.lib + one .fly.h per module.
 #
 # Who compiles it:
-#   STAGE=1                      the SEED. This build only serves to link the
-#                                stage-1 compiler, which the seed also compiles.
+#   STAGE=1                      the SEED (a self-host release since 0.15). This
+#                                build only serves to link the stage-1 compiler,
+#                                which the seed also compiles.
 #   STAGE=1 FLY_STD_BUILDER=self the stage-1 fly, right after link_fly: it
 #                                replaces the seed's std in build\stage1\lib, so
-#                                the stage-1 suites and stage 2 use a std laid
-#                                out the way the self-host lays out classes.
+#                                the stage-1 suites and stage 2 use a std built
+#                                by the compiler of THIS tree.
 #   STAGE=2                      the stage-1 fly, like every stage-2 artifact.
 #                                This is the std that ships.
-# The std used to ship as the seed's build, because the self-host could not
-# dispatch an interface call across separately compiled objects; per-class
-# itables (CodeGenClass.buildVTable) removed that limit.
+# Every builder is a self-host compiler, so the invocation is the same; only
+# the binary differs.
 # -----------------------------------------------------------------------------
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
@@ -63,17 +63,16 @@ $STD = 'std/lib'
 
 # DIRECTORY CLI: --lib compiles the whole --src-dir - std/lib IS the library.
 $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
+# A warning in the tree's own code fails the build when the self-host compiles it
+# (the seed predates --warnings-as-errors).
+$WERR = @(); if (-not $bySeed) { $WERR = @('--warnings-as-errors') }
 Write-Host "stage${STAGE}: compiling std/lib with $who (codegen gnu, link mingw) ...$(if ($DBG) { ' (+debug-symbols)' })"
-if ($bySeed) {
-    & $FLY --lib @DBG @FLY_TARGET_ARGS -o "$T/fly_std_lib" --src-dir $STD
-} else {
-    # --out-dir is required: without it the self-host writes each module's
-    # `.fly.h` next to its source, inside std/lib.
-    & $FLY --lib @DBG @FLY_TARGET_ARGS -o fly_std_lib --out-dir $T --src-dir $STD
-}
+# --out-dir is required: without it the self-host writes each module's
+# `.fly.h` next to its source, inside std/lib.
+& $FLY --lib @DBG @WERR @FLY_TARGET_ARGS -o fly_std_lib --out-dir $T --src-dir $STD
 Assert-LastExit 'std --lib build'
-# The seed emits an archive (.lib / .a); the self-host one merged object. The
-# linker reads either by content, so both are kept under the `.lib` name.
+# The self-host emits one merged object; the linker reads it by content, so it
+# is kept under the `.lib` name.
 $emitted = @("$T/fly_std_lib.lib", "$T/fly_std_lib.a", "$T/fly_std_lib") | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $emitted) { Write-Host "error: std library not emitted."; exit 1 }
 Move-Item $emitted "$LIB/fly_std_lib.lib" -Force

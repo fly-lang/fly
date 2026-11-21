@@ -38,9 +38,9 @@ suite CodeGenExprSuite {
                 int d(const int a, const int b) { return a / b }
                 int r(const int a, const int b) { return a % b }
             ")
-            assert.assertTrue(str.contains(ir, "add i32"), 11)
-            assert.assertTrue(str.contains(ir, "sub i32"), 12)
-            assert.assertTrue(str.contains(ir, "mul i32"), 13)
+            assert.assertTrue(str.contains(ir, "llvm.sadd.with.overflow.i32"), 11)
+            assert.assertTrue(str.contains(ir, "llvm.ssub.with.overflow.i32"), 12)
+            assert.assertTrue(str.contains(ir, "llvm.smul.with.overflow.i32"), 13)
             assert.assertTrue(str.contains(ir, "sdiv i32"), 14)
             assert.assertTrue(str.contains(ir, "srem i32"), 15)
         }

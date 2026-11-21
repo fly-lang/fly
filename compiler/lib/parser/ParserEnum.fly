@@ -35,7 +35,7 @@ public class ParserEnum {
         while go {
             if p.curIsNamePart() {
                 SourceLocation eloc = p.curLoc()
-                ASTEnumEntry entry = ASTBuilder.CreateEnumEntry(eloc, e, p.curText(), noMods)
+                ASTEnumEntry _entry = ASTBuilder.CreateEnumEntry(eloc, e, p.curText(), noMods)
                 p.bump()
                 if p.curIsPunct(",") {
                     p.bump()

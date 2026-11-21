@@ -252,7 +252,7 @@ public void dir_open(const pointer path, pointer out) {
     }
     pointer ctx = 0
     fly.runtime.mem_alloc(16, ctx)
-    fly.llvm.ptrPokeLong(ctx, 0, d)
+    fly.llvm.ptrPokeLong(ctx, 0, (long)d)
     fly.llvm.ptrPokeLong(ctx, 8, 0)
     out = ctx
 }
@@ -310,7 +310,7 @@ public void dir_read(const pointer ctx, const pointer buf, const ulong size, int
             }
         }
     }
-    fly.llvm.ptrPokeLong(ctx, 8, ent)
+    fly.llvm.ptrPokeLong(ctx, 8, (long)ent)
     out = pos
 }
 
@@ -459,7 +459,7 @@ private void toCStr(const string s, pointer out) {
     pointer src = 0
     fly.llvm.strGetPtr(s, src)
     pointer buf = 0
-    fly.runtime.malloc(n + 1, buf)
+    fly.runtime.malloc((ulong)(n + 1), buf)
     int i = 0
     while i < n {
         byte b = 0
@@ -672,7 +672,7 @@ public void env_all_fill(const pointer arr_base, const int count) {
 }
 // env_init — accessors need no stored state; kept as a defined no-op.
 public void env_init(const int argc, const pointer argv) {
-    int unused = argc
+    int _unused = argc
 }
 
 // fillSlotFromCStr — copy the NUL-terminated C string `cstr` into a fresh malloc'd
@@ -1172,26 +1172,28 @@ public void net_connect(const long s, const int addr, const int port, int out) {
 }
 
 public void net_send(const long s, const pointer buf, const int n, long out) {
-    if s < 0 {
+    // a negative length would reach the OS as an enormous size_t
+    if s < 0 || n < 0 {
         out = 0 - 1
         return
     }
     int fd = 0
     fly.llvm.longToInt(s, fd)
     long sent = 0
-    fly.runtime.send(fd, buf, n, 0, sent)           // SIGPIPE handled by SO_NOSIGPIPE
+    fly.runtime.send(fd, buf, (ulong)n, 0, sent)           // SIGPIPE handled by SO_NOSIGPIPE
     out = sent
 }
 
 public void net_recv(const long s, const pointer buf, const int n, long out) {
-    if s < 0 {
+    // a negative length would reach the OS as an enormous size_t
+    if s < 0 || n < 0 {
         out = 0 - 1
         return
     }
     int fd = 0
     fly.llvm.longToInt(s, fd)
     long got = 0
-    fly.runtime.recv(fd, buf, n, 0, got)
+    fly.runtime.recv(fd, buf, (ulong)n, 0, got)
     out = got
 }
 
@@ -1258,7 +1260,8 @@ public void net_socket_udp(long out) {
 // error. A datagram is sent whole or not at all: there is no short write to loop
 // over, unlike the TCP path.
 public void net_send_to(const long s, const pointer buf, const int n, const int addr, const int port, long out) {
-    if s < 0 {
+    // a negative length would reach the OS as an enormous size_t
+    if s < 0 || n < 0 {
         out = 0 - 1
         return
     }
@@ -1280,7 +1283,7 @@ public void net_send_to(const long s, const pointer buf, const int n, const int 
     fly.llvm.ptrPokeByte(sa, 6, (byte)((addr >> 8) & 255))
     fly.llvm.ptrPokeByte(sa, 7, (byte)(addr & 255))
     long sent = 0
-    fly.runtime.sendto(fd, buf, n, 0, sa, 16, sent)         // SIGPIPE via SO_NOSIGPIPE
+    fly.runtime.sendto(fd, buf, (ulong)n, 0, sa, 16, sent)         // SIGPIPE via SO_NOSIGPIPE
     fly.runtime.free(sa)
     out = sent
 }
@@ -1292,7 +1295,8 @@ public void net_send_to(const long s, const pointer buf, const int n, const int 
 // A datagram longer than n is TRUNCATED and the remainder discarded — that is
 // UDP semantics, not a bug to work around.
 public void net_recv_from(const long s, const pointer buf, const int n, const pointer from, long out) {
-    if s < 0 {
+    // a negative length would reach the OS as an enormous size_t
+    if s < 0 || n < 0 {
         out = 0 - 1
         return
     }
@@ -1304,7 +1308,7 @@ public void net_recv_from(const long s, const pointer buf, const int n, const po
     fly.runtime.malloc(4, alen)
     fly.llvm.ptrPokeInt(alen, 0, 16)
     long got = 0
-    fly.runtime.recvfrom(fd, buf, n, 0, sa, alen, got)
+    fly.runtime.recvfrom(fd, buf, (ulong)n, 0, sa, alen, got)
     if got < 0 {
         fly.runtime.free(sa)
         fly.runtime.free(alen)
@@ -1372,7 +1376,7 @@ public void net_poll(const pointer entries, const int count, const int timeoutMs
         return
     }
     pointer fds = 0
-    fly.runtime.malloc(count * 8, fds)
+    fly.runtime.malloc((ulong)(count * 8), fds)
     int i = 0
     while i < count {
         long sv = 0
@@ -1641,7 +1645,7 @@ public void net_resolve4(const pointer host, int out) {
 // ── Fly string-array slot helpers ────────────────────────────────────────────
 public void str_slot_set(const pointer arr_base, const int idx, const pointer ptr, const int size) {
     int off = idx * 16
-    fly.llvm.ptrPokeLong(arr_base, off, ptr)
+    fly.llvm.ptrPokeLong(arr_base, off, (long)ptr)
     fly.llvm.ptrPokeInt(arr_base, off + 8, size)
     fly.llvm.ptrPokeInt(arr_base, off + 12, 0)
 }
@@ -1732,7 +1736,7 @@ private void wrDec(const int fd, const int v) {
     } else {
         while t > 0 {
             int d = t - (t / 10) * 10
-            fly.llvm.ptrPokeByte(buf, i, 48 + d)
+            fly.llvm.ptrPokeByte(buf, i, (byte)(48 + d))
             i = i - 1
             t = t / 10
         }

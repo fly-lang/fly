@@ -66,7 +66,7 @@ public class Tree<K, V> {
                     fly.llvm.slotPokeT(node, valOff, val)
                     fly.llvm.ptrPokeLong(node, leftOff, 0)
                     fly.llvm.ptrPokeLong(node, rightOff, 0)
-                    fly.llvm.ptrPokeLong(cur, leftOff, node)
+                    fly.llvm.ptrPokeLong(cur, leftOff, (long)node)
                     this.count = this.count + 1
                     done = true
                 } else {
@@ -82,7 +82,7 @@ public class Tree<K, V> {
                     fly.llvm.slotPokeT(node, valOff, val)
                     fly.llvm.ptrPokeLong(node, leftOff, 0)
                     fly.llvm.ptrPokeLong(node, rightOff, 0)
-                    fly.llvm.ptrPokeLong(cur, rightOff, node)
+                    fly.llvm.ptrPokeLong(cur, rightOff, (long)node)
                     this.count = this.count + 1
                     done = true
                 } else {
@@ -191,9 +191,9 @@ public class Tree<K, V> {
             if parent == 0 {
                 this.root = right
             } elsif isLeft {
-                fly.llvm.ptrPokeLong(parent, leftOff, right)
+                fly.llvm.ptrPokeLong(parent, leftOff, (long)right)
             } else {
-                fly.llvm.ptrPokeLong(parent, rightOff, right)
+                fly.llvm.ptrPokeLong(parent, rightOff, (long)right)
             }
         } elsif right == 0 {
             K kprobe
@@ -205,9 +205,9 @@ public class Tree<K, V> {
             if parent == 0 {
                 this.root = left
             } elsif isLeft {
-                fly.llvm.ptrPokeLong(parent, leftOff, left)
+                fly.llvm.ptrPokeLong(parent, leftOff, (long)left)
             } else {
-                fly.llvm.ptrPokeLong(parent, rightOff, left)
+                fly.llvm.ptrPokeLong(parent, rightOff, (long)left)
             }
         } else {
             // two children: replace cur's entry with the in-order successor's, then
@@ -240,9 +240,9 @@ public class Tree<K, V> {
             pointer succRight = 0
             fly.llvm.ptrReadLong(succ, rightOff, succRight)
             if succParent == cur {
-                fly.llvm.ptrPokeLong(succParent, rightOff, succRight)
+                fly.llvm.ptrPokeLong(succParent, rightOff, (long)succRight)
             } else {
-                fly.llvm.ptrPokeLong(succParent, leftOff, succRight)
+                fly.llvm.ptrPokeLong(succParent, leftOff, (long)succRight)
             }
             fly.runtime.mem_free(succ, nodeSize)
             this.count = this.count - 1
@@ -263,7 +263,7 @@ public class Tree<K, V> {
             pointer stk = 0
             fly.runtime.mem_alloc(stkCap * 8, stk)
             pointer top = 0
-            fly.llvm.ptrPokeLong(stk, 0, this.root)
+            fly.llvm.ptrPokeLong(stk, 0, (long)this.root)
             top = 1
             while top > 0 {
                 top = top - 1
@@ -274,11 +274,11 @@ public class Tree<K, V> {
                 pointer right = 0
                 fly.llvm.ptrReadLong(node, rightOff, right)
                 if left != 0 {
-                    fly.llvm.ptrPokeLong(stk, top * 8, left)
+                    fly.llvm.ptrPokeLong(stk, top * 8, (long)left)
                     top = top + 1
                 }
                 if right != 0 {
-                    fly.llvm.ptrPokeLong(stk, top * 8, right)
+                    fly.llvm.ptrPokeLong(stk, top * 8, (long)right)
                     top = top + 1
                 }
                 K kprobe

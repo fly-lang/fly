@@ -2,6 +2,7 @@ namespace fly.str
 
 import fly.llvm
 import fly.runtime
+import fly.data.List
 
 // ── Query functions ────────────────────────────────────────────────────────
 
@@ -267,7 +268,7 @@ public string toUpper(const string src) {
     int size = 0
     fly.llvm.strSize(src, size)
     pointer buf = 0
-    fly.runtime.mem_alloc(size, buf)
+    fly.runtime.mem_alloc((ulong)size, buf)
     int i = 0
     while i < size {
         byte b = 0
@@ -276,7 +277,7 @@ public string toUpper(const string src) {
         if ib >= 97 && ib <= 122 {
             ib = ib - 32
         }
-        fly.llvm.strPoke(buf, i, ib)
+        fly.llvm.strPoke(buf, i, (byte)ib)
         i = i + 1
     }
     fly.llvm.strMake(buf, size, res)
@@ -288,7 +289,7 @@ public string toLower(const string src) {
     int size = 0
     fly.llvm.strSize(src, size)
     pointer buf = 0
-    fly.runtime.mem_alloc(size, buf)
+    fly.runtime.mem_alloc((ulong)size, buf)
     int i = 0
     while i < size {
         byte b = 0
@@ -297,7 +298,7 @@ public string toLower(const string src) {
         if ib >= 65 && ib <= 90 {
             ib = ib + 32
         }
-        fly.llvm.strPoke(buf, i, ib)
+        fly.llvm.strPoke(buf, i, (byte)ib)
         i = i + 1
     }
     fly.llvm.strMake(buf, size, res)
@@ -333,7 +334,7 @@ public string trim(const string src) {
     }
     int len = hi - lo
     pointer buf = 0
-    fly.runtime.mem_alloc(len, buf)
+    fly.runtime.mem_alloc((ulong)len, buf)
     int i = 0
     while i < len {
         fly.llvm.strByteAt(src, lo + i, b)
@@ -361,7 +362,7 @@ public string trimLeft(const string src) {
     }
     int len = size - lo
     pointer buf = 0
-    fly.runtime.mem_alloc(len, buf)
+    fly.runtime.mem_alloc((ulong)len, buf)
     int i = 0
     while i < len {
         fly.llvm.strByteAt(src, lo + i, b)
@@ -388,7 +389,7 @@ public string trimRight(const string src) {
         }
     }
     pointer buf = 0
-    fly.runtime.mem_alloc(hi, buf)
+    fly.runtime.mem_alloc((ulong)hi, buf)
     int i = 0
     while i < hi {
         fly.llvm.strByteAt(src, i, b)
@@ -416,7 +417,7 @@ public string substring(const string src, const int start, const int end) {
     }
     int len = e - s
     pointer buf = 0
-    fly.runtime.mem_alloc(len, buf)
+    fly.runtime.mem_alloc((ulong)len, buf)
     byte b = 0
     int i = 0
     while i < len {
@@ -451,7 +452,7 @@ public string repeat(const string src, const int count) {
     }
     int newSize = (int)total
     pointer buf = 0
-    fly.runtime.mem_alloc(newSize, buf)
+    fly.runtime.mem_alloc((ulong)newSize, buf)
     byte b = 0
     int ci = 0
     while ci < count {
@@ -511,7 +512,7 @@ public string replace(const string src, const string from, const string to) {
     }
     int newSize = ss + occ * (ts - fs)
     pointer buf = 0
-    fly.runtime.mem_alloc(newSize, buf)
+    fly.runtime.mem_alloc((ulong)newSize, buf)
     int ri = 0
     int wi = 0
     byte b = 0
@@ -578,7 +579,7 @@ public string convert(const int src) {
     while n < 0 {
         int q = n / 10
         int digit = q * 10 - n
-        fly.llvm.strPoke(buf, len, 48 + digit)
+        fly.llvm.strPoke(buf, len, (byte)(48 + digit))
         len = len + 1
         n = q
     }
@@ -622,7 +623,7 @@ public string convertL(const long src) {
     while n < 0 {
         long q = n / 10
         int digit = (int)(q * 10 - n)
-        fly.llvm.strPoke(buf, len, 48 + digit)
+        fly.llvm.strPoke(buf, len, (byte)(48 + digit))
         len = len + 1
         n = q
     }
@@ -644,4 +645,417 @@ public string convertL(const long src) {
     }
     fly.llvm.strMake(buf, len, res)
     return res
+}
+
+// ── Characters (UTF-8) ─────────────────────────────────────────────────────
+//
+// Fly has no character type: a character is a string of one character. A string
+// is a sequence of BYTES (len, byteAt, substring, indexOf count bytes); its text
+// is UTF-8, and the functions below count CHARACTERS — Unicode code points, 1 to
+// 4 bytes each. A byte that does not start a valid sequence (a stray
+// continuation byte, an overlong form, a surrogate, a value past 10FFFF, a
+// truncated sequence) is one character of one byte, read as U+FFFD.
+
+// utf8LenAt — the length in bytes (1 to 4) of the character that starts at
+// byte `at`; 0 when `at` is outside the string.
+private int utf8LenAt(const string s, const int at) {
+    int n = fly.str.len(s)
+    if at < 0 || at >= n {
+        return 0
+    }
+    int b0 = fly.str.byteAt(s, at) & 255
+    if b0 < 128 {
+        return 1
+    }
+    int need = 0
+    int min = 0
+    int cp = 0
+    if b0 >= 194 && b0 <= 223 {
+        need = 1
+        min = 128
+        cp = b0 & 31
+    } elsif b0 >= 224 && b0 <= 239 {
+        need = 2
+        min = 2048
+        cp = b0 & 15
+    } elsif b0 >= 240 && b0 <= 244 {
+        need = 3
+        min = 65536
+        cp = b0 & 7
+    } else {
+        return 1
+    }
+    if at + need >= n {
+        return 1
+    }
+    int k = 1
+    while k <= need {
+        int b = fly.str.byteAt(s, at + k) & 255
+        if (b & 192) != 128 {
+            return 1
+        }
+        cp = (cp << 6) | (b & 63)
+        k = k + 1
+    }
+    if cp < min || cp > 1114111 || (cp >= 55296 && cp <= 57343) {
+        return 1
+    }
+    return need + 1
+}
+
+// utf8CodeAt — the code point of the character that starts at byte `at`
+// (U+FFFD for an invalid byte), given its length `cl` from utf8LenAt.
+private int utf8CodeAt(const string s, const int at, const int cl) {
+    int b0 = fly.str.byteAt(s, at) & 255
+    if cl == 1 {
+        if b0 < 128 {
+            return b0
+        }
+        return 65533
+    }
+    int cp = b0 & 31
+    if cl == 3 {
+        cp = b0 & 15
+    } elsif cl == 4 {
+        cp = b0 & 7
+    }
+    int k = 1
+    while k < cl {
+        cp = (cp << 6) | (fly.str.byteAt(s, at + k) & 63)
+        k = k + 1
+    }
+    return cp
+}
+
+// charOffset — the byte offset where character `i` starts; -1 when the string
+// has no character `i`.
+private int charOffset(const string s, const int i) {
+    if i < 0 {
+        return -1
+    }
+    int n = fly.str.len(s)
+    int at = 0
+    int c = 0
+    while at < n && c < i {
+        at = at + fly.str.utf8LenAt(s, at)
+        c = c + 1
+    }
+    if at >= n {
+        return -1
+    }
+    return at
+}
+
+// charCount — the number of characters (code points) of `s`.
+public int charCount(const string s) {
+    int n = fly.str.len(s)
+    int count = 0
+    int at = 0
+    while at < n {
+        at = at + fly.str.utf8LenAt(s, at)
+        count = count + 1
+    }
+    return count
+}
+
+// charAt — character `i` of `s` (counted in characters, from 0) as a string of
+// one character; "" when there is no such character. It scans the string from
+// the start: to visit every character, use chars().
+public string charAt(const string s, const int i) {
+    int at = fly.str.charOffset(s, i)
+    if at < 0 {
+        return ""
+    }
+    return fly.str.substring(s, at, at + fly.str.utf8LenAt(s, at))
+}
+
+// chars — every character of `s`, in order, each as a string of one character.
+public List<string> chars(const string s) {
+    List<string> res = new List<string>()
+    int n = fly.str.len(s)
+    int at = 0
+    while at < n {
+        int cl = fly.str.utf8LenAt(s, at)
+        res.add(fly.str.substring(s, at, at + cl))
+        at = at + cl
+    }
+    return res
+}
+
+// charCode — the code point of character `i` (U+FFFD for an invalid byte); -1
+// when there is no such character.
+public int charCode(const string s, const int i) {
+    int at = fly.str.charOffset(s, i)
+    if at < 0 {
+        return -1
+    }
+    return fly.str.utf8CodeAt(s, at, fly.str.utf8LenAt(s, at))
+}
+
+// fromCharCode — the character with code point `cp`, UTF-8 encoded (1 to 4
+// bytes); U+FFFD for a value that is not a code point (negative, a surrogate,
+// past 10FFFF).
+public string fromCharCode(const int cp) {
+    int v = cp
+    if v < 0 || v > 1114111 || (v >= 55296 && v <= 57343) {
+        v = 65533
+    }
+    int n = 4
+    if v < 128 {
+        n = 1
+    } elsif v < 2048 {
+        n = 2
+    } elsif v < 65536 {
+        n = 3
+    }
+    pointer buf = 0
+    fly.runtime.mem_alloc((ulong)n, buf)
+    if n == 1 {
+        fly.llvm.strPoke(buf, 0, (byte)v)
+    } elsif n == 2 {
+        fly.llvm.strPoke(buf, 0, (byte)(192 | (v >> 6)))
+        fly.llvm.strPoke(buf, 1, (byte)(128 | (v & 63)))
+    } elsif n == 3 {
+        fly.llvm.strPoke(buf, 0, (byte)(224 | (v >> 12)))
+        fly.llvm.strPoke(buf, 1, (byte)(128 | ((v >> 6) & 63)))
+        fly.llvm.strPoke(buf, 2, (byte)(128 | (v & 63)))
+    } else {
+        fly.llvm.strPoke(buf, 0, (byte)(240 | (v >> 18)))
+        fly.llvm.strPoke(buf, 1, (byte)(128 | ((v >> 12) & 63)))
+        fly.llvm.strPoke(buf, 2, (byte)(128 | ((v >> 6) & 63)))
+        fly.llvm.strPoke(buf, 3, (byte)(128 | (v & 63)))
+    }
+    return fly.str.fromBytes(buf, n)
+}
+
+// isUtf8 — is every byte of `s` part of a valid UTF-8 sequence?
+public bool isUtf8(const string s) {
+    int n = fly.str.len(s)
+    int at = 0
+    while at < n {
+        int cl = fly.str.utf8LenAt(s, at)
+        if cl == 1 && (fly.str.byteAt(s, at) & 255) >= 128 {
+            return false
+        }
+        at = at + cl
+    }
+    return true
+}
+
+// reverse — the characters of `s` in reverse order (characters, not bytes, so
+// UTF-8 text stays valid).
+public string reverse(const string s) {
+    List<string> cs = fly.str.chars(s)
+    string res = ""
+    int i = (int)cs.size() - 1
+    while i >= 0 {
+        res = fly.str.concat(res, cs.get(i))
+        i = i - 1
+    }
+    return res
+}
+
+// padLeft — `s` preceded by copies of `fill` until it is `width` characters
+// long; `s` unchanged when it already is, or when `fill` is empty. A fill of
+// several characters is repeated and cut to the width.
+public string padLeft(const string s, const int width, const string fill) {
+    string pad = fly.str.padding(fly.str.charCount(s), width, fill)
+    return fly.str.concat(pad, s)
+}
+
+// padRight — `s` followed by copies of `fill` until it is `width` characters
+// long (see padLeft).
+public string padRight(const string s, const int width, const string fill) {
+    string pad = fly.str.padding(fly.str.charCount(s), width, fill)
+    return fly.str.concat(s, pad)
+}
+
+// padding — the characters of `fill`, repeated, that take a string of `have`
+// characters to `width`.
+private string padding(const int have, const int width, const string fill) {
+    string res = ""
+    if have >= width || fly.str.isEmpty(fill) {
+        return res
+    }
+    List<string> fc = fly.str.chars(fill)
+    int nf = (int)fc.size()
+    int k = 0
+    while have + k < width {
+        res = fly.str.concat(res, fc.get(k % nf))
+        k = k + 1
+    }
+    return res
+}
+
+// ── Split, join, compare, search ───────────────────────────────────────────
+
+// split — the parts of `s` between occurrences of `sep`, in order. Empty parts
+// are kept: "a,,b" gives "a", "", "b", and "" gives one empty part. An empty
+// `sep` splits into characters (as chars()).
+public List<string> split(const string s, const string sep) {
+    if fly.str.isEmpty(sep) {
+        return fly.str.chars(s)
+    }
+    List<string> res = new List<string>()
+    int n = fly.str.len(s)
+    int sl = fly.str.len(sep)
+    int start = 0
+    int at = fly.str.indexOfFrom(s, sep, 0)
+    while at >= 0 {
+        res.add(fly.str.substring(s, start, at))
+        start = at + sl
+        at = fly.str.indexOfFrom(s, sep, start)
+    }
+    res.add(fly.str.substring(s, start, n))
+    return res
+}
+
+// join — the strings of `parts`, in order, with `sep` between each two.
+public string join(const List<string> parts, const string sep) {
+    string res = ""
+    int n = (int)parts.size()
+    int i = 0
+    while i < n {
+        if i > 0 {
+            res = fly.str.concat(res, sep)
+        }
+        res = fly.str.concat(res, parts.get(i))
+        i = i + 1
+    }
+    return res
+}
+
+// compare — -1, 0 or 1 as `a` sorts before, equal to or after `b`, byte by
+// byte (for UTF-8 text, the order of the code points); a prefix sorts first.
+public int compare(const string a, const string b) {
+    int na = fly.str.len(a)
+    int nb = fly.str.len(b)
+    int i = 0
+    while i < na && i < nb {
+        int x = fly.str.byteAt(a, i) & 255
+        int y = fly.str.byteAt(b, i) & 255
+        if x < y {
+            return -1
+        }
+        if x > y {
+            return 1
+        }
+        i = i + 1
+    }
+    if na < nb {
+        return -1
+    }
+    if na > nb {
+        return 1
+    }
+    return 0
+}
+
+// indexOfFrom — the byte index of the first occurrence of `sub` at or after
+// byte `from`, or -1. An empty `sub` is found at `from` (when it is inside the
+// string or at its end).
+public int indexOfFrom(const string src, const string sub, const int from) {
+    int n = fly.str.len(src)
+    int m = fly.str.len(sub)
+    int start = from
+    if start < 0 {
+        start = 0
+    }
+    if start > n {
+        return -1
+    }
+    if m == 0 {
+        return start
+    }
+    int i = start
+    while i + m <= n {
+        int j = 0
+        while j < m && (fly.str.byteAt(src, i + j) & 255) == (fly.str.byteAt(sub, j) & 255) {
+            j = j + 1
+        }
+        if j == m {
+            return i
+        }
+        i = i + 1
+    }
+    return -1
+}
+
+// replaceFirst — `src` with its first occurrence of `from` replaced by `to`;
+// `src` unchanged when `from` is empty or absent.
+public string replaceFirst(const string src, const string from, const string to) {
+    if fly.str.isEmpty(from) {
+        return fly.str.concat(src, "")
+    }
+    int at = fly.str.indexOf(src, from)
+    if at < 0 {
+        return fly.str.concat(src, "")
+    }
+    string head = fly.str.substring(src, 0, at)
+    string tail = fly.str.substring(src, at + fly.str.len(from), fly.str.len(src))
+    return fly.str.concat(head, fly.str.concat(to, tail))
+}
+
+// ── Parsing ────────────────────────────────────────────────────────────────
+
+// toLong — the decimal integer `s` spells: an optional sign, then digits, and
+// nothing else (no blanks). errOut: 0 ok, 1 not a number, 2 out of the range of
+// a long; the result is then 0.
+public long toLong(const string s, int errOut) {
+    errOut = 0
+    int n = fly.str.len(s)
+    int i = 0
+    bool neg = false
+    if n > 0 {
+        int c0 = fly.str.byteAt(s, 0) & 255
+        if c0 == 45 {
+            neg = true
+            i = 1
+        } elsif c0 == 43 {
+            i = 1
+        }
+    }
+    if i >= n {
+        errOut = 1
+        return 0
+    }
+    long minL = 0 - 9223372036854775807 - 1
+    long v = 0
+    while i < n {
+        int c = fly.str.byteAt(s, i) & 255
+        if c < 48 || c > 57 {
+            errOut = 1
+            return 0
+        }
+        long d = c - 48
+        // accumulate NEGATIVE (the range reaches one further below zero), and
+        // check before each step: an overflow would trap
+        if v < (minL + d) / 10 {
+            errOut = 2
+            return 0
+        }
+        v = v * 10 - d
+        i = i + 1
+    }
+    if neg {
+        return v
+    }
+    if v == minL {
+        errOut = 2
+        return 0
+    }
+    return 0 - v
+}
+
+// toInt — as toLong, for the range of an int (errOut 2 beyond it).
+public int toInt(const string s, int errOut) {
+    long v = fly.str.toLong(s, errOut)
+    if errOut != 0 {
+        return 0
+    }
+    if v > 2147483647 || v < 0 - 2147483647 - 1 {
+        errOut = 2
+        return 0
+    }
+    return (int)v
 }

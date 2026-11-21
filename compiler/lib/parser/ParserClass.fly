@@ -32,6 +32,7 @@ public class ParserClass {
         string nm = ""
         SourceLocation nloc = p.curLoc()      // the NAME token, for setNameLoc
         if p.curIsNamePart() {
+            p.checkDeclName()
             nm = p.curText()
             p.bump()
         } else {
@@ -66,6 +67,7 @@ public class ParserClass {
             ti = ti + 1
         }
         p.expectPunct("{")
+        p.setCurClass(c)
         bool go = p.curIsPunct("}") == false && p.hadErr() == false
         while go {
             ParserClass.parseMember(p, c, nm)
@@ -73,6 +75,7 @@ public class ParserClass {
                 go = false
             }
         }
+        p.setCurClass(null)
         // The closing brace, BEFORE consuming it: with getLoc() it delimits the
         // class's own text, which HeaderGen slices to ship a generic template.
         c.setEndLoc(p.curLoc())
@@ -102,6 +105,7 @@ public class ParserClass {
         string nm = ""
         SourceLocation nloc = p.curLoc()      // the NAME token, for setNameLoc
         if p.curIsNamePart() {
+            p.checkDeclName()
             nm = p.curText()
             p.bump()
         } else {

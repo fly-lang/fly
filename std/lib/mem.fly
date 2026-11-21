@@ -99,5 +99,5 @@ public pointer readPtr(const pointer ptr, const pointer offset) {
 }
 
 public void writePtr(const pointer ptr, const pointer offset, const pointer val) {
-    fly.llvm.ptrPokeLong(ptr, offset, val)
+    fly.llvm.ptrPokeLong(ptr, offset, (long)val)
 }

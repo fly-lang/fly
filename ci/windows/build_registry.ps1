@@ -28,11 +28,13 @@ if (-not (Test-Path $FLY)) { Write-Host "error: compiler '$FLY' not found - run 
 if (-not (Test-Path 'tools/registry/lib/FlyRegistry.fly')) { Write-Host 'error: tools/registry/lib/FlyRegistry.fly not found.'; exit 1 }
 
 $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG = @('--debug-symbols') }
+# A warning in the tool's code fails the build (always the self-host here).
+$WERR = @('--warnings-as-errors')
 $TARGET = @(); if ($env:FLY_TARGET_ARGS) { $TARGET = $env:FLY_TARGET_ARGS -split ' ' }
 
 Write-Host "stage${STAGE}: compiling tools/registry ..."
 & $FLY --entry tools/registry/lib/FlyRegistry.fly --src-dir tools/registry `
-       @DBG @TARGET -c -o FlyRegistry --out-dir $D -L $LIB
+       @DBG @WERR @TARGET -c -o FlyRegistry --out-dir $D -L $LIB
 if ($LASTEXITCODE -ne 0) { throw "fly-registry compile failed (exit $LASTEXITCODE)" }
 
 $OBJ = @("$D/FlyRegistry", "$D/FlyRegistry.o", "$D/FlyRegistry.fly.o", "$D/FlyRegistry.fly.obj") |

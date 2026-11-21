@@ -1,0 +1,2 @@
+main.fly:5:13: warning: 'total' shadows the local variable of the same name declared in an enclosing scope [shadow]
+main.fly:8:9: warning: 'x' shadows the parameter of the same name declared in an enclosing scope [shadow]

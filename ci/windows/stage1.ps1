@@ -2,9 +2,11 @@
 # stage1.ps1 - stage 1 of the Rust-style staged bootstrap (Windows mirror of
 # ci/linux/stage1.sh):
 #
-#   stage0  downloaded bootstrap compiler + precompiled lib (build\stage0, set
-#           up by stage0.ps1 - which also fetches the fork LLVM pieces).
-#   stage1  THIS SCRIPT: stage0 builds runtime(seed) -> std -> compiler ->
+#   stage0  the downloaded seed + its precompiled lib (build\stage0, set up by
+#           stage0.ps1 - which also fetches LLVM). Since 0.15 the seed is the
+#           previous SELF-HOST release (0.14.9), not the C++ compiler: every
+#           stage is compiled by a Fly compiler written in Fly.
+#   stage1  THIS SCRIPT: stage0 builds runtime -> std -> compiler ->
 #           driver FROM IN-TREE SOURCES and links the first self-host fly.exe,
 #           all into build\stage1. The compiler is built against the in-tree
 #           std headers so its symbol references match the std the binary links.

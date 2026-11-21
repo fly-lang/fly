@@ -40,6 +40,9 @@ public class Resolver : ASTVisitor {
 
     SymbolTable currentScope
     SemaModule currentModule
+    ASTExpr uniqueSite      // the initializer of the declaration being resolved: where `new unique` is allowed
+    bool returnAssign       // resolving the hidden `slot = value` of a `return`
+    List<SemaExpr> returnMoves  // unique owners that `return` moves out (collected while returnAssign)
     SemaClassType currentClass
     SemaEnumType currentEnum
     SemaFunctionBase currentFunction
@@ -227,6 +230,24 @@ public class Resolver : ASTVisitor {
     public void setCurrentScope(const SymbolTable s) {
         this.currentScope = s
     }
+    public bool isReturnAssign() {
+        return this.returnAssign
+    }
+    public void setReturnAssign(const bool v) {
+        this.returnAssign = v
+        if v {
+            this.returnMoves = new List<SemaExpr>()
+        }
+    }
+    public List<SemaExpr> getReturnMoves() {
+        return this.returnMoves
+    }
+    public ASTExpr getUniqueSite() {
+        return this.uniqueSite
+    }
+    public void setUniqueSite(const ASTExpr e) {
+        this.uniqueSite = e
+    }
     public SemaModule getCurrentModule() {
         return this.currentModule
     }
@@ -336,7 +357,7 @@ public class Resolver : ASTVisitor {
     }
 
     public void addSymbol(const Symbol sym) {
-        bool ok = this.currentScope.insert(sym)
+        bool _ok = this.currentScope.insert(sym)
     }
 
     // ── literal tracking (see the litExpr field) ──────────────────────────────
@@ -415,7 +436,7 @@ public class Resolver : ASTVisitor {
         SemaNameSpace ns = this.currentNameSpace
         if ns != null && this.reg.isDefaultNameSpace(ns) == false {
             SymbolTable nst = ns.getSymbols()
-            bool ok = nst.insert(sym)
+            bool _ok = nst.insert(sym)
         }
     }
 
@@ -462,6 +483,7 @@ public class Resolver : ASTVisitor {
         int mi = 0
         while mi < mods.size() {
             this.resolveImports(mods.get(mi))
+            this.warnUnusedImports(mods.get(mi))
             mi = mi + 1
         }
 
@@ -584,7 +606,7 @@ public class Resolver : ASTVisitor {
                                 // would put "llvm" in scope and shadow the V3
                                 // short-prefix expansion of `llvm.strSize(…)`
                                 if fs.getKind() != SymbolKind.NAMESPACE {
-                                    bool ok3 = modScope.insert(fs)
+                                    bool _ok3 = modScope.insert(fs)
                                 }
                                 fi2 = fi2 + 1
                             }
@@ -602,12 +624,79 @@ public class Resolver : ASTVisitor {
         }
     }
 
-    // injectAll — copy every symbol of `from` into `into` (insert() dedups).
+    // warnUnusedImports — an import whose name the file never writes: the
+    // namespace prefix of `import fly.str` (`str`, or its alias), the symbol of
+    // `import fly.data.List`, any name of the namespace of `import fly.str.*`.
+    // The test is on the source TEXT (identifiers outside comments, strings and
+    // the import/namespace lines), so it can only miss a warning, never invent
+    // one: a name that appears for another reason keeps the import quiet.
+    public void warnUnusedImports(const SemaModule module) {
+        List<SemaImport> imps = module.getImports()
+        if imps.size() == 0 {
+            return
+        }
+        SemaImport first = imps.get(0)
+        ASTImport fa = first.getAST()
+        SourceLocation floc = fa.getLoc()
+        if floc == null {
+            return
+        }
+        SourceManager sm = floc.getSourceManager()
+        if sm == null {
+            return
+        }
+        if str.endsWith(sm.getFilename(), ".fly.h") {
+            return
+        }
+        Map<string, bool> ids = sourceIdentifiers(sm.getBufferData())
+        int i = 0
+        while i < imps.size() {
+            SemaImport imp = imps.get(i)
+            List<ASTName> names = imp.getNames()
+            bool used = true
+            if names != null && names.size() > 0 {
+                if imp.isWildcard() {
+                    used = false
+                    SemaNameSpace target = this.reg.lookupNameSpaceByNames(names)
+                    if target == null {
+                        used = true
+                    } else {
+                        List<Symbol> all = target.getSymbols().getAllSymbols()
+                        int k = 0
+                        while k < all.size() && used == false {
+                            Symbol s = all.get(k)
+                            if ids.has(s.getName()) {
+                                used = true
+                            }
+                            k = k + 1
+                        }
+                    }
+                } else {
+                    string key = ""
+                    List<ASTName> alias = imp.getTarget()
+                    if alias != null && alias.size() > 0 {
+                        ASTName a0 = alias.get(alias.size() - 1)
+                        key = a0.getName()
+                    }
+                    if str.isEmpty(key) {
+                        ASTName lastN = names.get(names.size() - 1)
+                        key = lastN.getName()
+                    }
+                    used = ids.has(key)
+                }
+            }
+            if used == false {
+                ASTImport ia = imp.getAST()
+                this.diagStr(ia.getLoc(), DiagID.warn_sema_unused_import, importDisplayName(imp))
+            }
+            i = i + 1
+        }
+    }    // injectAll — copy every symbol of `from` into `into` (insert() dedups).
     public void injectAll(const SymbolTable from, const SymbolTable into) {
         List<Symbol> all = from.getAllSymbols()
         int i = 0
         while i < all.size() {
-            bool ok = into.insert(all.get(i))
+            bool _ok = into.insert(all.get(i))
             i = i + 1
         }
     }

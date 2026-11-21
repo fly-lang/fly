@@ -2,7 +2,6 @@ namespace fly.compiler.frontend
 
 import fly.compiler.frontend.*
 import fly.os.fs
-import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FileManager — reads files into MemoryBuffers, the bootstrap analog of the C++

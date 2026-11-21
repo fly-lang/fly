@@ -1,0 +1,1 @@
+a case with no statements: cases do not fall into the next one

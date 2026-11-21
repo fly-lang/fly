@@ -1,0 +1,20 @@
+public class Res {
+
+    int v
+
+    public Res() {
+        this.v = 1
+    }
+
+    public int value() {
+        return this.v
+    }
+}
+
+// A move leaves the source null, so using it afterwards stops on the null
+// trap instead of reaching an object another owner will delete.
+void main() {
+    Res a = new unique Res()
+    Res b = a
+    int n = a.value()
+}

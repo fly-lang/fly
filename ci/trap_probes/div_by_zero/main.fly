@@ -1,0 +1,9 @@
+int split(const int total, const int parts) {
+    return total / parts
+}
+
+// An integer division by zero stops the program with a diagnostic and the
+// position of the statement, in every build, instead of a hardware exception.
+void main() {
+    int n = split(10, 0)
+}

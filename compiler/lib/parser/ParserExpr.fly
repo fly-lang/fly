@@ -4,6 +4,7 @@ import fly.compiler.basic.*
 import fly.compiler.ast.*
 import fly.compiler.parser.*
 import fly.data.*
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ParserExpr — expression parsing, split out of Parser to mirror the C++
@@ -29,6 +30,7 @@ public class ParserExpr {
             SourceLocation oploc = p.curLoc()
             p.bump()
             ASTExpr right = ParserExpr.parseAssign(p)
+            p.noteOwnerField(left, right)
             return ASTBuilder.CreateBinary(oploc, ASTBinaryKind.OP_BINARY_ASSIGN, left, right)
         }
         // compound assignment `a += b` … `a >>= b` (B015, doc 8.4): right-
@@ -91,6 +93,10 @@ public class ParserExpr {
 
     public static ASTExpr parseBin(const Parser p, const int minPrec) {
         ASTExpr left = ParserExpr.parseUnary(p)
+        // the operator at the top of `left` when `left` is a binary built HERE, so
+        // without parentheses ("" otherwise: a parenthesized operand comes back
+        // from parsePrimary and is never a naked binary)
+        string leftOp = ""
         bool go = true
         while go {
             string op = ""
@@ -102,16 +108,55 @@ public class ParserExpr {
                 SourceLocation oploc = p.curLoc()
                 p.bump()
                 ASTExpr right = ParserExpr.parseBin(p, prec + 1)
+                string rightOp = p.getLastBinOp()
+                ParserExpr.checkMix(p, oploc, op, leftOp)
+                ParserExpr.checkMix(p, oploc, op, rightOp)
                 ASTBinaryKind bk = binKindFor(op)
                 left = ASTBuilder.CreateBinary(oploc, bk, left, right)
+                leftOp = op
             } else {
                 go = false
             }
         }
+        p.setLastBinOp(leftOp)
         return left
     }
 
+    // checkMix — `op` takes an operand whose top operator, unparenthesized, is
+    // `inner`. Fly's precedence is flat where C's is not, so two readings would
+    // both look natural; the program must say which one it means:
+    //   - `|| && | ^ & << >>` share one level, left to right: two DIFFERENT ones in
+    //     a chain (`a || b && c`, `x << 2 | y`) need parentheses; the same one
+    //     repeated (`a && b && c`) does not;
+    //   - a comparison under a bitwise or shift operator: `a & b == c` is
+    //     `a & (b == c)` in Fly, `(a & b) == c` in C. A comparison under `&&` or
+    //     `||` (`a == b && c < d`) means the same everywhere and stays legal.
+    public static void checkMix(const Parser p, const SourceLocation oploc, const string op, const string inner) {
+        if str.isEmpty(inner) {
+            return
+        }
+        if binPrec(op) != 2 {
+            return
+        }
+        int ip = binPrec(inner)
+        if ip == 2 && str.equals(inner, op) == false {
+            p.noteMix(oploc, false, inner, op)
+        } elsif ip == 3 && str.equals(op, "&&") == false && str.equals(op, "||") == false {
+            p.noteMix(oploc, true, op, inner)
+        }
+    }
+
     public static ASTExpr parseUnary(const Parser p) {
+        // `weak h` — CONTEXTUAL like the `new` qualifiers: `weak` is an operator only
+        // when a name follows, so it stays a valid name everywhere else.
+        if p.curIsIdent() && p.nxtIsIdent() && str.equals(p.curText(), "weak") {
+            SourceLocation wloc = p.curLoc()
+            p.bump()
+            ASTExpr target = ParserExpr.parseUnary(p)
+            ASTExpr w = ASTBuilder.CreateUnary(wloc, ASTUnaryKind.OP_UNARY_WEAK, target)
+            p.setLastWeak(w)
+            return w
+        }
         if p.curIsPunct("!") {
             SourceLocation loc = p.curLoc()
             p.bump()
@@ -210,7 +255,7 @@ public class ParserExpr {
         int idx = 0
         while go {
             ASTExpr a = ParserExpr.parse(p)
-            ASTArg arg = new ASTArg(loc, a, idx)
+            ASTArg arg = new ASTArg(loc, a, (uint)idx)
             call.addArg(arg)
             idx = idx + 1
             if p.curIsPunct(",") {
@@ -234,7 +279,7 @@ public class ParserExpr {
             return n
         }
         if p.curIsStringLit() {
-            ASTStringValue s = ASTBuilder.CreateStringValue(loc, p.curText())
+            ASTStringValue s = ASTBuilder.CreateStringValue(loc, p.curStringValue())
             p.bump()
             return s
         }
@@ -373,6 +418,24 @@ public class ParserExpr {
     public static ASTExpr parseNew(const Parser p) {
         SourceLocation loc = p.curLoc()
         p.expectKw("new")
+        // `new unique C()`, `new shared C()`, `new weak C()`: the ownership
+        // qualifiers are CONTEXTUAL — a qualifier only right after `new` and only
+        // when a class name follows (`new unique()` still constructs a class named
+        // `unique`), so they stay usable as ordinary names everywhere else.
+        ASTCallKind newKind = ASTCallKind.CALL_NEW
+        if p.curIsIdent() && p.nxtIsIdent() {
+            string q = p.curText()
+            if str.equals(q, "unique") {
+                newKind = ASTCallKind.CALL_NEW_UNIQUE
+                p.bump()
+            } elsif str.equals(q, "shared") {
+                newKind = ASTCallKind.CALL_NEW_SHARED
+                p.bump()
+            } elsif str.equals(q, "weak") {
+                newKind = ASTCallKind.CALL_NEW_WEAK
+                p.bump()
+            }
+        }
         // The NAME token, for setNameLoc. `loc` is the `new` keyword and stays the
         // call's start (diagnostics, signature help); anything that has to find
         // the TYPE by position — a ctrl-click on `Point` in `new Point()` — needs
@@ -401,7 +464,7 @@ public class ParserExpr {
             }
             p.closeTypeArgs()
         }
-        ASTCall call = ParserExpr.parseCallTail(p, loc, nm, ASTCallKind.CALL_NEW, null)
+        ASTCall call = ParserExpr.parseCallTail(p, loc, nm, newKind, null)
         call.setNameLoc(nloc)
         int i = 0
         while i < targs.size() {

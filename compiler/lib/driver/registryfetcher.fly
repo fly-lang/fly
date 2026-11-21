@@ -6,7 +6,6 @@ import fly.json
 import fly.targz
 import fly.net.http
 import fly.os.fs
-import fly.os.proc
 import fly.os.io
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -217,7 +216,7 @@ public class RegistryFetcher {
         // entries whose paths would escape the cache entry are refused.
         int xe = 0
         bool xok = targz.extractTarGz(tarball, entry, xe)
-        fs.delete(tarball)
+        fs.del(tarball)
         if xok == false {
             r.setError(str.concat("registry: corrupt or unreadable archive for ", pkg))
             return r

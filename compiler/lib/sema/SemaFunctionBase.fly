@@ -1,7 +1,6 @@
 namespace fly.compiler.sema
 
 import fly.compiler.sema.SemaKind
-import fly.mem
 import fly.compiler.sema.SemaNode
 import fly.compiler.sema.SemaType
 import fly.compiler.sema.SemaParam
@@ -10,7 +9,14 @@ import fly.compiler.sema.SemaError
 import fly.compiler.sema.SemaBlockStmt
 import fly.compiler.sema.SymbolTable
 import fly.compiler.ast.ASTFunction
+import fly.compiler.ast.ASTReturnStmt
+import fly.compiler.ast.ASTExpr
+import fly.compiler.ast.ASTIdentifier
+import fly.compiler.ast.ASTClass
+import fly.compiler.sema.SemaClassMethod
+import fly.compiler.sema.SemaClassType
 import fly.data.List
+import fly.str
 
 // SemaFunctionBase — common base of standalone functions and class methods. 1:1
 // with C++ SemaFunctionBase (minus CodeGenFunctionBase). Holds the local scope,
@@ -100,6 +106,87 @@ public class SemaFunctionBase : SemaNode {
     }
     public ASTFunction getAST() {
         return this.funcAst
+    }
+    // returnsOwned — does a `return` hand back a local that owns a `new unique`
+    // object? Then the caller owns the result: a declaration initialized by the
+    // call becomes its owner. Answered from the AST (the parser recorded the owner
+    // locals), so it holds before any body is resolved.
+    public bool returnsOwned() {
+        if this.funcAst == null {
+            return false
+        }
+        return this.returnsOneOf(this.funcAst.getOwnerLocals())
+    }
+
+    // returnsShared — the same for `new shared`: a `return` hands back a holder,
+    // so the caller's declaration holds (and counts) the reference.
+    public bool returnsShared() {
+        if this.funcAst == null {
+            return false
+        }
+        if this.returnsOneOf(this.funcAst.getSharedLocals()) {
+            return true
+        }
+        // A method's `C c = this.f; return c` hands back a holder when `f` is a
+        // HOLDING field of its class — known only now, with every method parsed.
+        SemaClassMethod m = this.asClassMethod()
+        if m == null {
+            return false
+        }
+        SemaClassType cls = m.getClass()
+        if cls == null {
+            return false
+        }
+        ASTClass cast = cls.getAST()
+        if cast == null {
+            return false
+        }
+        List<string> held = cast.getSharedFields()
+        List<string> names = new List<string>()
+        List<string> copies = this.funcAst.getFieldCopies()
+        int i = 0
+        while i < copies.size() {
+            string pair = copies.get(i)
+            int eq = str.indexOf(pair, "=")
+            if eq > 0 {
+                string field = str.substring(pair, eq + 1, str.len(pair))
+                int j = 0
+                while j < held.size() {
+                    if str.equals(held.get(j), field) {
+                        names.add(str.substring(pair, 0, eq))
+                    }
+                    j = j + 1
+                }
+            }
+            i = i + 1
+        }
+        return this.returnsOneOf(names)
+    }
+
+    // returnsOneOf — does some `return` hand back exactly one of `owners`?
+    public bool returnsOneOf(const List<string> owners) {
+        if owners.size() == 0 {
+            return false
+        }
+        List<ASTReturnStmt> rets = this.funcAst.getReturnStmts()
+        int i = 0
+        while i < rets.size() {
+            List<ASTExpr> values = rets.get(i).getExprs()
+            if values.size() == 1 {
+                ASTIdentifier id = values.get(0).asIdentifier()
+                if id != null && id.getParent() == null {
+                    int j = 0
+                    while j < owners.size() {
+                        if str.equals(owners.get(j), id.getName()) {
+                            return true
+                        }
+                        j = j + 1
+                    }
+                }
+            }
+            i = i + 1
+        }
+        return false
     }
     public List<SemaLocalVar> getLocalVars() {
         return this.localVars

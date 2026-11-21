@@ -106,17 +106,17 @@ public string notificationJson(const string method, const pointer params) {
 }
 
 public class LspTransport {
-    Reader in
+    Reader inR
     Writer outW
 
     public LspTransport() {
-        this.in = io.fileReader(0)
+        this.inR = io.fileReader(0)
         this.outW = io.fileWriter(1)
     }
 
     // readByte — the next byte of stdin as 0..255, or -1 at EOF.
     int readByte() {
-        Buf b = io.readExact(this.in, 1)
+        Buf b = io.readExact(this.inR, 1)
         if b.size < 1 {
             if b.ptr != 0 {
                 mem.free(b.ptr, b.cap)
@@ -193,8 +193,10 @@ public class LspTransport {
             return ""
         }
 
-        Buf body = io.readExact(this.in, contentLength)
-        if body.size < contentLength {
+        // contentLength > 0 here, so it converts to the unsigned size exactly
+        ulong want = (ulong)contentLength
+        Buf body = io.readExact(this.inR, want)
+        if body.size < want {
             if body.ptr != 0 {
                 mem.free(body.ptr, body.cap)
             }

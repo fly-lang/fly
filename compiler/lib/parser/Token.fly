@@ -1,6 +1,5 @@
 namespace fly.compiler.parser
 import fly.compiler.basic.*
-import fly.compiler.ast.*
 import fly.compiler.parser.*
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -20,12 +19,14 @@ public class Token {
     SourceLocation loc
     int start
     int end
+    bool raw     // a """…""" string literal: its text is taken as written, no escapes
 
     public Token(const TokenKind kind, const SourceLocation loc, const int start, const int end) {
         this.kind = kind
         this.loc = loc
         this.start = start
         this.end = end
+        this.raw = false
     }
 
     // Location accessors. `offset()` is the byte offset; line/col are decoded
@@ -35,6 +36,14 @@ public class Token {
     }
     public int offset() {
         return this.loc.getOffset()
+    }
+
+    public bool isRaw() {
+        return this.raw
+    }
+
+    public void setRaw(const bool r) {
+        this.raw = r
     }
 
     public bool isEof() {

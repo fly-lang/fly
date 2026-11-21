@@ -1,7 +1,6 @@
 namespace fly.compiler.sema
 
 import fly.compiler.sema.SemaKind
-import fly.mem
 import fly.compiler.sema.SemaType
 import fly.compiler.sema.SemaNode
 import fly.compiler.sema.SemaClassMethod
@@ -12,7 +11,6 @@ import fly.compiler.sema.SemaTypeParam
 import fly.compiler.sema.SemaModule
 import fly.compiler.sema.SemaVisibilityKind
 import fly.compiler.sema.SymbolTable
-import fly.compiler.sema.SemaNameSpace
 import fly.compiler.ast.ASTClass
 import fly.compiler.ast.ASTClassKind
 import fly.compiler.ast.ASTModule

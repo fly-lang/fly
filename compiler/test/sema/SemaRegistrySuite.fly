@@ -60,9 +60,9 @@ suite SemaRegistrySuite {
             SemaModule sm = new SemaModule(am, st)
             reg.addModule(sm)
             List<SemaModule> ms = reg.getModules()
-            assert.assertEqI(ms.size(), 1, 20)
+            assert.assertEqI((int)ms.size(), 1, 20)
             List<SemaFunctionBase> bs = reg.getBodies()
-            assert.assertEqI(bs.size(), 0, 21)
+            assert.assertEqI((int)bs.size(), 0, 21)
         }
     }
 

@@ -1,0 +1,33 @@
+// From 0.15 a case never falls into the next one: a body that ends without
+// break continues after the switch, `case 3, 4:` lists several values, and
+// break still leaves a case early.
+int pick(const int v) {
+    int r = 0
+    switch v {
+        case 1:
+            r = 10
+        case 3, 4:
+            r = 34
+        case 5:
+            r = 5
+            break
+        default:
+            r = 99
+    }
+    return r
+}
+
+void main() {
+    if pick(1) != 10 {
+        fail 1, "no fall-through from case 1"
+    }
+    if pick(3) != 34 || pick(4) != 34 {
+        fail 2, "case 3, 4"
+    }
+    if pick(5) != 5 {
+        fail 3, "break"
+    }
+    if pick(7) != 99 {
+        fail 4, "default"
+    }
+}

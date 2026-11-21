@@ -1,0 +1,78 @@
+public class Res {
+
+    public static int freed
+
+    public Res() {
+    }
+
+    public void free() {
+        Res.freed = Res.freed + 1
+    }
+}
+
+public class Box {
+
+    Res inner
+
+    public Box() {
+        this.inner = new unique Res()
+    }
+
+    public Res peek() {
+        return this.inner
+    }
+
+    public void swap() {
+        this.inner = new unique Res()
+    }
+}
+
+public class Node {
+
+    public static int freed
+
+    Node next
+
+    public Node() {
+    }
+
+    public void link() {
+        Node n = new unique Node()
+        this.next = n
+    }
+
+    public Node getNext() {
+        return this.next
+    }
+
+    public void free() {
+        Node.freed = Node.freed + 1
+    }
+}
+
+void chain() {
+    Node head = new unique Node()
+    head.link()
+    Node second = head.getNext()
+    second.link()
+}
+
+// An owning field (filled with `new unique` or an owner) is deleted with its
+// object; reassigning it deletes what it held; reading it only borrows. A class
+// owning a field of its own type (a list) is deleted recursively at run time.
+void main() {
+    Box b = new unique Box()
+    Res r = b.peek()
+    b.swap()
+    if Res.freed != 1 {
+        fail 1, "reassigning an owning field deletes the old object"
+    }
+    delete b
+    if Res.freed != 2 {
+        fail 2, "deleting the container deletes its owning field"
+    }
+    chain()
+    if Node.freed != 3 {
+        fail 3, "a chain of owning fields is deleted node by node"
+    }
+}

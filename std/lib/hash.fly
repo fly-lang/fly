@@ -1,10 +1,10 @@
 namespace fly.hash
 
 import fly.llvm
-import fly.runtime
 import fly.mem
 import fly.str
 import fly.os.fs
+import fly.math
 
 // ─────────────────────────────────────────────────────────────────────────────
 // fly.hash — content hashes, pure Fly with no FFI and no subprocess.
@@ -209,7 +209,7 @@ string sha256Digest(const string data) {
             uint w7 = sha256LoadU(W, (t - 7) * 4)
             uint s0 = sha256Rotr(w15, 7) ^ sha256Rotr(w15, 18) ^ (w15 >> 3)
             uint s1 = sha256Rotr(w2, 17) ^ sha256Rotr(w2, 19) ^ (w2 >> 10)
-            uint wt = w16 + s0 + w7 + s1
+            uint wt = math.wrapAddU(math.wrapAddU(w16, s0), math.wrapAddU(w7, s1))
             sha256StoreU(W, t * 4, wt)
             t = t + 1
         }
@@ -229,29 +229,29 @@ string sha256Digest(const string data) {
             uint ch = (e & f) ^ ((e ^ (uint)4294967295) & g)
             uint kt = sha256LoadU(K, t * 4)
             uint wv = sha256LoadU(W, t * 4)
-            uint temp1 = hh + bigS1 + ch + kt + wv
+            uint temp1 = math.wrapAddU(math.wrapAddU(math.wrapAddU(hh, bigS1), math.wrapAddU(ch, kt)), wv)
             uint bigS0 = sha256Rotr(a, 2) ^ sha256Rotr(a, 13) ^ sha256Rotr(a, 22)
             uint maj = (a & b) ^ (a & c) ^ (b & c)
-            uint temp2 = bigS0 + maj
+            uint temp2 = math.wrapAddU(bigS0, maj)
             hh = g
             g = f
             f = e
-            e = d + temp1
+            e = math.wrapAddU(d, temp1)
             d = c
             c = b
             b = a
-            a = temp1 + temp2
+            a = math.wrapAddU(temp1, temp2)
             t = t + 1
         }
 
-        h0 = h0 + a
-        h1 = h1 + b
-        h2 = h2 + c
-        h3 = h3 + d
-        h4 = h4 + e
-        h5 = h5 + f
-        h6 = h6 + g
-        h7 = h7 + hh
+        h0 = math.wrapAddU(h0, a)
+        h1 = math.wrapAddU(h1, b)
+        h2 = math.wrapAddU(h2, c)
+        h3 = math.wrapAddU(h3, d)
+        h4 = math.wrapAddU(h4, e)
+        h5 = math.wrapAddU(h5, f)
+        h6 = math.wrapAddU(h6, g)
+        h7 = math.wrapAddU(h7, hh)
         blk = blk + 1
     }
     // the padded copy of the input (as large as the input), the round constants

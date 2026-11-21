@@ -60,8 +60,35 @@ public class ResolverStmt {
         }
         r.setCurrentSemaBlock(prev)
         r.setLastBlock(blk)
+        ResolverStmt.warnUnused(r)
         r.exitScope()
         r.setStmtExits(anyExit)
+    }
+
+    // warnUnused — at the end of a block, the locals it declared that no name ever
+    // referred to: a leftover, or a typo that made another name the one in use. Not
+    // reported: a name starting with `_` (unused on purpose), and a `new unique` owner
+    // or a `new shared` holder, whose scope alone gives it a job (it releases the
+    // object when the block ends).
+    public static void warnUnused(const Resolver r) {
+        List<Symbol> syms = r.getCurrentScope().getAllSymbols()
+        int i = 0
+        while i < syms.size() {
+            Symbol s = syms.get(i)
+            if s.getKind() == SymbolKind.LOCAL_VAR && s.isUsed() == false && s.getDeclLoc() != null {
+                bool quiet = str.startsWith(s.getName(), "_")
+                SemaExpr e = s.getExprRef()
+                if e != null {
+                    if e.isUniqueOwner() || e.isSharedHolder() {
+                        quiet = true
+                    }
+                }
+                if quiet == false {
+                    r.diagStr(s.getDeclLoc(), DiagID.warn_sema_unused_variable, s.getName())
+                }
+            }
+            i = i + 1
+        }
     }
 
     // decl — a local variable declaration, registered in the current scope.
@@ -76,6 +103,19 @@ public class ResolverStmt {
         }
         Symbol sym = new Symbol(lv.getName(), SymbolKind.LOCAL_VAR, slv)
         sym.setExprRef(slv)
+        sym.setDeclLoc(lv.getNameLoc())
+        // A name that hides a local or a parameter of an enclosing scope: from here
+        // to the end of the block the outer one cannot be reached, and an
+        // assignment meant for it lands on the new one.
+        List<Symbol> outer = r.getCurrentScope().lookupInParents(lv.getName())
+        if outer != null && r.getCurrentScope().lookup(lv.getName()) == null {
+            Symbol os = outer.get(0)
+            if os.getKind() == SymbolKind.LOCAL_VAR {
+                r.diagStr2(lv.getNameLoc(), DiagID.warn_sema_shadow, lv.getName(), "local variable")
+            } elsif os.getKind() == SymbolKind.PARAM {
+                r.diagStr2(lv.getNameLoc(), DiagID.warn_sema_shadow, lv.getName(), "parameter")
+            }
+        }
         // An explicit declaration may shadow an OUTER scope, never redeclare a
         // name of its own scope: the second `int a` used to be dropped silently
         // and every later use kept reading the first variable.
@@ -86,7 +126,9 @@ public class ResolverStmt {
         ASTExpr ie = node.getExpr()
         if ie != null {
             r.setExpectedType(slv.getType())    // so `T[] a = {...}` types the literal
+            r.setUniqueSite(ie)                 // the one place `new unique` may appear
             ie.accept(r)
+            r.setUniqueSite(null)
             r.setExpectedType(null)
             init = r.getCurrentExpr()
             // the initializer must be assignable to the declared type (the
@@ -148,6 +190,7 @@ public class ResolverStmt {
         // direct new-into-local; escape analysis / smart-pointer ownership is the
         // soundness follow-up.)
         if init != null {
+            ResolverStmt.trackUnique(r, node, slv, init, ds)
             SemaCall ic = init.asCall()
             if ic != null {
                 if ic.isNew() {
@@ -216,6 +259,7 @@ public class ResolverStmt {
         SemaBlockStmt blk = r.getCurrentSemaBlock()
         List<SemaParam> retParams = ResolverStmt.returnParamsOf(r)
         List<ASTExpr> values = node.getExprs()
+        List<SemaExpr> moves = new List<SemaExpr>()     // unique owners this return hands out
 
         if values.size() == 0 {
             // A bare `return` is an early exit, valid only where no value is due.
@@ -240,7 +284,15 @@ public class ResolverStmt {
                 } else {
                     ASTExpr lhs = ASTBuilder.CreateIdentifier(node.getLoc(), slot.getName(), null)
                     ASTExpr assign = ASTBuilder.CreateBinary(node.getLoc(), ASTBinaryKind.OP_BINARY_ASSIGN, lhs, value)
+                    r.setReturnAssign(true)
                     assign.accept(r)
+                    r.setReturnAssign(false)
+                    List<SemaExpr> rm = r.getReturnMoves()
+                    int mi = 0
+                    while mi < rm.size() {
+                        moves.add(rm.get(mi))
+                        mi = mi + 1
+                    }
                     SemaExprStmt es = SemaBuilder.CreateExprStmt(node, r.getCurrentExpr())
                     blk.addContent(es)
                 }
@@ -249,6 +301,11 @@ public class ResolverStmt {
         }
 
         SemaReturnStmt rs = SemaBuilder.CreateReturnStmt(node, null)
+        int mj = 0
+        while mj < moves.size() {
+            rs.addMove(moves.get(mj))
+            mj = mj + 1
+        }
         blk.addContent(rs)
         r.setStmtExits(true)
     }
@@ -381,10 +438,16 @@ public class ResolverStmt {
             ce.accept(r)
             SemaExpr cExpr = r.getCurrentExpr()
             ASTBlockStmt cs = c.getStmt()
-            // A case with NO statements falls through to the next case (doc 9.4):
-            // mark it with a null block so codegen branches to the next case body.
+            // No case falls into the next (from 0.15). A value of `case 3, 4:` other
+            // than the last shares the next body: a null block, which codegen
+            // branches on to the next case. A case WRITTEN with no statements is an
+            // error: up to 0.14 it shared the next body, and silently turning it
+            // into a case that does nothing would change what old code does.
             List<ASTStmt> cc = cs.getContent()
-            if cc.size() == 0 {
+            if c.isShared() {
+                ssw.addCase(cExpr, null)
+            } elsif cc.size() == 0 {
+                r.diag(c.getLoc(), DiagID.err_sema_empty_case)
                 ssw.addCase(cExpr, null)
             } else {
                 SemaBlockStmt cBlk = ResolverStmt.resolveBlock(r, cs)
@@ -407,6 +470,7 @@ public class ResolverStmt {
             ssw.setDefault(dBlk)
         }
 
+        ResolverStmt.warnNonExhaustive(r, node, sExpr)
         r.exitSwitch()
         SemaBlockStmt blk = r.getCurrentSemaBlock()
         if blk != null {
@@ -416,7 +480,65 @@ public class ResolverStmt {
         r.setStmtExits(allExit)
     }
 
-    // loop — init / condition / body / post, all sharing one loop scope.
+    // warnNonExhaustive — a switch over an enum, with no default, that leaves some
+    // of the enum's values out: those values go through the switch doing nothing,
+    // which is usually a value added to the enum and forgotten here. The values
+    // are read from the case labels as written (`Color.RED`, `RED`).
+    public static void warnNonExhaustive(const Resolver r, const ASTSwitchStmt node, const SemaExpr sExpr) {
+        if sExpr == null || node.getDefault() != null {
+            return
+        }
+        SemaType st = sExpr.getType()
+        if st == null {
+            return
+        }
+        SemaEnumType et = st.asEnum()
+        if et == null {
+            return
+        }
+        List<string> covered = new List<string>()
+        List<ASTCaseStmt> cases = node.getCases()
+        int i = 0
+        while i < cases.size() {
+            ASTCaseStmt c = cases.get(i)
+            ASTExpr ce = c.getExpr()
+            if ce != null {
+                ASTExprKind k = ce.getExprKind()
+                if k == ASTExprKind.EXPR_MEMBER {
+                    ASTMember m = ce.asMember()
+                    covered.add(m.getName())
+                } elsif k == ASTExprKind.EXPR_IDENTIFIER {
+                    ASTIdentifier id = ce.asIdentifier()
+                    covered.add(id.getName())
+                }
+            }
+            i = i + 1
+        }
+        string missing = ""
+        int count = 0
+        List<ASTNode> nodes = et.getAST().getNodes()
+        int j = 0
+        while j < nodes.size() {
+            ASTNode n = nodes.get(j)
+            ASTEnumEntry e = n.asEnumEntry()
+            if e != null && listHasName(covered, e.getName()) == false {
+                if count < 4 {
+                    if count > 0 {
+                        missing = str.concat(missing, ", ")
+                    }
+                    missing = str.concat(missing, e.getName())
+                }
+                count = count + 1
+            }
+            j = j + 1
+        }
+        if count > 4 {
+            missing = str.concat(missing, str.concat(" and ", str.concat(str.convert(count - 4), " more")))
+        }
+        if count > 0 {
+            r.diagStr2(node.getLoc(), DiagID.warn_sema_non_exhaustive_switch, et.getName(), missing)
+        }
+    }    // loop — init / condition / body / post, all sharing one loop scope.
     public static void loopStmt(const Resolver r, const ASTLoopStmt node) {
         SemaLoopStmt slp = SemaBuilder.CreateLoopStmt(node, false)
         r.enterLoop()
@@ -808,15 +930,22 @@ public class ResolverStmt {
         }
     }
 
-    // delete — the parser rejects `delete` today, so this only fires for AST
-    // built programmatically; diagnose (the codegen visit is empty — a silent
-    // no-op would leak and skip the intended destruction).
+    // delete — `delete x` frees the object x refers to (calling its `free()` first
+    // when the class declares one) and sets x to null. The target must therefore
+    // be something that can be set: a local, a parameter or a field, holding a
+    // class or interface reference.
     public static void deleteStmt(const Resolver r, const ASTDeleteStmt node) {
-        r.diagStr(node.getLoc(), DiagID.err_sema_not_supported, "delete statements")
-
         ASTExpr e = node.getExpr()
         e.accept(r)
         SemaExpr re = r.getCurrentExpr()
+        if re == null {
+            return
+        }
+        string why = deleteTargetProblem(re)
+        if str.isEmpty(why) == false {
+            r.diagStr(node.getLoc(), DiagID.err_sema_delete_target, why)
+            return
+        }
         SemaBlockStmt blk = r.getCurrentSemaBlock()
         if blk != null {
             if re != null {
@@ -824,6 +953,147 @@ public class ResolverStmt {
                 blk.addContent(sd)
             }
         }
+    }
+
+    // trackUnique — ownership for a declaration `C y = init`:
+    //   init is `new unique C(...)`  → y owns the object: deleted at scope end;
+    //   init is a unique owner x     → the object MOVES to y, which owns it, and x
+    //                                  is left null (codegen, via moveFrom);
+    //   init is `new shared`, a holder or a weak ref → y is a holder (a weak one is PROMOTED);
+    //   init is `weak h`              → y is a weak reference; `new weak` is an error.
+    public static void trackUnique(const Resolver r, const ASTStmt node, const SemaLocalVar slv,
+            const SemaExpr init, const SemaDeclStmt ds) {
+        SemaCall ic = init.asCall()
+        if ic != null {
+            ASTCallKind k = ic.getAST().getCallKind()
+            if k == ASTCallKind.CALL_NEW_UNIQUE {
+                SemaClassType uc = ic.getType().asClass()
+                if uc != null && uc.getClassKind() == SemaClassKind.STRUCT {
+                    r.diagStr(node.getLoc(), DiagID.err_sema_unique_move,
+                            "a struct is a value on the stack: create it with a plain 'new'")
+                    return
+                }
+                slv.setUniqueOwner(true)
+            } elsif k == ASTCallKind.CALL_NEW_SHARED {
+                SemaClassType sc = ic.getType().asClass()
+                if sc != null && sc.getClassKind() == SemaClassKind.STRUCT {
+                    r.diagStr(node.getLoc(), DiagID.err_sema_shared_ref,
+                            "a struct is a value on the stack: create it with a plain 'new'")
+                    return
+                }
+                slv.setSharedHolder(true)
+            } elsif k == ASTCallKind.CALL_NEW_WEAK {
+                r.diagStr(node.getLoc(), DiagID.err_sema_weak_ref,
+                        "a weak reference does not create an object, it observes a shared one: write 'weak h'")
+            } elsif ResolverStmt.callReturnsShared(ic) {
+                // `C y = make()` where make returns a holder: y holds that reference.
+                slv.setSharedHolder(true)
+                SemaBlockStmt sblk = r.getCurrentSemaBlock()
+                if sblk != null {
+                    sblk.addAlloc(slv)
+                }
+            } elsif ResolverStmt.callReturnsOwned(ic) {
+                // `C y = make()` where make returns an owner: y owns the result.
+                slv.setUniqueOwner(true)
+                SemaBlockStmt oblk = r.getCurrentSemaBlock()
+                if oblk != null {
+                    oblk.addAlloc(slv)
+                }
+            }
+            return
+        }
+        if init.isUniqueOwner() && init.getKind() == SemaKind.LOCAL_VAR {
+            slv.setUniqueOwner(true)
+            ds.setMoveFrom(init)
+            SemaBlockStmt blk = r.getCurrentSemaBlock()
+            if blk != null {
+                blk.addAlloc(slv)
+            }
+        }
+        // `C w = weak h`: w is a weak reference (released at scope end).
+        if init.isWeakMake() {
+            slv.setWeakRef(true)
+            SemaBlockStmt wblk = r.getCurrentSemaBlock()
+            if wblk != null {
+                wblk.addAlloc(slv)
+            }
+            return
+        }
+        // `C p = w` with w weak: a PROMOTION — p is a holder of the object if it
+        // still lives (codegen counts it), null otherwise.
+        if init.isWeakRef() {
+            slv.setSharedHolder(true)
+            SemaBlockStmt pblk = r.getCurrentSemaBlock()
+            if pblk != null {
+                pblk.addAlloc(slv)
+            }
+            return
+        }
+        // `C y = x` with x a shared holder (a local or a holding field): y holds a
+        // COUNTED copy (codegen retains); x keeps its own reference.
+        if init.isSharedHolder() {
+            slv.setSharedHolder(true)
+            SemaBlockStmt hblk = r.getCurrentSemaBlock()
+            if hblk != null {
+                hblk.addAlloc(slv)
+            }
+        }
+    }
+
+    // callReturnsOwned — is `c` a call (not a `new`) to a function that hands back
+    // an owner through `return`?
+    // callReturnsShared — is `c` a call (not a `new`) to a function that hands back
+    // a shared holder through `return`?
+    public static bool callReturnsShared(const SemaCall c) {
+        if c.isNew() {
+            return false
+        }
+        SemaFunctionBase fn = c.getFunction()
+        if fn == null {
+            return false
+        }
+        return fn.returnsShared()
+    }
+
+    public static bool callReturnsOwned(const SemaCall c) {
+        if c.isNew() {
+            return false
+        }
+        SemaFunctionBase fn = c.getFunction()
+        if fn == null {
+            return false
+        }
+        return fn.returnsOwned()
+    }
+
+    // deleteTargetProblem — why `re` cannot be deleted, or "" when it can.
+    public static string deleteTargetProblem(const SemaExpr re) {
+        SemaKind k = re.getKind()
+        if k == SemaKind.INSTANCE_VAR {
+            return "'this' cannot be deleted"
+        }
+        bool settable = k == SemaKind.LOCAL_VAR || k == SemaKind.PARAM_VAR
+        if k == SemaKind.ATTRIBUTE || k == SemaKind.MEMBER {
+            settable = true
+        }
+        if settable == false {
+            return "the target must be a variable or a field, so that it can be set to null"
+        }
+        SemaType t = re.getType()
+        SemaClassType cls = null
+        if t != null {
+            cls = t.asClass()
+        }
+        if cls == null {
+            return "the target is not a class or interface reference"
+        }
+        if cls.getClassKind() == SemaClassKind.STRUCT {
+            return str.concat(str.concat("'", cls.getName()), "' is a struct, released at the end of its scope")
+        }
+        if re.isConstVar() {
+            return "the variable is declared 'const'"
+        }
+        return ""
     }
 
     public static void breakStmt(const Resolver r, const ASTBreakStmt node) {

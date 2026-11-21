@@ -67,7 +67,7 @@ suite CodeGenStmtSuite {
             assert.assertTrue(str.contains(ir, "loopbody"), 26)
             assert.assertTrue(str.contains(ir, "looppost"), 27)
             assert.assertTrue(str.contains(ir, "icmp slt i32"), 28)
-            assert.assertTrue(str.contains(ir, "add i32"), 29)
+            assert.assertTrue(str.contains(ir, "llvm.sadd.with.overflow.i32"), 29)
         }
     }
 
@@ -85,11 +85,11 @@ suite CodeGenStmtSuite {
             assert.assertTrue(str.contains(ir, "switch i32"), 31)
             assert.assertTrue(str.contains(ir, "swdefault"), 32)
         }
-        case "empty case falls through to the NEXT case (doc 9.4)": {
-            string ir = cgIR("int pick(const int k) { int r = 0  switch k { case 3: case 4: r = 34  default: r = 99 }  return r }")
+        case "case 3, 4: two labels feed one body": {
+            string ir = cgIR("int pick(const int k) { int r = 0  switch k { case 3, 4: r = 34  default: r = 99 }  return r }")
             assert.assertTrue(str.contains(ir, "swcase"), 41)
-            // the empty case's block must NOT be a lone `br %swexit`: it targets
-            // the next case block, so two labels feed the shared body
+            // the first value's block must NOT be a lone `br %swexit`: it targets
+            // the next case block, so both labels reach the shared body
             assert.assertTrue(str.contains(ir, "store i32 34"), 42)
         }
     }

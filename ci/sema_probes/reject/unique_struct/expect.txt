@@ -1,0 +1,1 @@
+a struct is a value on the stack

@@ -19,7 +19,7 @@ suite SemaToplevelSuite {
             SemaModule sm = new SemaModule(am, st)
             assert.assertStr(sm.getName(), "t.fly", 1)
             List<SemaNode> ns = sm.getNodes()
-            assert.assertEqI(ns.size(), 0, 2)
+            assert.assertEqI((int)ns.size(), 0, 2)
         }
     }
 

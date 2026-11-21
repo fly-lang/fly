@@ -6,7 +6,6 @@ import fly.compiler.codegen.CodeGenModule
 import fly.compiler.codegen.CodeGenLLVM
 import fly.compiler.codegen.CodeGenIntrinsics
 import llvm.api.*
-import fly.mem
 import fly.data.List
 import fly.str
 

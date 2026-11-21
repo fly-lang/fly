@@ -1,0 +1,1 @@
+a weak reference does not create an object

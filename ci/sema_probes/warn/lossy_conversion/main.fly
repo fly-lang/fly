@@ -1,0 +1,16 @@
+// An integer into a floating type is implicit but may round beyond the mantissa
+// (24 bits for float, 53 for double). Not reported: a literal, an integer that
+// fits the mantissa, and an explicit cast.
+void main() {
+    long big = 9007199254740993
+    double d = big
+    int i = 16777217
+    float f = i
+    float lit = 3
+    short s = 100
+    float fs = s
+    double ok = (double)big
+    if d < 0.0 || f < 0.0 || lit < 0.0 || fs < 0.0 || ok < 0.0 {
+        fail 1, "values"
+    }
+}

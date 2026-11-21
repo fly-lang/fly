@@ -1,0 +1,3 @@
+The seed (0.14.9) stores a signed value into an unsigned type without a cast
+(uint u = -1 is 4294967295). From 0.15 the self-host requires the cast unless
+the value is a literal that fits.

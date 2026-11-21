@@ -1,0 +1,5 @@
+// A compound assignment computed in a wider type must still fit the variable.
+void main() {
+    short s = 32000
+    s += 1000
+}

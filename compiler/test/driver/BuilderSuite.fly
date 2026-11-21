@@ -156,7 +156,7 @@ suite BuilderSuite {
             // case, and the scratch project must never survive a failed run
             env.cwdSet(repo)
             fs.dirDeleteAll(proj)
-            env.delete("FLYLANG_BIN")
+            env.del("FLYLANG_BIN")
 
             assert.assertEqI(e, 0, 11)                 // reader parsed the manifest (no crash)
             assert.assertEqI(targets, 1, 12)           // the targets array was read
@@ -249,7 +249,7 @@ suite BuilderSuite {
 
             env.cwdSet(repo)
             fs.dirDeleteAll(proj)
-            env.delete("FLYLANG_BIN")
+            env.del("FLYLANG_BIN")
 
             assert.assertEqI(e, 0, 21)
             assert.assertTrue(ok1, 22)

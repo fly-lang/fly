@@ -60,14 +60,78 @@ public class ResolverExpr {
         r.setCurrentExpr(e)
     }
 
+    // ownedSource — may an owner take this value? A `new unique` object, another
+    // owner (moved), the result of a call that returns an owner, or null (which
+    // just deletes what the owner held).
+    // sharedSource — may a shared holder take this value? A `new shared` object,
+    // another holder (counted copy), the result of a call that returns a
+    // holder, or null (which just releases what the holder had).
+    public static bool sharedSource(const SemaExpr e) {
+        if e.isSharedHolder() {
+            return true          // a counted copy, from a local or a holding field
+        }
+        if e.isWeakRef() {
+            return true          // a promotion: counted when the object still lives, else null
+        }
+        if e.getKind() == SemaKind.VALUE && e.getType() == null {
+            return true
+        }
+        SemaCall c = e.asCall()
+        if c == null {
+            return false
+        }
+        if c.getAST().getCallKind() == ASTCallKind.CALL_NEW_SHARED {
+            return true
+        }
+        return ResolverStmt.callReturnsShared(c)
+    }
+
+    public static bool ownedSource(const SemaExpr e) {
+        if e.isUniqueOwner() {
+            // only a LOCAL owner moves; an owning field lends, it never gives up
+            return e.getKind() == SemaKind.LOCAL_VAR
+        }
+        if e.getKind() == SemaKind.VALUE && e.getType() == null {
+            return true
+        }
+        SemaCall c = e.asCall()
+        if c == null {
+            return false
+        }
+        if c.getAST().getCallKind() == ASTCallKind.CALL_NEW_UNIQUE {
+            return true
+        }
+        return ResolverStmt.callReturnsOwned(c)
+    }
+
     public static void binary(const Resolver r, const ASTBinary node) {
         ASTExpr l = node.getLeftExpr()
         l.accept(r)
         SemaExpr left = r.getCurrentExpr()
+        // literal operands, for checkSignCompare (only the last literal is tracked)
+        bool lLit = left != null && left == r.getLitExpr()
+        bool lNeg = r.isLitNeg()
         ASTExpr rt = node.getRightExpr()
+        // `owner = new unique C()`: an owner may take a fresh object, so the
+        // right side is a place where `new unique` is allowed.
+        bool ownerTarget = false
+        if left != null {
+            bool owningLeft = left.isUniqueOwner() || left.isSharedHolder() || left.isWeakRef()
+            ownerTarget = node.getBinaryKind() == ASTBinaryKind.OP_BINARY_ASSIGN && owningLeft
+        }
+        ASTExpr savedSite = r.getUniqueSite()
+        if ownerTarget {
+            r.setUniqueSite(rt)
+        }
         rt.accept(r)
+        r.setUniqueSite(savedSite)
         SemaExpr right = r.getCurrentExpr()
+        bool rLit = right != null && right == r.getLitExpr()
+        bool rNeg = r.isLitNeg()
         SemaBinary b = SemaBuilder.CreateBinary(node, left, right)
+        if node.isCompare() && left != null && right != null {
+            checkSignCompare(r, node.getOpLocation(), left.getType(), right.getType(), lLit, lNeg, rLit, rNeg)
+        }
         // Numeric promotion: an arithmetic op over two numbers yields the wider type
         // (Stage 7). Comparisons/logic (bool) and assignments (assignee type) keep the
         // default. CreateBinary defaulted the type to the left operand's.
@@ -140,6 +204,51 @@ public class ResolverExpr {
                         }
                     }
                 }
+                // `new unique` ownership. An owner takes only what it may delete: a
+                // fresh `new unique` object, another owner (a move, which leaves the
+                // source null), an owned call result, or null; its old object is
+                // deleted first (codegen). An owner moves only into another owner, a
+                // new declaration or a return: anything else would leave two names
+                // for one owned object.
+                if left != null && right != null {
+                    bool rLocal = right.getKind() == SemaKind.LOCAL_VAR
+                    if r.isReturnAssign() {
+                        // a returned owner OR holder hands its reference to the caller:
+                        // the local is left null, so its scope end neither deletes nor
+                        // releases it
+                        bool handsOut = right.isUniqueOwner() || right.isSharedHolder()
+                        if handsOut && rLocal {
+                            r.getReturnMoves().add(right)
+                        }
+                    } elsif left.isWeakRef() {
+                        // a weak variable takes only a new weak reference (`w = weak h`)
+                        // or null; anything else would be released without being counted
+                        bool wNull = right.getKind() == SemaKind.VALUE && right.getType() == null
+                        if right.isWeakMake() == false && wNull == false {
+                            r.diagStr(node.getOpLocation(), DiagID.err_sema_weak_ref,
+                                    "a weak variable takes only 'weak h' or null")
+                        }
+                    } elsif left.isSharedHolder() {
+                        if ResolverExpr.sharedSource(right) == false {
+                            r.diagStr(node.getOpLocation(), DiagID.err_sema_shared_ref,
+                                    "a holder takes only a 'new shared' object, a holder, a held result or null")
+                        }
+                    } elsif right.isSharedHolder() && rLocal {
+                        r.diagStr(node.getOpLocation(), DiagID.err_sema_shared_ref,
+                                "a holder is copied only into another holder, a new declaration (C y = x) or a return")
+                    } elsif left.isUniqueOwner() {
+                        if left == right {
+                            r.diagStr(node.getOpLocation(), DiagID.err_sema_unique_move,
+                                    "an owner cannot be assigned to itself")
+                        } elsif ResolverExpr.ownedSource(right) == false {
+                            r.diagStr(node.getOpLocation(), DiagID.err_sema_unique_move,
+                                    "an owner takes only a 'new unique' object, another owner, an owned result or null")
+                        }
+                    } elsif right.isUniqueOwner() && right.getKind() == SemaKind.LOCAL_VAR {
+                        r.diagStr(node.getOpLocation(), DiagID.err_sema_unique_move,
+                                "the owner moves only into another owner, a new declaration (C y = x) or a return")
+                    }
+                }
                 // Assignment compatibility: the assignee's type must accept the RHS
                 if left != null {
                     if right != null {
@@ -190,6 +299,25 @@ public class ResolverExpr {
         SemaExpr inner = r.getCurrentExpr()
         SemaUnary u = SemaBuilder.CreateUnary(node, inner)
         ASTUnaryKind uk = node.getOpKind()
+        // `weak h`: one weak reference to the object of h, which must be a shared
+        // holder (or another weak reference). Like `new unique`, it only appears
+        // where a variable takes it — a weak reference left in mid-air would be
+        // counted and never released.
+        if uk == ASTUnaryKind.OP_UNARY_WEAK {
+            u.setWeakMake(true)
+            if inner != null {
+                if inner.isSharedHolder() == false && inner.isWeakRef() == false {
+                    r.diagStr(node.getLoc(), DiagID.err_sema_weak_ref,
+                            "it observes a 'new shared' object: write 'weak h' with h a shared holder")
+                }
+            }
+            if r.getUniqueSite() != node {
+                r.diagStr(node.getLoc(), DiagID.err_sema_weak_ref,
+                        "it must initialize a variable declaration or be assigned to a weak variable")
+            }
+            r.setCurrentExpr(u)
+            return
+        }
         if inner != null {
             // `-5` is still a constant for the narrowing check: re-record the
             // literal under the unary that negates it.
@@ -675,6 +803,37 @@ public void checkNarrowing(const Resolver r, const SourceLocation loc, const Sem
     }
     int lr = lhs.getRank()
     int rr = rhs.getRank()
+    // An integer into a floating type is implicit but may round: a float holds 24
+    // bits of mantissa, a double 53. Warned (not rejected) beyond that, unless the
+    // value is a literal, whose rounding the program can see.
+    if rhs.isInteger() && lhs.isInteger() == false {
+        int ibits = rr
+        if ibits % 2 == 1 {
+            ibits = ibits + 1
+        }
+        int mbits = 24
+        if lr > 320 {
+            mbits = 53
+        }
+        if ibits > mbits && rhsExpr != r.getLitExpr() {
+            r.diagStr2(loc, DiagID.warn_sema_lossy_conversion, rhs.getName(), lhs.getName())
+        }
+        return
+    }
+    // A signed value into an unsigned type has no counterpart when it is negative
+    // (`uint u = -1` is 4294967295): it needs a cast, whatever the ranks, unless it
+    // is a literal that fits. `pointer` is exempt: address arithmetic.
+    if lhs.isInteger() && rhs.isInteger() {
+        if isSignedInt(rhs) && isPlainUnsignedInt(lhs) {
+            if rhsExpr == r.getLitExpr() {
+                if intLiteralFits(r.getLitRaw(), r.isLitNeg(), lr) {
+                    return
+                }
+            }
+            r.diagStr2(loc, DiagID.err_sema_narrowing, rhs.getName(), lhs.getName())
+            return
+        }
+    }
     if lr >= rr {
         return
     }
@@ -878,4 +1037,65 @@ public bool classMayAccess(const Resolver r, const SemaClassType owner) {
         return true
     }
     return str.equals(here.getName(), owner.getName())
+}
+
+// isSignedInt — an integer type with a sign (odd rank: short, int, long).
+public bool isSignedInt(const SemaType t) {
+    if t == null {
+        return false
+    }
+    if t.isInteger() == false {
+        return false
+    }
+    return t.getRank() % 2 == 1
+}
+
+// isPlainUnsignedInt — an unsigned integer type other than `pointer` (byte,
+// ushort, uint, ulong). `pointer` is address arithmetic: a negative offset added
+// to it is meant to wrap, so it takes signed values freely.
+public bool isPlainUnsignedInt(const SemaType t) {
+    if t == null {
+        return false
+    }
+    if t.isInteger() == false {
+        return false
+    }
+    if t.getRank() % 2 == 1 {
+        return false
+    }
+    return str.equals(t.getName(), "pointer") == false
+}
+
+// checkSignCompare — a comparison of a signed with an unsigned integer is done
+// in the unsigned type when that one is the wider (`-1 < 1u` is false: -1 reads
+// as 4294967295). Rejected unless the signed side is a non-negative literal, or
+// the signed type is the wider one (`aLong < aUint` compares exactly). The
+// literal operands are passed in because only the last literal is tracked.
+public void checkSignCompare(const Resolver r, const SourceLocation loc, const SemaType lt, const SemaType rt,
+        const bool lLit, const bool lNeg, const bool rLit, const bool rNeg) {
+    SemaType st = null
+    SemaType ut = null
+    bool sLit = false
+    bool sNeg = false
+    if isSignedInt(lt) && isPlainUnsignedInt(rt) {
+        st = lt
+        ut = rt
+        sLit = lLit
+        sNeg = lNeg
+    } elsif isSignedInt(rt) && isPlainUnsignedInt(lt) {
+        st = rt
+        ut = lt
+        sLit = rLit
+        sNeg = rNeg
+    }
+    if st == null {
+        return
+    }
+    if st.getRank() > ut.getRank() {
+        return
+    }
+    if sLit && sNeg == false {
+        return
+    }
+    r.diagStr2(loc, DiagID.err_sema_sign_compare, st.getName(), ut.getName())
 }

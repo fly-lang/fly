@@ -40,7 +40,7 @@ suite OverloadSuite {
             assert.assertStr(use.getName(), "use", 2)
 
             List<SemaLocalVar> locals = use.getLocalVars()
-            assert.assertEqI(locals.size(), 2, 3)
+            assert.assertEqI((int)locals.size(), 2, 3)
             SemaLocalVar o0 = locals.get(0)
             SemaType t0 = o0.getType()
             assert.assertTrue(t0.isInteger(), 4)   // f(3) → int f
@@ -71,7 +71,7 @@ suite OverloadSuite {
             // g(3): int arg ≠ long param, so only the promotion pass matches; a match
             // synthesizes one out-var. Zero would mean promotion failed.
             List<SemaLocalVar> locals = useG.getLocalVars()
-            assert.assertEqI(locals.size(), 1, 12)
+            assert.assertEqI((int)locals.size(), 1, 12)
         }
     }
 }

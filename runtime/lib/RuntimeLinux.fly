@@ -385,7 +385,7 @@ private void toCStr(const string s, pointer out) {
     pointer src = 0
     fly.llvm.strGetPtr(s, src)
     pointer buf = 0
-    fly.runtime.malloc(n + 1, buf)
+    fly.runtime.malloc((ulong)(n + 1), buf)
     int i = 0
     while i < n {
         byte b = 0
@@ -415,7 +415,7 @@ private void procRead(const pointer cpath, const pointer buf, const long cap, lo
             n = 0
         } else {
             pointer at = buf + total
-            fly.runtime.read(fd, at, room, n)
+            fly.runtime.read(fd, at, (ulong)room, n)
             if n > 0 {
                 total = total + n
             }
@@ -597,7 +597,7 @@ public void env_args_fill(const pointer arr_base, const int count) {
                 int isl = 0
                 fly.llvm.longToInt(slen, isl)
                 pointer dst = 0
-                fly.runtime.malloc(slen + 1, dst)
+                fly.runtime.malloc((ulong)(slen + 1), dst)
                 long j = 0
                 while j < slen {
                     byte cb = 0
@@ -716,7 +716,7 @@ public void env_all_fill(const pointer arr_base, const int count) {
                 int isl = 0
                 fly.llvm.longToInt(slen, isl)
                 pointer dst = 0
-                fly.runtime.malloc(slen + 1, dst)
+                fly.runtime.malloc((ulong)(slen + 1), dst)
                 long j = 0
                 while j < slen {
                     byte cb = 0
@@ -743,7 +743,7 @@ public void env_all_fill(const pointer arr_base, const int count) {
 // arg/env access needs no stored state, so it is a no-op (kept non-empty so it
 // emits as a defined C-ABI symbol rather than an unresolved extern).
 public void env_init(const int argc, const pointer argv) {
-    int unused = argc
+    int _unused = argc
 }
 
 public void env_set(const pointer key, const pointer val, int out) {
@@ -1281,28 +1281,30 @@ public void net_connect(const long s, const int addr, const int port, int out) {
 // net_send — ONE send attempt. Returns the byte count actually written, which
 // may be LESS than n; <0 on error. The caller loops (fly.net.sendAll does).
 public void net_send(const long s, const pointer buf, const int n, long out) {
-    if s < 0 {
+    // a negative length would reach the OS as an enormous size_t
+    if s < 0 || n < 0 {
         out = 0 - 1
         return
     }
     int fd = 0
     fly.llvm.longToInt(s, fd)
     long sent = 0
-    fly.runtime.send(fd, buf, n, 16384, sent)       // MSG_NOSIGNAL
+    fly.runtime.send(fd, buf, (ulong)n, 16384, sent)       // MSG_NOSIGNAL
     out = sent
 }
 
 // net_recv — ONE blocking receive of up to n bytes. >0 = bytes, 0 = orderly peer
 // shutdown (EOF), <0 = error.
 public void net_recv(const long s, const pointer buf, const int n, long out) {
-    if s < 0 {
+    // a negative length would reach the OS as an enormous size_t
+    if s < 0 || n < 0 {
         out = 0 - 1
         return
     }
     int fd = 0
     fly.llvm.longToInt(s, fd)
     long got = 0
-    fly.runtime.recv(fd, buf, n, 0, got)
+    fly.runtime.recv(fd, buf, (ulong)n, 0, got)
     out = got
 }
 
@@ -1365,7 +1367,8 @@ public void net_socket_udp(long out) {
 // error. A datagram is sent whole or not at all: there is no short write to loop
 // over, unlike the TCP path.
 public void net_send_to(const long s, const pointer buf, const int n, const int addr, const int port, long out) {
-    if s < 0 {
+    // a negative length would reach the OS as an enormous size_t
+    if s < 0 || n < 0 {
         out = 0 - 1
         return
     }
@@ -1386,7 +1389,7 @@ public void net_send_to(const long s, const pointer buf, const int n, const int 
     fly.llvm.ptrPokeByte(sa, 6, (byte)((addr >> 8) & 255))
     fly.llvm.ptrPokeByte(sa, 7, (byte)(addr & 255))
     long sent = 0
-    fly.runtime.sendto(fd, buf, n, 16384, sa, 16, sent)     // MSG_NOSIGNAL
+    fly.runtime.sendto(fd, buf, (ulong)n, 16384, sa, 16, sent)     // MSG_NOSIGNAL
     fly.runtime.free(sa)
     out = sent
 }
@@ -1398,7 +1401,8 @@ public void net_send_to(const long s, const pointer buf, const int n, const int 
 // A datagram longer than n is TRUNCATED and the remainder discarded — that is
 // UDP semantics, not a bug to work around.
 public void net_recv_from(const long s, const pointer buf, const int n, const pointer from, long out) {
-    if s < 0 {
+    // a negative length would reach the OS as an enormous size_t
+    if s < 0 || n < 0 {
         out = 0 - 1
         return
     }
@@ -1410,7 +1414,7 @@ public void net_recv_from(const long s, const pointer buf, const int n, const po
     fly.runtime.malloc(4, alen)
     fly.llvm.ptrPokeInt(alen, 0, 16)
     long got = 0
-    fly.runtime.recvfrom(fd, buf, n, 0, sa, alen, got)
+    fly.runtime.recvfrom(fd, buf, (ulong)n, 0, sa, alen, got)
     if got < 0 {
         fly.runtime.free(sa)
         fly.runtime.free(alen)
@@ -1480,7 +1484,7 @@ public void net_poll(const pointer entries, const int count, const int timeoutMs
         return
     }
     pointer fds = 0
-    fly.runtime.malloc(count * 8, fds)
+    fly.runtime.malloc((ulong)(count * 8), fds)
     int i = 0
     while i < count {
         long sv = 0
@@ -1758,7 +1762,7 @@ public void net_resolve4(const pointer host, int out) {
 // ── Fly string-array slot helpers (string slot = { i64 ptr, i32 size, i32 pad }) ─
 public void str_slot_set(const pointer arr_base, const int idx, const pointer ptr, const int size) {
     int off = idx * 16
-    fly.llvm.ptrPokeLong(arr_base, off, ptr)
+    fly.llvm.ptrPokeLong(arr_base, off, (long)ptr)
     fly.llvm.ptrPokeInt(arr_base, off + 8, size)
     fly.llvm.ptrPokeInt(arr_base, off + 12, 0)
 }
@@ -1851,7 +1855,7 @@ private void wrDec(const int fd, const int v) {
     } else {
         while t > 0 {
             int d = t - (t / 10) * 10
-            fly.llvm.ptrPokeByte(buf, i, 48 + d)
+            fly.llvm.ptrPokeByte(buf, i, (byte)(48 + d))
             i = i - 1
             t = t / 10
         }

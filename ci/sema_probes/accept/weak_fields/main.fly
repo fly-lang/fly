@@ -1,0 +1,57 @@
+public class Res {
+
+    public static int freed
+
+    public Res() {
+    }
+
+    public void free() {
+        Res.freed = Res.freed + 1
+    }
+}
+
+public class Cache {
+
+    Res held
+    Res last
+
+    public Cache() {
+    }
+
+    public void fill() {
+        Res h = new shared Res()
+        this.held = h
+        this.last = weak h
+    }
+
+    public void drop() {
+        this.held = null
+    }
+
+    public bool alive() {
+        return this.last != null
+    }
+}
+
+// A weak field (filled with `weak h`) observes without holding: the object goes
+// with its last holder, the field then reads null, and destroying the object
+// that has the field lets go of the weak reference.
+void main() {
+    Cache c = new unique Cache()
+    c.fill()
+    if c.alive() == false {
+        fail 1, "the held field keeps the object"
+    }
+    c.drop()
+    if Res.freed != 1 {
+        fail 2, "the weak field does not keep the object"
+    }
+    if c.alive() {
+        fail 3, "the weak field reads null once the object is gone"
+    }
+    c.fill()
+    delete c
+    if Res.freed != 2 {
+        fail 4, "deleting the cache releases its holding field"
+    }
+}

@@ -72,7 +72,7 @@ public class SemaBuilder {
                 SemaType ta = typeArgs.get(i)
                 Symbol psym = new Symbol(tp.getName(), SymbolKind.CLASS, ta)
                 psym.setTypeRef(ta)
-                bool ok = specScope.insert(psym)
+                bool _ok = specScope.insert(psym)
             }
             i = i + 1
         }
@@ -119,7 +119,7 @@ public class SemaBuilder {
                 SemaType ta = typeArgs.get(i)
                 Symbol psym = new Symbol(tp.getName(), SymbolKind.CLASS, ta)
                 psym.setTypeRef(ta)
-                bool ok = specScope.insert(psym)
+                bool _ok = specScope.insert(psym)
             }
             i = i + 1
         }
@@ -270,7 +270,19 @@ public class SemaBuilder {
         if ref != null {
             t = ref.getType()
         }
-        return new SemaMember(ast, ref, parent, t)
+        SemaMember m = new SemaMember(ast, ref, parent, t)
+        // `obj.f` of an owning field is itself an owner place: an assignment to it
+        // deletes what it held, and a read only borrows (see ResolverExpr).
+        if ref != null && ref.isUniqueOwner() {
+            m.setUniqueOwner(true)
+        }
+        if ref != null && ref.isSharedHolder() {
+            m.setSharedHolder(true)
+        }
+        if ref != null && ref.isWeakRef() {
+            m.setWeakRef(true)
+        }
+        return m
     }
 
     // CreateArrayAccess — `base[index]`, typed as the array's ELEMENT type so the

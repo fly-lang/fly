@@ -67,8 +67,7 @@ x")
             assert.assertTrue(e.kind == TokenKind.EOF, 12)
         }
         case "backslash outside comment is a stray token": {
-            Lexer lx = newLexer("a \\
-b")
+            Lexer lx = newLexer("a \\\\\nb")                  // a, two backslashes, a newline, b
             Token t1 = lx.next()
             assert.assertStr(lx.tokenText(t1), "a", 13)
             Token t2 = lx.next()

@@ -87,7 +87,7 @@ suite HashSuite {
             assert.assertStr(hash.sha256File(p), hash.sha256String("abc"), 203)
             assert.assertTrue(hash.sha256Verify(p, hash.sha256String("abc")), 204)
             assert.assertFalse(hash.sha256Verify(p, hash.sha256String("abd")), 205)
-            fs.delete(p)
+            fs.del(p)
         }
         case "a missing file hashes to empty and never verifies": {
             assert.assertEmpty(hash.sha256File("fly_hash_absent.txt"), 206)
@@ -98,7 +98,7 @@ suite HashSuite {
             string p = "fly_hash_empty.txt"
             fs.writeStr(p, "", 420)
             assert.assertStr(hash.sha256File(p), hash.sha256String(""), 208)
-            fs.delete(p)
+            fs.del(p)
         }
         case "a binary file hashes over its real bytes": {
             // sha256File reads with readBytes for a reason: the callers hash
@@ -125,7 +125,7 @@ suite HashSuite {
             // And it must NOT be the digest of the text-mangled version, which is
             // what a text-mode read would have returned on Windows.
             assert.assertFalse(hash.sha256Verify(p, hash.sha256String("z")), 211)
-            fs.delete(p)
+            fs.del(p)
         }
     }
 

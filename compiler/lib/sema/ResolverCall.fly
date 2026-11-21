@@ -5,7 +5,6 @@ import fly.compiler.ast.*
 import fly.compiler.basic.*
 import fly.data.List
 import fly.str
-import fly.os.io
 
 // ResolverCall — call resolution companion (decomposed into small helpers; the C++
 // visit(ASTCall) is ~530 lines). Stage-6 scope: exact-match resolution of a free
@@ -47,7 +46,7 @@ public class ResolverCall {
         // the value-receiver path below is skipped for namespace calls.
         List<string> nsPath = null
         SemaClassType staticCls = null
-        if parent != null && ck != ASTCallKind.CALL_NEW && superRecv == false {
+        if parent != null && isNewKind(ck) == false && superRecv == false {
             List<string> cand = ResolverCall.flattenNsPath(parent)
             if cand != null {
                 // A VALUE symbol (local/param/field) named like the FIRST segment
@@ -146,6 +145,10 @@ public class ResolverCall {
         List<ASTArg> astArgs = node.getArgs()
         List<SemaExpr> argExprs = new List<SemaExpr>()
         List<SemaType> argTypes = new List<SemaType>()
+        // each argument's literal text when it IS an integer literal ("-5" when
+        // negated), "" otherwise: checkArgNarrowing needs it after every argument
+        // is resolved, and the resolver tracks only the last literal
+        List<string> argLits = new List<string>()
         int i = 0
         while i < astArgs.size() {
             ASTArg a = astArgs.get(i)
@@ -153,6 +156,14 @@ public class ResolverCall {
             ae.accept(r)
             SemaExpr ax = r.getCurrentExpr()
             argExprs.add(ax)
+            string lit = ""
+            if ax != null && ax == r.getLitExpr() {
+                lit = r.getLitRaw()
+                if r.isLitNeg() {
+                    lit = str.concat("-", lit)
+                }
+            }
+            argLits.add(lit)
             SemaType at = null
             if ax != null {
                 at = ax.getType()
@@ -190,7 +201,7 @@ public class ResolverCall {
         }
 
         SemaCall sema = null
-        if ck == ASTCallKind.CALL_NEW {
+        if isNewKind(ck) {
             sema = ResolverCall.resolveNew(r, node, savedScope, argTypes)
         } elsif superCtor || superRecv {
             sema = ResolverCall.resolveSuper(r, node, superCtor, argTypes)
@@ -228,6 +239,22 @@ public class ResolverCall {
             r.setCurrentScope(savedScope)
             r.setCurrentExpr(null)
             return
+        }
+
+        ResolverCall.checkPrivileged(r, node, sema)
+        ResolverCall.checkArgNarrowing(r, sema, astArgs, argExprs, argLits)
+        if ck == ASTCallKind.CALL_NEW_UNIQUE {
+            ASTExpr site = r.getUniqueSite()
+            if site != node {
+                r.diagStr(node.getLoc(), DiagID.err_sema_unique_move,
+                        "it must initialize a variable declaration, which then owns the object (C x = new unique C())")
+            }
+        } elsif ck == ASTCallKind.CALL_NEW_SHARED {
+            ASTExpr ssite = r.getUniqueSite()
+            if ssite != node {
+                r.diagStr(node.getLoc(), DiagID.err_sema_shared_ref,
+                        "it must initialize a variable declaration, which then holds it (C x = new shared C())")
+            }
         }
 
         // Multi-assignment verification (B027): the parser lowered `q, r = f(x)`
@@ -417,7 +444,72 @@ public class ResolverCall {
         return t
     }
 
-    // resolveGenericCall — monomorphize a generic TEMPLATE for this call: infer
+    // checkArgNarrowing — an argument is stored into its parameter: the same rule
+    // as an assignment (checkNarrowing). Without it `f(aLong)` for an `int`
+    // parameter compiled and silently kept the low 32 bits, and `f(-1)` for a
+    // `uint` one passed 4294967295. Only the explicit parameters are checked (the
+    // trailing out slots of a multi-return call are the caller's variables).
+    public static void checkArgNarrowing(const Resolver r, const SemaCall sema, const List<ASTArg> astArgs,
+            const List<SemaExpr> argExprs, const List<string> argLits) {
+        SemaFunctionBase fn = sema.getFunction()
+        if fn == null {
+            return
+        }
+        List<SemaParam> params = fn.getParams()
+        int n = (int)params.size() - fn.getOutParamCount()
+        int na = (int)argExprs.size()
+        if na < n {
+            n = na
+        }
+        int i = 0
+        while i < n {
+            SemaExpr ax = argExprs.get(i)
+            if ax != null {
+                string lit = argLits.get(i)
+                if str.isEmpty(lit) {
+                    r.noteLiteral(null, "", false)
+                } elsif str.startsWith(lit, "-") {
+                    r.noteLiteral(ax, str.substring(lit, 1, str.len(lit)), true)
+                } else {
+                    r.noteLiteral(ax, lit, false)
+                }
+                SemaParam p = params.get(i)
+                ASTArg a = astArgs.get(i)
+                ASTNode ae = a.getExpr()
+                if p.isConstant() || ax.isVarExpr() == false {
+                    // a const parameter, or any value that is not a variable: an input
+                    checkNarrowing(r, ae.getLoc(), p.getType(), ax)
+                } else {
+                    // a variable for a non-const parameter is an OUT argument: the callee
+                    // writes it back into the caller's variable, so the value flows the
+                    // other way (`ptrReadLong(p, i, aPointer)` stores a long into a pointer)
+                    ResolverCall.checkOutNarrowing(r, ae.getLoc(), ax.getType(), p.getType())
+                }
+            }
+            i = i + 1
+        }
+    }
+    // checkOutNarrowing — an out parameter of type `pt` written back into a caller
+    // variable of type `at`: the rule of checkNarrowing with the roles swapped
+    // (there is no literal to exempt: an out argument is a variable).
+    public static void checkOutNarrowing(const Resolver r, const SourceLocation loc, const SemaType at,
+            const SemaType pt) {
+        if at == null || pt == null {
+            return
+        }
+        if at.isNumber() == false || pt.isNumber() == false {
+            return
+        }
+        bool loses = false
+        if at.isInteger() && pt.isInteger() && isSignedInt(pt) && isPlainUnsignedInt(at) {
+            loses = true
+        } elsif at.getRank() < pt.getRank() {
+            loses = true
+        }
+        if loses {
+            r.diagStr2(loc, DiagID.err_sema_narrowing, pt.getName(), at.getName())
+        }
+    }    // resolveGenericCall — monomorphize a generic TEMPLATE for this call: infer
     // each type param from the argument types (declaration order), get-or-create
     // the specialization, resolve its signature once and queue its body for
     // phase-C resolution + codegen (audit V4; mirrors the reference).
@@ -527,6 +619,37 @@ public class ResolverCall {
     // inserts the namespace SYMBOL for a plain import). Returns null when nothing
     // matches, or when the first segment resolves as a VALUE in the current
     // scope (locals shadow namespace prefixes).
+    // checkPrivileged — `fly.llvm.*` (compiler intrinsics) and `fly.runtime.*` (the
+    // operating-system primitives) are callable only from the standard library and
+    // the toolchain, i.e. from a module whose namespace is `fly` or under `fly.`
+    // (maintainer's decision for phase 2). User code reaches raw memory through
+    // `fly.mem`, and anything else through a std function that wraps it; to find
+    // the unsafe code of a program, search for its calls to `fly.mem`. A header
+    // module (a library's declarations or generic templates) is the std's own
+    // code wherever it is resolved, so it is never checked.
+    public static void checkPrivileged(const Resolver r, const ASTCall node, const SemaCall sema) {
+        SemaFunctionBase fn = sema.getFunction()
+        if fn == null {
+            return
+        }
+        string target = ""
+        if str.equals(fn.getNamespaceName(), "fly_llvm") {
+            target = "fly.llvm."
+        } elsif str.equals(fn.getNamespaceName(), "fly_runtime") {
+            target = "fly.runtime."
+        } else {
+            return
+        }
+        if r.isCurrentModuleHeader() {
+            return
+        }
+        string cur = r.currentNsFlat()
+        if str.equals(cur, "fly") || str.startsWith(cur, "fly_") {
+            return
+        }
+        r.diagStr(node.getLoc(), DiagID.err_sema_privileged_call, str.concat(target, fn.getName()))
+    }
+
     public static List<string> expandNsPath(const Resolver r, const List<string> cand) {
         if cand == null {
             return null
@@ -946,4 +1069,12 @@ public class ResolverCall {
         cf.addLocalVar(v)
         return v
     }
+}
+
+// isNewKind — any `new` form: plain, `new unique`, `new shared`, `new weak`.
+public bool isNewKind(const ASTCallKind k) {
+    if k == ASTCallKind.CALL_NEW || k == ASTCallKind.CALL_NEW_UNIQUE {
+        return true
+    }
+    return k == ASTCallKind.CALL_NEW_SHARED || k == ASTCallKind.CALL_NEW_WEAK
 }

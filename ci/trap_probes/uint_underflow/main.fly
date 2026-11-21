@@ -1,0 +1,6 @@
+// An unsigned subtraction below zero has no result in the type: it stops too.
+void main() {
+    uint have = 3
+    uint take = 5
+    uint left = have - take
+}

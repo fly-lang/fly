@@ -1,6 +1,5 @@
 namespace fly.compiler.parser
 import fly.compiler.basic.*
-import fly.compiler.ast.*
 import fly.compiler.parser.*
 import fly.str
 
@@ -310,6 +309,33 @@ public class Lexer {
         return new Token(kind, loc, contentStart, contentEnd)
     }
 
+    // lexRaw — a raw string literal `"""…"""`: everything up to the next `"""`, newlines
+    // and backslashes included, is its text (no escape sequences).
+    public Token lexRaw(const SourceLocation loc) {
+        this.advance()
+        this.advance()
+        this.advance()
+        int contentStart = this.pos
+        bool go = true
+        while go && this.pos < this.len {
+            if this.byteAt(this.pos) == 34 && this.pos + 2 < this.len && this.byteAt(this.pos + 1) == 34 &&
+                    this.byteAt(this.pos + 2) == 34 {
+                go = false
+            } else {
+                this.advance()
+            }
+        }
+        int contentEnd = this.pos
+        if this.pos < this.len {
+            this.advance()
+            this.advance()
+            this.advance()
+        }
+        Token t = new Token(TokenKind.STRING, loc, contentStart, contentEnd)
+        t.setRaw(true)
+        return t
+    }
+
     // lexPunct — punctuator via maximal munch, or TOK_UNKNOWN for a stray byte.
     public Token lexPunct(const SourceLocation loc, const int start) {
         string p = this.matchPunct()
@@ -340,6 +366,9 @@ public class Lexer {
         } elsif isDigit(c) {
             return this.lexNumber(loc, start)
         } elsif c == 34 {
+            if this.pos + 2 < this.len && this.byteAt(this.pos + 1) == 34 && this.byteAt(this.pos + 2) == 34 {
+                return this.lexRaw(loc)
+            }
             return this.lexQuoted(loc, 34, TokenKind.STRING)
         } elsif c == 39 {
             return this.lexQuoted(loc, 39, TokenKind.CHAR)

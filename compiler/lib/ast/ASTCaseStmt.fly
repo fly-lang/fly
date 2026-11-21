@@ -15,10 +15,14 @@ public class ASTCaseStmt : ASTStmt {
     // literal's text here because ASTExpr has no value downcast (adding one as a
     // base virtual would shift every expr vtable — same reason as lastStrLit).
     string label
+    // true for every value of `case 3, 4:` but the last: it has no body of its own
+    // and runs the next case's (the one value list, written as one case)
+    bool shared
 
     public ASTCaseStmt(const SourceLocation loc) {
         super(loc, ASTStmtKind.STMT_CASE)
         this.label = ""
+        this.shared = false
     }
 
     public ASTExpr getExpr() {
@@ -38,6 +42,14 @@ public class ASTCaseStmt : ASTStmt {
     }
     public void setLabel(const string label) {
         this.label = label
+    }
+
+    public bool isShared() {
+        return this.shared
+    }
+
+    public void setShared(const bool s) {
+        this.shared = s
     }
 
     public void accept(const ASTVisitor v) {

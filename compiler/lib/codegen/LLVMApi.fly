@@ -846,9 +846,7 @@ public class LLVM {
                     mem.writeByte(copy, i, b)
                     i = i + 1
                 }
-                string s = ""
-                fly.llvm.strMake(copy, len, s)
-                return s
+                return str.fromBytes(copy, len)
             }
             this.disposeMessage(mp)
         }
@@ -2393,6 +2391,41 @@ public class LLVM {
         CLang lib = new CLang("libLLVM-20.so")
         lib.call("LLVMIsAArgument", a, r)
         return r != 0
+    }
+
+    // isFalseConstant — is `val` the integer constant 0 (an i1 `false`, typically a
+    // comparison the builder folded because both sides were constants)?
+    public bool isFalseConstant(const pointer val) {
+        if this.isConstInt(val) == false {
+            return false
+        }
+        Ptr1Args a = new Ptr1Args()
+        a.a = val
+        pointer z
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMConstIntGetZExtValue", a, z)
+        return z == 0
+    }
+
+    // isConstInt — is `val` an integer constant (LLVMIsAConstantInt)?
+    public bool isConstInt(const pointer val) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = val
+        pointer ci
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMIsAConstantInt", a, ci)
+        return ci != 0
+    }
+
+    // intTypeWidth — the bit width of the integer type `ty` (LLVMGetIntTypeWidth).
+    public int intTypeWidth(const pointer ty) {
+        Ptr1Args a = new Ptr1Args()
+        a.a = ty
+        pointer w
+        CLang lib = new CLang("libLLVM-20.so")
+        lib.call("LLVMGetIntTypeWidth", a, w)
+        int r = (int)w
+        return r
     }
 
     // diCreateDerefExpression — DW_OP_deref (0x06): the storage holds the

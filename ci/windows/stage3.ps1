@@ -50,15 +50,16 @@ foreach ($need in $FLY2, $OBJ2) {
 $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
 # Same mapping as build_compiler.ps1: the stage2 fly reads its headers from
 # build\stage2\lib, the one that built stage 2 from build\stage1\lib - both
-# become "lib" in the DWARF, or the objects would differ by that path alone.
-if ($DBG) { $DBG += "--debug-prefix-map=$((Resolve-Path 'build/stage2/lib').Path)=lib" }
+# become "lib" in the DWARF and in trap messages, or the objects would differ by
+# that path alone. Passed with or without debug symbols.
+$MAP = @("--debug-prefix-map=$((Resolve-Path 'build/stage2/lib').Path)=lib")
 
 # Compile the compiler with the STAGE-2 fly into $dir; return the object path.
 # Same invocation as build_compiler.ps1 STAGE=2 (self-host: -c, no link).
 function Build-Driver([string]$dir) {
     Remove-Item $dir -Recurse -Force -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Force $dir | Out-Null
-    & $FLY2 --src-dir compiler @DBG @FLY_TARGET_ARGS -c -o Driver --out-dir $dir > "$dir/emit.log" 2>&1
+    & $FLY2 --src-dir compiler @DBG @MAP @FLY_TARGET_ARGS -c -o Driver --out-dir $dir > "$dir/emit.log" 2>&1
     $obj = @("$dir/Driver", "$dir/Driver.fly.o", "$dir/Driver.fly.obj") | Where-Object { Test-Path $_ } | Select-Object -First 1
     if (-not $obj) {
         Write-Host "error: stage3 driver object not emitted; see $dir\emit.log:"

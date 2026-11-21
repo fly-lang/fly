@@ -1,0 +1,13 @@
+import fly.data.List
+
+// Code that uses every name it declares gets no warning at all, including the
+// generic code instantiated from a std header (List<int> here): a warning is
+// about the code being compiled, never about a shipped .fly.h.
+void main() {
+    List<int> xs = new List<int>()
+    xs.add(1)
+    int n = (int)xs.size()
+    if n != 1 {
+        fail 1, "size"
+    }
+}

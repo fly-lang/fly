@@ -42,7 +42,7 @@ public class ResolverClass {
                 cls.addTypeParam(sp)
                 Symbol psym = new Symbol(tp.getName(), SymbolKind.CLASS, sp)
                 psym.setTypeRef(sp)
-                bool ok = clsScope.insert(psym)
+                bool _ok = clsScope.insert(psym)
             }
             ti = ti + 1
         }
@@ -430,6 +430,35 @@ public class ResolverClass {
         SemaType t = r.getCurrentType()
         SemaClassAttribute attr = SemaBuilder.CreateClassAttribute(cls, node, t)
         cls.addAttribute(attr)
+        // An OWNING field (the parser saw `this.f = new unique ...` or an owner
+        // stored into it): deleted with the object, borrowed by every read.
+        ASTClass cast = cls.getAST()
+        if cast != null {
+            List<string> owners = cast.getOwnerFields()
+            int oi = 0
+            while oi < owners.size() {
+                if str.equals(owners.get(oi), node.getName()) {
+                    attr.setUniqueOwner(true)
+                }
+                oi = oi + 1
+            }
+            List<string> holders = cast.getSharedFields()
+            int hi = 0
+            while hi < holders.size() {
+                if str.equals(holders.get(hi), node.getName()) {
+                    attr.setSharedHolder(true)
+                }
+                hi = hi + 1
+            }
+            List<string> weaks = cast.getWeakFields()
+            int wi = 0
+            while wi < weaks.size() {
+                if str.equals(weaks.get(wi), node.getName()) {
+                    attr.setWeakRef(true)
+                }
+                wi = wi + 1
+            }
+        }
 
         ASTExpr ie = node.getExpr()
         if ie != null {

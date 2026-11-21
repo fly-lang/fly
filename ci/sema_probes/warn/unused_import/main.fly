@@ -1,0 +1,15 @@
+import fly.str
+import fly.math
+import fly.data.List
+import fly.os.io
+
+// An import none of whose names the file writes is reported: `fly.math` and
+// `fly.os.io` here. `fly.str` (used as the `str.` prefix) and `List` (used as a
+// type) are not. A name inside a comment does not count: io, math.
+void main() {
+    List<int> xs = new List<int>()
+    xs.add(str.len("abc"))
+    if (int)xs.size() != 1 {
+        fail 1, "size"
+    }
+}

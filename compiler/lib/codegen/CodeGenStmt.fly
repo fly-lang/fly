@@ -1,13 +1,13 @@
 namespace fly.compiler.codegen
 
 import fly.compiler.sema.*
-import fly.compiler.ast.*
 import fly.compiler.codegen.CodeGenExpr
+import fly.compiler.codegen.CodeGenModule
 import fly.compiler.codegen.CodeGenIntrinsics
+import fly.compiler.codegen.CodeGenClass
 import fly.compiler.codegen.CodeGenTrace
 import fly.compiler.codegen.CodeGenDebug
 import llvm.api.*
-import fly.mem
 import fly.os.io
 import fly.str
 import fly.data.List
@@ -206,6 +206,287 @@ public class CodeGenStmt {
         }
     }
 
+    // deleteStmt — `delete x`: when x is not null, call its class's `free()` (if
+    // it declares one), release the object, then store null into x. Deleting a
+    // null reference does nothing, and the null store makes a second `delete`, or
+    // the scope-exit release of a local created with `new`, a no-op instead of a
+    // double free.
+    public static void deleteStmt(const CodeGenExpr cge, const SemaDeleteStmt node) {
+        SemaExpr target = node.getExpr()
+        SemaClassType cls = target.getType().asClass()
+        pointer slot = cge.genAddr(target)
+        // `delete h` on a shared holder lets go of h's reference only: the object
+        // goes when its last holder does.
+        if target.isSharedHolder() {
+            CodeGenStmt.emitReleaseSlot(cge, cls, slot)
+            return
+        }
+        // `delete w` on a weak reference lets go of the weak reference only.
+        if target.isWeakRef() {
+            CodeGenStmt.emitWeakReleaseSlot(cge, slot)
+            return
+        }
+        CodeGenStmt.emitDeleteSlot(cge, cls, slot)
+    }
+
+    // emitNullStore — store null into a reference slot: what a move leaves behind.
+    public static void emitNullStore(const CodeGenExpr cge, const pointer slot) {
+        LLVM llvm = cge.getLLVM()
+        pointer nul
+        llvm.constPointerNull(cge.ptrType(), nul)
+        llvm.buildStore(cge.getBuilder(), nul, slot)
+    }
+
+    // emitDeleteSlot — the body of `delete`, for the reference stored at `slot`;
+    // also what a `new unique` owner runs when its scope ends.
+    public static void emitDeleteSlot(const CodeGenExpr cge, const SemaClassType cls, const pointer slot) {
+        // One `@__fly_drop.<class>` per class holds the body (emitDeleteBody), so a
+        // class owning a field of its own type (a list node owning the next one)
+        // recurses at run time, over real objects, not in the compiler.
+        CodeGenModule cgm = cge.getCgm()
+        pointer fn = cgm.dropFn(cls)
+        List<pointer> args = new List<pointer>()
+        args.add(cge.getErrPtr())
+        args.add(slot)
+        pointer cv
+        cgm.getCg().buildCallN(cge.getBuilder(), cgm.dropFnTy(), fn, args, "", cv)
+    }
+
+    // emitDeleteBody — what `@__fly_drop.<class>` does with the reference at `slot`:
+    // nothing when it is null; otherwise free() (if the class declares one), the
+    // owning fields, the object itself, and null into the slot.
+    public static void emitDeleteBody(const CodeGenExpr cge, const SemaClassType cls, const pointer slot) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        pointer ptrTy = cge.ptrType()
+        pointer obj
+        llvm.buildLoad2(b, ptrTy, slot, "del", obj)
+        pointer nul
+        llvm.constPointerNull(ptrTy, nul)
+        pointer notNull
+        llvm.buildICmp(b, 33, obj, nul, "delnn", notNull)
+        pointer doBB = cge.newBlock("delete.do")
+        pointer endBB = cge.newBlock("delete.end")
+        pointer cbr
+        llvm.buildCondBr(b, notNull, doBB, endBB, cbr)
+        cge.position(doBB)
+        CodeGenStmt.emitDestroy(cge, cls, obj)
+        cge.getCgm().freeHandle(obj)
+        llvm.buildStore(b, nul, slot)
+        cge.br(endBB)
+        cge.position(endBB)
+    }
+
+    // emitDestroy — what an object does before its memory goes: the class's free()
+    // (when it declares one), then its owning fields. Shared by `delete` and by the
+    // last release of a `new shared` object.
+    public static void emitDestroy(const CodeGenExpr cge, const SemaClassType cls, const pointer obj) {
+        SemaClassMethod freeM = CodeGenClass.findFreeMethod(cls)
+        if freeM != null {
+            CodeGenClass.callNoArgMethod(cge, cls, freeM, obj)
+        }
+        CodeGenStmt.emitDeleteOwnedFields(cge, cls, obj)
+    }
+
+    // ── `new shared` ──────────────────────────────────────────────────────────
+    //
+    // A shared object is allocated with a 16-byte header IN FRONT of it: the strong
+    // count at -16 and the weak count at -8 (for `new weak`). The object pointer is
+    // the one every other object has, so methods, fields and vtables are unchanged;
+    // only allocation and release know about the header. The counts are plain, not
+    // atomic: a shared object must not be shared between threads yet.
+
+    // emitRetain — count one more holder of `obj` (null does nothing).
+    public static void emitRetain(const CodeGenExpr cge, const pointer obj) {
+        CodeGenModule cgm = cge.getCgm()
+        List<pointer> args = new List<pointer>()
+        args.add(obj)
+        pointer cv
+        cgm.getCg().buildCallN(cge.getBuilder(), cgm.retainFnTy(), cgm.retainFn(), args, "", cv)
+    }
+
+    // emitReleaseSlot — the holder at `slot` lets go of its reference: one count
+    // less, the object destroyed and freed at zero, and null into the slot.
+    public static void emitReleaseSlot(const CodeGenExpr cge, const SemaClassType cls, const pointer slot) {
+        CodeGenModule cgm = cge.getCgm()
+        List<pointer> args = new List<pointer>()
+        args.add(cge.getErrPtr())
+        args.add(slot)
+        pointer cv
+        cgm.getCg().buildCallN(cge.getBuilder(), cgm.dropFnTy(), cgm.releaseFn(cls), args, "", cv)
+    }
+
+    // emitReleaseBody — `@__fly_release.<class>`: when the slot holds an object,
+    // decrement its strong count; at zero, destroy it (free(), owning fields) and,
+    // with no weak reference left, free the whole block from its header. Null
+    // goes into the slot either way: this holder no longer holds anything.
+    public static void emitReleaseBody(const CodeGenExpr cge, const SemaClassType cls, const pointer slot) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        pointer ptrTy = cge.ptrType()
+        pointer i8Ty
+        llvm.int8TypeInContext(cgm.getCtx(), i8Ty)
+        pointer i64Ty
+        llvm.int64TypeInContext(cgm.getCtx(), i64Ty)
+        pointer obj
+        llvm.buildLoad2(b, ptrTy, slot, "rel", obj)
+        pointer nul
+        llvm.constPointerNull(ptrTy, nul)
+        pointer notNull
+        llvm.buildICmp(b, 33, obj, nul, "relnn", notNull)
+        pointer doBB = cge.newBlock("release.do")
+        pointer endBB = cge.newBlock("release.end")
+        pointer cbr
+        llvm.buildCondBr(b, notNull, doBB, endBB, cbr)
+        cge.position(doBB)
+        pointer hdr = CodeGenStmt.sharedHeader(cge, obj)
+        pointer strong
+        llvm.buildLoad2(b, i64Ty, hdr, "strong", strong)
+        pointer one
+        llvm.constInt(i64Ty, 1, false, one)
+        pointer left
+        llvm.buildSub(b, strong, one, "strong.left", left)
+        llvm.buildStore(b, left, hdr)
+        pointer zero
+        llvm.constInt(i64Ty, 0, false, zero)
+        pointer last
+        llvm.buildICmp(b, 32, left, zero, "lastref", last)
+        pointer destroyBB = cge.newBlock("release.destroy")
+        pointer doneBB = cge.newBlock("release.done")
+        pointer cbr2
+        llvm.buildCondBr(b, last, destroyBB, doneBB, cbr2)
+        cge.position(destroyBB)
+        CodeGenStmt.emitDestroy(cge, cls, obj)
+        // the block outlives the object while a weak reference may still look at
+        // the header; with none, it goes now
+        List<pointer> wIdx = new List<pointer>()
+        pointer eight
+        llvm.constInt(i64Ty, 8, false, eight)
+        wIdx.add(eight)
+        pointer weakP
+        cgm.getCg().buildGEP2N(b, i8Ty, hdr, wIdx, "weakp", weakP)
+        pointer weak
+        llvm.buildLoad2(b, i64Ty, weakP, "weak", weak)
+        pointer noWeak
+        llvm.buildICmp(b, 32, weak, zero, "noweak", noWeak)
+        pointer freeBB = cge.newBlock("release.free")
+        pointer cbr3
+        llvm.buildCondBr(b, noWeak, freeBB, doneBB, cbr3)
+        cge.position(freeBB)
+        cgm.freeHandle(hdr)
+        cge.br(doneBB)
+        cge.position(doneBB)
+        llvm.buildStore(b, nul, slot)
+        cge.br(endBB)
+        cge.position(endBB)
+    }
+
+    // ── `weak` ────────────────────────────────────────────────────────────────
+
+    // emitWeakGet — the object a weak reference points at while it lives, else
+    // null: what every read of a weak variable or field yields.
+    public static pointer emitWeakGet(const CodeGenExpr cge, const pointer obj) {
+        CodeGenModule cgm = cge.getCgm()
+        List<pointer> args = new List<pointer>()
+        args.add(obj)
+        pointer v
+        cgm.getCg().buildCallN(cge.getBuilder(), cgm.weakGetTy(), cgm.weakGetFn(), args, "weakget", v)
+        return v
+    }
+
+    // emitWeakRetain — one more weak reference to `obj` (null does nothing).
+    public static void emitWeakRetain(const CodeGenExpr cge, const pointer obj) {
+        CodeGenModule cgm = cge.getCgm()
+        List<pointer> args = new List<pointer>()
+        args.add(obj)
+        pointer cv
+        cgm.getCg().buildCallN(cge.getBuilder(), cgm.retainFnTy(), cgm.weakRetainFn(), args, "", cv)
+    }
+
+    // emitWeakReleaseSlot — the weak reference at `slot` goes (null into the slot).
+    public static void emitWeakReleaseSlot(const CodeGenExpr cge, const pointer slot) {
+        CodeGenModule cgm = cge.getCgm()
+        List<pointer> args = new List<pointer>()
+        args.add(slot)
+        pointer cv
+        cgm.getCg().buildCallN(cge.getBuilder(), cgm.retainFnTy(), cgm.weakReleaseFn(), args, "", cv)
+    }
+
+    // sharedHeader — the header of a shared object: 16 bytes before it.
+    public static pointer sharedHeader(const CodeGenExpr cge, const pointer obj) {
+        LLVM llvm = cge.getLLVM()
+        CodeGenModule cgm = cge.getCgm()
+        pointer i8Ty
+        llvm.int8TypeInContext(cgm.getCtx(), i8Ty)
+        pointer i64Ty
+        llvm.int64TypeInContext(cgm.getCtx(), i64Ty)
+        pointer minus16
+        llvm.constInt(i64Ty, 0 - 16, true, minus16)
+        List<pointer> idx = new List<pointer>()
+        idx.add(minus16)
+        pointer hdr
+        cgm.getCg().buildGEP2N(cge.getBuilder(), i8Ty, obj, idx, "shhdr", hdr)
+        return hdr
+    }
+
+    // emitDeleteOwnedFields — delete every OWNING field of `obj` (a field a method
+    // fills with `new unique` or an owner), after the class's free() and before
+    // the object goes: what the object owns goes with it. The fields are those of
+    // the STATIC type `cls`, bases included; deleting through a base or interface
+    // type therefore misses fields only a subclass declares (they leak, nothing
+    // is freed twice).
+    public static void emitDeleteOwnedFields(const CodeGenExpr cge, const SemaClassType cls, const pointer obj) {
+        if cls.getClassKind() == SemaClassKind.INTERFACE {
+            return
+        }
+        List<SemaClassAttribute> attrs = CodeGenClass.allAttributes(cls)
+        int i = 0
+        while i < attrs.size() {
+            SemaClassAttribute a = attrs.get(i)
+            // a WEAK field lets go of its weak reference (the observed object is
+            // not touched)
+            if a.isWeakRef() {
+                if cls.getLlvmStructType() == 0 {
+                    CodeGenClass.declareStruct(cge.getCgm(), cls)
+                }
+                int widx = CodeGenClass.fieldIndex(cls, a.getName())
+                pointer wPtr
+                cge.getLLVM().buildStructGEP2(cge.getBuilder(), cls.getLlvmStructType(), obj, widx, "weakfld", wPtr)
+                CodeGenStmt.emitWeakReleaseSlot(cge, wPtr)
+            }
+            // a HOLDING field lets go of its reference: the object goes only if
+            // that was the last one
+            if a.isSharedHolder() {
+                SemaType ht = a.getType()
+                SemaClassType hcls = ht.asClass()
+                if hcls != null {
+                    if cls.getLlvmStructType() == 0 {
+                        CodeGenClass.declareStruct(cge.getCgm(), cls)
+                    }
+                    int hidx = CodeGenClass.fieldIndex(cls, a.getName())
+                    pointer hPtr
+                    cge.getLLVM().buildStructGEP2(cge.getBuilder(), cls.getLlvmStructType(), obj, hidx, "heldfld", hPtr)
+                    CodeGenStmt.emitReleaseSlot(cge, hcls, hPtr)
+                }
+            }
+            if a.isUniqueOwner() {
+                SemaType at = a.getType()
+                SemaClassType fcls = at.asClass()
+                if fcls != null {
+                    if cls.getLlvmStructType() == 0 {
+                        CodeGenClass.declareStruct(cge.getCgm(), cls)
+                    }
+                    int idx = CodeGenClass.fieldIndex(cls, a.getName())
+                    pointer fldPtr
+                    cge.getLLVM().buildStructGEP2(cge.getBuilder(), cls.getLlvmStructType(), obj, idx, "ownfld", fldPtr)
+                    CodeGenStmt.emitDeleteSlot(cge, fcls, fldPtr)
+                }
+            }
+            i = i + 1
+        }
+    }
+
     // ret — bare `return`: any attached value-assignment is gen'd, then ret void
     // (the out-param model already stored the result via an `out = …` assignment).
     public static void ret(const CodeGenExpr cge, const SemaReturnStmt node) {
@@ -214,7 +495,15 @@ public class CodeGenStmt {
         }
         SemaExpr e = node.getExpr()
         if e != null {
-            pointer ignore = cge.gen(e)
+            pointer _ignore = cge.gen(e)
+        }
+        // `return x` with x a `new unique` owner: the object now belongs to the
+        // caller, so x is left null and its scope-exit delete finds nothing.
+        List<SemaExpr> moves = node.getMoves()
+        int mi = 0
+        while mi < moves.size() {
+            CodeGenStmt.emitNullStore(cge, cge.genAddr(moves.get(mi)))
+            mi = mi + 1
         }
         // The value is already in the return slot (strings cloned, arrays
         // retained, the returned handle spared), so every scope's locals can go.
@@ -349,13 +638,13 @@ public class CodeGenStmt {
         cge.position(exitBB)
     }
 
-    // switchStmt — buildSwitch over the selector; one block per case; break exits.
-    // C fallthrough (doc 9.4, aligned with the reference B024 fix): a case body
-    // left OPEN (no break) falls through to the NEXT case body, the last one into
-    // default/exit; an explicit `break` branches to swexit via breakTarget. A case
-    // with NO statements (Sema marks it with a null block) shares the next body
-    // the same way. Case blocks are pre-created so a fall-through can branch
-    // forward to the next case's block.
+    // switchStmt — buildSwitch over the selector; one block per case. From 0.15 no
+    // case falls into the next: a body that ends without `break`, `return` or
+    // `fail` continues after the switch, like one that ends with `break` (which
+    // branches to swexit via breakTarget). Up to 0.14 it fell through to the next
+    // case body (C semantics, doc 9.4). Only a value of `case 3, 4:` other than
+    // the last (Sema marks it with a null block) branches to the next case's body,
+    // which is why the case blocks are pre-created.
     public static void switchStmt(const CodeGenExpr cge, const SemaSwitchStmt node) {
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
@@ -403,17 +692,19 @@ public class CodeGenStmt {
             pointer caseBB = caseBBs.get(i)
             cge.position(caseBB)
             SemaStmt cs = r.getStmt()
-            // fall-through target: the next case body, or default/exit after the
-            // last case. br() is a no-op when the body already terminated (break/
-            // return/fail), so only OPEN bodies fall through (B023).
-            pointer nextBB = defaultBB
-            if i + 1 < n {
-                nextBB = caseBBs.get(i + 1)
-            }
+            // a shared value (null block) runs the next case's body; a body leaves
+            // the switch. br() is a no-op when the body already terminated
+            // (break/return/fail).
             if cs != null {
                 cs.accept(cge)
+                cge.br(exitBB)
+            } else {
+                pointer nextBB = defaultBB
+                if i + 1 < n {
+                    nextBB = caseBBs.get(i + 1)
+                }
+                cge.br(nextBB)
             }
-            cge.br(nextBB)
             i = i + 1
         }
 

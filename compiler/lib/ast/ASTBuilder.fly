@@ -104,7 +104,7 @@ public class ASTBuilder {
         ASTEnumEntry entry = new ASTEnumEntry(loc, e, name)
         List<ASTNode> nodes = e.getNodes()
         // Index starts from 1 since 0 is reserved for the 'unset' value.
-        entry.setIndex(nodes.size() + 1)
+        entry.setIndex((uint)(nodes.size() + 1))
         e.addNode(entry)
         return entry
     }
@@ -221,7 +221,7 @@ public class ASTBuilder {
         int i = 0
         while i < n {
             ASTExpr e = args.get(i)
-            ASTArg arg = new ASTArg(loc, e, i)
+            ASTArg arg = new ASTArg(loc, e, (uint)i)
             call.addArg(arg)
             i = i + 1
         }
@@ -303,8 +303,8 @@ public class ASTBuilder {
         return cont
     }
     public static ASTDeleteStmt CreateDeleteStmt(const ASTBlockStmt parent, const SourceLocation loc,
-            const ASTIdentifier varRef) {
-        ASTDeleteStmt del = new ASTDeleteStmt(loc, varRef)
+            const ASTExpr target) {
+        ASTDeleteStmt del = new ASTDeleteStmt(loc, target)
         parent.addContent(del)
         del.setParent(parent)
         return del

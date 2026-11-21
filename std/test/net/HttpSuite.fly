@@ -635,7 +635,7 @@ suite HttpSuite {
                     assert.assertEqL((long)fs.size(dest), 7, 1207)
                     assert.assertStr(hash.sha256File(dest), want, 1208)
                     assert.assertStr(fs.readBytes(dest), payload, 1209)
-                    fs.delete(dest)
+                    fs.del(dest)
                 }
                 net.close(srv)
                 net.close(cli)
@@ -805,7 +805,7 @@ suite HttpSuite {
                 // half-written file that exists is how a failed download gets
                 // mistaken for a cached one.
                 string dest = "fly_http_dlsec_none.bin"
-                fs.delete(dest)
+                fs.del(dest)
                 assert.assertFalse(http.downloadSecure("https://fly-no-such-host-xyzabc.invalid/p.tar.gz", dest), 721)
                 assert.assertFalse(fs.exists(dest), 722)
             }

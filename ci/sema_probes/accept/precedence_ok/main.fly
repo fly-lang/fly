@@ -1,0 +1,35 @@
+// What the operator-mixing rule must keep allowing: comparisons joined by `&&`
+// or `||` (the same reading everywhere), one operator repeated in a chain,
+// arithmetic under a shift, and any mix written with parentheses.
+void main() {
+    int a = 6
+    int b = 3
+    bool x = true
+    bool y = false
+    if a == 6 && b < a {
+        x = true
+    } else {
+        fail 1, "comparisons under &&"
+    }
+    if a < 0 || b > 2 {
+        y = false
+    } else {
+        fail 2, "comparisons under ||"
+    }
+    int m = a & b & 7
+    if m != 2 {
+        fail 3, "one operator repeated"
+    }
+    int s = 1 << a + 1
+    if s != 128 {
+        fail 4, "arithmetic under a shift"
+    }
+    bool p = (x || y) && a > b
+    int q = (a & b) | (a << 1)
+    if p == false || q != 14 {
+        fail 5, "parentheses"
+    }
+    if (a & 1) == 0 {
+        y = true
+    }
+}

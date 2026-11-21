@@ -1,0 +1,3 @@
+The seed (0.14.9) has no rule about mixing operators of Fly's flat precedence level
+without parentheses: it accepts the program and applies the operators left to right.
+From 0.15 the self-host rejects it, so the reading is always written out.

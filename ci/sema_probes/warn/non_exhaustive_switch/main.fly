@@ -1,0 +1,42 @@
+enum Color {
+    RED, GREEN, BLUE
+}
+
+// A switch over an enum with no default that leaves values out is reported, with
+// the values it misses. A default, or a case for every value, keeps it quiet.
+int partial(const Color c) {
+    int r = 0
+    switch c {
+        case Color.RED:
+            r = 1
+    }
+    return r
+}
+
+int complete(const Color c) {
+    int r = 0
+    switch c {
+        case Color.RED, Color.GREEN:
+            r = 1
+        case Color.BLUE:
+            r = 2
+    }
+    return r
+}
+
+int withDefault(const Color c) {
+    int r = 0
+    switch c {
+        case Color.RED:
+            r = 1
+        default:
+            r = 2
+    }
+    return r
+}
+
+void main() {
+    if partial(Color.RED) + complete(Color.BLUE) + withDefault(Color.GREEN) != 5 {
+        fail 1, "values"
+    }
+}

@@ -1,0 +1,8 @@
+// A signed argument for an unsigned parameter: -1 would arrive as 4294967295.
+void reserve(const uint n) {
+}
+
+void main() {
+    int want = -1
+    reserve(want)
+}

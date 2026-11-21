@@ -5,7 +5,6 @@ import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaNode
 import fly.compiler.sema.SemaType
 import fly.compiler.sema.SemaCall
-import fly.mem
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SemaExpr — base of every resolved expression, a 1:1 port of C++ SemaExpr
@@ -36,6 +35,14 @@ public class SemaExpr : SemaNode {
                         // "are you const?", but holds only a SemaExpr and cannot
                         // narrow it to SemaVar.isConstant(); so the flag is
                         // mirrored here as a plain field, like escapedFlag.
+    bool uniqueOwner    // this expression IS a variable that OWNS its object (`new unique`):
+                        // deleted at scope end, left null by a move. On the base class with a
+                        // plain accessor, like constVar: a narrowing virtual mis-dispatches.
+    bool sharedHolder   // this expression IS a variable holding a counted `new shared` reference:
+                        // released at scope end; copying it into another holder counts it.
+    bool weakRef        // this expression IS a variable holding a weak reference: reads see the
+                        // object while it lives and null after; released at scope end.
+    bool weakMake       // this expression IS `weak h`: it creates one weak reference.
 
     public SemaExpr(const SemaKind kind, const SemaType type) {
         super(kind)
@@ -44,6 +51,10 @@ public class SemaExpr : SemaNode {
         this.escapedFlag = false
         this.ownedStrTemp = false
         this.constVar = false
+        this.uniqueOwner = false
+        this.sharedHolder = false
+        this.weakRef = false
+        this.weakMake = false
     }
 
     public SemaType getType() {
@@ -63,6 +74,30 @@ public class SemaExpr : SemaNode {
     }
     public void setOwnedStrTemp(const bool o) {
         this.ownedStrTemp = o
+    }
+    public bool isWeakRef() {
+        return this.weakRef
+    }
+    public void setWeakRef(const bool v) {
+        this.weakRef = v
+    }
+    public bool isWeakMake() {
+        return this.weakMake
+    }
+    public void setWeakMake(const bool v) {
+        this.weakMake = v
+    }
+    public bool isSharedHolder() {
+        return this.sharedHolder
+    }
+    public void setSharedHolder(const bool v) {
+        this.sharedHolder = v
+    }
+    public bool isUniqueOwner() {
+        return this.uniqueOwner
+    }
+    public void setUniqueOwner(const bool v) {
+        this.uniqueOwner = v
     }
     public bool isConstVar() {
         return this.constVar

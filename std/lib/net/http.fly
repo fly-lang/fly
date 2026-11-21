@@ -395,7 +395,7 @@ public string dechunk(const string body) {
         return res
     }
     pointer buf = 0
-    fly.runtime.mem_alloc(want, buf)
+    fly.runtime.mem_alloc((ulong)want, buf)
     int n = str.len(body)
     int o = 0
     int i = 0
@@ -947,7 +947,7 @@ private void mpRoom(const pointer h, const int need) {
     }
     pointer data = mem.readPtr(h, 0)
     pointer bigger = 0
-    fly.runtime.mem_realloc(data, want, bigger)
+    fly.runtime.mem_realloc(data, (ulong)want, bigger)
     mem.writePtr(h, 0, bigger)
     mem.writeInt(h, 12, want)
 }
@@ -977,7 +977,7 @@ private string mpBoundary(const pointer h) {
         return res
     }
     pointer copy = 0
-    fly.runtime.mem_alloc(bl, copy)
+    fly.runtime.mem_alloc((ulong)bl, copy)
     mem.copy(copy, bnd, bl)
     fly.llvm.strMake(copy, bl, res)
     return res
@@ -996,13 +996,13 @@ public pointer mpNew(const string boundary) {
     mem.zero(h, 32)
     int cap = 256
     pointer data = 0
-    fly.runtime.mem_alloc(cap, data)
+    fly.runtime.mem_alloc((ulong)cap, data)
     mem.writePtr(h, 0, data)
     mem.writeInt(h, 8, 0)
     mem.writeInt(h, 12, cap)
     int bl = str.len(b)
     pointer bnd = 0
-    fly.runtime.mem_alloc(bl, bnd)
+    fly.runtime.mem_alloc((ulong)bl, bnd)
     int i = 0
     while i < bl {
         byte c = str.byteAt(b, i)
@@ -1092,7 +1092,7 @@ public string mpFinish(const pointer h) {
         return res
     }
     pointer copy = 0
-    fly.runtime.mem_alloc(len, copy)
+    fly.runtime.mem_alloc((ulong)len, copy)
     mem.copy(copy, data, len)
     fly.llvm.strMake(copy, len, res)
     return res
@@ -1265,7 +1265,7 @@ private pointer cstr(const string s) {
         return 0
     }
     pointer buf = 0
-    fly.runtime.mem_alloc(n + 1, buf)
+    fly.runtime.mem_alloc((ulong)(n + 1), buf)
     int i = 0
     while i < n {
         byte b = str.byteAt(s, i)
@@ -1374,7 +1374,7 @@ private string secureViaClient(const string verb, const string url, const string
     statusOut = st
     if st < 0 {
         if fs.exists(tmp) {
-            fs.delete(tmp)
+            fs.del(tmp)
         }
         return body
     }
@@ -1384,7 +1384,7 @@ private string secureViaClient(const string verb, const string url, const string
         // CRT), so a text-mode read here would be the single point that corrupts
         // every binary download on Windows.
         body = fs.readBytes(tmp)
-        fs.delete(tmp)
+        fs.del(tmp)
     }
     return body
 }

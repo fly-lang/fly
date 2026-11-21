@@ -1,0 +1,7 @@
+public struct Point {
+    int x
+}
+
+void main() {
+    Point p = new unique Point()
+}

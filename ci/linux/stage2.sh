@@ -46,6 +46,9 @@ mkdir -p build/stage2/lib
 # Semantic guard: the compiler must still REJECT what the language forbids. No
 # suite can see a check that went missing - suites only compile valid programs.
 ./ci/linux/test_sema.sh
+# Trap guard: a run-time error (a null reference) must stop the program with its
+# diagnostic. No suite can see a trap that went missing - suites run valid programs.
+./ci/linux/test_traps.sh
 # Leak guard: the probes are compiled by the stage2 fly, the one that ships.
 ./ci/linux/test_leaks.sh
 # The debugger is PROVISIONED (bundled by link_fly.sh from the fork LLVM), not

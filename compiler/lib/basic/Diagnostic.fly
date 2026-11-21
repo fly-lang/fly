@@ -269,9 +269,19 @@ public class DiagnosticsEngine {
 
     public void emitDiagnostic(const DiagnosticBuilder b) {
         DiagLevel level = getDefaultLevel(b.getId())
+        SourceLocation loc = b.getLoc()
+        string wname = warningName(b.getId())
         // Apply warning options.
         if level == DiagLevel.Warning {
             if this.opts.isIgnoreWarnings() {
+                return
+            }
+            if this.opts.isWarningDisabled(wname) {
+                return
+            }
+            // a warning is about code being compiled: a shipped .fly.h header
+            // (generic templates are instantiated from it) is not the user's
+            if this.inHeader(loc) {
                 return
             }
             if this.opts.isWarningsAsErrors() {
@@ -279,7 +289,9 @@ public class DiagnosticsEngine {
             }
         }
         string msg = formatMessage(getDescription(b.getId()), b.getArgs())
-        SourceLocation loc = b.getLoc()
+        if str.isEmpty(wname) == false {
+            msg = str.concat(msg, str.concat(" [", str.concat(wname, "]")))
+        }
         // Decode the location against ITS OWN buffer when it carries one: one
         // engine serves every module Sema resolves, and this.sm is only the
         // first input's. A location without a manager (synthetic) keeps the
@@ -306,6 +318,18 @@ public class DiagnosticsEngine {
         } elsif level == DiagLevel.Warning {
             this.warningCount = this.warningCount + 1
         }
+    }
+
+    // inHeader — does `loc` lie in a .fly.h header?
+    public bool inHeader(const SourceLocation loc) {
+        if loc == null {
+            return false
+        }
+        SourceManager lsm = loc.getSourceManager()
+        if lsm == null {
+            return false
+        }
+        return str.endsWith(lsm.getFilename(), ".fly.h")
     }
 
     public bool hasErrorOccurred() {

@@ -37,7 +37,7 @@ suite ASTNodeSuite {
             assert.assertStr(m.getName(), "demo.fly", 8)
             assert.assertTrue(m.getKind() == ASTKind.MODULE, 9)
             List<ASTNode> nodes = m.getNodes()
-            assert.assertEqI(nodes.size(), 0, 10)
+            assert.assertEqI((int)nodes.size(), 0, 10)
         }
     }
 
@@ -56,7 +56,7 @@ suite ASTNodeSuite {
             ASTFunction fn = new ASTFunction(loc, fmods, "add", params, ASTFunctionKind.F_FUNCTION)
             assert.assertStr(fn.getName(), "add", 11)
             List<ASTParam> ps = fn.getParams()
-            assert.assertEqI(ps.size(), 2, 12)
+            assert.assertEqI((int)ps.size(), 2, 12)
             assert.assertStr(p1.getName(), "a", 13)
             assert.assertTrue(p1.getType() != null, 14)
         }

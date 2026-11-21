@@ -1,4 +1,5 @@
 import fly.assert
+import fly.math
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ExecNumericWidthSuite — EXECUTED width/signedness semantics (bug-hunt Phase 1).
@@ -87,12 +88,12 @@ suite ExecNumericWidthSuite {
             int r = s * 1000
             assert.assertEqI(r, 300000, 511)
         }
-        case "int plus int wraps before widening to long": {
+        case "int plus int is a 32-bit add, before widening to long": {
             int a = 2000000000
-            long r = a + 2000000000
-            // both operands are int → the add wraps in 32 bits, THEN widens:
-            // 4000000000 - 2^32 = -294967296. A 4000000000 result would mean
-            // the assignment target retypes the literal — pin the C model.
+            long r = math.wrapAdd(a, 2000000000)
+            // both operands are int → the add is 32-bit, THEN widens; a plain `+`
+            // stops on the overflow, the wrapping form gives 4000000000 - 2^32 =
+            // -294967296. A 4000000000 result would mean the target retypes it.
             assert.assertEqL(r, 0 - 294967296, 521)
         }
         case "int plus long operand widens the add itself": {

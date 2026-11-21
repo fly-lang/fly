@@ -5,6 +5,7 @@ import fly.compiler.ast.*
 import fly.compiler.parser.*
 import fly.data.*
 import fly.str
+import fly.mem
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Parser — recursive descent over the token stream, building the inheritance AST
@@ -123,6 +124,11 @@ public class Parser {
     List<Token> pending      // lookahead buffer: tokens probed past `nxt`, re-served by bump()
     List<ASTReturnStmt> bodyReturns   // every `return` in the body being parsed
     List<string> bodyLocals           // every local name declared in that body
+    List<string> bodyOwners           // the locals that own a `new unique` object (by init or move)
+    List<string> bodyShared           // the locals holding a `new shared` reference (by init or copy)
+    List<string> bodyFieldCopies      // "local=field" for `C local = this.field` (and copies of those)
+    ASTClass curClass                 // the class whose body is being parsed (owning fields); null outside
+    ASTExpr lastWeak                  // the last `weak h` built: lets noteOwnerField spot `this.f = weak h`
     // Every block parsed, in order, for `fly fmt` (which needs where each block
     // and each of its statements starts). Off unless asked for: compiling never
     // needs it.
@@ -143,12 +149,18 @@ public class Parser {
     ASTModule module
     int prevLine             // line of the last CONSUMED token (0 before the first bump):
                              // lets postfix ++/-- require same-line adjacency (B014)
+    string lastBinOp         // top operator of the last parseBin result ("" = none)
+    List<SourceLocation> mixLocs // ambiguous operator mixes found (see ParserExpr.checkMix),
+    List<string> mixArgs         // reported when the module ends: "id;a;b" per entry
 
     public Parser(const string src) {
         this.lx = new Lexer(src)
         this.sm = new SourceManager("<input>", src)
         this.lx.setSourceManager(this.sm)   // before the first next(): every token is tagged
         this.sink = new StoringDiagnosticConsumer()
+        this.lastBinOp = ""
+        this.mixLocs = new List<SourceLocation>()
+        this.mixArgs = new List<string>()
         DiagnosticOptions opts = new DiagnosticOptions()
         this.diags = new DiagnosticsEngine(opts, this.sink, this.sm)
         this.pending = new List<Token>()
@@ -161,6 +173,11 @@ public class Parser {
         this.paramGroups = new List<int>()
         this.paramGroupId = 0
         this.bodyLocals = new List<string>()
+        this.bodyOwners = new List<string>()
+        this.bodyShared = new List<string>()
+        this.bodyFieldCopies = new List<string>()
+        this.curClass = null
+        this.lastWeak = null
         this.cur = this.lx.next()
         this.nxt = this.lx.next()
         this.prevLine = 0
@@ -446,7 +463,111 @@ public class Parser {
     public bool curIsEof() {
         return this.cur.isEof()
     }
-    public string curText() {
+    // curStringValue — the value of the current string literal: a raw `"""…"""`
+    // literal as written, an ordinary one with its escape sequences decoded.
+    public string curStringValue() {
+        string text = this.curText()
+        if this.cur.isRaw() {
+            return text
+        }
+        return this.decodeEscapes(text)
+    }
+
+    // decodeEscapes — the bytes an ordinary string literal stands for: a backslash
+    // followed by n t r 0, a backslash, a quote or an apostrophe; xHH (one byte);
+    // u{H…} (a code point up to 10FFFF, not a surrogate, written as UTF-8). Any
+    // other backslash sequence is an error: a raw literal (three double quotes)
+    // keeps backslashes as written. Up to 0.14 every literal was raw. No literal
+    // of this function contains a backslash (see Escapes.fly).
+    public string decodeEscapes(const string text) {
+        int n = str.len(text)
+        string bs = byteString(92)
+        if str.indexOf(text, bs) < 0 {
+            return text
+        }
+        pointer buf = mem.alloc(n + 1)
+        int o = 0
+        int i = 0
+        while i < n {
+            int c = str.byteAt(text, i) & 255
+            if c != 92 || i + 1 >= n {
+                mem.writeByte(buf, o, (byte)c)
+                o = o + 1
+                i = i + 1
+                continue
+            }
+            int e = str.byteAt(text, i + 1) & 255
+            int v = -1
+            int used = 2
+            if e == 110 {
+                v = 10
+            } elsif e == 116 {
+                v = 9
+            } elsif e == 114 {
+                v = 13
+            } elsif e == 48 {
+                v = 0
+            } elsif e == 92 || e == 34 || e == 39 {
+                v = e
+            } elsif e == 120 {
+                // xHH: exactly two hex digits
+                int h1 = -1
+                int h2 = -1
+                if i + 3 < n {
+                    h1 = hexDigit(str.byteAt(text, i + 2) & 255)
+                    h2 = hexDigit(str.byteAt(text, i + 3) & 255)
+                }
+                if h1 < 0 || h2 < 0 {
+                    int xe = i + 4
+                    if xe > n {
+                        xe = n
+                    }
+                    this.reportErrStr(DiagID.err_parser_bad_escape, str.substring(text, i, xe))
+                    return text
+                }
+                v = h1 * 16 + h2
+                used = 4
+            } elsif e == 117 {
+                // u{H…}: one to six hex digits naming a code point, encoded as UTF-8
+                int j = i + 2
+                int cp = 0
+                int digits = 0
+                bool ok = j < n && (str.byteAt(text, j) & 255) == 123
+                if ok {
+                    j = j + 1
+                    while j < n && hexDigit(str.byteAt(text, j) & 255) >= 0 && digits < 7 {
+                        if digits < 6 {
+                            cp = cp * 16 + hexDigit(str.byteAt(text, j) & 255)
+                        }
+                        digits = digits + 1
+                        j = j + 1
+                    }
+                    ok = digits >= 1 && digits <= 6 && j < n && (str.byteAt(text, j) & 255) == 125
+                }
+                if ok && (cp > 1114111 || (cp >= 55296 && cp <= 57343)) {
+                    ok = false
+                }
+                if ok == false {
+                    int ue = j + 1
+                    if ue > n {
+                        ue = n
+                    }
+                    this.reportErrStr(DiagID.err_parser_bad_escape, str.substring(text, i, ue))
+                    return text
+                }
+                o = o + utf8Encode(buf, o, cp)
+                i = j + 1
+                continue
+            } else {
+                this.reportErrStr(DiagID.err_parser_bad_escape, str.substring(text, i, i + 2))
+                return text
+            }
+            mem.writeByte(buf, o, (byte)v)
+            o = o + 1
+            i = i + used
+        }
+        return str.fromBytes(buf, o)
+    }    public string curText() {
         return this.lx.tokenText(this.cur)
     }
     public SourceLocation curLoc() {
@@ -496,6 +617,9 @@ public class Parser {
     public bool curIsIdent() {
         return this.cur.kind == TokenKind.IDENT
     }
+    public bool nxtIsIdent() {
+        return this.nxt.kind == TokenKind.IDENT
+    }
     // Coarse token-kind predicates used by the ParserExpr companion (no direct `cur` field access).
     public bool curIsNumber() {
         return this.cur.kind == TokenKind.NUMBER
@@ -524,9 +648,129 @@ public class Parser {
     // instead of walking the tree again — and the AST needs no narrowing helpers
     // (adding virtuals to the statement base is the vtable-shift risk this
     // codebase avoids). Fly has no nested functions, so one pair of lists is enough.
+    // noteOwner — `C name = new unique C()` or `C name = owner` (a move): `name`
+    // owns its object. Recorded per body so the resolver knows, BEFORE resolving
+    // any body, which functions hand an owner back through `return` (their
+    // callers then own the result) — resolution order cannot decide that.
+    // The same for `new shared`: `C name = new shared C()` or `C name = holder` (a
+    // counted copy) makes `name` a shared holder.
+    public void noteOwner(const string name, const ASTExpr init) {
+        ASTCall ic = init.asCall()
+        if ic != null {
+            if ic.getCallKind() == ASTCallKind.CALL_NEW_UNIQUE {
+                this.bodyOwners.add(name)
+            } elsif ic.getCallKind() == ASTCallKind.CALL_NEW_SHARED {
+                this.bodyShared.add(name)
+            }
+            return
+        }
+        // `C name = this.field`: a holder only if `field` holds, which the class
+        // may establish in a method parsed later — so record the pair and let the
+        // resolver decide (SemaFunctionBase.returnsShared).
+        ASTMember mem = init.asMember()
+        if mem != null {
+            ASTExpr recv = mem.getParent()
+            if recv != null {
+                ASTIdentifier rid = recv.asIdentifier()
+                if rid != null && rid.getParent() == null && str.equals(rid.getName(), "this") {
+                    this.bodyFieldCopies.add(str.concat(name, str.concat("=", mem.getName())))
+                }
+            }
+            return
+        }
+        ASTIdentifier id = init.asIdentifier()
+        if id == null {
+            return
+        }
+        if id.getParent() != null {
+            return
+        }
+        if listHas(this.bodyOwners, id.getName()) {
+            this.bodyOwners.add(name)
+        } elsif listHas(this.bodyShared, id.getName()) {
+            this.bodyShared.add(name)
+        } else {
+            // a copy of a field copy is a copy of the same field
+            string prefix = str.concat(id.getName(), "=")
+            int i = 0
+            while i < this.bodyFieldCopies.size() {
+                string pair = this.bodyFieldCopies.get(i)
+                if str.startsWith(pair, prefix) {
+                    string field = str.substring(pair, str.len(prefix), str.len(pair))
+                    this.bodyFieldCopies.add(str.concat(name, str.concat("=", field)))
+                    return
+                }
+                i = i + 1
+            }
+        }
+    }
+
+    // noteOwnerField — inside a method, `this.f = new unique C()` or `this.f = owner`
+    // makes `f` an OWNING field of the class being parsed: deleted with the object.
+    // Recorded before resolution, like the owner locals, so every read of `f` in
+    // any method is already known to borrow from an owner.
+    public void noteOwnerField(const ASTExpr left, const ASTExpr right) {
+        if this.curClass == null {
+            return
+        }
+        ASTMember m = left.asMember()
+        if m == null {
+            return
+        }
+        ASTExpr recv = m.getParent()
+        if recv == null {
+            return
+        }
+        ASTIdentifier rid = recv.asIdentifier()
+        if rid == null {
+            return
+        }
+        if rid.getParent() != null || str.equals(rid.getName(), "this") == false {
+            return
+        }
+        bool owned = false
+        bool held = false
+        ASTCall ic = right.asCall()
+        if ic != null {
+            owned = ic.getCallKind() == ASTCallKind.CALL_NEW_UNIQUE
+            held = ic.getCallKind() == ASTCallKind.CALL_NEW_SHARED
+        } else {
+            ASTIdentifier id = right.asIdentifier()
+            if id != null && id.getParent() == null {
+                owned = listHas(this.bodyOwners, id.getName())
+                held = listHas(this.bodyShared, id.getName())
+            }
+        }
+        if owned {
+            this.curClass.addOwnerField(m.getName())
+        }
+        // the same for a HOLDING field: `this.f = new shared C()` or a holder
+        if held {
+            this.curClass.addSharedField(m.getName())
+        }
+        // and for a WEAK field: `this.parent = weak p` (the cycle-breaking case)
+        if this.lastWeak != null && right == this.lastWeak {
+            this.curClass.addWeakField(m.getName())
+        }
+    }
+
+    public void setLastWeak(const ASTExpr w) {
+        this.lastWeak = w
+    }
+
+    public ASTClass getCurClass() {
+        return this.curClass
+    }
+    public void setCurClass(const ASTClass c) {
+        this.curClass = c
+    }
+
     public void beginBody() {
         this.bodyReturns = new List<ASTReturnStmt>()
         this.bodyLocals = new List<string>()
+        this.bodyOwners = new List<string>()
+        this.bodyShared = new List<string>()
+        this.bodyFieldCopies = new List<string>()
     }
     public void endBody(const ASTFunction f) {
         if f == null {
@@ -541,6 +785,21 @@ public class Parser {
         while j < this.bodyLocals.size() {
             f.addLocalName(this.bodyLocals.get(j))
             j = j + 1
+        }
+        int k = 0
+        while k < this.bodyOwners.size() {
+            f.addOwnerLocal(this.bodyOwners.get(k))
+            k = k + 1
+        }
+        int s = 0
+        while s < this.bodyShared.size() {
+            f.addSharedLocal(this.bodyShared.get(s))
+            s = s + 1
+        }
+        int fc = 0
+        while fc < this.bodyFieldCopies.size() {
+            f.addFieldCopy(this.bodyFieldCopies.get(fc))
+            fc = fc + 1
         }
         this.beginBody()
     }
@@ -620,6 +879,59 @@ public class Parser {
         DiagnosticBuilder b = this.diags.report(this.curLoc(), id)
         b.emit()
     }
+    // checkDeclName — a declared name (variable, parameter, field, method or
+    // function) must not be a reserved word. Names in qualified paths still accept
+    // keywords (curIsNamePart), but a declaration naming `while`, `new` or `delete`
+    // would make the program unreadable and the word unusable as a statement.
+    public void checkDeclName() {
+        if this.cur.kind == TokenKind.KEYWORD {
+            this.reportErrStr(DiagID.err_parser_reserved_name, this.curText())
+        }
+    }
+    // noteMix — record an ambiguous operator mix (ParserExpr.checkMix). It is a rule
+    // about meaning, not syntax: the parse goes on, and parseModule reports every
+    // one at the end, so one mix neither hides the next nor makes the parser give
+    // up on the block (an error makes it stop at once). `comparison`: a comparison
+    // under a bitwise operator, else two operators of the flat level.
+    public void noteMix(const SourceLocation loc, const bool comparison, const string a0, const string a1) {
+        this.mixLocs.add(loc)
+        string kind = "m"
+        if comparison {
+            kind = "c"
+        }
+        this.mixArgs.add(str.concat(kind, str.concat(";", str.concat(a0, str.concat(";", a1)))))
+    }
+
+    // flushMixes — report the mixes noteMix recorded.
+    public void flushMixes() {
+        int i = 0
+        while i < this.mixLocs.size() {
+            string e = this.mixArgs.get(i)
+            int s1 = str.indexOf(e, ";")
+            string rest = str.substring(e, s1 + 1, str.len(e))
+            int s2 = str.indexOf(rest, ";")
+            DiagID id = DiagID.err_parser_mixed_operators
+            if str.startsWith(e, "c") {
+                id = DiagID.err_parser_comparison_operand
+            }
+            DiagnosticBuilder b = this.diags.report(this.mixLocs.get(i), id)
+            b.addStr(str.substring(rest, 0, s2))
+            b.addStr(str.substring(rest, s2 + 1, str.len(rest)))
+            b.emit()
+            i = i + 1
+        }
+    }
+
+    // getLastBinOp / setLastBinOp — the operator at the top of the expression the last
+    // ParserExpr.parseBin call built, "" when it built no binary (see checkMix).
+    public string getLastBinOp() {
+        return this.lastBinOp
+    }
+
+    public void setLastBinOp(const string op) {
+        this.lastBinOp = op
+    }
+
     public void reportErrStr(const DiagID id, const string arg) {
         DiagnosticBuilder b = this.diags.report(this.curLoc(), id)
         b.addStr(arg)
@@ -697,7 +1009,7 @@ public class Parser {
                     this.reportErr(DiagID.err_parser_multiple_namespace)
                     go = false
                 } else {
-                    ASTNameSpace ns = this.parseNameSpace()
+                    ASTNameSpace _ns = this.parseNameSpace()
                     namespaceSeen = true
                 }
             } else {
@@ -707,6 +1019,7 @@ public class Parser {
                 }
             }
         }
+        this.flushMixes()
         return m
     }
 
@@ -811,20 +1124,20 @@ public class Parser {
     public void parseNode(const ASTModule m) {
         // Nodes self-register into `this.module` via ASTBuilder.Create*.
         if this.curIsKw("import") {
-            ASTImport imp = this.parseImport()
+            ASTImport _imp = this.parseImport()
             return
         }
         List<ASTModifier> mods = this.parseModifiers()
         if this.curIsKw("class") || this.curIsKw("interface") || this.curIsKw("struct") || this.curIsKw("suite") {
-            ASTClass c = this.parseClass(mods)
+            ASTClass _c = this.parseClass(mods)
             return
         }
         if this.curIsKw("enum") {
-            ASTEnum e = this.parseEnum(mods)
+            ASTEnum _e = this.parseEnum(mods)
             return
         }
         // Otherwise a function: <ReturnType> name ( params ) { body }
-        ASTFunction f = this.parseFunction(mods)
+        ASTFunction _f = this.parseFunction(mods)
     }
 
     // ── ParseType ─────────────────────────────────────────────────────────────
@@ -1020,6 +1333,7 @@ public class Parser {
         string nm = ""
         SourceLocation nloc = this.curLoc()      // the NAME token, for setNameLoc
         if this.curIsNamePart() {
+            this.checkDeclName()
             nm = this.curText()
             this.bump()
         } else {
@@ -1140,13 +1454,17 @@ public class Parser {
             this.parseSuiteCase(block)
             return
         }
+        if this.curIsKw("delete") {
+            this.parseDelete(block)
+            return
+        }
         if this.curIsKw("break") {
-            ASTBreakStmt b = ASTBuilder.CreateBreakStmt(block, this.curLoc())
+            ASTBreakStmt _b = ASTBuilder.CreateBreakStmt(block, this.curLoc())
             this.bump()
             return
         }
         if this.curIsKw("continue") {
-            ASTContinueStmt cs = ASTBuilder.CreateContinueStmt(block, this.curLoc())
+            ASTContinueStmt _cs = ASTBuilder.CreateContinueStmt(block, this.curLoc())
             this.bump()
             return
         }
@@ -1265,6 +1583,17 @@ public class Parser {
                 SourceLocation cloc = this.curLoc()
                 this.bump()
                 ASTExpr cv = this.parseExpr()
+                // `case 3, 4:` — one case for several values: every value but the
+                // last becomes a case that shares the body of the next one
+                while this.curIsPunct(",") {
+                    this.bump()
+                    ASTCaseStmt sc = new ASTCaseStmt(cloc)
+                    sc.setExpr(cv)
+                    sc.setShared(true)
+                    sc.setStmt(ASTBuilder.CreateBlockStmt(cloc))
+                    s.addCase(sc)
+                    cv = this.parseExpr()
+                }
                 this.expectPunct(":")
                 ASTCaseStmt c = new ASTCaseStmt(cloc)
                 c.setExpr(cv)
@@ -1299,7 +1628,7 @@ public class Parser {
                && this.curIsKw("default") == false && this.hadErr() == false
         while go {
             if this.curIsKw("break") {
-                ASTBreakStmt b = ASTBuilder.CreateBreakStmt(body, this.curLoc())
+                ASTBreakStmt _b = ASTBuilder.CreateBreakStmt(body, this.curLoc())
                 this.bump()
             } else {
                 this.parseStmt(body)
@@ -1351,7 +1680,7 @@ public class Parser {
         SourceLocation loc = this.curLoc()
         this.expectKw("handle")
         ASTBlockStmt body = this.parseBlock()
-        ASTHandleStmt s = ASTBuilder.CreateHandleStmt(block, loc, body)
+        ASTHandleStmt _s = ASTBuilder.CreateHandleStmt(block, loc, body)
     }
 
     // ── test: `test { body }` ─────────────────────────────────────────────────
@@ -1392,6 +1721,22 @@ public class Parser {
         }
         ASTCaseStmt c = ASTBuilder.CreateCaseStmt(block, loc, labelExpr, body)
         c.setLabel(label)
+    }
+
+    // parseDelete — `delete x`: free the object x refers to (calling its `free()`
+    // first when the class declares one) and set x to null. The target must sit on
+    // the keyword's line, like a `return` value; what it may be (a variable or a
+    // field holding a class reference) is checked by the resolver.
+    public void parseDelete(const ASTBlockStmt block) {
+        SourceLocation loc = this.curLoc()
+        int kwLine = this.curLine()
+        this.expectKw("delete")
+        if this.curLine() != kwLine {
+            this.reportErr(DiagID.err_parser_syntax_error)
+            return
+        }
+        ASTExpr target = this.parseExpr()
+        ASTDeleteStmt _d = ASTBuilder.CreateDeleteStmt(block, loc, target)
     }
 
     // parseReturn — `return`, `return expr`, or `return a, b` (one value per
@@ -1524,6 +1869,7 @@ public class Parser {
         string nm = ""
         SourceLocation nloc = this.curLoc()      // the NAME token, for setNameLoc
         if this.curIsNamePart() {
+            this.checkDeclName()
             nm = this.curText()
             this.bump()
         } else {
@@ -1538,6 +1884,7 @@ public class Parser {
             this.bump()
             ASTExpr init = this.parseExpr()
             d.setExpr(init)
+            this.noteOwner(nm, init)
         }
     }
 
@@ -1609,7 +1956,7 @@ public class Parser {
         int ni = 0
         while ni < names.size() {
             ASTExpr rid = ASTBuilder.CreateIdentifier(loc, names.get(ni), null)
-            ASTArg ra = new ASTArg(loc, rid, idx)
+            ASTArg ra = new ASTArg(loc, rid, (uint)idx)
             call.addArg(ra)
             idx = idx + 1
             ni = ni + 1
@@ -1640,4 +1987,16 @@ public class Parser {
 // newParser — convenience factory.
 public Parser newParser(const string src) {
     return new Parser(src)
+}
+
+// listHas — `names` contains `n`.
+public bool listHas(const List<string> names, const string n) {
+    int i = 0
+    while i < names.size() {
+        if str.equals(names.get(i), n) {
+            return true
+        }
+        i = i + 1
+    }
+    return false
 }

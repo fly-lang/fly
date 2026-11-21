@@ -1,0 +1,58 @@
+namespace fly.compiler.parser
+
+import fly.mem
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Escapes — helpers for decoding the escape sequences of string literals
+// (Parser.decodeEscapes). The compiler's own sources are compiled by the seed,
+// which reads every literal RAW, and by the self-host, which decodes escapes: no
+// literal here may contain a backslash or a double quote, so both read it alike.
+// The backslash is built from its byte instead (byteString(92)).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// byteString — a one-byte string holding `b`.
+public string byteString(const int b) {
+    pointer p = mem.alloc(1)
+    mem.writeByte(p, 0, (byte)b)
+    return str.fromBytes(p, 1)
+}
+
+// hexDigit — the value of the hex digit byte `c` (0-9, a-f, A-F), or -1.
+public int hexDigit(const int c) {
+    if c >= 48 && c <= 57 {
+        return c - 48
+    }
+    if c >= 97 && c <= 102 {
+        return c - 87
+    }
+    if c >= 65 && c <= 70 {
+        return c - 55
+    }
+    return -1
+}
+
+// utf8Encode — write code point `cp` (0..10FFFF) as UTF-8 at `buf + at`;
+// returns the number of bytes written (1 to 4).
+public int utf8Encode(const pointer buf, const int at, const int cp) {
+    if cp < 128 {
+        mem.writeByte(buf, at, (byte)cp)
+        return 1
+    }
+    if cp < 2048 {
+        mem.writeByte(buf, at, (byte)(192 | (cp >> 6)))
+        mem.writeByte(buf, at + 1, (byte)(128 | (cp & 63)))
+        return 2
+    }
+    if cp < 65536 {
+        mem.writeByte(buf, at, (byte)(224 | (cp >> 12)))
+        mem.writeByte(buf, at + 1, (byte)(128 | ((cp >> 6) & 63)))
+        mem.writeByte(buf, at + 2, (byte)(128 | (cp & 63)))
+        return 3
+    }
+    mem.writeByte(buf, at, (byte)(240 | (cp >> 18)))
+    mem.writeByte(buf, at + 1, (byte)(128 | ((cp >> 12) & 63)))
+    mem.writeByte(buf, at + 2, (byte)(128 | ((cp >> 6) & 63)))
+    mem.writeByte(buf, at + 3, (byte)(128 | (cp & 63)))
+    return 4
+}

@@ -1,0 +1,1 @@
+an owner takes only a 'new unique' object

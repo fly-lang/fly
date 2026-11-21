@@ -9,12 +9,10 @@ import fly.compiler.codegen.CodeGenType
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenClass
 import fly.compiler.codegen.CodeGenTrace
+import fly.compiler.codegen.CodeGenStmt
 import llvm.api.*
-import fly.mem
 import fly.data.List
-import fly.data.Map
 import fly.str
-import fly.os.io
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenModule — owns the LLVM context/module/builder and drives lowering of the
@@ -43,6 +41,17 @@ public class CodeGenModule {
     pointer freeFnTy       // its function type
     pointer itableFn       // `@__fly_itable`, the interface lookup helper; null until first use
     pointer itableFnTy     // its function type
+    pointer nullTrapFn     // `@__fly_null_trap`, the null-reference trap; null until first use
+    pointer nullTrapFnTy   // its function type
+    List<string> dropNames // `@__fly_drop.<class>` helpers built so far (delete bodies), by name
+    List<pointer> dropFns
+    pointer dropFnTyV      // their common type: void (ptr err, ptr slot)
+    pointer retainFnV      // `@__fly_retain`, counts one more holder of a shared object; 0 until first use
+    pointer retainFnTyV    // its type: void (ptr obj)
+    pointer weakGetV       // `@__fly_weak_get`: the object while it lives, else null
+    pointer weakGetTyV     // its type: ptr (ptr obj)
+    pointer weakRetainV    // `@__fly_weak_retain`: one more weak reference (type = retainFnTy)
+    pointer weakReleaseV   // `@__fly_weak_release`: one weak reference less (ptr slot) (type = retainFnTy)
     CodeGenOptions codeGenOpts    // linker flags sink (CLang bridge); null in unit tests
     CodeGenDebug dbg              // DWARF line tables (--debug-symbols); null otherwise
     bool machO                    // the target emits Mach-O (set by configureTarget)
@@ -54,6 +63,17 @@ public class CodeGenModule {
         this.name = name
         this.itableFn = 0
         this.itableFnTy = 0
+        this.nullTrapFn = 0
+        this.nullTrapFnTy = 0
+        this.dropNames = new List<string>()
+        this.dropFns = new List<pointer>()
+        this.dropFnTyV = 0
+        this.retainFnV = 0
+        this.retainFnTyV = 0
+        this.weakGetV = 0
+        this.weakGetTyV = 0
+        this.weakRetainV = 0
+        this.weakReleaseV = 0
         this.codeGenOpts = null
         this.cg = new CodeGenLLVM()
         LLVM llvm = this.cg.getLLVM()
@@ -187,8 +207,14 @@ public class CodeGenModule {
             pointer fty
             this.cg.functionTypeN(voidTy, ps, false, fty)
             this.freeFnTy = fty
+            // reuse a `free` the module already declares (the runtime declares the C
+            // one itself): adding a second would make LLVM rename it to free.N,
+            // an undefined symbol at link time
             pointer f
-            llvm.addFunction(this.module, "free", fty, f)
+            llvm.getNamedFunction(this.module, "free", f)
+            if f == 0 {
+                llvm.addFunction(this.module, "free", fty, f)
+            }
             this.freeFn = f
         }
         List<pointer> args = new List<pointer>()
@@ -1004,17 +1030,17 @@ public class CodeGenModule {
                     llvm.buildZExt(this.builder, loaded, i32, "mext", retVal)
                 } elsif rt.isInteger() {
                     int rk = rt.getRank()
-                    int w = rk
-                    if w % 2 == 1 {
-                        w = w + 1
+                    int wd = rk
+                    if wd % 2 == 1 {
+                        wd = wd + 1
                     }
-                    if w < 32 {
+                    if wd < 32 {
                         if rk % 2 == 0 {
                             llvm.buildZExt(this.builder, loaded, i32, "mext", retVal)
                         } else {
                             llvm.buildSExt(this.builder, loaded, i32, "mext", retVal)
                         }
-                    } elsif w > 32 {
+                    } elsif wd > 32 {
                         llvm.buildTrunc(this.builder, loaded, i32, "mtr", retVal)
                     }
                 }
@@ -1447,6 +1473,528 @@ public class CodeGenModule {
     // emitItableLookup — at the current insertion point, the itable the object
     // with vtable `vt` holds for the interface with id `ifaceId`: a call to the
     // module's lookup helper (see itableLookupFn).
+    // nullTrapCode — the exit code of a program stopped by a null reference: 134,
+    // what an abort reports on POSIX, so it reads as a crash and not as a value a
+    // program chose with `fail`.
+    public int nullTrapCode() {
+        return 134
+    }
+
+    // emitNullTrap — `call @__fly_null_trap(msg)` + unreachable at the current
+    // insert point: the block that runs when an object reference is null.
+    public void emitNullTrap(const string message) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer fn = this.nullTrapFnGet()
+        List<pointer> args = new List<pointer>()
+        args.add(this.cstr(message))
+        pointer cv
+        this.cg.buildCallN(this.builder, this.nullTrapFnTy, fn, args, "", cv)
+        pointer u
+        llvm.buildUnreachable(this.builder, u)
+    }
+
+    // nullTrapFnGet — `void @__fly_null_trap(ptr msg)`: print "error 134: <msg>" to
+    // stderr and exit with 134. One per module, LinkOnceODR + COMDAT like
+    // `@__fly_itable`, so separately compiled objects share it. It calls the
+    // runtime's C-ABI err_print and proc_exit, whose declarations here match the
+    // wrappers the runtime module itself emits (emitRuntimeCABIWrapper reuses them).
+    // dropFnTy — the type every `@__fly_drop.<class>` shares: void (ptr err, ptr slot).
+    public pointer dropFnTy() {
+        if this.dropFnTyV == 0 {
+            LLVM llvm = this.cg.getLLVM()
+            pointer voidTy
+            llvm.voidTypeInContext(this.ctx, voidTy)
+            List<pointer> ps = new List<pointer>()
+            ps.add(this.types.ptrType())
+            ps.add(this.types.ptrType())
+            pointer fty
+            this.cg.functionTypeN(voidTy, ps, false, fty)
+            this.dropFnTyV = fty
+        }
+        return this.dropFnTyV
+    }
+
+    // dropFn — `void @__fly_drop.<ns>.<Class>(ptr err, ptr slot)`: the body of
+    // `delete` for the reference at `slot` (CodeGenStmt.emitDeleteBody). One per
+    // class and module, LinkOnceODR + COMDAT like `@__fly_itable`. Registered
+    // BEFORE its body is built, so a class owning a field of its own type calls
+    // itself instead of expanding forever.
+    public pointer dropFn(const SemaClassType cls) {
+        return this.classFn("__fly_drop.", cls, false)
+    }
+
+    public pointer retainFnTy() {
+        if this.retainFnTyV == 0 {
+            LLVM llvm = this.cg.getLLVM()
+            pointer voidTy
+            llvm.voidTypeInContext(this.ctx, voidTy)
+            List<pointer> ps = new List<pointer>()
+            ps.add(this.types.ptrType())
+            pointer fty
+            this.cg.functionTypeN(voidTy, ps, false, fty)
+            this.retainFnTyV = fty
+        }
+        return this.retainFnTyV
+    }
+
+    // retainFn — `void @__fly_retain(ptr obj)`: when obj is not null, one more on
+    // the strong count of its shared header (16 bytes before it). One per module,
+    // LinkOnceODR + COMDAT. Class-independent: the header is the same for all.
+    public pointer retainFn() {
+        if this.retainFnV != 0 {
+            return this.retainFnV
+        }
+        LLVM llvm = this.cg.getLLVM()
+        pointer b = this.builder
+        pointer fty = this.retainFnTy()
+        string name = "__fly_retain"
+        pointer fn
+        llvm.getNamedFunction(this.module, name, fn)
+        if fn == 0 {
+            llvm.addFunction(this.module, name, fty, fn)
+        }
+        this.retainFnV = fn
+        llvm.setLinkage(fn, 3)
+        this.setWeakComdat(fn, name)
+
+        pointer savedLoc = 0
+        if this.dbg != null {
+            savedLoc = this.dbg.suspend()
+        }
+        pointer callerBB
+        llvm.getInsertBlock(b, callerBB)
+        pointer entryBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "entry", entryBB)
+        pointer incBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "inc", incBB)
+        pointer endBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "end", endBB)
+        llvm.positionBuilderAtEnd(b, entryBB)
+        pointer obj
+        llvm.getParam(fn, 0, obj)
+        pointer ptrTy = this.types.ptrType()
+        pointer nul
+        llvm.constPointerNull(ptrTy, nul)
+        pointer notNull
+        llvm.buildICmp(b, 33, obj, nul, "nn", notNull)
+        pointer br
+        llvm.buildCondBr(b, notNull, incBB, endBB, br)
+        llvm.positionBuilderAtEnd(b, incBB)
+        pointer i8Ty
+        llvm.int8TypeInContext(this.ctx, i8Ty)
+        pointer i64Ty
+        llvm.int64TypeInContext(this.ctx, i64Ty)
+        pointer minus16
+        llvm.constInt(i64Ty, 0 - 16, true, minus16)
+        List<pointer> idx = new List<pointer>()
+        idx.add(minus16)
+        pointer hdr
+        this.cg.buildGEP2N(b, i8Ty, obj, idx, "hdr", hdr)
+        pointer strong
+        llvm.buildLoad2(b, i64Ty, hdr, "strong", strong)
+        pointer one
+        llvm.constInt(i64Ty, 1, false, one)
+        pointer more
+        llvm.buildAdd(b, strong, one, "strong.more", more)
+        llvm.buildStore(b, more, hdr)
+        pointer br2
+        llvm.buildBr(b, endBB, br2)
+        llvm.positionBuilderAtEnd(b, endBB)
+        pointer rv
+        llvm.buildRetVoid(b, rv)
+
+        if callerBB != 0 {
+            llvm.positionBuilderAtEnd(b, callerBB)
+        }
+        if this.dbg != null {
+            this.dbg.resume(savedLoc)
+        }
+        return fn
+    }
+
+    // ── `weak` helpers ──────────────────────────────────────────────────────────
+    // A weak reference points at the object of a `new shared` block and counts on
+    // the weak counter at header -8. The block outlives the object while weak
+    // references exist (emitReleaseBody keeps it), so they can still read the
+    // strong counter and tell a live object from a destroyed one.
+
+    public pointer weakGetTy() {
+        if this.weakGetTyV == 0 {
+            List<pointer> ps = new List<pointer>()
+            ps.add(this.types.ptrType())
+            pointer fty
+            this.cg.functionTypeN(this.types.ptrType(), ps, false, fty)
+            this.weakGetTyV = fty
+        }
+        return this.weakGetTyV
+    }
+
+    // weakGetFn — `ptr @__fly_weak_get(ptr obj)`: obj when it is not null and its
+    // strong count is above zero, null otherwise. Every READ of a weak variable
+    // goes through it, so a destroyed object reads as null (and a use of it stops
+    // on the null trap).
+    public pointer weakGetFn() {
+        if this.weakGetV != 0 {
+            return this.weakGetV
+        }
+        LLVM llvm = this.cg.getLLVM()
+        pointer fn = this.helperFn("__fly_weak_get", this.weakGetTy())
+        this.weakGetV = fn
+        pointer savedLoc = this.helperEnter()
+        pointer callerBB = this.helperCaller()
+        pointer b = this.builder
+        pointer entryBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "entry", entryBB)
+        pointer liveBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "check", liveBB)
+        pointer yesBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "alive", yesBB)
+        pointer noBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "gone", noBB)
+        llvm.positionBuilderAtEnd(b, entryBB)
+        pointer obj
+        llvm.getParam(fn, 0, obj)
+        pointer nul
+        llvm.constPointerNull(this.types.ptrType(), nul)
+        pointer nn
+        llvm.buildICmp(b, 33, obj, nul, "nn", nn)
+        pointer br
+        llvm.buildCondBr(b, nn, liveBB, noBB, br)
+        llvm.positionBuilderAtEnd(b, liveBB)
+        pointer strong = this.headerCount(obj, 0, "strong")
+        pointer i64Ty
+        llvm.int64TypeInContext(this.ctx, i64Ty)
+        pointer zero
+        llvm.constInt(i64Ty, 0, false, zero)
+        pointer alive
+        llvm.buildICmp(b, 33, strong, zero, "alive", alive)
+        pointer br2
+        llvm.buildCondBr(b, alive, yesBB, noBB, br2)
+        llvm.positionBuilderAtEnd(b, yesBB)
+        pointer r1
+        llvm.buildRet(b, obj, r1)
+        llvm.positionBuilderAtEnd(b, noBB)
+        pointer r2
+        llvm.buildRet(b, nul, r2)
+        this.helperLeave(callerBB, savedLoc)
+        return fn
+    }
+
+    // weakRetainFn — `void @__fly_weak_retain(ptr obj)`: one more weak reference.
+    public pointer weakRetainFn() {
+        if this.weakRetainV != 0 {
+            return this.weakRetainV
+        }
+        LLVM llvm = this.cg.getLLVM()
+        pointer fn = this.helperFn("__fly_weak_retain", this.retainFnTy())
+        this.weakRetainV = fn
+        pointer savedLoc = this.helperEnter()
+        pointer callerBB = this.helperCaller()
+        pointer b = this.builder
+        pointer entryBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "entry", entryBB)
+        pointer incBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "inc", incBB)
+        pointer endBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "end", endBB)
+        llvm.positionBuilderAtEnd(b, entryBB)
+        pointer obj
+        llvm.getParam(fn, 0, obj)
+        pointer nul
+        llvm.constPointerNull(this.types.ptrType(), nul)
+        pointer nn
+        llvm.buildICmp(b, 33, obj, nul, "nn", nn)
+        pointer br
+        llvm.buildCondBr(b, nn, incBB, endBB, br)
+        llvm.positionBuilderAtEnd(b, incBB)
+        pointer weakP = this.headerSlot(obj, 8, "weakp")
+        pointer i64Ty
+        llvm.int64TypeInContext(this.ctx, i64Ty)
+        pointer weak
+        llvm.buildLoad2(b, i64Ty, weakP, "weak", weak)
+        pointer one
+        llvm.constInt(i64Ty, 1, false, one)
+        pointer more
+        llvm.buildAdd(b, weak, one, "weak.more", more)
+        llvm.buildStore(b, more, weakP)
+        pointer br2
+        llvm.buildBr(b, endBB, br2)
+        llvm.positionBuilderAtEnd(b, endBB)
+        pointer rv
+        llvm.buildRetVoid(b, rv)
+        this.helperLeave(callerBB, savedLoc)
+        return fn
+    }
+
+    // weakReleaseFn — `void @__fly_weak_release(ptr slot)`: the weak reference at
+    // slot goes: one weak count less, the block freed when neither a holder nor a
+    // weak reference is left, and null into the slot.
+    public pointer weakReleaseFn() {
+        if this.weakReleaseV != 0 {
+            return this.weakReleaseV
+        }
+        LLVM llvm = this.cg.getLLVM()
+        pointer fn = this.helperFn("__fly_weak_release", this.retainFnTy())
+        this.weakReleaseV = fn
+        pointer savedLoc = this.helperEnter()
+        pointer callerBB = this.helperCaller()
+        pointer b = this.builder
+        pointer ptrTy = this.types.ptrType()
+        pointer i64Ty
+        llvm.int64TypeInContext(this.ctx, i64Ty)
+        pointer entryBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "entry", entryBB)
+        pointer decBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "dec", decBB)
+        pointer freeBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "free", freeBB)
+        pointer doneBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "done", doneBB)
+        pointer endBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "end", endBB)
+        llvm.positionBuilderAtEnd(b, entryBB)
+        pointer slot
+        llvm.getParam(fn, 0, slot)
+        pointer obj
+        llvm.buildLoad2(b, ptrTy, slot, "obj", obj)
+        pointer nul
+        llvm.constPointerNull(ptrTy, nul)
+        pointer nn
+        llvm.buildICmp(b, 33, obj, nul, "nn", nn)
+        pointer br
+        llvm.buildCondBr(b, nn, decBB, endBB, br)
+        llvm.positionBuilderAtEnd(b, decBB)
+        pointer weakP = this.headerSlot(obj, 8, "weakp")
+        pointer weak
+        llvm.buildLoad2(b, i64Ty, weakP, "weak", weak)
+        pointer one
+        llvm.constInt(i64Ty, 1, false, one)
+        pointer left
+        llvm.buildSub(b, weak, one, "weak.left", left)
+        llvm.buildStore(b, left, weakP)
+        pointer strong = this.headerCount(obj, 0, "strong")
+        pointer zero
+        llvm.constInt(i64Ty, 0, false, zero)
+        pointer noWeak
+        llvm.buildICmp(b, 32, left, zero, "noweak", noWeak)
+        pointer noStrong
+        llvm.buildICmp(b, 32, strong, zero, "nostrong", noStrong)
+        pointer both
+        llvm.buildAnd(b, noWeak, noStrong, "unreferenced", both)
+        pointer br2
+        llvm.buildCondBr(b, both, freeBB, doneBB, br2)
+        llvm.positionBuilderAtEnd(b, freeBB)
+        this.freeHandle(this.headerSlot(obj, 0, "hdr"))
+        pointer br3
+        llvm.buildBr(b, doneBB, br3)
+        llvm.positionBuilderAtEnd(b, doneBB)
+        llvm.buildStore(b, nul, slot)
+        pointer br4
+        llvm.buildBr(b, endBB, br4)
+        llvm.positionBuilderAtEnd(b, endBB)
+        pointer rv
+        llvm.buildRetVoid(b, rv)
+        this.helperLeave(callerBB, savedLoc)
+        return fn
+    }
+
+    // headerSlot — the address `offset` bytes into the shared header of `obj`
+    // (0 = strong count, 8 = weak count; the header starts 16 bytes before obj).
+    public pointer headerSlot(const pointer obj, const int offset, const string name) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer i8Ty
+        llvm.int8TypeInContext(this.ctx, i8Ty)
+        pointer i64Ty
+        llvm.int64TypeInContext(this.ctx, i64Ty)
+        pointer off
+        llvm.constInt(i64Ty, offset - 16, true, off)
+        List<pointer> idx = new List<pointer>()
+        idx.add(off)
+        pointer p
+        this.cg.buildGEP2N(this.builder, i8Ty, obj, idx, name, p)
+        return p
+    }
+
+    // headerCount — load the i64 counter at `offset` in obj's shared header.
+    public pointer headerCount(const pointer obj, const int offset, const string name) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer i64Ty
+        llvm.int64TypeInContext(this.ctx, i64Ty)
+        pointer v
+        llvm.buildLoad2(this.builder, i64Ty, this.headerSlot(obj, offset, str.concat(name, "p")), name, v)
+        return v
+    }
+
+    // helperFn — declare (or find) a module helper: LinkOnceODR + COMDAT, so the
+    // copies emitted by separately compiled objects merge.
+    public pointer helperFn(const string name, const pointer fty) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer fn
+        llvm.getNamedFunction(this.module, name, fn)
+        if fn == 0 {
+            llvm.addFunction(this.module, name, fty, fn)
+        }
+        llvm.setLinkage(fn, 3)
+        this.setWeakComdat(fn, name)
+        return fn
+    }
+
+    // helperEnter / helperCaller / helperLeave — build a helper's body away from
+    // the caller's block and come back; a helper has no subprogram, so the
+    // caller's debug location must not follow the builder into it.
+    public pointer helperEnter() {
+        pointer savedLoc = 0
+        if this.dbg != null {
+            savedLoc = this.dbg.suspend()
+        }
+        return savedLoc
+    }
+
+    public pointer helperCaller() {
+        pointer callerBB
+        this.cg.getLLVM().getInsertBlock(this.builder, callerBB)
+        return callerBB
+    }
+
+    public void helperLeave(const pointer callerBB, const pointer savedLoc) {
+        if callerBB != 0 {
+            this.cg.getLLVM().positionBuilderAtEnd(this.builder, callerBB)
+        }
+        if this.dbg != null {
+            this.dbg.resume(savedLoc)
+        }
+    }
+
+    // releaseFn — `void @__fly_release.<ns>.<Class>(ptr err, ptr slot)`: the last
+    // step of a `new shared` holder (CodeGenStmt.emitReleaseBody), built like dropFn.
+    public pointer releaseFn(const SemaClassType cls) {
+        return this.classFn("__fly_release.", cls, true)
+    }
+
+    // classFn — the per-class helper `<prefix><ns>.<Class>`, built once: the delete
+    // body, or (release) the release body of a shared holder.
+    public pointer classFn(const string prefix, const SemaClassType cls, const bool release) {
+        string qual = str.concat(SemaBuilder.classNsFlat(cls), str.concat(".", cls.getName()))
+        string name = str.concat(prefix, qual)
+        int i = 0
+        while i < this.dropNames.size() {
+            if str.equals(this.dropNames.get(i), name) {
+                return this.dropFns.get(i)
+            }
+            i = i + 1
+        }
+        LLVM llvm = this.cg.getLLVM()
+        pointer fty = this.dropFnTy()
+        pointer fn
+        llvm.getNamedFunction(this.module, name, fn)
+        if fn == 0 {
+            llvm.addFunction(this.module, name, fty, fn)
+        }
+        this.dropNames.add(name)
+        this.dropFns.add(fn)
+        llvm.setLinkage(fn, 3)
+        this.setWeakComdat(fn, name)
+
+        // Built away from the caller's block, then back to it; no subprogram, so
+        // the caller's debug location must not follow (as for `@__fly_itable`).
+        pointer b = this.builder
+        pointer savedLoc = 0
+        if this.dbg != null {
+            savedLoc = this.dbg.suspend()
+        }
+        pointer callerBB
+        llvm.getInsertBlock(b, callerBB)
+        pointer entryBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "entry", entryBB)
+        llvm.positionBuilderAtEnd(b, entryBB)
+        CodeGenExpr dcg = new CodeGenExpr(this)
+        pointer errP
+        llvm.getParam(fn, 0, errP)
+        dcg.setErrPtr(errP)
+        pointer slotP
+        llvm.getParam(fn, 1, slotP)
+        if release {
+            CodeGenStmt.emitReleaseBody(dcg, cls, slotP)
+        } else {
+            CodeGenStmt.emitDeleteBody(dcg, cls, slotP)
+        }
+        pointer rv
+        llvm.buildRetVoid(b, rv)
+        if callerBB != 0 {
+            llvm.positionBuilderAtEnd(b, callerBB)
+        }
+        if this.dbg != null {
+            this.dbg.resume(savedLoc)
+        }
+        return fn
+    }
+
+    public pointer nullTrapFnGet() {
+        if this.nullTrapFn != 0 {
+            return this.nullTrapFn
+        }
+        LLVM llvm = this.cg.getLLVM()
+        pointer b = this.builder
+        pointer ptrTy = this.types.ptrType()
+        pointer voidTy
+        llvm.voidTypeInContext(this.ctx, voidTy)
+        pointer i32Ty
+        llvm.int32TypeInContext(this.ctx, i32Ty)
+        List<pointer> ps = new List<pointer>()
+        ps.add(ptrTy)
+        pointer fty
+        this.cg.functionTypeN(voidTy, ps, false, fty)
+        string name = "__fly_null_trap"
+        pointer fn
+        llvm.getNamedFunction(this.module, name, fn)
+        if fn == 0 {
+            llvm.addFunction(this.module, name, fty, fn)
+        }
+        this.nullTrapFn = fn
+        this.nullTrapFnTy = fty
+        llvm.setLinkage(fn, 3)
+        this.setWeakComdat(fn, name)
+
+        // Built away from the caller's block, then back to it; like `@__fly_itable`
+        // it has no subprogram, so the caller's debug location must not follow.
+        pointer savedLoc = 0
+        if this.dbg != null {
+            savedLoc = this.dbg.suspend()
+        }
+        pointer callerBB
+        llvm.getInsertBlock(b, callerBB)
+        pointer entryBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "entry", entryBB)
+        llvm.positionBuilderAtEnd(b, entryBB)
+
+        pointer msg
+        llvm.getParam(fn, 0, msg)
+        pointer code
+        llvm.constInt(i32Ty, this.nullTrapCode(), false, code)
+        List<pointer> epTys = new List<pointer>()
+        epTys.add(i32Ty)
+        epTys.add(ptrTy)
+        List<pointer> epArgs = new List<pointer>()
+        epArgs.add(code)
+        epArgs.add(msg)
+        this.callVoidRt("err_print", epTys, epArgs)
+        List<pointer> exTys = new List<pointer>()
+        exTys.add(i32Ty)
+        List<pointer> exArgs = new List<pointer>()
+        exArgs.add(code)
+        this.callVoidRt("proc_exit", exTys, exArgs)
+        pointer u
+        llvm.buildUnreachable(b, u)
+
+        if callerBB != 0 {
+            llvm.positionBuilderAtEnd(b, callerBB)
+        }
+        if this.dbg != null {
+            this.dbg.resume(savedLoc)
+        }
+        return fn
+    }
+
     public pointer emitItableLookup(const pointer vt, const long ifaceId) {
         LLVM llvm = this.cg.getLLVM()
         pointer fn = this.itableLookupFn()

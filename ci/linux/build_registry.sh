@@ -22,10 +22,12 @@ FLY="build/stage$STAGE/bin/fly"
 [ -f tools/registry/lib/FlyRegistry.fly ] || { echo "error: tools/registry/lib/FlyRegistry.fly not found." >&2; exit 1; }
 
 DBG=""; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && DBG="--debug-symbols"
+# A warning in the tool's code fails the build (always the self-host here).
+WERR="--warnings-as-errors"
 
 echo "stage$STAGE: compiling tools/registry ..."
 "$FLY" --entry tools/registry/lib/FlyRegistry.fly --src-dir tools/registry \
-       $DBG -c -o FlyRegistry --out-dir "$D" -L "$LIB"
+       $DBG $WERR -c -o FlyRegistry --out-dir "$D" -L "$LIB"
 
 OBJ=""
 for c in "$D/FlyRegistry" "$D/FlyRegistry.o" "$D/FlyRegistry.fly.o"; do

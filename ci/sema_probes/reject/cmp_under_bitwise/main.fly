@@ -1,0 +1,9 @@
+// A comparison binds tighter than `&` in Fly: this is flags & (mask == 0), where
+// C (and the intent) is (flags & mask) == 0.
+bool clear(const int flags, const int mask) {
+    return flags & mask == 0
+}
+
+void main() {
+    bool r = clear(6, 1)
+}

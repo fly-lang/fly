@@ -112,37 +112,9 @@ public class CodeGenDebug {
         return f
     }
 
-    // remap — apply --debug-prefix-map (";OLD=NEW;" pairs) to a directory, as
-    // clang's -fdebug-prefix-map: a directory equal to OLD, or below it, has OLD
-    // replaced by NEW; when several match, the LAST one given wins. '/' and '\'
-    // compare equal, since Windows paths reach here in both spellings. What it
-    // is for: two compilers in different places must describe the same sources
-    // with the same bits (the stage 3 fixpoint compares objects byte by byte),
-    // and a debug build should not depend on the machine that made it.
+    // remap — apply --debug-prefix-map to a directory (see remapPath).
     public string remap(const string dir) {
-        string result = dir
-        string m = this.prefixMap
-        int n = str.len(m)
-        int start = 0
-        while start < n {
-            int end = start
-            while end < n && (str.byteAt(m, end) & 255) != 59 { // ';'
-                end = end + 1
-            }
-            if end > start {
-                string pair = str.substring(m, start, end)
-                int eq = str.indexOf(pair, "=")
-                if eq > 0 {
-                    string oldP = str.substring(pair, 0, eq)
-                    if isPathPrefix(dir, oldP) {
-                        string newP = str.substring(pair, eq + 1, str.len(pair))
-                        result = str.concat(newP, str.substring(dir, str.len(oldP), str.len(dir)))
-                    }
-                }
-            }
-            start = end + 1
-        }
-        return result
+        return remapPath(dir, this.prefixMap)
     }
 
     // beginFunction — attach a subprogram to `fn` and point the builder at its
@@ -445,6 +417,40 @@ public class CodeGenDebug {
     public void finalize() {
         this.llvm.diBuilderFinalize(this.db)
     }
+}
+
+// remapPath — apply --debug-prefix-map (";OLD=NEW;" pairs) to a path, as clang's
+// -ffile-prefix-map: a path equal to OLD, or below it, has OLD replaced by NEW;
+// when several match, the LAST one given wins. '/' and '\' compare equal, since
+// Windows paths reach here in both spellings. Used by the DWARF and by the
+// positions in run-time trap messages. What it is for: two compilers in
+// different places must describe the same sources with the same bits (the
+// stage 3 fixpoint compares objects byte by byte), and a build should not
+// depend on the machine that made it.
+public string remapPath(const string dir, const string prefixMap) {
+    string result = dir
+    string m = prefixMap
+    int n = str.len(m)
+    int start = 0
+    while start < n {
+        int end = start
+        while end < n && (str.byteAt(m, end) & 255) != 59 { // ';'
+            end = end + 1
+        }
+        if end > start {
+            string pair = str.substring(m, start, end)
+            int eq = str.indexOf(pair, "=")
+            if eq > 0 {
+                string oldP = str.substring(pair, 0, eq)
+                if isPathPrefix(dir, oldP) {
+                    string newP = str.substring(pair, eq + 1, str.len(pair))
+                    result = str.concat(newP, str.substring(dir, str.len(oldP), str.len(dir)))
+                }
+            }
+        }
+        start = end + 1
+    }
+    return result
 }
 
 // isPathPrefix — `dir` equals `prefix` or lies below it, with '/' and '\'

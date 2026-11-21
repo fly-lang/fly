@@ -185,6 +185,8 @@ public class Driver {
         bool showStats = false          // --print-stats
         bool showTimers = false         // --ftime-report
         bool noWarn = false             // -w / --no-warning
+        bool warnErrors = false         // --warnings-as-errors
+        string offWarnings = ";"        // --no-warn=<name>, ";a;b;"
 
         int n = (int)args.count
         int i = 1                       // skip argv[0] (program name)
@@ -319,9 +321,10 @@ public class Driver {
             } elsif str.equals(a, "--debug-symbols") {
                 debugSymbols = true
             } elsif str.startsWith(a, "--debug-prefix-map=") {
-                // clang's -fdebug-prefix-map: rewrite a directory prefix in the
-                // DWARF file names, so where the sources (or the compiler) sit
-                // does not leak into the object. OLD=NEW, split at the first '='.
+                // clang's -ffile-prefix-map: rewrite a directory prefix in the
+                // DWARF file names and in the positions of run-time trap
+                // messages, so where the sources (or the compiler) sit does not
+                // leak into the object. OLD=NEW, split at the first '='.
                 string dpmPair = this.eqValue(a)
                 if str.indexOf(dpmPair, "=") <= 0 {
                     io.printErrLn(str.concat("error: --debug-prefix-map expects OLD=NEW, got: ", dpmPair))
@@ -428,10 +431,18 @@ public class Driver {
             } elsif str.equals(a, "-v") || str.equals(a, "--verbose") {
                 verbose = true
             } elsif str.equals(a, "-w") || str.equals(a, "--no-warning") {
-                // The self-host compiler emits no DiagnosticsEngine warnings yet;
-                // what -w silences today is the driver's own "this option has no
-                // effect" notes below.
+                // every warning: the compiler's and the driver's own "this option
+                // has no effect" notes below
                 noWarn = true
+            } elsif str.equals(a, "--warnings-as-errors") {
+                warnErrors = true
+            } elsif str.startsWith(a, "--no-warn=") {
+                string offName = this.eqValue(a)
+                if isWarningName(offName) == false {
+                    io.printErrLn(str.concat("error: --no-warn: unknown warning: ", offName))
+                    return 1
+                }
+                offWarnings = str.concat(offWarnings, str.concat(offName, ";"))
             } elsif str.equals(a, "--help") || str.equals(a, "-help") {
                 this.printUsage()
                 return 0
@@ -696,6 +707,9 @@ public class Driver {
         fo.setStatsFile(statsFile)
         fo.setLogFile(logFile)
         fo.setLogFormat(logFormat)
+        fo.setNoWarnings(noWarn)
+        fo.setWarningsAsErrors(warnErrors)
+        fo.setDisabledWarnings(offWarnings)
         // Create --out-dir when it is missing. The reference does; the self-host did
         // not, so aiming --out-dir at a directory that did not exist yet failed late
         // and opaquely with "object emission failed" — the WRITE was the problem, not
@@ -778,7 +792,7 @@ public class Driver {
             if rc != 0 {
                 // don't leave a partially-written temp object behind on failure
                 if fs.exists(tempObj) {
-                    fs.delete(tempObj)
+                    fs.del(tempObj)
                 }
                 return rc
             }
@@ -1108,7 +1122,7 @@ public class Driver {
         }
         bool ok = tc.BuildOutput(inFiles, ci.getFrontendOptions())
         if fs.exists(objFile) {
-            fs.delete(objFile)
+            fs.del(objFile)
         }
         if ok {
             return 0
@@ -1332,7 +1346,7 @@ public class Driver {
         io.printErrLn("                  a namespace runs every suite declared under it (prefix match)")
         io.printErrLn("  --debug         verbose logging (+ --debug-symbols)")
         io.printErrLn("  --debug-symbols emit DWARF: source lines, parameters and local variables")
-        io.printErrLn("  --debug-prefix-map=OLD=NEW  write NEW instead of the directory prefix OLD in the DWARF file names")
+        io.printErrLn("  --debug-prefix-map=OLD=NEW  write NEW for the directory prefix OLD (DWARF, trap positions)")
         io.printErrLn("  --trace-calls   log every function entry/exit via fly.log (visible at FLY_LOG_LEVEL=trace)")
         io.printErrLn("  --print-stats   print compilation statistics to stderr")
         io.printErrLn("  --ftime-report  phase timers (no effect yet: a warning says so)")
@@ -1340,7 +1354,10 @@ public class Driver {
         io.printErrLn("  --log-file <f>  log diagnostics to <f>")
         io.printErrLn("  --log-format <fmt>  diagnostics log format: txt (default) or json")
         io.printErrLn("  -v, --verbose   log each compilation phase")
-        io.printErrLn("  -w, --no-warning  suppress warnings (today: the 'no effect yet' notes of the driver)")
+        io.printErrLn("  -w, --no-warning  report no warning")
+        io.printErrLn("  --warnings-as-errors  a warning fails the build like an error")
+        io.printErrLn("  --no-warn=NAME  switch off a warning: unused-variable, unused-import, shadow,")
+        io.printErrLn("                  lossy-conversion, non-exhaustive-switch, header-private")
         io.printErrLn("  --version       print version")
         io.printErrLn("  --help          display this help")
     }
@@ -1396,7 +1413,7 @@ public class Driver {
         // `clean` read after the arg loop comes back ";clea" (";"+"clea", last byte
         // dropped) and `why` → ";wh". Owning our own copy makes every read safe.
         pointer buf = 0
-        fly.runtime.mem_alloc(len, buf)
+        fly.runtime.mem_alloc((ulong)len, buf)
         int j = 0
         while j < len {
             byte b = 0

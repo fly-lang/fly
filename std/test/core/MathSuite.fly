@@ -26,7 +26,7 @@ import fly.assert
 //
 // Assert codes: 1xx sign/abs/min/max/clamp, 2xx integer theory, 3xx powers and
 // logs, 4xx trigonometry, 5xx rounding, 6xx classification, 7xx bitwise,
-// 8xx combinatorics and special functions, 9xx RNG.
+// 8xx combinatorics and special functions, 9xx RNG, 10xx wrapping arithmetic.
 // ─────────────────────────────────────────────────────────────────────────────
 
 suite MathSuite {
@@ -650,6 +650,56 @@ suite MathSuite {
             fly_rng r = new fly_rng()
             math.randSeed(r, 5)
             assert.assertApprox(math.randNormal(r, 3.0, 0.0), 3.0, 916)
+        }
+    }
+
+    // ── wrapping arithmetic: the result modulo 2^bits ────────────────────────
+    void wrapTest() {
+        case "wrapAdd / wrapSub / wrapMul (int)": {
+            int max = 2147483647
+            int min = 0 - 2147483647 - 1
+            assert.assertEqI(math.wrapAdd(max, 1), min, 1001)
+            assert.assertEqI(math.wrapSub(min, 1), max, 1002)
+            assert.assertEqI(math.wrapMul(65536, 65536), 0, 1003)
+            assert.assertEqI(math.wrapMul(0 - 3, 7), 0 - 21, 1004)
+            assert.assertEqI(math.wrapAdd(20, 22), 42, 1005)
+        }
+        case "wrapAddU / wrapSubU / wrapMulU (uint)": {
+            uint top = (uint)4294967295
+            uint two = 2
+            uint zero = 0
+            uint one = 1
+            long mask = 4294967295
+            assert.assertEqL((long)math.wrapAddU(top, two) & mask, 1, 1011)
+            assert.assertEqL((long)math.wrapSubU(zero, one) & mask, 4294967295, 1012)
+            uint big = 65536
+            assert.assertEqL((long)math.wrapMulU(big, big) & mask, 0, 1013)
+            uint k = (uint)3000000000
+            assert.assertEqL((long)math.wrapMulU(k, two) & mask, 1705032704, 1014)
+        }
+        case "wrapAddL / wrapSubL / wrapMulL (long)": {
+            long lmax = 9223372036854775807
+            long lmin = 0 - 9223372036854775807 - 1
+            assert.assertEqL(math.wrapAddL(lmax, 1), lmin, 1021)
+            assert.assertEqL(math.wrapSubL(lmin, 1), lmax, 1022)
+            assert.assertEqL(math.wrapMulL(0 - 1, 0 - 1), 1, 1023)
+            assert.assertEqL(math.wrapMulL(4611686018427387904, 4), 0, 1024)
+            long r = 3037000500
+            assert.assertEqL(math.wrapMulL(r, r), 0 - 9223372036709301616, 1025)
+            assert.assertEqL(math.wrapMulL(0 - 6, 7), 0 - 42, 1026)
+            assert.assertEqL(math.wrapSubL(10, 52), 0 - 42, 1027)
+        }
+        case "wrapAddUL / wrapSubUL / wrapMulUL (ulong)": {
+            long allOnes = 0 - 1
+            ulong top = (ulong)allOnes
+            ulong one = 1
+            ulong zero = 0
+            assert.assertEqL((long)math.wrapAddUL(top, one), 0, 1031)
+            assert.assertEqL((long)math.wrapSubUL(zero, one), 0 - 1, 1032)
+            assert.assertEqL((long)math.wrapMulUL(top, top), 1, 1033)
+            ulong fnv = 1469598103934665603
+            ulong prime = 1099511628211
+            assert.assertEqL((long)math.wrapMulUL(fnv, prime), 4953163356653287321, 1034)
         }
     }
 }

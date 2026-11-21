@@ -183,7 +183,8 @@ void writeRootFixture() {
     fs.writeStr("lsp_suite_fx_root/Manifest.fly", str.replace(mf, "\n", lsp.lfStr()), 420)
     string u = "namespace fxroot.util\n\npublic int seven() {\n    return 7\n}\n"
     fs.writeStr("lsp_suite_fx_root/lib/util.fly", str.replace(u, "\n", lsp.lfStr()), 420)
-    string m = "namespace fxroot.app\n\nimport fxroot.util\n\nvoid main() {\n    int x = util.seven()\n}\n"
+    string m = "namespace fxroot.app\n\nimport fxroot.util\n\nvoid main() {\n"
+    m = str.concat(m, "    int x = util.seven()\n    if x == 7 {\n        return\n    }\n}\n")
     fs.writeStr("lsp_suite_fx_root/app/main.fly", str.replace(m, "\n", lsp.lfStr()), 420)
 }
 
@@ -248,11 +249,30 @@ suite LspAnalyzerSuite {
 
     // ── compile + diagnostics ────────────────────────────────────────────────
     void compileTest() {
-        case "a clean file produces no diagnostics": {
+        case "a file without errors gets only its warnings, at severity 2": {
+            // The fixture is error-free; its locals result, px and py are never read
+            // and its `import fly.str` is never used (they exist for the navigation
+            // queries), so the compiler warns about them, and a warning reaches the
+            // editor as a warning, not an error.
             writeNavFixture()
             LspAnalyzer a = new LspAnalyzer()
             List<LspDiag> d = a.compileFile(navFixturePath())
-            assert.assertEqI((int)d.size(), 0, 201)
+            assert.assertEqI((int)d.size(), 4, 201)
+            int vars = 0
+            int imports = 0
+            int w = 0
+            while w < (int)d.size() {
+                LspDiag dw = d.get(w)
+                assert.assertEqI(dw.severity, 2, 208)
+                if str.contains(dw.message, "unused variable") {
+                    vars = vars + 1
+                } elsif str.contains(dw.message, "unused import") {
+                    imports = imports + 1
+                }
+                w = w + 1
+            }
+            assert.assertEqI(vars, 3, 209)
+            assert.assertEqI(imports, 1, 210)
             fs.dirDeleteAll(navFixtureDir())
         }
         case "a sema error is reported with its real position": {

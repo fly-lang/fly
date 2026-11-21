@@ -1,0 +1,5 @@
+// `++` and `--` are checked like `+ 1` and `- 1`.
+void main() {
+    long n = 9223372036854775807
+    n++
+}

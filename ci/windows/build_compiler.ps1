@@ -4,11 +4,9 @@
 # merged object at build\stage$STAGE\driver; link_fly.ps1 then links fly.exe.
 # PowerShell port of ci/linux/build_compiler.sh; see stage1.ps1 for the stage map.
 #
-#   STAGE=1  stage0 compiles the driver; its in-process link usually fails on
-#            the LLVM C-API symbols (no auto -lLLVM when LLVMApi is
-#            header-consumed) but emits the object first. If it DOES succeed,
-#            the prelinked fly.exe is kept for link_fly.ps1 to install.
-#   STAGE=2  the stage-1 fly.exe recompiles the driver with -c (clean object).
+#   STAGE=1  the seed (a self-host release since 0.15) compiles the driver.
+#   STAGE=2  the stage-1 fly.exe recompiles it.
+# Both are self-host compilers: -c emits a clean object, and link_fly.ps1 links it.
 #
 # MONOLITHIC: the compiler is compiled from source INTO this object (`--src-dir compiler`),
 # not linked as a static archive - see the note by the compile step below.
@@ -62,35 +60,29 @@ $D = "build/stage$STAGE/driver"
 Remove-Item $D -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $D | Out-Null
 $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
-# The self-host compiler reads its std headers from build\stage<N-1>\lib; mapping
-# that directory to "lib" keeps the path out of the DWARF, so stage 2 and stage 3
-# describe the same sources with the same bits (the fixpoint compares bytes).
-# The seed (stage 1) has no such option.
-if ($DBG -and $STAGE -ne '1') {
-    $DBG += "--debug-prefix-map=$((Resolve-Path "build/stage$([int]$STAGE - 1)/lib").Path)=lib"
-}
+# A warning in the tree's own code fails the build when the self-host compiles it
+# (the seed predates --warnings-as-errors).
+$WERR = @(); if ($STAGE -ne '1') { $WERR = @('--warnings-as-errors') }
+# The compiling fly reads its std headers from its own <exe>\..\lib: build\stage1\lib
+# at stage 1 (fly0.exe is linked there) and build\stage<N-1>\lib after. Mapping that
+# directory to "lib" keeps the path out of the DWARF and out of the positions in
+# run-time trap messages (generic code instantiated from a std header carries
+# them), so stage 2 and stage 3 describe the same sources with the same bits (the
+# fixpoint compares bytes). Passed with or without debug symbols.
+$hdrStage = if ($STAGE -eq '1') { 1 } else { [int]$STAGE - 1 }
+$MAP = @("--debug-prefix-map=$((Resolve-Path "build/stage$hdrStage/lib").Path)=lib")
 Write-Host "stage${STAGE}: compiling driver + compiler (monolithic, from source) ...$(if ($DBG) { ' (+debug-symbols)' })"
-# DIRECTORY CLI (seed and self-host alike): no positional — the entry (the
-# single main(), compiler/lib/driver/Driver.fly) is discovered from --src-dir
-# and its import closure pulls the whole compiler.
-if ($STAGE -eq '1') {
-    # stage0 reference: no -c; the in-process link may fail (tolerated), the
-    # per-source object is emitted first. --target keeps the object gnu COFF.
-    & $FLY --src-dir compiler `
-        @DBG @FLY_TARGET_ARGS -o fly --out-dir $D > "$D/emit.log" 2>&1
-} else {
-    # self-host: -c emits a clean object, no link attempt.
-    & $FLY --src-dir compiler `
-        @DBG @FLY_TARGET_ARGS -c -o Driver --out-dir $D > "$D/emit.log" 2>&1
-}
-$OBJ = @("$D/Driver", "$D/Driver.fly.o", "$D/Driver.fly.obj") | Where-Object { Test-Path $_ } | Select-Object -First 1
-$PRELINKED = Test-Path "$D/fly.exe"   # stage-1 in-process link may have succeeded
-if (-not $OBJ -and -not $PRELINKED) {
+# DIRECTORY CLI: no positional — the entry (the single main(),
+# compiler/lib/driver/Driver.fly) is discovered from --src-dir and its import
+# closure pulls the whole compiler. -c emits a clean object, no link attempt.
+& $FLY --src-dir compiler `
+    @DBG @MAP @WERR @FLY_TARGET_ARGS -c -o Driver --out-dir $D > "$D/emit.log" 2>&1
+if (-not (Test-Path "$D/Driver")) {
     Write-Host "error: driver object not emitted; see $D\emit.log:"
     Get-Content "$D/emit.log" | Select-String 'error:' | Select-Object -First 5 | ForEach-Object { Write-Host "      $_" }
     exit 1
 }
-if ($OBJ) { Move-Item $OBJ "$D/Driver.o" -Force }
+Move-Item "$D/Driver" "$D/Driver.o" -Force
 
-Write-Host "stage${STAGE}: driver -> $D/$(if ($PRELINKED) { 'fly.exe (prelinked)' } else { 'Driver.o' })"
+Write-Host "stage${STAGE}: driver -> $D/Driver.o"
 exit 0

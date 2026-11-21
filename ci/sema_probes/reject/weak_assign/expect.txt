@@ -1,0 +1,1 @@
+a weak variable takes only 'weak h' or null

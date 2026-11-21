@@ -11,7 +11,8 @@ public enum ASTUnaryKind {
     OP_UNARY_PRE_DECR,
     OP_UNARY_POST_DECR,
     OP_UNARY_NOT_LOG,
-    OP_UNARY_NEG
+    OP_UNARY_NEG,
+    OP_UNARY_WEAK       // `weak h`: a weak reference to the object of the shared holder h
 }
 
 public class ASTUnary : ASTExpr {

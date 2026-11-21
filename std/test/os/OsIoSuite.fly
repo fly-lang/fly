@@ -1,3 +1,5 @@
+namespace fly.test.os
+
 import fly.os.io
 import fly.os.io.FileWriter
 import fly.os.io.FileReader
@@ -64,7 +66,7 @@ Buf bufOf(const string s) {
         mem.writeByte(own, i, c)
         i = i + 1
     }
-    ulong n = size
+    ulong n = (ulong)size
     Buf b = new Buf()
     b.ptr = own
     b.size = n
@@ -89,21 +91,21 @@ suite OsIoSuite {
             string f = "fly_io_rt.txt"
             fs.writeStr(f, "io test data", 420)
             assert.assertStr(fs.readStr(f), "io test data", 101)
-            fs.delete(f)
+            fs.del(f)
             assert.assertFalse(fs.exists(f), 102)
         }
         case "an empty payload round-trips": {
             string f = "fly_io_rt.txt"
             fs.writeStr(f, "", 420)
             assert.assertEmpty(fs.readStr(f), 103)
-            fs.delete(f)
+            fs.del(f)
         }
         case "a multi-kilobyte payload round-trips": {
             string f = "fly_io_big.txt"
             string payload = str.repeat("abcdefgh", 1000)   // 8000 bytes
             fs.writeStr(f, payload, 420)
             assert.assertEqI(str.len(fs.readStr(f)), 8000, 104)
-            fs.delete(f)
+            fs.del(f)
         }
     }
 
@@ -150,7 +152,7 @@ suite OsIoSuite {
             assert.assertEqL(nw, 8, 302)
             fw.close()
             assert.assertStr(fs.readStr(p), "hello_fw", 303)
-            fs.delete(p)
+            fs.del(p)
         }
         case "two direct writes append in order": {
             // Both Bufs are built UP FRONT and held live across the writes: that
@@ -170,7 +172,7 @@ suite OsIoSuite {
             assert.assertEqL(fw.write(bb, bb.size), 5, 305)
             fw.close()
             assert.assertStr(fs.readStr(p), "abcdefgh", 306)
-            fs.delete(p)
+            fs.del(p)
         }
     }
 
@@ -184,8 +186,8 @@ suite OsIoSuite {
             Buf all = io.readAll(r)
             assert.assertTrue(all.size > 0, 401)
             assert.assertEqL((long)all.size, 8, 402)
-            r.close()          // the reader keeps the file open; fs.delete no-ops otherwise
-            fs.delete(p)
+            r.close()          // the reader keeps the file open; fs.del no-ops otherwise
+            fs.del(p)
         }
         case "readAll on an empty file yields an empty Buf": {
             string p = "fly_io_r_empty.txt"
@@ -194,8 +196,8 @@ suite OsIoSuite {
             Reader r = io.fileReader(file.fd)
             Buf all = io.readAll(r)
             assert.assertEqL((long)all.size, 0, 403)
-            r.close()          // the reader keeps the file open; fs.delete no-ops otherwise
-            fs.delete(p)
+            r.close()          // the reader keeps the file open; fs.del no-ops otherwise
+            fs.del(p)
         }
         case "fileWriter yields a Writer that writes through": {
             string p = "fly_io_w.txt"
@@ -206,7 +208,7 @@ suite OsIoSuite {
             w.write(buf, buf.size)
             w.close()
             assert.assertStr(fs.readStr(p), "hello_w8", 404)
-            fs.delete(p)
+            fs.del(p)
         }
         case "readAll drains a payload larger than one read": {
             string p = "fly_io_r_big.txt"
@@ -216,8 +218,8 @@ suite OsIoSuite {
             Reader r = io.fileReader(file.fd)
             Buf all = io.readAll(r)
             assert.assertEqL((long)all.size, 10000, 405)
-            r.close()          // the reader keeps the file open; fs.delete no-ops otherwise
-            fs.delete(p)
+            r.close()          // the reader keeps the file open; fs.del no-ops otherwise
+            fs.del(p)
         }
     }
 
@@ -230,7 +232,7 @@ suite OsIoSuite {
             assert.assertTrue(io.writeString(w, "written via helper"), 501)
             w.close()
             assert.assertStr(fs.readStr(p), "written via helper", 502)
-            fs.delete(p)
+            fs.del(p)
         }
         case "writeString of the empty string writes nothing": {
             string p = "fly_io_ws_empty.txt"
@@ -239,7 +241,7 @@ suite OsIoSuite {
             io.writeString(w, "")
             w.close()
             assert.assertEqL((long)fs.size(p), 0, 503)
-            fs.delete(p)
+            fs.del(p)
         }
         case "writeAll writes a whole Buf": {
             string p = "fly_io_wa.txt"
@@ -250,7 +252,7 @@ suite OsIoSuite {
             assert.assertTrue(io.writeAll(w, buf), 504)
             w.close()
             assert.assertStr(fs.readStr(p), "buffered payload", 505)
-            fs.delete(p)
+            fs.del(p)
         }
         case "repeated writeString calls append": {
             string p = "fly_io_ws_rep.txt"
@@ -263,7 +265,7 @@ suite OsIoSuite {
             }
             w.close()
             assert.assertEqL((long)fs.size(p), 20, 506)
-            fs.delete(p)
+            fs.del(p)
         }
     }
 
@@ -302,11 +304,11 @@ suite OsIoSuite {
             Writer w = io.fileWriter(fout.fd)
             assert.assertEqL(io.copy(r, w), 14, 701)
             w.close()
-            r.close()          // the reader keeps the SOURCE open; fs.delete silently no-ops otherwise
+            r.close()          // the reader keeps the SOURCE open; fs.del silently no-ops otherwise
             assert.assertEqL((long)fs.size(dst), 14, 710)
             assert.assertStr(fs.readStr(dst), "copy me across", 711)
-            fs.delete(src)
-            fs.delete(dst)
+            fs.del(src)
+            fs.del(dst)
         }
         case "copy of a payload larger than one chunk": {
             // 20000 bytes > the 8 KiB chunk, so the loop runs three times and the
@@ -321,12 +323,12 @@ suite OsIoSuite {
             Writer w = io.fileWriter(fout.fd)
             assert.assertEqL(io.copy(r, w), 20000, 712)
             w.close()
-            r.close()          // the reader keeps the SOURCE open; fs.delete silently no-ops otherwise
+            r.close()          // the reader keeps the SOURCE open; fs.del silently no-ops otherwise
             assert.assertEqL((long)fs.size(dst), 20000, 713)
             assert.assertTrue(str.startsWith(fs.readStr(dst), "0123456789"), 714)
             assert.assertTrue(str.endsWith(fs.readStr(dst), "0123456789"), 715)
-            fs.delete(src)
-            fs.delete(dst)
+            fs.del(src)
+            fs.del(dst)
         }
         case "copy of an empty stream moves nothing": {
             string src = "fly_io_cp_empty.txt"
@@ -338,10 +340,10 @@ suite OsIoSuite {
             Writer w = io.fileWriter(fout.fd)
             assert.assertEqL(io.copy(r, w), 0, 702)
             w.close()
-            r.close()          // the reader keeps the SOURCE open; fs.delete silently no-ops otherwise
+            r.close()          // the reader keeps the SOURCE open; fs.del silently no-ops otherwise
             assert.assertEqL((long)fs.size(dst), 0, 703)   // nothing read, nothing written
-            fs.delete(src)
-            fs.delete(dst)
+            fs.del(src)
+            fs.del(dst)
         }
         case "copyN stops at n bytes": {
             // n < the chunk size, so to_read == nread and the length bug above
@@ -355,10 +357,10 @@ suite OsIoSuite {
             Writer w = io.fileWriter(fout.fd)
             assert.assertEqL(io.copyN(r, w, 4), 4, 704)
             w.close()
-            r.close()          // the reader keeps the SOURCE open; fs.delete silently no-ops otherwise
+            r.close()          // the reader keeps the SOURCE open; fs.del silently no-ops otherwise
             assert.assertStr(fs.readStr(dst), "0123", 705)
-            fs.delete(src)
-            fs.delete(dst)
+            fs.del(src)
+            fs.del(dst)
         }
         case "copyN asking for more than the source holds": {
             string src = "fly_io_cpn_src.txt"
@@ -370,10 +372,10 @@ suite OsIoSuite {
             Writer w = io.fileWriter(fout.fd)
             assert.assertEqL(io.copyN(r, w, 10), 10, 706)
             w.close()
-            r.close()          // the reader keeps the SOURCE open; fs.delete silently no-ops otherwise
+            r.close()          // the reader keeps the SOURCE open; fs.del silently no-ops otherwise
             assert.assertStr(fs.readStr(dst), "0123456789", 707)
-            fs.delete(src)
-            fs.delete(dst)
+            fs.del(src)
+            fs.del(dst)
         }
         case "copyN of zero bytes": {
             string src = "fly_io_cpn_src.txt"
@@ -385,10 +387,10 @@ suite OsIoSuite {
             Writer w = io.fileWriter(fout.fd)
             assert.assertEqL(io.copyN(r, w, 0), 0, 708)
             w.close()
-            r.close()          // the reader keeps the SOURCE open; fs.delete silently no-ops otherwise
+            r.close()          // the reader keeps the SOURCE open; fs.del silently no-ops otherwise
             assert.assertEqL((long)fs.size(dst), 0, 709)
-            fs.delete(src)
-            fs.delete(dst)
+            fs.del(src)
+            fs.del(dst)
         }
     }
 
@@ -413,7 +415,7 @@ suite OsIoSuite {
             assert.assertEqI(b0 & 255, 48, 802)
             assert.assertEqI(b3 & 255, 51, 803)
             r.close()
-            fs.delete(p)
+            fs.del(p)
         }
         case "a second readExact continues where the first stopped": {
             string p = "fly_io_rx2.txt"
@@ -428,7 +430,7 @@ suite OsIoSuite {
             fly.llvm.ptrByteAt(second.ptr, 0, s0)
             assert.assertEqI(s0 & 255, 52, 806)          // '4'
             r.close()
-            fs.delete(p)
+            fs.del(p)
         }
         case "asking for more than there is reports the short size": {
             string p = "fly_io_rx3.txt"
@@ -438,7 +440,7 @@ suite OsIoSuite {
             Buf b = io.readExact(r, 100)
             assert.assertEqL((long)b.size, 3, 807)
             r.close()
-            fs.delete(p)
+            fs.del(p)
         }
         case "readExact at EOF and of zero bytes are both empty": {
             string p = "fly_io_rx4.txt"
@@ -452,7 +454,7 @@ suite OsIoSuite {
             Buf none = io.readExact(r, 0)
             assert.assertEqL((long)none.size, 0, 810)
             r.close()
-            fs.delete(p)
+            fs.del(p)
         }
         case "readExact spanning the whole file matches its bytes": {
             string p = "fly_io_rx5.txt"
@@ -466,7 +468,7 @@ suite OsIoSuite {
             fly.llvm.strMake(b.ptr, 400, got)
             assert.assertStr(got, payload, 812)
             r.close()
-            fs.delete(p)
+            fs.del(p)
         }
         case "setBinaryMode succeeds on stdin and stdout": {
             // A NO-OP on POSIX; on Windows it takes the fd out of the UCRT's

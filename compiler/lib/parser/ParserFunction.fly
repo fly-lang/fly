@@ -27,7 +27,7 @@ public class ParserFunction {
             ASTTypeParam tp = new ASTTypeParam(tloc, pn)
             if p.curIsPunct(":") {
                 p.bump()
-                ASTType bound = p.parseType()
+                ASTType _bound = p.parseType()
             }
             params.add(tp)
             if p.curIsPunct(",") {
@@ -55,6 +55,7 @@ public class ParserFunction {
             string nm = ""
             SourceLocation nloc = p.curLoc()      // the NAME token, for setNameLoc
             if p.curIsNamePart() {
+                p.checkDeclName()
                 nm = p.curText()
                 p.bump()
             } else {

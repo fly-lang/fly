@@ -15,10 +15,10 @@ suite ParserModuleSuite {
             ASTNameSpace ns = m.getNameSpace()
             assert.assertTrue(ns != null, 2)
             List<ASTName> nsnames = ns.getNames()
-            assert.assertEqI(nsnames.size(), 2, 3)
+            assert.assertEqI((int)nsnames.size(), 2, 3)
             // 3 top-level nodes: 2 imports + 1 function
             List<ASTNode> nodes = m.getNodes()
-            assert.assertEqI(nodes.size(), 3, 4)
+            assert.assertEqI((int)nodes.size(), 3, 4)
         }
         case "module name preserved": {
             Parser p = new Parser("void m() { }")

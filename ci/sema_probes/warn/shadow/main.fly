@@ -1,0 +1,19 @@
+int pick(const int x) {
+    int total = 0
+    int i = 0
+    while i < 3 {
+        int total = i
+        i = i + total + 1
+    }
+    int x = 5
+    return total + x
+}
+
+// A local that hides a local or a parameter of an enclosing scope is reported:
+// from there to the end of its block the outer one cannot be reached.
+void main() {
+    int p = pick(1)
+    if p != 5 {
+        fail 1, "the outer total is untouched"
+    }
+}

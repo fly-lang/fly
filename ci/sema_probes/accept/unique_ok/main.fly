@@ -1,0 +1,75 @@
+public class Res {
+
+    public static int freed
+
+    public Res() {
+    }
+
+    public void free() {
+        Res.freed = Res.freed + 1
+    }
+}
+
+void lend(const Res r) {
+}
+
+void scoped() {
+    Res a = new unique Res()
+    lend(a)
+}
+
+void moved() {
+    Res a = new unique Res()
+    Res b = a
+    if a != null {
+        fail 2, "a move must leave the source null"
+    }
+}
+
+Res made() {
+    Res r = new unique Res()
+    return r
+}
+
+void owned() {
+    Res m = made()
+}
+
+void reassigned() {
+    Res a = new unique Res()
+    a = new unique Res()
+    Res b = new unique Res()
+    a = b
+    a = null
+}
+
+// A `new unique` owner is deleted at the end of its scope (free() runs once),
+// lending it to a call does not change that, a move deletes the object once
+// (through its new owner), a return hands it to the caller, which owns it, and
+// reassigning an owner deletes the object it held.
+void main() {
+    scoped()
+    if Res.freed != 1 {
+        fail 1, "the owner must be deleted at the end of its scope"
+    }
+    moved()
+    if Res.freed != 2 {
+        fail 3, "a moved object must be deleted exactly once"
+    }
+    Res m = made()
+    if Res.freed != 2 {
+        fail 4, "a returned object must not be deleted by the callee"
+    }
+    delete m
+    if Res.freed != 3 {
+        fail 5, "delete of the returned object"
+    }
+    owned()
+    if Res.freed != 4 {
+        fail 6, "the caller owns a returned owner and deletes it at the end of its scope"
+    }
+    reassigned()
+    if Res.freed != 7 {
+        fail 7, "reassigning an owner deletes what it held: new, moved-in and null"
+    }
+}

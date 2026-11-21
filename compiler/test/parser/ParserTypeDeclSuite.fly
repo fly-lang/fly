@@ -26,7 +26,7 @@ suite ParserTypeDeclSuite {
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 3)
             List<ASTNode> nodes = m.getNodes()
-            assert.assertEqI(nodes.size(), 1, 4)
+            assert.assertEqI((int)nodes.size(), 1, 4)
         }
     }
 }

@@ -1,0 +1,59 @@
+public class Res {
+
+    public static int freed
+
+    int v
+
+    public Res() {
+        this.v = 1
+    }
+
+    public int value() {
+        return this.v
+    }
+
+    public void free() {
+        Res.freed = Res.freed + 1
+    }
+}
+
+// A weak reference observes a `new shared` object without keeping it alive: it
+// reads as the object while a holder has it and as null once the last one lets
+// go; a holder made from it (a promotion) counts like any other holder.
+void main() {
+    Res h = new shared Res()
+    Res w = weak h
+    if w == null {
+        fail 1, "the object is held by h"
+    }
+    if w.value() != 1 {
+        fail 2, "a weak reference reads the object"
+    }
+    Res p = w
+    h = null
+    if Res.freed != 0 {
+        fail 3, "p, promoted from w, still holds the object"
+    }
+    Res w2 = weak w
+    p = null
+    if Res.freed != 1 {
+        fail 4, "the last holder destroys the object, weak references do not keep it"
+    }
+    if w != null {
+        fail 5, "a weak reference reads null once the object is gone"
+    }
+    if w2 != null {
+        fail 6, "every weak reference sees it"
+    }
+    Res q = w
+    if q != null {
+        fail 7, "promoting a dead weak reference yields null"
+    }
+    Res h2 = new shared Res()
+    w = weak h2
+    if w == null {
+        fail 8, "a weak variable can be pointed at another shared object"
+    }
+    w = null
+    delete w2
+}

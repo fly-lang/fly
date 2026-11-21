@@ -3,11 +3,12 @@
 # test_abi.sh - seed <-> self-host calling-convention guard.
 # Mirror of ci/windows/test_abi.ps1.
 #
-# The shipped std archive (build/stage2/lib/fly_std_lib.a) is compiled by the
-# pinned REFERENCE SEED, while user programs are compiled by the SELF-HOST that
-# ships beside it. So every call a user program makes into the std crosses a
-# compiler boundary, and the two compilers must lower arguments identically. The
-# suites cannot see this: they compile both sides with the SAME compiler, so a
+# A library compiled by one Fly compiler must stay callable from a program
+# compiled by another. Since 0.15 the seed is the PREVIOUS self-host release, so
+# this guards the convention across releases: a package archive built by the
+# last release, linked into a program built by this tree. (Up to 0.14 the seed
+# was the C++ reference, which built the shipped std.) The suites cannot see
+# this: they compile both sides with the SAME compiler, so a
 # convention both halves get wrong in the same way still passes everywhere.
 #
 # Each probe under ci/abi_probes/<name>/ is that boundary in miniature:
@@ -46,11 +47,15 @@ for probe in ci/abi_probes/*/; do
     rm -rf "$dir"
     mkdir -p "$libDir"
 
-    # (1) the CALLEE side, built by the seed. --lib emits the archive next to one
-    # .fly.h per public module, which is exactly what a -L package dir is.
-    if ! "$SEED" --lib -o "$libDir/abi_$name" --src-dir "$probe/lib" > "$dir/seed.log" 2>&1; then
+    # (1) the CALLEE side, built by the seed. --lib emits one object plus one
+    # .fly.h per public module into --out-dir; the object is archived under the
+    # name a -L package dir is scanned for.
+    if ! "$SEED" --lib -o "abi_$name" --out-dir "$libDir" --src-dir "$probe/lib" > "$dir/seed.log" 2>&1; then
         echo "  FAIL  $name (seed --lib)"; tail -n 8 "$dir/seed.log"
         failed=$((failed + 1)); continue
+    fi
+    if [ -f "$libDir/abi_$name" ]; then
+        "${AR:-ar}" rcs "$libDir/abi_$name.a" "$libDir/abi_$name" && rm -f "$libDir/abi_$name"
     fi
     # One `ls` per pattern: `ls a.a missing.lib` fails on the missing one even
     # though the archive is right there, and only ONE of the two ever exists

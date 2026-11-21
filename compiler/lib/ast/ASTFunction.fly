@@ -31,6 +31,9 @@ public class ASTFunction : ASTNode {
     // name of every local it declares.
     List<ASTReturnStmt> returnStmts
     List<string> localNames
+    List<string> ownerLocals   // locals that own a `new unique` object (directly or by a move)
+    List<string> sharedLocals  // locals holding a `new shared` reference (directly or copied)
+    List<string> fieldCopies   // "local=field": locals initialized from `this.field` (holders if the field holds)
 
     public ASTFunction(const SourceLocation loc, const List<ASTModifier> modifiers, const string name,
             const List<ASTParam> params, const ASTFunctionKind functionKind) {
@@ -43,6 +46,9 @@ public class ASTFunction : ASTNode {
         this.typeParams = new List<ASTType>()
         this.returnStmts = new List<ASTReturnStmt>()
         this.localNames = new List<string>()
+        this.ownerLocals = new List<string>()
+        this.sharedLocals = new List<string>()
+        this.fieldCopies = new List<string>()
     }
 
     public string getName() {
@@ -80,6 +86,24 @@ public class ASTFunction : ASTNode {
     }
     public void addLocalName(const string n) {
         this.localNames.add(n)
+    }
+    public List<string> getOwnerLocals() {
+        return this.ownerLocals
+    }
+    public void addOwnerLocal(const string n) {
+        this.ownerLocals.add(n)
+    }
+    public List<string> getSharedLocals() {
+        return this.sharedLocals
+    }
+    public void addSharedLocal(const string n) {
+        this.sharedLocals.add(n)
+    }
+    public List<string> getFieldCopies() {
+        return this.fieldCopies
+    }
+    public void addFieldCopy(const string pair) {
+        this.fieldCopies.add(pair)
     }
     public ASTFunction asFunction() {
         return this

@@ -12,11 +12,13 @@ public class SemaDeclStmt : SemaStmt {
 
     SemaLocalVar var
     SemaExpr expr
+    SemaExpr moveFrom   // `C y = x` with x a unique owner: x, which the move leaves null
 
     public SemaDeclStmt(const ASTStmt ast, const SemaLocalVar var, const SemaExpr expr) {
         super(SemaKind.STMT_DECL, ast)
         this.var = var
         this.expr = expr
+        this.moveFrom = null
     }
 
     public SemaLocalVar getVar() {
@@ -24,6 +26,12 @@ public class SemaDeclStmt : SemaStmt {
     }
     public SemaExpr getExpr() {
         return this.expr
+    }
+    public SemaExpr getMoveFrom() {
+        return this.moveFrom
+    }
+    public void setMoveFrom(const SemaExpr e) {
+        this.moveFrom = e
     }
     public void accept(const SemaVisitor v) {
         v.visit(this)

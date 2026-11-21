@@ -1,0 +1,11 @@
+public class Res {
+
+    public Res() {
+    }
+}
+
+void main() {
+    Res h = new shared Res()
+    Res w = weak h
+    w = h
+}

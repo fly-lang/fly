@@ -1,12 +1,13 @@
 # -----------------------------------------------------------------------------
 # test_abi.ps1 - seed <-> self-host calling-convention guard.
 #
-# The shipped std archive (build\stage2\lib\fly_std_lib.lib) is compiled by the
-# pinned REFERENCE SEED, while user programs are compiled by the SELF-HOST that
-# ships beside it. So every call a user program makes into the std crosses a
-# compiler boundary, and the two compilers must lower arguments identically. The
-# suites cannot see this: they compile both sides with the SAME compiler, so a
-# convention both halves get wrong in the same way still passes everywhere.
+# A library compiled by one Fly compiler must stay callable from a program
+# compiled by another. Since 0.15 the seed is the PREVIOUS self-host release, so
+# this guards the convention across releases: a package archive built by the
+# last release, linked into a program built by this tree. (Up to 0.14 the seed
+# was the C++ reference, which built the shipped std.) The suites cannot see
+# this: they compile both sides with the SAME compiler, so a convention both
+# halves get wrong in the same way still passes everywhere.
 #
 # Each probe under ci/abi_probes/<name>/ is that boundary in miniature:
 #   lib/   compiled by build\stage0 (the seed) with --lib -> archive + .fly.h
@@ -55,15 +56,18 @@ foreach ($probe in Get-ChildItem 'ci/abi_probes' -Directory | Sort-Object Name) 
     Remove-Item $dir -Recurse -Force -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Force $dir, $libDir | Out-Null
 
-    # (1) the CALLEE side, built by the seed. --lib emits the archive next to one
-    # .fly.h per public module, which is exactly what a -L package dir is.
-    & $SEED --lib @FLY_TARGET_ARGS -o (Join-Path $libDir "abi_$name") `
+    # (1) the CALLEE side, built by the seed. --lib emits one object plus one
+    # .fly.h per public module into --out-dir; the object is given the archive
+    # name a -L package dir is scanned for (the linker reads it by content).
+    & $SEED --lib @FLY_TARGET_ARGS -o "abi_$name" --out-dir $libDir `
             --src-dir (Join-Path $probe.FullName 'lib') *> "$dir/seed.log"
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  FAIL  $name (seed --lib, exit $LASTEXITCODE)"
         Get-Content $dir/seed.log | Select-Object -Last 8 | ForEach-Object { "        $_" }
         $failed++; continue
     }
+    $bare = Join-Path $libDir "abi_$name"
+    if (Test-Path $bare -PathType Leaf) { Move-Item $bare "$bare.lib" -Force }
     $emitted = @(Get-ChildItem $libDir | Where-Object { $_.Extension -in '.a', '.lib' })
     $header = @(Get-ChildItem $libDir -Filter '*.fly.h')
     if ($emitted.Count -eq 0 -or $header.Count -eq 0) {

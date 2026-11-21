@@ -46,7 +46,7 @@ private pointer strToCstr(const string src) {
     fly.llvm.strSize(src, size)
     int cap = size + 1
     pointer buf = 0
-    fly.runtime.mem_alloc(cap, buf)
+    fly.runtime.mem_alloc((ulong)cap, buf)
     int i = 0
     while i < size {
         byte b = 0
@@ -183,7 +183,7 @@ public string tlsRecvStr(const pointer c, const int max) {
         return res
     }
     pointer buf = 0
-    fly.runtime.mem_alloc(max, buf)
+    fly.runtime.mem_alloc((ulong)max, buf)
     long got = tlsRecv(c, buf, max)
     if got <= 0 {
         fly.runtime.mem_free(buf, 0)
@@ -206,7 +206,7 @@ public string tlsRecvAll(const pointer c) {
     int limit = 67108864
     int cap = 8192
     pointer buf = 0
-    fly.runtime.mem_alloc(cap, buf)
+    fly.runtime.mem_alloc((ulong)cap, buf)
     int len = 0
     bool go = true
     while go {
@@ -219,7 +219,7 @@ public string tlsRecvAll(const pointer c) {
                     want = limit
                 }
                 pointer bigger = 0
-                fly.runtime.mem_realloc(buf, want, bigger)
+                fly.runtime.mem_realloc(buf, (ulong)want, bigger)
                 buf = bigger
                 cap = want
             }

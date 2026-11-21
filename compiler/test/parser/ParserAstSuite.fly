@@ -17,7 +17,7 @@ suite ParserAstSuite {
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
             List<ASTNode> nodes = mod.getNodes()
-            assert.assertEqI(nodes.size(), 4, 2)
+            assert.assertEqI((int)nodes.size(), 4, 2)
             ASTNode n0 = nodes.get(0)
             ASTNode n1 = nodes.get(1)
             ASTNode n2 = nodes.get(2)
@@ -36,7 +36,7 @@ suite ParserAstSuite {
             assert.assertTrue(p.isSuccess(), 10)
             // The single top-level node is the function.
             List<ASTNode> nodes = mod.getNodes()
-            assert.assertEqI(nodes.size(), 1, 11)
+            assert.assertEqI((int)nodes.size(), 1, 11)
             ASTNode fn = nodes.get(0)
             assert.assertTrue(fn.getKind() == ASTKind.FUNCTION, 12)
         }

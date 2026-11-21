@@ -1,0 +1,13 @@
+public class Box {
+
+    public Box() {
+    }
+}
+
+void drop(const Box b) {
+    delete b
+}
+
+void main() {
+    drop(new Box())
+}

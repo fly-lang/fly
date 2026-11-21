@@ -1,7 +1,6 @@
 namespace fly.compiler.target
 import fly.compiler.target.*
 import llvm.api.*
-import fly.mem
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TargetInit — register the LLVM backend for a given arch before target lookup /

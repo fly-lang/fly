@@ -1,0 +1,4 @@
+main.fly:2:1: warning: unused import 'fly.math'
+main.fly:4:1: warning: unused import 'fly.os.io'
+!'fly.str'
+!'fly.data.List'

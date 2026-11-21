@@ -56,7 +56,15 @@ $LLVM_VERSION = if ($env:LLVM_VERSION) { $env:LLVM_VERSION } else { "20.1.8" }
 # every return hands back is built directly in the caller's slot (NRVO).
 # 0.13.19 adds macOS arm64 (the language and the ABI are those of 0.13.18): the
 # first seed published for all three platforms.
-$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.13.19" }
+#
+# From release/0.15.X the seed is a SELF-HOST release (plan item 1.9): 0.14.9,
+# the last 0.14.x, compiled by Fly itself. The C++ compiler is no longer part of
+# this series: it is frozen at 0.13.19 and only starts the chain from scratch
+# (0.13.19 builds release/0.14.X, whose 0.14.9 builds this branch). What the
+# tree may use is now bounded by what 0.14.9 can compile, not by the C++ code.
+# Its archive has the same layout the C++ seeds had: bin\ (fly.exe and the
+# bundled tools) and lib\ (std + runtime archives and their headers).
+$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.14.9" }
 
 # Resolve everything against the PROJECT ROOT (this script lives in ci\windows\,
 # two levels down) so the downloads land next to the build regardless of the
@@ -217,9 +225,13 @@ Assert-LdLld                                   # build\llvm\bin\ld.lld.exe (extr
 #            branch at 32528a0bf (sources = release/0.13.X df0b20f0c)
 #   0.13.19  fly-0.13.19-win-x64.zip, released 2026-11-20 from the `bootstrap`
 #            branch at fb2a6cb12 (sources = release/0.13.X 7ff8a1789)
+#   0.14.9   fly-0.14.9-win-x64.zip, the self-host release of 2026-11-20 (tag
+#            v0.14.9, release/0.14.X 1b7047976): the first self-host seed
+#            (SHA256SUMS of the release)
 $SEED_SHA256_TABLE = @{
     '0.13.18' = 'fa0f7507f60e34905e502a593ede54e56624b41d9c0ebf404112ad4e77e748ab'
     '0.13.19' = '60d8d6ed6b91fb02b215604c837fbfe031e4136eaa6ccf5850972545822fb091'
+    '0.14.9'  = 'b0f083c1e7f0385bb1ca14f0d0b8ce1e14adacd4c9c653e276c7a8510e7259ab'
 }
 # FLY_SEED_SHA256 overrides the table: the hash of a candidate seed under test,
 # or `none` to skip verification (testing only - never set it in CI).

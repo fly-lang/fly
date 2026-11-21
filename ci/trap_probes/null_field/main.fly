@@ -1,0 +1,13 @@
+public class Box {
+
+    public int v
+
+    public Box() {
+        this.v = 1
+    }
+}
+
+void main() {
+    Box b = null
+    b.v = 3
+}

@@ -1,0 +1,7 @@
+// The minimum int divided by -1 does not fit in an int: the program stops with
+// a diagnostic instead of trapping in the processor.
+void main() {
+    int min = -2147483647 - 1
+    int m1 = -1
+    int q = min / m1
+}

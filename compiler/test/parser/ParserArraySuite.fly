@@ -1,3 +1,5 @@
+namespace fly.compiler.parser.test
+
 import fly.compiler.basic.*
 import fly.compiler.ast.*
 import fly.compiler.parser.*
@@ -32,7 +34,7 @@ suite ParserArraySuite {
             assert.assertTrue(p.isSuccess(), 1)
             ASTArrayValue a = e.asArrayValue()
             assert.assertTrue(a != null, 2)
-            assert.assertEqI(a.getValues().size(), 0, 3)
+            assert.assertEqI((int)a.getValues().size(), 0, 3)
         }
         case "int elements {1,2,3}": {
             Parser p = new Parser("{1, 2, 3}")
@@ -40,21 +42,21 @@ suite ParserArraySuite {
             assert.assertTrue(p.isSuccess(), 4)
             ASTArrayValue a = e.asArrayValue()
             assert.assertTrue(a != null, 5)
-            assert.assertEqI(a.getValues().size(), 3, 6)
+            assert.assertEqI((int)a.getValues().size(), 3, 6)
         }
         case "bool elements {true,false}": {
             Parser p = new Parser("{true, false}")
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 7)
             ASTArrayValue a = e.asArrayValue()
-            assert.assertEqI(a.getValues().size(), 2, 8)
+            assert.assertEqI((int)a.getValues().size(), 2, 8)
         }
         case "trailing comma {1,2,}": {
             Parser p = new Parser("{1, 2,}")
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 9)
             ASTArrayValue a = e.asArrayValue()
-            assert.assertEqI(a.getValues().size(), 2, 10)
+            assert.assertEqI((int)a.getValues().size(), 2, 10)
         }
     }
 
@@ -65,10 +67,10 @@ suite ParserArraySuite {
             assert.assertTrue(p.isSuccess(), 11)
             ASTArrayValue a = e.asArrayValue()
             assert.assertTrue(a != null, 12)
-            assert.assertEqI(a.getValues().size(), 2, 13)
+            assert.assertEqI((int)a.getValues().size(), 2, 13)
             ASTArrayValue row0 = a.getValues().get(0).asArrayValue()
             assert.assertTrue(row0 != null, 14)
-            assert.assertEqI(row0.getValues().size(), 2, 15)
+            assert.assertEqI((int)row0.getValues().size(), 2, 15)
         }
     }
 
@@ -78,7 +80,7 @@ suite ParserArraySuite {
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 16)
             ASTArrayValue a = e.asArrayValue()
-            assert.assertEqI(a.getValues().size(), 2, 17)
+            assert.assertEqI((int)a.getValues().size(), 2, 17)
         }
         case "string elements": {
             string Q = dq()
@@ -91,7 +93,7 @@ suite ParserArraySuite {
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 18)
             ASTArrayValue a = e.asArrayValue()
-            assert.assertEqI(a.getValues().size(), 2, 19)
+            assert.assertEqI((int)a.getValues().size(), 2, 19)
         }
     }
 

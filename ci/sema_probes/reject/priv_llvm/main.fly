@@ -1,0 +1,4 @@
+void main() {
+    int n = 0
+    fly.llvm.strSize("abc", n)
+}

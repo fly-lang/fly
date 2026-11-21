@@ -1,4 +1,5 @@
 import fly.assert
+import fly.math
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ExecArithSuite — EXECUTED integer/float arithmetic semantics (bug-hunt
@@ -77,20 +78,22 @@ suite ExecArithSuite {
         }
     }
 
+    // From 0.15 `+ - *` stop on overflow (ci/trap_probes/int_overflow): wrapping is
+    // asked for explicitly, with the fly.math wrap functions.
     void overflowWrapTest() {
-        case "int max plus one wraps to int min": {
+        case "math.wrapAdd: int max plus one wraps to int min": {
             int max = 2147483647
-            int r = max + 1
+            int r = math.wrapAdd(max, 1)
             assert.assertEqI(r, 0 - 2147483647 - 1, 401)
         }
-        case "int min minus one wraps to int max": {
+        case "math.wrapSub: int min minus one wraps to int max": {
             int min = 0 - 2147483647 - 1
-            int r = min - 1
+            int r = math.wrapSub(min, 1)
             assert.assertEqI(r, 2147483647, 402)
         }
-        case "multiplication wraps modulo 2^32": {
+        case "math.wrapMul: multiplication wraps modulo 2^32": {
             int a = 65536
-            int r = a * a                                 // 2^32 wraps to 0
+            int r = math.wrapMul(a, a)                    // 2^32 wraps to 0
             assert.assertEqI(r, 0, 403)
         }
     }

@@ -1,0 +1,23 @@
+public class Res {
+
+    public Res() {
+    }
+}
+
+int twice(const int n) {
+    int unused = n * 3
+    int _skipped = n
+    return n * 2
+}
+
+// A local no name ever refers to is reported at the end of its block, without
+// stopping the build. Not reported: a name starting with `_`, and a `new
+// unique` owner or a `new shared` holder, which have a job just by existing.
+void main() {
+    int r = twice(4)
+    if r != 8 {
+        fail 1, "twice"
+    }
+    Res guard = new unique Res()
+    Res held = new shared Res()
+}
