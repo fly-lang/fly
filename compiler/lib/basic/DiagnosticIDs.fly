@@ -119,7 +119,8 @@ public enum DiagID {
     warn_sema_unused_variable,
     warn_sema_shadow,
     err_parser_mixed_operators,
-    err_parser_comparison_operand
+    err_parser_comparison_operand,
+    err_sema_empty_case
 }
 
 // getDiagClass — the class column for a diagnostic id.
@@ -193,6 +194,9 @@ public string getDescription(const DiagID id) {
     }
     if id == DiagID.err_parser_ternary_expr {
         return "expected ':' in ternary expression"
+    }
+    if id == DiagID.err_sema_empty_case {
+        return "a case with no statements: cases do not fall into the next one; list the values together (case 3, 4:), or write break for a case that does nothing"
     }
     if id == DiagID.err_parser_mixed_operators {
         return "'%0' and '%1' share one precedence level in Fly and apply left to right: add parentheses to say which comes first"

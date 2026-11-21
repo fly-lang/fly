@@ -1478,6 +1478,17 @@ public class Parser {
                 SourceLocation cloc = this.curLoc()
                 this.bump()
                 ASTExpr cv = this.parseExpr()
+                // `case 3, 4:` — one case for several values: every value but the
+                // last becomes a case that shares the body of the next one
+                while this.curIsPunct(",") {
+                    this.bump()
+                    ASTCaseStmt sc = new ASTCaseStmt(cloc)
+                    sc.setExpr(cv)
+                    sc.setShared(true)
+                    sc.setStmt(ASTBuilder.CreateBlockStmt(cloc))
+                    s.addCase(sc)
+                    cv = this.parseExpr()
+                }
                 this.expectPunct(":")
                 ASTCaseStmt c = new ASTCaseStmt(cloc)
                 c.setExpr(cv)

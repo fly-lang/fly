@@ -1,0 +1,18 @@
+// Up to 0.14 a case with no statements shared the next case's body (C stacking).
+// From 0.15 no case falls into the next, so the same text would quietly make
+// `case 3` do nothing: it is rejected, and the values are listed instead.
+int pick(const int v) {
+    int r = 0
+    switch v {
+        case 3:
+        case 4:
+            r = 34
+        default:
+            r = 9
+    }
+    return r
+}
+
+void main() {
+    int r = pick(3)
+}

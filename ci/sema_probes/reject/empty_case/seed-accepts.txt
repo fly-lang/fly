@@ -1,0 +1,3 @@
+The seed (0.14.9) shares the next case's body with a case that has no statements
+(C stacking, doc 9.4). From 0.15 no case falls into the next one, so an empty
+case is rejected and the values are listed in one case instead: case 3, 4:

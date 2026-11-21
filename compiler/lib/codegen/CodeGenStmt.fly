@@ -640,13 +640,13 @@ public class CodeGenStmt {
         cge.position(exitBB)
     }
 
-    // switchStmt — buildSwitch over the selector; one block per case; break exits.
-    // C fallthrough (doc 9.4, aligned with the reference B024 fix): a case body
-    // left OPEN (no break) falls through to the NEXT case body, the last one into
-    // default/exit; an explicit `break` branches to swexit via breakTarget. A case
-    // with NO statements (Sema marks it with a null block) shares the next body
-    // the same way. Case blocks are pre-created so a fall-through can branch
-    // forward to the next case's block.
+    // switchStmt — buildSwitch over the selector; one block per case. From 0.15 no
+    // case falls into the next: a body that ends without `break`, `return` or
+    // `fail` continues after the switch, like one that ends with `break` (which
+    // branches to swexit via breakTarget). Up to 0.14 it fell through to the next
+    // case body (C semantics, doc 9.4). Only a value of `case 3, 4:` other than
+    // the last (Sema marks it with a null block) branches to the next case's body,
+    // which is why the case blocks are pre-created.
     public static void switchStmt(const CodeGenExpr cge, const SemaSwitchStmt node) {
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
@@ -694,17 +694,19 @@ public class CodeGenStmt {
             pointer caseBB = caseBBs.get(i)
             cge.position(caseBB)
             SemaStmt cs = r.getStmt()
-            // fall-through target: the next case body, or default/exit after the
-            // last case. br() is a no-op when the body already terminated (break/
-            // return/fail), so only OPEN bodies fall through (B023).
-            pointer nextBB = defaultBB
-            if i + 1 < n {
-                nextBB = caseBBs.get(i + 1)
-            }
+            // a shared value (null block) runs the next case's body; a body leaves
+            // the switch. br() is a no-op when the body already terminated
+            // (break/return/fail).
             if cs != null {
                 cs.accept(cge)
+                cge.br(exitBB)
+            } else {
+                pointer nextBB = defaultBB
+                if i + 1 < n {
+                    nextBB = caseBBs.get(i + 1)
+                }
+                cge.br(nextBB)
             }
-            cge.br(nextBB)
             i = i + 1
         }
 

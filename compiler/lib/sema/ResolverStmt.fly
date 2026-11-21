@@ -438,10 +438,16 @@ public class ResolverStmt {
             ce.accept(r)
             SemaExpr cExpr = r.getCurrentExpr()
             ASTBlockStmt cs = c.getStmt()
-            // A case with NO statements falls through to the next case (doc 9.4):
-            // mark it with a null block so codegen branches to the next case body.
+            // No case falls into the next (from 0.15). A value of `case 3, 4:` other
+            // than the last shares the next body: a null block, which codegen
+            // branches on to the next case. A case WRITTEN with no statements is an
+            // error: up to 0.14 it shared the next body, and silently turning it
+            // into a case that does nothing would change what old code does.
             List<ASTStmt> cc = cs.getContent()
-            if cc.size() == 0 {
+            if c.isShared() {
+                ssw.addCase(cExpr, null)
+            } elsif cc.size() == 0 {
+                r.diag(c.getLoc(), DiagID.err_sema_empty_case)
                 ssw.addCase(cExpr, null)
             } else {
                 SemaBlockStmt cBlk = ResolverStmt.resolveBlock(r, cs)
