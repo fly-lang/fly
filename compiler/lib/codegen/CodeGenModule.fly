@@ -207,8 +207,14 @@ public class CodeGenModule {
             pointer fty
             this.cg.functionTypeN(voidTy, ps, false, fty)
             this.freeFnTy = fty
+            // reuse a `free` the module already declares (the runtime declares the C
+            // one itself): adding a second would make LLVM rename it to free.N,
+            // an undefined symbol at link time
             pointer f
-            llvm.addFunction(this.module, "free", fty, f)
+            llvm.getNamedFunction(this.module, "free", f)
+            if f == 0 {
+                llvm.addFunction(this.module, "free", fty, f)
+            }
             this.freeFn = f
         }
         List<pointer> args = new List<pointer>()

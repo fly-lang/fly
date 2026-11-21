@@ -1,11 +1,12 @@
 import fly.str
 import fly.mem
 import fly.assert
+import fly.data.List
 
 // asciiChar — a one-byte string for a given byte value. This suite is compiled by
 // the seed, which reads literals raw, and by the self-host, which decodes escapes
 // (from 0.15): no literal here may hold a backslash, so the whitespace bytes the
-// trim tests need, and the UTF-8 bytes of the rune tests, are built byte-wise.
+// trim tests need, and the UTF-8 bytes of the character tests, are built byte-wise.
 // (The escapes themselves are tested in compiler/test/exec/ExecStringSuite.)
 string asciiChar(const int code) {
     string res
@@ -16,7 +17,7 @@ string asciiChar(const int code) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// StrSuite — exhaustive coverage of fly.str (std/lib/str.fly): all 22 exports,
+// StrSuite — exhaustive coverage of fly.str (std/lib/str.fly): every export,
 // each driven through its edge cases (empty inputs, needle longer than the
 // haystack, not-found, boundaries, overlapping matches) so every branch of every
 // function is taken.
@@ -33,7 +34,8 @@ string asciiChar(const int code) {
 // double-free (0xC0000374 on Windows, a Valgrind error on Linux).
 //
 // Assert codes: 1xx query, 2xx search, 3xx case/trim, 4xx slice/build,
-// 5xx replace, 6xx convert, 7xx operators, 8xx ownership, 9xx UTF-8.
+// 5xx replace, 6xx convert, 7xx operators, 8xx ownership, 9xx characters,
+// 10xx split/join/compare/search, 11xx parsing.
 // ─────────────────────────────────────────────────────────────────────────────
 
 suite StrSuite {
@@ -510,50 +512,148 @@ suite StrSuite {
         }
     }
 
-    // ── UTF-8: runeLen / runeAt / runeCount / isUtf8 / fromRune ──────────────
-    void runeTest() {
-        case "runes of 1, 2, 3 and 4 bytes": {
-            // "Aé€😀": 41 | C3 A9 | E2 82 AC | F0 9F 98 80 — 10 bytes, 4 runes
+    // ── characters: charCount / charAt / chars / charCode / fromCharCode ─────
+    void charTest() {
+        case "characters of 1, 2, 3 and 4 bytes": {
+            // "Aé€😀": 41 | C3 A9 | E2 82 AC | F0 9F 98 80 — 10 bytes, 4 characters
             string s = str.concat("A", str.concat(asciiChar(195), asciiChar(169)))
             s = str.concat(s, str.concat(asciiChar(226), str.concat(asciiChar(130), asciiChar(172))))
             string emoji = str.concat(asciiChar(240), asciiChar(159))
             emoji = str.concat(emoji, str.concat(asciiChar(152), asciiChar(128)))
             s = str.concat(s, emoji)
             assert.assertEqI(str.len(s), 10, 901)
-            assert.assertEqI(str.runeCount(s), 4, 902)
-            assert.assertEqI(str.runeLen(s, 0), 1, 903)
-            assert.assertEqI(str.runeLen(s, 1), 2, 904)
-            assert.assertEqI(str.runeLen(s, 3), 3, 905)
-            assert.assertEqI(str.runeLen(s, 6), 4, 906)
-            assert.assertEqI(str.runeAt(s, 1), 233, 907)
-            assert.assertEqI(str.runeAt(s, 3), 8364, 908)
-            assert.assertEqI(str.runeAt(s, 6), 128512, 909)
-            assert.assertTrue(str.isUtf8(s), 910)
-            assert.assertEqI(str.runeLen(s, 10), 0, 911)
-            assert.assertEqI(str.runeAt(s, 10), 0 - 1, 912)
+            assert.assertEqI(str.charCount(s), 4, 902)
+            assert.assertStr(str.charAt(s, 0), "A", 903)
+            assert.assertEqI(str.len(str.charAt(s, 1)), 2, 904)
+            assert.assertEqI(str.len(str.charAt(s, 2)), 3, 905)
+            assert.assertStr(str.charAt(s, 3), emoji, 906)
+            assert.assertStr(str.charAt(s, 4), "", 907)
+            assert.assertEqI(str.charCode(s, 1), 233, 908)
+            assert.assertEqI(str.charCode(s, 2), 8364, 909)
+            assert.assertEqI(str.charCode(s, 3), 128512, 910)
+            assert.assertEqI(str.charCode(s, 4), 0 - 1, 911)
+            assert.assertTrue(str.isUtf8(s), 912)
+            List<string> cs = str.chars(s)
+            assert.assertEqI((int)cs.size(), 4, 913)
+            assert.assertStr(cs.get(3), emoji, 914)
         }
-        case "an invalid byte is one rune, U+FFFD": {
+        case "an invalid byte is one character, U+FFFD": {
             string lone = asciiChar(128)                                    // stray continuation
-            assert.assertEqI(str.runeLen(lone, 0), 1, 921)
-            assert.assertEqI(str.runeAt(lone, 0), 65533, 922)
+            assert.assertEqI(str.charCount(lone), 1, 921)
+            assert.assertEqI(str.charCode(lone, 0), 65533, 922)
             assert.assertFalse(str.isUtf8(lone), 923)
             string overlong = str.concat(asciiChar(192), asciiChar(128))    // C0 80
-            assert.assertEqI(str.runeCount(overlong), 2, 924)
+            assert.assertEqI(str.charCount(overlong), 2, 924)
             string surrogate = str.concat(asciiChar(237), str.concat(asciiChar(160), asciiChar(128)))
-            assert.assertEqI(str.runeLen(surrogate, 0), 1, 925)
+            assert.assertEqI(str.charCount(surrogate), 3, 925)
             assert.assertFalse(str.isUtf8(surrogate), 926)
             string cut = str.concat(asciiChar(226), asciiChar(130))         // truncated
-            assert.assertEqI(str.runeCount(cut), 2, 927)
+            assert.assertEqI(str.charCount(cut), 2, 927)
         }
-        case "fromRune encodes, and round-trips through runeAt": {
-            assert.assertStr(str.fromRune(65), "A", 931)
-            assert.assertEqI(str.len(str.fromRune(233)), 2, 932)
-            assert.assertEqI(str.len(str.fromRune(8364)), 3, 933)
-            assert.assertEqI(str.len(str.fromRune(128512)), 4, 934)
-            assert.assertEqI(str.runeAt(str.fromRune(128512), 0), 128512, 935)
-            assert.assertEqI(str.runeAt(str.fromRune(55296), 0), 65533, 936)    // a surrogate
-            assert.assertEqI(str.runeAt(str.fromRune(0 - 1), 0), 65533, 937)
-            assert.assertEqI(str.runeAt(str.fromRune(1114112), 0), 65533, 938)
+        case "fromCharCode encodes, and round-trips through charCode": {
+            assert.assertStr(str.fromCharCode(65), "A", 931)
+            assert.assertEqI(str.len(str.fromCharCode(233)), 2, 932)
+            assert.assertEqI(str.len(str.fromCharCode(8364)), 3, 933)
+            assert.assertEqI(str.len(str.fromCharCode(128512)), 4, 934)
+            assert.assertEqI(str.charCode(str.fromCharCode(128512), 0), 128512, 935)
+            assert.assertEqI(str.charCode(str.fromCharCode(55296), 0), 65533, 936)    // a surrogate
+            assert.assertEqI(str.charCode(str.fromCharCode(0 - 1), 0), 65533, 937)
+            assert.assertEqI(str.charCode(str.fromCharCode(1114112), 0), 65533, 938)
+        }
+        case "reverse works on characters, not bytes": {
+            string e = str.fromCharCode(233)
+            string s = str.concat("ab", e)
+            string r = str.reverse(s)
+            assert.assertStr(r, str.concat(e, "ba"), 941)
+            assert.assertTrue(str.isUtf8(r), 942)
+            assert.assertStr(str.reverse(""), "", 943)
+        }
+        case "padLeft / padRight count characters": {
+            assert.assertStr(str.padLeft("7", 3, "0"), "007", 951)
+            assert.assertStr(str.padRight("ab", 5, "."), "ab...", 952)
+            assert.assertStr(str.padLeft("abc", 2, "0"), "abc", 953)
+            assert.assertStr(str.padLeft("x", 4, "ab"), "abax", 954)
+            assert.assertStr(str.padLeft("x", 4, ""), "x", 955)
+            string e = str.fromCharCode(233)
+            assert.assertEqI(str.charCount(str.padRight(e, 3, " ")), 3, 956)
+        }
+    }
+
+    // ── split / join / compare / indexOfFrom / replaceFirst ─────────────────
+    void splitJoinTest() {
+        case "split keeps empty parts": {
+            List<string> p = str.split("a,,b", ",")
+            assert.assertEqI((int)p.size(), 3, 1001)
+            assert.assertStr(p.get(0), "a", 1002)
+            assert.assertStr(p.get(1), "", 1003)
+            assert.assertStr(p.get(2), "b", 1004)
+            List<string> one = str.split("", ",")
+            assert.assertEqI((int)one.size(), 1, 1005)
+            List<string> two = str.split("key=>value", "=>")
+            assert.assertStr(two.get(1), "value", 1006)
+            List<string> cs = str.split("xyz", "")
+            assert.assertEqI((int)cs.size(), 3, 1007)
+        }
+        case "join puts the separator between parts": {
+            List<string> p = str.split("a b c", " ")
+            assert.assertStr(str.join(p, "-"), "a-b-c", 1011)
+            List<string> none = new List<string>()
+            assert.assertStr(str.join(none, ","), "", 1012)
+        }
+        case "compare orders byte by byte, a prefix first": {
+            assert.assertEqI(str.compare("abc", "abd"), 0 - 1, 1021)
+            assert.assertEqI(str.compare("b", "a"), 1, 1022)
+            assert.assertEqI(str.compare("same", "same"), 0, 1023)
+            assert.assertEqI(str.compare("ab", "abc"), 0 - 1, 1024)
+            assert.assertEqI(str.compare("", ""), 0, 1025)
+        }
+        case "indexOfFrom searches from a byte index": {
+            assert.assertEqI(str.indexOfFrom("abcabc", "bc", 0), 1, 1031)
+            assert.assertEqI(str.indexOfFrom("abcabc", "bc", 2), 4, 1032)
+            assert.assertEqI(str.indexOfFrom("abcabc", "bc", 5), 0 - 1, 1033)
+            assert.assertEqI(str.indexOfFrom("abc", "", 3), 3, 1034)
+            assert.assertEqI(str.indexOfFrom("abc", "a", 0 - 5), 0, 1035)
+        }
+        case "replaceFirst replaces only the first": {
+            assert.assertStr(str.replaceFirst("a-b-c", "-", "+"), "a+b-c", 1041)
+            assert.assertStr(str.replaceFirst("abc", "x", "y"), "abc", 1042)
+            assert.assertStr(str.replaceFirst("abc", "", "y"), "abc", 1043)
+        }
+    }
+
+    // ── toInt / toLong ───────────────────────────────────────────────────────
+    void parseTest() {
+        case "toInt and toLong read a decimal integer": {
+            int e = 9
+            assert.assertEqI(str.toInt("42", e), 42, 1101)
+            assert.assertEqI(e, 0, 1102)
+            assert.assertEqI(str.toInt("-17", e), 0 - 17, 1103)
+            assert.assertEqI(str.toInt("+5", e), 5, 1104)
+            assert.assertEqI(str.toInt("-2147483648", e), 0 - 2147483647 - 1, 1105)
+            assert.assertEqI(e, 0, 1106)
+            long l = str.toLong("-9223372036854775808", e)
+            assert.assertEqI(e, 0, 1107)
+            assert.assertEqL(l, 0 - 9223372036854775807 - 1, 1108)
+            assert.assertEqL(str.toLong("9223372036854775807", e), 9223372036854775807, 1109)
+        }
+        case "errOut 1 for what is not a number, 2 out of range": {
+            int e = 0
+            assert.assertEqI(str.toInt("", e), 0, 1111)
+            assert.assertEqI(e, 1, 1112)
+            int r = str.toInt("12a", e)
+            assert.assertEqI(e, 1, 1113)
+            r = str.toInt(" 1", e)
+            assert.assertEqI(e, 1, 1114)
+            r = str.toInt("-", e)
+            assert.assertEqI(e, 1, 1115)
+            r = str.toInt("2147483648", e)
+            assert.assertEqI(e, 2, 1116)
+            long l = str.toLong("9223372036854775808", e)
+            assert.assertEqI(e, 2, 1117)
+            l = str.toLong("99999999999999999999", e)
+            assert.assertEqI(e, 2, 1118)
+            assert.assertEqI(r, 0, 1119)
+            assert.assertEqL(l, 0, 1120)
         }
     }
 }

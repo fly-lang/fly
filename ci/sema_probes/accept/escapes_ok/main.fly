@@ -8,7 +8,7 @@ void main() {
         fail 1, "two one-byte escapes"
     }
     string u = "caf\u{E9} \x41"
-    if str.len(u) != 7 || str.runeCount(u) != 6 {
+    if str.len(u) != 7 || str.charCount(u) != 6 {
         fail 2, "u{...} is UTF-8, xHH one byte"
     }
     string p = """C:\Users\fly"""

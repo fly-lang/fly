@@ -261,10 +261,10 @@ suite ExecStringSuite {
             assert.assertStr("\x41\x42", "AB", 521)
             string e = "\u{E9}"
             assert.assertEqI(str.len(e), 2, 522)
-            assert.assertEqI(str.runeAt(e, 0), 233, 523)
+            assert.assertEqI(str.charCode(e, 0), 233, 523)
             string smile = "\u{1F600}"
             assert.assertEqI(str.len(smile), 4, 524)
-            assert.assertEqI(str.runeAt(smile, 0), 128512, 525)
+            assert.assertEqI(str.charCode(smile, 0), 128512, 525)
         }
         case "a raw literal keeps backslashes and spans lines": {
             string r = """C:\dir\n"""

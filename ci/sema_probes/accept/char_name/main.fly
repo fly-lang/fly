@@ -1,0 +1,14 @@
+import fly.str
+
+// From 0.15 `char` is not a keyword: Fly has no character type, a character is
+// a string of one character, so `char` is an ordinary name.
+string firstChar(const string s) {
+    string char = str.charAt(s, 0)
+    return char
+}
+
+void main() {
+    if firstChar("xyz") != "x" {
+        fail 1, "char is a plain name"
+    }
+}
