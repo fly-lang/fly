@@ -39,11 +39,13 @@ if (-not (Test-Path $FLY)) { Write-Host "error: compiler '$FLY' not found - run 
 if (-not (Test-Path 'tools/lsp/lib/FlyLsp.fly')) { Write-Host 'error: tools/lsp/lib/FlyLsp.fly not found.'; exit 1 }
 
 $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG = @('--debug-symbols') }
+# A warning in the tool's code fails the build (always the self-host here).
+$WERR = @('--warnings-as-errors')
 $TARGET = @(); if ($env:FLY_TARGET_ARGS) { $TARGET = $env:FLY_TARGET_ARGS -split ' ' }
 
 Write-Host "stage${STAGE}: compiling tools/lsp (monolithic, compiler from source) ..."
 & $FLY --entry tools/lsp/lib/FlyLsp.fly --src-dir tools/lsp --src-dir compiler/lib `
-       @DBG @TARGET -c -o FlyLsp --out-dir $D -L $LIB
+       @DBG @WERR @TARGET -c -o FlyLsp --out-dir $D -L $LIB
 if ($LASTEXITCODE -ne 0) { throw "fly-lsp compile failed (exit $LASTEXITCODE)" }
 
 # The emitted object's name varies by producer, as in build_compiler.ps1.

@@ -1153,7 +1153,7 @@ private void scanToken(const pointer cl, const int pos, const pointer out3) {
 }
 // env_init — accessors are stateless; kept as a defined no-op.
 public void env_init(const int argc, const pointer argv) {
-    int unused = argc
+    int _unused = argc
 }
 
 // fillSlotFromCStr — copy the NUL-terminated string at cstr into a slot.

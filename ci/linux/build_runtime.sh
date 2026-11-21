@@ -47,10 +47,13 @@ rm -f "$LIB/fly_runtime_lib.a"
 # them in would define every C-ABI symbol three times with wrong-platform code).
 # FLY_DEBUG_SYMBOLS=1 → emit DWARF so a self-host crash symbolizes to a source line.
 DBG=""; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && DBG="--debug-symbols"
+# A warning in the tree's own code fails the build when the self-host compiles it
+# (the seed predates --warnings-as-errors).
+WERR=""; [ "$STAGE" = "1" ] || WERR="--warnings-as-errors"
 echo "stage$STAGE: compiling runtime/lib/$RUNTIME_SRC ...${DBG:+ (+debug-symbols)}"
 cp -f "runtime/lib/$RUNTIME_SRC" "$T/$RUNTIME_SRC"
 # --lib emits one merged object — the whole archive.
-"$FLY" --lib $DBG -o fly_runtime_lib --out-dir "$T" --src-dir "$T"
+"$FLY" --lib $DBG $WERR -o fly_runtime_lib --out-dir "$T" --src-dir "$T"
 [ -f "$T/fly_runtime_lib" ] || { echo "error: runtime object not emitted." >&2; exit 1; }
 "$AR" rc "$LIB/fly_runtime_lib.a" "$T/fly_runtime_lib"
 "$AR" s "$LIB/fly_runtime_lib.a"
@@ -85,7 +88,7 @@ T2=build/tmp_tls
 rm -rf "$T2"; mkdir -p "$T2"
 echo "stage$STAGE: compiling runtime/lib/TlsStub.fly ..."
 cp -f runtime/lib/TlsStub.fly "$T2/TlsStub.fly"
-"$FLY" --lib $DBG -o fly_tls_stub --out-dir "$T2" -L "$LIB" --src-dir "$T2"
+"$FLY" --lib $DBG $WERR -o fly_tls_stub --out-dir "$T2" -L "$LIB" --src-dir "$T2"
 STUB=""
 for c in "$T2/fly_tls_stub.a" "$T2/fly_tls_stub"; do [ -f "$c" ] && { STUB="$c"; break; }; done
 [ -n "$STUB" ] || { echo "error: tls stub library not emitted." >&2; exit 1; }
@@ -96,7 +99,7 @@ else "$AR" rcs "$LIB/fly_tls_stub.a" "$STUB"; fi
 rm -rf "$T2"; mkdir -p "$T2"
 echo "stage$STAGE: compiling runtime/lib/TlsOpenSSL.fly (real backend, --tls only) ..."
 cp -f runtime/lib/TlsOpenSSL.fly "$T2/TlsOpenSSL.fly"
-"$FLY" --lib $DBG -o fly_tls_lib --out-dir "$T2" -L "$LIB" --src-dir "$T2"
+"$FLY" --lib $DBG $WERR -o fly_tls_lib --out-dir "$T2" -L "$LIB" --src-dir "$T2"
 REALTLS=""
 for c in "$T2/fly_tls_lib.a" "$T2/fly_tls_lib"; do [ -f "$c" ] && { REALTLS="$c"; break; }; done
 [ -n "$REALTLS" ] || { echo "error: tls backend library not emitted." >&2; exit 1; }

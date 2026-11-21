@@ -290,7 +290,6 @@ public class CodeGenArray {
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         CodeGenModule cgm = cge.getCgm()
-        CodeGenLLVM cg = cgm.getCg()
         pointer ctx = cgm.getCtx()
         pointer i64t
         llvm.int64TypeInContext(ctx, i64t)

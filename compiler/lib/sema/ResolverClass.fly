@@ -42,7 +42,7 @@ public class ResolverClass {
                 cls.addTypeParam(sp)
                 Symbol psym = new Symbol(tp.getName(), SymbolKind.CLASS, sp)
                 psym.setTypeRef(sp)
-                bool ok = clsScope.insert(psym)
+                bool _ok = clsScope.insert(psym)
             }
             ti = ti + 1
         }

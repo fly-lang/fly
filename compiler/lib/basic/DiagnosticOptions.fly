@@ -1,5 +1,6 @@
 namespace fly.compiler.basic
 import fly.compiler.basic.*
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DiagnosticOptions — options controlling the diagnostics engine, ported from
@@ -14,6 +15,7 @@ public class DiagnosticOptions {
     bool pedantic           // -pedantic: enable extension diagnostics
     int tabStop             // columns per tab when rendering carets
     int errorLimit          // stop after this many errors (0 = no limit)
+    string disabled         // --no-warn=<name> warnings switched off, ";a;b;"
 
     public DiagnosticOptions() {
         this.warningsAsErrors = false
@@ -21,6 +23,7 @@ public class DiagnosticOptions {
         this.pedantic = false
         this.tabStop = 8
         this.errorLimit = 0
+        this.disabled = ";"
     }
 
     public bool isWarningsAsErrors() {
@@ -47,6 +50,20 @@ public class DiagnosticOptions {
     public void setTabStop(const int v) {
         this.tabStop = v
     }
+    // disableWarning — switch off the warning called `name` (see warningName).
+    public void disableWarning(const string name) {
+        this.disabled = str.concat(this.disabled, str.concat(name, ";"))
+    }
+
+    // setDisabledWarnings — the whole ";a;b;" list at once (FrontendOptions carries it).
+    public void setDisabledWarnings(const string list) {
+        this.disabled = list
+    }
+
+    public bool isWarningDisabled(const string name) {
+        return str.contains(this.disabled, str.concat(";", str.concat(name, ";")))
+    }
+
     public int getErrorLimit() {
         return this.errorLimit
     }

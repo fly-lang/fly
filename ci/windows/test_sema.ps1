@@ -15,6 +15,7 @@
 #   accept\<name>\main.fly    must compile, link and exit 0 - the edge cases a
 #                             check must keep allowing (a literal that fits, a
 #                             shadowing declaration, an overload that differs).
+#   warn\<name>\main.fly      must compile with the warnings its expect.txt lists.
 #
 # A reject probe fails three ways, and they are told apart on purpose:
 #   ACCEPTED   the compiler took the program - the check is gone;
@@ -119,6 +120,40 @@ foreach ($probe in Get-ChildItem 'ci/sema_probes/accept' -Directory | Sort-Objec
     }
 }
 
+# warn\<name>\main.fly must compile, link and exit 0, and its compile log must
+# hold every line of expect.txt; a line starting with '!' must NOT appear (the
+# cases a warning must stay quiet about). Warnings never stop a build, so like a
+# missing check, a missing warning is invisible to every suite.
+foreach ($probe in Get-ChildItem 'ci/sema_probes/warn' -Directory -ErrorAction SilentlyContinue | Sort-Object Name) {
+    $name = $probe.Name
+    $count++
+    $dir = Join-Path $OUT "warn_$name"
+    New-Item -ItemType Directory -Force $dir | Out-Null
+    $exe = Join-Path $dir "$name.exe"
+    Remove-Item -ErrorAction SilentlyContinue $exe
+    & $FLY @FLY_TARGET_ARGS --src-dir $probe.FullName -o "$name.exe" --out-dir $dir *> "$dir/compile.log"
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $exe)) {
+        Write-Host "  FAIL  warn/$name - REJECTED (a warning must not stop the build)"
+        Get-Content "$dir/compile.log" | Select-Object -First 5 | ForEach-Object { Write-Host "        $_" }
+        $failed++; continue
+    }
+    $log = Get-Content "$dir/compile.log" -Raw
+    if ($null -eq $log) { $log = '' }
+    $bad = ''
+    foreach ($line in Get-Content (Join-Path $probe.FullName 'expect.txt')) {
+        if (-not $line) { continue }
+        if ($line.StartsWith('!')) {
+            if ($log.Contains($line.Substring(1))) { $bad = "unexpected: $($line.Substring(1))"; break }
+        } elseif (-not $log.Contains($line)) {
+            $bad = "missing: $line"; break
+        }
+    }
+    if ($bad) {
+        Write-Host "  FAIL  warn/$name - $bad"; $failed++
+    } else {
+        Write-Host "  ok    warn/$name"
+    }
+}
 if ($failed -gt 0) { Write-Host "test_sema: $failed of $count probe(s) failed"; exit 1 }
 Write-Host "test_sema: all $count probes behave as specified"
 exit 0

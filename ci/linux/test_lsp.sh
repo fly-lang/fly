@@ -28,6 +28,9 @@ import fly.str
 
 void main() {
     int n = fly.str.len("abc")
+    if n != 3 {
+        fail 1, "len"
+    }
 }
 EOF
 # Navigation fixture: a call, a local, a class — every nav feature has a target.

@@ -60,8 +60,35 @@ public class ResolverStmt {
         }
         r.setCurrentSemaBlock(prev)
         r.setLastBlock(blk)
+        ResolverStmt.warnUnused(r)
         r.exitScope()
         r.setStmtExits(anyExit)
+    }
+
+    // warnUnused — at the end of a block, the locals it declared that no name ever
+    // referred to: a leftover, or a typo that made another name the one in use. Not
+    // reported: a name starting with `_` (unused on purpose), and a `new unique` owner
+    // or a `new shared` holder, whose scope alone gives it a job (it releases the
+    // object when the block ends).
+    public static void warnUnused(const Resolver r) {
+        List<Symbol> syms = r.getCurrentScope().getAllSymbols()
+        int i = 0
+        while i < syms.size() {
+            Symbol s = syms.get(i)
+            if s.getKind() == SymbolKind.LOCAL_VAR && s.isUsed() == false && s.getDeclLoc() != null {
+                bool quiet = str.startsWith(s.getName(), "_")
+                SemaExpr e = s.getExprRef()
+                if e != null {
+                    if e.isUniqueOwner() || e.isSharedHolder() {
+                        quiet = true
+                    }
+                }
+                if quiet == false {
+                    r.diagStr(s.getDeclLoc(), DiagID.warn_sema_unused_variable, s.getName())
+                }
+            }
+            i = i + 1
+        }
     }
 
     // decl — a local variable declaration, registered in the current scope.
@@ -76,6 +103,19 @@ public class ResolverStmt {
         }
         Symbol sym = new Symbol(lv.getName(), SymbolKind.LOCAL_VAR, slv)
         sym.setExprRef(slv)
+        sym.setDeclLoc(lv.getNameLoc())
+        // A name that hides a local or a parameter of an enclosing scope: from here
+        // to the end of the block the outer one cannot be reached, and an
+        // assignment meant for it lands on the new one.
+        List<Symbol> outer = r.getCurrentScope().lookupInParents(lv.getName())
+        if outer != null && r.getCurrentScope().lookup(lv.getName()) == null {
+            Symbol os = outer.get(0)
+            if os.getKind() == SymbolKind.LOCAL_VAR {
+                r.diagStr2(lv.getNameLoc(), DiagID.warn_sema_shadow, lv.getName(), "local variable")
+            } elsif os.getKind() == SymbolKind.PARAM {
+                r.diagStr2(lv.getNameLoc(), DiagID.warn_sema_shadow, lv.getName(), "parameter")
+            }
+        }
         // An explicit declaration may shadow an OUTER scope, never redeclare a
         // name of its own scope: the second `int a` used to be dropped silently
         // and every later use kept reading the first variable.

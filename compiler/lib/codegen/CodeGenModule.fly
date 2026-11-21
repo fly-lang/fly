@@ -1027,17 +1027,17 @@ public class CodeGenModule {
                     llvm.buildZExt(this.builder, loaded, i32, "mext", retVal)
                 } elsif rt.isInteger() {
                     int rk = rt.getRank()
-                    int w = rk
-                    if w % 2 == 1 {
-                        w = w + 1
+                    int wd = rk
+                    if wd % 2 == 1 {
+                        wd = wd + 1
                     }
-                    if w < 32 {
+                    if wd < 32 {
                         if rk % 2 == 0 {
                             llvm.buildZExt(this.builder, loaded, i32, "mext", retVal)
                         } else {
                             llvm.buildSExt(this.builder, loaded, i32, "mext", retVal)
                         }
-                    } elsif w > 32 {
+                    } elsif wd > 32 {
                         llvm.buildTrunc(this.builder, loaded, i32, "mtr", retVal)
                     }
                 }

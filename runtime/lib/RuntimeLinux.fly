@@ -743,7 +743,7 @@ public void env_all_fill(const pointer arr_base, const int count) {
 // arg/env access needs no stored state, so it is a no-op (kept non-empty so it
 // emits as a defined C-ABI symbol rather than an unresolved extern).
 public void env_init(const int argc, const pointer argv) {
-    int unused = argc
+    int _unused = argc
 }
 
 public void env_set(const pointer key, const pointer val, int out) {

@@ -211,14 +211,14 @@ public int cmdTest(const string profile, const bool force) {
     int i = 0
     while i <= n {
         bool atEnd = i == n
-        bool nl = false
+        bool atNl = false
         if atEnd == false {
             byte bb = str.byteAt(list, i)
             if bb == 10 {
-                nl = true
+                atNl = true
             }
         }
-        if atEnd || nl {
+        if atEnd || atNl {
             string sf = str.trim(str.substring(list, start, i))
             if str.isEmpty(sf) == false {
                 string base = path.basename(sf)
@@ -482,7 +482,7 @@ public int cmdRemove(const string name) {
 // DependencyGraph 'why' chains are a follow-up).
 public int cmdWhy(const string name) {
     int e = 0
-    Manifest m = loadManifest(e)
+    Manifest _m = loadManifest(e)
     if e != 0 {
         io.printErrLn("error: no valid Manifest.fly / manifest.fly (a class extending fly.meta.Manifest)")
         return e

@@ -241,6 +241,9 @@ public class Frontend {
         // errors render carets (the CI's SourceManager supplies the source line).
         this.trace("resolving")
         DiagnosticOptions opts = new DiagnosticOptions()
+        opts.setIgnoreWarnings(fo.getNoWarnings())
+        opts.setWarningsAsErrors(fo.getWarningsAsErrors())
+        opts.setDisabledWarnings(fo.getDisabledWarnings())
         TextDiagnosticPrinter printer = new TextDiagnosticPrinter()
         // --log-file: chain the stderr printer with the log collector so every
         // Sema diagnostic reaches both (reference ChainedDiagnosticConsumer).
@@ -287,7 +290,7 @@ public class Frontend {
             return 1
         }
         SemaContext ctx = new SemaContext(diags)
-        List<SemaModule> resModules = ctx.Resolve(mods, fo.getTestMode())
+        List<SemaModule> _resModules = ctx.Resolve(mods, fo.getTestMode())
         if diags.hasErrorOccurred() {
             return 1
         }

@@ -63,10 +63,13 @@ $STD = 'std/lib'
 
 # DIRECTORY CLI: --lib compiles the whole --src-dir - std/lib IS the library.
 $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
+# A warning in the tree's own code fails the build when the self-host compiles it
+# (the seed predates --warnings-as-errors).
+$WERR = @(); if (-not $bySeed) { $WERR = @('--warnings-as-errors') }
 Write-Host "stage${STAGE}: compiling std/lib with $who (codegen gnu, link mingw) ...$(if ($DBG) { ' (+debug-symbols)' })"
 # --out-dir is required: without it the self-host writes each module's
 # `.fly.h` next to its source, inside std/lib.
-& $FLY --lib @DBG @FLY_TARGET_ARGS -o fly_std_lib --out-dir $T --src-dir $STD
+& $FLY --lib @DBG @WERR @FLY_TARGET_ARGS -o fly_std_lib --out-dir $T --src-dir $STD
 Assert-LastExit 'std --lib build'
 # The self-host emits one merged object; the linker reads it by content, so it
 # is kept under the `.lib` name.

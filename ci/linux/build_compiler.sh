@@ -47,6 +47,9 @@ D="build/stage$STAGE/driver"
 rm -rf "$D"; mkdir -p "$D"
 # FLY_DEBUG_SYMBOLS=1 → emit DWARF so a self-host crash symbolizes to a source line.
 DBG=""; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && DBG="--debug-symbols"
+# A warning in the tree's own code fails the build when the self-host compiles it
+# (the seed predates --warnings-as-errors).
+WERR=""; [ "$STAGE" = "1" ] || WERR="--warnings-as-errors"
 # The compiling fly reads its std headers from its own <exe>/../lib: build/stage1/lib
 # at stage 1 (fly0 is linked there) and build/stage<N-1>/lib after. Mapping that
 # directory to "lib" keeps the path out of the DWARF and out of the positions in
@@ -60,7 +63,7 @@ echo "stage$STAGE: compiling driver + compiler (monolithic, from source) ...${DB
 # compiler/lib/driver/Driver.fly) is discovered from --src-dir and its import
 # closure pulls the whole compiler. -c emits a clean object, no link attempt.
 "$FLY" --src-dir compiler \
-    $DBG $MAP -c -o Driver --out-dir "$D" > "$D/emit.log" 2>&1 || true
+    $DBG $MAP $WERR -c -o Driver --out-dir "$D" > "$D/emit.log" 2>&1 || true
 OBJ="$D/Driver"
 if [ ! -f "$OBJ" ]; then
     echo "error: driver object not emitted; see $D/emit.log:" >&2

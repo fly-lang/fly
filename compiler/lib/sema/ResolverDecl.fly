@@ -94,7 +94,7 @@ public class ResolverDecl {
                     SemaTypeParam fsp = new SemaTypeParam(ftp.getName())
                     Symbol fpsym = new Symbol(ftp.getName(), SymbolKind.CLASS, fsp)
                     fpsym.setTypeRef(fsp)
-                    bool fok = fscope.insert(fpsym)
+                    bool _fok = fscope.insert(fpsym)
                 }
             }
             fti = fti + 1

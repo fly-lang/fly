@@ -4,6 +4,7 @@ import fly.compiler.sema.SymbolKind
 import fly.compiler.sema.SemaNode
 import fly.compiler.sema.SemaType
 import fly.compiler.sema.SemaExpr
+import fly.compiler.basic.SourceLocation
 import fly.data.List
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,11 +23,15 @@ public class Symbol {
     List<SemaType> paramTypes   // explicit param types for FUNCTION symbols (else null)
     SemaExpr exprRef            // the ref as a SemaExpr, for VAR/LOCAL_VAR/PARAM (else null)
     SemaType typeRef            // the ref as a SemaType, for BUILTIN_TYPE/CLASS/ENUM (else null)
+    bool used                   // a name lookup found it (the unused-variable warning)
+    SourceLocation declLoc      // where a LOCAL_VAR was declared (its name), else null
 
     public Symbol(const string name, const SymbolKind kind, const SemaNode ref) {
         this.name = name
         this.kind = kind
         this.ref = ref
+        this.used = false
+        this.declLoc = null
     }
 
     public string getName() {
@@ -37,6 +42,22 @@ public class Symbol {
     }
     public SemaNode getRef() {
         return this.ref
+    }
+
+    public bool isUsed() {
+        return this.used
+    }
+
+    public void setUsed(const bool u) {
+        this.used = u
+    }
+
+    public SourceLocation getDeclLoc() {
+        return this.declLoc
+    }
+
+    public void setDeclLoc(const SourceLocation loc) {
+        this.declLoc = loc
     }
 
     // Function signature for overload lookup. Set by the Resolver when inserting a

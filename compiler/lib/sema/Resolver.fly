@@ -357,7 +357,7 @@ public class Resolver : ASTVisitor {
     }
 
     public void addSymbol(const Symbol sym) {
-        bool ok = this.currentScope.insert(sym)
+        bool _ok = this.currentScope.insert(sym)
     }
 
     // ── literal tracking (see the litExpr field) ──────────────────────────────
@@ -436,7 +436,7 @@ public class Resolver : ASTVisitor {
         SemaNameSpace ns = this.currentNameSpace
         if ns != null && this.reg.isDefaultNameSpace(ns) == false {
             SymbolTable nst = ns.getSymbols()
-            bool ok = nst.insert(sym)
+            bool _ok = nst.insert(sym)
         }
     }
 
@@ -605,7 +605,7 @@ public class Resolver : ASTVisitor {
                                 // would put "llvm" in scope and shadow the V3
                                 // short-prefix expansion of `llvm.strSize(…)`
                                 if fs.getKind() != SymbolKind.NAMESPACE {
-                                    bool ok3 = modScope.insert(fs)
+                                    bool _ok3 = modScope.insert(fs)
                                 }
                                 fi2 = fi2 + 1
                             }
@@ -628,7 +628,7 @@ public class Resolver : ASTVisitor {
         List<Symbol> all = from.getAllSymbols()
         int i = 0
         while i < all.size() {
-            bool ok = into.insert(all.get(i))
+            bool _ok = into.insert(all.get(i))
             i = i + 1
         }
     }

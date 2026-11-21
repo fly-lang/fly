@@ -185,6 +185,8 @@ public class Driver {
         bool showStats = false          // --print-stats
         bool showTimers = false         // --ftime-report
         bool noWarn = false             // -w / --no-warning
+        bool warnErrors = false         // --warnings-as-errors
+        string offWarnings = ";"        // --no-warn=<name>, ";a;b;"
 
         int n = (int)args.count
         int i = 1                       // skip argv[0] (program name)
@@ -429,10 +431,18 @@ public class Driver {
             } elsif str.equals(a, "-v") || str.equals(a, "--verbose") {
                 verbose = true
             } elsif str.equals(a, "-w") || str.equals(a, "--no-warning") {
-                // The self-host compiler emits no DiagnosticsEngine warnings yet;
-                // what -w silences today is the driver's own "this option has no
-                // effect" notes below.
+                // every warning: the compiler's and the driver's own "this option
+                // has no effect" notes below
                 noWarn = true
+            } elsif str.equals(a, "--warnings-as-errors") {
+                warnErrors = true
+            } elsif str.startsWith(a, "--no-warn=") {
+                string offName = this.eqValue(a)
+                if isWarningName(offName) == false {
+                    io.printErrLn(str.concat("error: --no-warn: unknown warning: ", offName))
+                    return 1
+                }
+                offWarnings = str.concat(offWarnings, str.concat(offName, ";"))
             } elsif str.equals(a, "--help") || str.equals(a, "-help") {
                 this.printUsage()
                 return 0
@@ -697,6 +707,9 @@ public class Driver {
         fo.setStatsFile(statsFile)
         fo.setLogFile(logFile)
         fo.setLogFormat(logFormat)
+        fo.setNoWarnings(noWarn)
+        fo.setWarningsAsErrors(warnErrors)
+        fo.setDisabledWarnings(offWarnings)
         // Create --out-dir when it is missing. The reference does; the self-host did
         // not, so aiming --out-dir at a directory that did not exist yet failed late
         // and opaquely with "object emission failed" — the WRITE was the problem, not
@@ -1341,7 +1354,9 @@ public class Driver {
         io.printErrLn("  --log-file <f>  log diagnostics to <f>")
         io.printErrLn("  --log-format <fmt>  diagnostics log format: txt (default) or json")
         io.printErrLn("  -v, --verbose   log each compilation phase")
-        io.printErrLn("  -w, --no-warning  suppress warnings (today: the 'no effect yet' notes of the driver)")
+        io.printErrLn("  -w, --no-warning  report no warning")
+        io.printErrLn("  --warnings-as-errors  a warning fails the build like an error")
+        io.printErrLn("  --no-warn=NAME  switch off one warning: unused-variable, shadow, header-private")
         io.printErrLn("  --version       print version")
         io.printErrLn("  --help          display this help")
     }

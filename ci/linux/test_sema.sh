@@ -16,6 +16,7 @@
 #   accept/<name>/main.fly    must compile, link and exit 0 - the edge cases a
 #                             check must keep allowing (a literal that fits, a
 #                             shadowing declaration, an overload that differs).
+#   warn/<name>/main.fly      must compile with the warnings its expect.txt lists.
 #
 # A reject probe fails three ways, and they are told apart on purpose:
 #   ACCEPTED   the compiler took the program - the check is gone;
@@ -115,6 +116,40 @@ for probe in ci/sema_probes/accept/*/; do
     fi
 done
 
+# warn/<name>/main.fly must compile, link and exit 0, and its compile log must
+# hold every line of expect.txt; a line starting with '!' must NOT appear (the
+# cases a warning must stay quiet about). Warnings never stop a build, so like a
+# missing check, a missing warning is invisible to every suite.
+for probe in ci/sema_probes/warn/*/; do
+    [ -d "$probe" ] || continue
+    name="$(basename "$probe")"
+    count=$((count + 1))
+    dir="$OUT/warn_$name"
+    mkdir -p "$dir"
+    rm -f "$dir/$name"
+    "$FLY" --src-dir "$probe" -o "$name" --out-dir "$dir" > "$dir/compile.log" 2>&1
+    if [ $? -ne 0 ] || [ ! -x "$dir/$name" ]; then
+        echo "  FAIL  warn/$name - REJECTED (a warning must not stop the build)"
+        head -n 5 "$dir/compile.log" | sed 's/^/        /'
+        failed=$((failed + 1)); continue
+    fi
+    bad=""
+    while IFS= read -r line || [ -n "$line" ]; do
+        line="${line%$'\r'}"
+        [ -z "$line" ] && continue
+        case "$line" in
+            '!'*)
+                if grep -qF -- "${line#!}" "$dir/compile.log"; then bad="unexpected: ${line#!}"; break; fi ;;
+            *)
+                if ! grep -qF -- "$line" "$dir/compile.log"; then bad="missing: $line"; break; fi ;;
+        esac
+    done < "$probe/expect.txt"
+    if [ -n "$bad" ]; then
+        echo "  FAIL  warn/$name - $bad"; failed=$((failed + 1))
+    else
+        echo "  ok    warn/$name"
+    fi
+done
 if [ "$failed" -gt 0 ]; then echo "test_sema: $failed of $count probe(s) failed"; exit 1; fi
 echo "test_sema: all $count probes behave as specified"
 exit 0

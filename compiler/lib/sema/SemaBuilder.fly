@@ -72,7 +72,7 @@ public class SemaBuilder {
                 SemaType ta = typeArgs.get(i)
                 Symbol psym = new Symbol(tp.getName(), SymbolKind.CLASS, ta)
                 psym.setTypeRef(ta)
-                bool ok = specScope.insert(psym)
+                bool _ok = specScope.insert(psym)
             }
             i = i + 1
         }
@@ -119,7 +119,7 @@ public class SemaBuilder {
                 SemaType ta = typeArgs.get(i)
                 Symbol psym = new Symbol(tp.getName(), SymbolKind.CLASS, ta)
                 psym.setTypeRef(ta)
-                bool ok = specScope.insert(psym)
+                bool _ok = specScope.insert(psym)
             }
             i = i + 1
         }

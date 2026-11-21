@@ -1,5 +1,6 @@
 namespace fly.compiler.basic
 import fly.compiler.basic.*
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DiagnosticIDs — diagnostic identifiers, their default class/level and message
@@ -114,7 +115,9 @@ public enum DiagID {
     err_sema_shared_ref,
     err_sema_weak_ref,
     err_sema_privileged_call,
-    warn_header_private_shipped
+    warn_header_private_shipped,
+    warn_sema_unused_variable,
+    warn_sema_shadow
 }
 
 // getDiagClass — the class column for a diagnostic id.
@@ -123,6 +126,12 @@ public DiagClass getDiagClass(const DiagID id) {
         return DiagClass.CLASS_ERROR
     }
     if id == DiagID.warn_header_private_shipped {
+        return DiagClass.CLASS_WARNING
+    }
+    if id == DiagID.warn_sema_unused_variable {
+        return DiagClass.CLASS_WARNING
+    }
+    if id == DiagID.warn_sema_shadow {
         return DiagClass.CLASS_WARNING
     }
     // every other id in this subset is a hard error
@@ -291,6 +300,12 @@ public string getDescription(const DiagID id) {
     if id == DiagID.warn_header_private_shipped {
         return "private '%0' is shipped as readable source in '%1' because a generic template in this module uses it"
     }
+    if id == DiagID.warn_sema_unused_variable {
+        return "unused variable '%0'"
+    }
+    if id == DiagID.warn_sema_shadow {
+        return "'%0' shadows the %1 of the same name declared in an enclosing scope"
+    }
     if id == DiagID.err_sema_bad_type_args {
         return "invalid type arguments for '%0': wrong argument count, not a generic type, or unresolved argument"
     }
@@ -412,4 +427,30 @@ public string getDescription(const DiagID id) {
         return "'%0' is already defined in this file with the same parameter types; overloads must differ in their parameters"
     }
     return "unknown diagnostic"
+}
+
+// warningName — the name a warning is switched off by (`--no-warn=<name>`), shown
+// after its message as "[<name>]"; "" for an id that is not a warning.
+public string warningName(const DiagID id) {
+    if id == DiagID.warn_sema_unused_variable {
+        return "unused-variable"
+    }
+    if id == DiagID.warn_sema_shadow {
+        return "shadow"
+    }
+    if id == DiagID.warn_header_private_shipped {
+        return "header-private"
+    }
+    return ""
+}
+
+// isWarningName — is `name` one of the warnings `--no-warn=` accepts?
+public bool isWarningName(const string name) {
+    if str.equals(name, "unused-variable") {
+        return true
+    }
+    if str.equals(name, "shadow") {
+        return true
+    }
+    return str.equals(name, "header-private")
 }

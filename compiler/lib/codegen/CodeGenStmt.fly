@@ -497,7 +497,7 @@ public class CodeGenStmt {
         }
         SemaExpr e = node.getExpr()
         if e != null {
-            pointer ignore = cge.gen(e)
+            pointer _ignore = cge.gen(e)
         }
         // `return x` with x a `new unique` owner: the object now belongs to the
         // caller, so x is left null and its scope-exit delete finds nothing.

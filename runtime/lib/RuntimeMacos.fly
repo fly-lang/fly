@@ -672,7 +672,7 @@ public void env_all_fill(const pointer arr_base, const int count) {
 }
 // env_init — accessors need no stored state; kept as a defined no-op.
 public void env_init(const int argc, const pointer argv) {
-    int unused = argc
+    int _unused = argc
 }
 
 // fillSlotFromCStr — copy the NUL-terminated C string `cstr` into a fresh malloc'd

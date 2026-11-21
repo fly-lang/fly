@@ -448,7 +448,7 @@ public class LspServer {
         if str.equals(path, this.compiledPath) {
             return
         }
-        List<LspDiag> ignored = this.analyzer.compileFile(path)
+        List<LspDiag> _ignored = this.analyzer.compileFile(path)
         this.compiledPath = path
         // Keep the coalescing state truthful: this compile saw these bytes, so
         // a later didSave with unchanged content can skip its own recompile.

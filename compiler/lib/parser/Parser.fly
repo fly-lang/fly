@@ -854,7 +854,7 @@ public class Parser {
                     this.reportErr(DiagID.err_parser_multiple_namespace)
                     go = false
                 } else {
-                    ASTNameSpace ns = this.parseNameSpace()
+                    ASTNameSpace _ns = this.parseNameSpace()
                     namespaceSeen = true
                 }
             } else {
@@ -968,20 +968,20 @@ public class Parser {
     public void parseNode(const ASTModule m) {
         // Nodes self-register into `this.module` via ASTBuilder.Create*.
         if this.curIsKw("import") {
-            ASTImport imp = this.parseImport()
+            ASTImport _imp = this.parseImport()
             return
         }
         List<ASTModifier> mods = this.parseModifiers()
         if this.curIsKw("class") || this.curIsKw("interface") || this.curIsKw("struct") || this.curIsKw("suite") {
-            ASTClass c = this.parseClass(mods)
+            ASTClass _c = this.parseClass(mods)
             return
         }
         if this.curIsKw("enum") {
-            ASTEnum e = this.parseEnum(mods)
+            ASTEnum _e = this.parseEnum(mods)
             return
         }
         // Otherwise a function: <ReturnType> name ( params ) { body }
-        ASTFunction f = this.parseFunction(mods)
+        ASTFunction _f = this.parseFunction(mods)
     }
 
     // ── ParseType ─────────────────────────────────────────────────────────────
@@ -1303,12 +1303,12 @@ public class Parser {
             return
         }
         if this.curIsKw("break") {
-            ASTBreakStmt b = ASTBuilder.CreateBreakStmt(block, this.curLoc())
+            ASTBreakStmt _b = ASTBuilder.CreateBreakStmt(block, this.curLoc())
             this.bump()
             return
         }
         if this.curIsKw("continue") {
-            ASTContinueStmt cs = ASTBuilder.CreateContinueStmt(block, this.curLoc())
+            ASTContinueStmt _cs = ASTBuilder.CreateContinueStmt(block, this.curLoc())
             this.bump()
             return
         }
@@ -1461,7 +1461,7 @@ public class Parser {
                && this.curIsKw("default") == false && this.hadErr() == false
         while go {
             if this.curIsKw("break") {
-                ASTBreakStmt b = ASTBuilder.CreateBreakStmt(body, this.curLoc())
+                ASTBreakStmt _b = ASTBuilder.CreateBreakStmt(body, this.curLoc())
                 this.bump()
             } else {
                 this.parseStmt(body)
@@ -1513,7 +1513,7 @@ public class Parser {
         SourceLocation loc = this.curLoc()
         this.expectKw("handle")
         ASTBlockStmt body = this.parseBlock()
-        ASTHandleStmt s = ASTBuilder.CreateHandleStmt(block, loc, body)
+        ASTHandleStmt _s = ASTBuilder.CreateHandleStmt(block, loc, body)
     }
 
     // ── test: `test { body }` ─────────────────────────────────────────────────
@@ -1569,7 +1569,7 @@ public class Parser {
             return
         }
         ASTExpr target = this.parseExpr()
-        ASTDeleteStmt d = ASTBuilder.CreateDeleteStmt(block, loc, target)
+        ASTDeleteStmt _d = ASTBuilder.CreateDeleteStmt(block, loc, target)
     }
 
     // parseReturn — `return`, `return expr`, or `return a, b` (one value per

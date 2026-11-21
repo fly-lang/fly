@@ -60,6 +60,9 @@ $D = "build/stage$STAGE/driver"
 Remove-Item $D -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $D | Out-Null
 $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
+# A warning in the tree's own code fails the build when the self-host compiles it
+# (the seed predates --warnings-as-errors).
+$WERR = @(); if ($STAGE -ne '1') { $WERR = @('--warnings-as-errors') }
 # The compiling fly reads its std headers from its own <exe>\..\lib: build\stage1\lib
 # at stage 1 (fly0.exe is linked there) and build\stage<N-1>\lib after. Mapping that
 # directory to "lib" keeps the path out of the DWARF and out of the positions in
@@ -73,7 +76,7 @@ Write-Host "stage${STAGE}: compiling driver + compiler (monolithic, from source)
 # compiler/lib/driver/Driver.fly) is discovered from --src-dir and its import
 # closure pulls the whole compiler. -c emits a clean object, no link attempt.
 & $FLY --src-dir compiler `
-    @DBG @MAP @FLY_TARGET_ARGS -c -o Driver --out-dir $D > "$D/emit.log" 2>&1
+    @DBG @MAP @WERR @FLY_TARGET_ARGS -c -o Driver --out-dir $D > "$D/emit.log" 2>&1
 if (-not (Test-Path "$D/Driver")) {
     Write-Host "error: driver object not emitted; see $D\emit.log:"
     Get-Content "$D/emit.log" | Select-String 'error:' | Select-Object -First 5 | ForEach-Object { Write-Host "      $_" }

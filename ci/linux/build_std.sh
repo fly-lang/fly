@@ -44,11 +44,14 @@ STD=std/lib
 # DIRECTORY CLI: --lib compiles the whole --src-dir — std/lib IS the library.
 # FLY_DEBUG_SYMBOLS=1 → emit DWARF so a self-host crash symbolizes to a source line.
 DBG=""; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && DBG="--debug-symbols"
+# A warning in the tree's own code fails the build when the self-host compiles it
+# (the seed predates --warnings-as-errors).
+WERR=""; [ "$BY_SEED" = 1 ] || WERR="--warnings-as-errors"
 WHO="the seed"; [ "$BY_SEED" = 1 ] || WHO="the stage-1 fly"
 echo "stage$STAGE: compiling std/lib with $WHO ...${DBG:+ (+debug-symbols)}"
 # --lib emits one merged object; archive it. --out-dir is required: without it
 # the self-host writes each module's `.fly.h` next to its source, inside std/lib.
-"$FLY" --lib $DBG -o fly_std_lib --out-dir "$T" --src-dir "$STD"
+"$FLY" --lib $DBG $WERR -o fly_std_lib --out-dir "$T" --src-dir "$STD"
 [ -f "$T/fly_std_lib" ] || { echo "error: std object not emitted." >&2; exit 1; }
 rm -f "$LIB/fly_std_lib.a"
 "${AR:-ar}" rcs "$LIB/fly_std_lib.a" "$T/fly_std_lib"

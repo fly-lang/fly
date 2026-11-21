@@ -137,7 +137,7 @@ public class CodeGenBridge {
             node.setLlvmValue(0)
             return
         }
-        pointer symV = cge.gen(symE)             // records the text in lastStrLit
+        pointer _symV = cge.gen(symE)             // records the text in lastStrLit
         string sym = cge.getLastStrLit()
 
         // 1) marshal the Args-struct fields (base fields first — struct layout order)

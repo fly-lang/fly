@@ -48,7 +48,7 @@ public class Registry {
         SymbolTable nsScope = new SymbolTable(this.globalScope)
         this.defaultNameSpace = new SemaNameSpace("default", nsScope)
         Symbol nsSym = new Symbol(this.defaultNameSpace.getName(), SymbolKind.NAMESPACE, this.defaultNameSpace)
-        bool ok = this.globalScope.insert(nsSym)
+        bool _ok = this.globalScope.insert(nsSym)
         this.modules = new List<SemaModule>()
         this.bodies = new List<SemaFunctionBase>()
         this.genericFns = new Map<string, SemaFunction>()
@@ -114,33 +114,33 @@ public class Registry {
     public SymbolTable createBuiltinScope() {
         SymbolTable b = new SymbolTable(null)
         SemaType bt = SemaBuiltin.getBoolType()
-        bool r0 = b.insert(new Symbol(bt.getName(), SymbolKind.BUILTIN_TYPE, bt))
+        bool _r0 = b.insert(new Symbol(bt.getName(), SymbolKind.BUILTIN_TYPE, bt))
         SemaType byT = SemaBuiltin.getByteType()
-        bool r1 = b.insert(new Symbol(byT.getName(), SymbolKind.BUILTIN_TYPE, byT))
+        bool _r1 = b.insert(new Symbol(byT.getName(), SymbolKind.BUILTIN_TYPE, byT))
         SemaType usT = SemaBuiltin.getUShortType()
-        bool r2 = b.insert(new Symbol(usT.getName(), SymbolKind.BUILTIN_TYPE, usT))
+        bool _r2 = b.insert(new Symbol(usT.getName(), SymbolKind.BUILTIN_TYPE, usT))
         SemaType shT = SemaBuiltin.getShortType()
-        bool r3 = b.insert(new Symbol(shT.getName(), SymbolKind.BUILTIN_TYPE, shT))
+        bool _r3 = b.insert(new Symbol(shT.getName(), SymbolKind.BUILTIN_TYPE, shT))
         SemaType uiT = SemaBuiltin.getUIntType()
-        bool r4 = b.insert(new Symbol(uiT.getName(), SymbolKind.BUILTIN_TYPE, uiT))
+        bool _r4 = b.insert(new Symbol(uiT.getName(), SymbolKind.BUILTIN_TYPE, uiT))
         SemaType iT = SemaBuiltin.getIntType()
-        bool r5 = b.insert(new Symbol(iT.getName(), SymbolKind.BUILTIN_TYPE, iT))
+        bool _r5 = b.insert(new Symbol(iT.getName(), SymbolKind.BUILTIN_TYPE, iT))
         SemaType ulT = SemaBuiltin.getULongType()
-        bool r6 = b.insert(new Symbol(ulT.getName(), SymbolKind.BUILTIN_TYPE, ulT))
+        bool _r6 = b.insert(new Symbol(ulT.getName(), SymbolKind.BUILTIN_TYPE, ulT))
         SemaType lT = SemaBuiltin.getLongType()
-        bool r7 = b.insert(new Symbol(lT.getName(), SymbolKind.BUILTIN_TYPE, lT))
+        bool _r7 = b.insert(new Symbol(lT.getName(), SymbolKind.BUILTIN_TYPE, lT))
         SemaType pzT = SemaBuiltin.getPtrSizeType()
-        bool r7a = b.insert(new Symbol(pzT.getName(), SymbolKind.BUILTIN_TYPE, pzT))
+        bool _r7a = b.insert(new Symbol(pzT.getName(), SymbolKind.BUILTIN_TYPE, pzT))
         SemaType fT = SemaBuiltin.getFloatType()
-        bool r8 = b.insert(new Symbol(fT.getName(), SymbolKind.BUILTIN_TYPE, fT))
+        bool _r8 = b.insert(new Symbol(fT.getName(), SymbolKind.BUILTIN_TYPE, fT))
         SemaType dT = SemaBuiltin.getDoubleType()
-        bool r9 = b.insert(new Symbol(dT.getName(), SymbolKind.BUILTIN_TYPE, dT))
+        bool _r9 = b.insert(new Symbol(dT.getName(), SymbolKind.BUILTIN_TYPE, dT))
         SemaType sT = SemaBuiltin.getStringType()
-        bool r10 = b.insert(new Symbol(sT.getName(), SymbolKind.BUILTIN_TYPE, sT))
+        bool _r10 = b.insert(new Symbol(sT.getName(), SymbolKind.BUILTIN_TYPE, sT))
         SemaType vT = SemaBuiltin.getVoidType()
-        bool r11 = b.insert(new Symbol(vT.getName(), SymbolKind.BUILTIN_TYPE, vT))
+        bool _r11 = b.insert(new Symbol(vT.getName(), SymbolKind.BUILTIN_TYPE, vT))
         SemaType eT = SemaBuiltin.getErrorType()
-        bool r12 = b.insert(new Symbol(eT.getName(), SymbolKind.BUILTIN_TYPE, eT))
+        bool _r12 = b.insert(new Symbol(eT.getName(), SymbolKind.BUILTIN_TYPE, eT))
         return b
     }
 
@@ -170,7 +170,7 @@ public class Registry {
                 } else {
                     SymbolTable childScope = new SymbolTable(currentScope)
                     ns = new SemaNameSpace(n.getName(), childScope)
-                    bool ok = currentScope.insert(new Symbol(n.getName(), SymbolKind.NAMESPACE, ns))
+                    bool _ok = currentScope.insert(new Symbol(n.getName(), SymbolKind.NAMESPACE, ns))
                     currentScope.addChild(childScope)
                     this.nsByPath.put(path, ns)
                     currentScope = childScope
@@ -272,8 +272,14 @@ public class Registry {
         return this.LookupFunction(fnName, argTypes, ns.getSymbols())
     }
 
+    // LookupName — the symbol a name denotes in `scope`; finding it counts as a use
+    // (what the unused-variable warning checks at the end of a block).
     public Symbol LookupName(const string name, const SymbolTable scope) {
-        return firstOf(scope.lookupInParents(name))
+        Symbol s = firstOf(scope.lookupInParents(name))
+        if s != null {
+            s.setUsed(true)
+        }
+        return s
     }
 
     // LookupFunctionExact — first FUNCTION symbol whose explicit signature exactly

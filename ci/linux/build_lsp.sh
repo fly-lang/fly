@@ -34,10 +34,12 @@ FLY="build/stage$STAGE/bin/fly"
 [ -f tools/lsp/lib/FlyLsp.fly ] || { echo "error: tools/lsp/lib/FlyLsp.fly not found." >&2; exit 1; }
 
 DBG=""; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && DBG="--debug-symbols"
+# A warning in the tool's code fails the build (always the self-host here).
+WERR="--warnings-as-errors"
 
 echo "stage$STAGE: compiling tools/lsp (monolithic, compiler from source) ..."
 "$FLY" --entry tools/lsp/lib/FlyLsp.fly --src-dir tools/lsp --src-dir compiler/lib \
-       $DBG -c -o FlyLsp --out-dir "$D" -L "$LIB"
+       $DBG $WERR -c -o FlyLsp --out-dir "$D" -L "$LIB"
 
 # The emitted object's name varies by producer, as in build_compiler.sh.
 OBJ=""
