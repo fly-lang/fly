@@ -6,7 +6,6 @@ import fly.data.List
 import fly.os.fs
 import fly.os.path
 import fly.str
-import fly.os.io
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HeaderGen — writes a `.fly.h` declaration file for the PUBLIC API of a module,

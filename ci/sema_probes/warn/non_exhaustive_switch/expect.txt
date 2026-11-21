@@ -1,0 +1,3 @@
+main.fly:9:5: warning: switch over 'Color' has no default and does not handle: GREEN, BLUE
+!main.fly:18:
+!main.fly:29:

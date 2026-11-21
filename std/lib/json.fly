@@ -1,7 +1,6 @@
 namespace fly.json
 
 import fly.llvm
-import fly.runtime
 import fly.mem
 import fly.str
 

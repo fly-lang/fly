@@ -251,19 +251,28 @@ suite LspAnalyzerSuite {
     void compileTest() {
         case "a file without errors gets only its warnings, at severity 2": {
             // The fixture is error-free; its locals result, px and py are never read
-            // (they exist for the navigation queries), so the compiler warns about
-            // them, and a warning reaches the editor as a warning, not an error.
+            // and its `import fly.str` is never used (they exist for the navigation
+            // queries), so the compiler warns about them, and a warning reaches the
+            // editor as a warning, not an error.
             writeNavFixture()
             LspAnalyzer a = new LspAnalyzer()
             List<LspDiag> d = a.compileFile(navFixturePath())
-            assert.assertEqI((int)d.size(), 3, 201)
+            assert.assertEqI((int)d.size(), 4, 201)
+            int vars = 0
+            int imports = 0
             int w = 0
             while w < (int)d.size() {
                 LspDiag dw = d.get(w)
                 assert.assertEqI(dw.severity, 2, 208)
-                assert.assertTrue(str.contains(dw.message, "unused variable"), 209)
+                if str.contains(dw.message, "unused variable") {
+                    vars = vars + 1
+                } elsif str.contains(dw.message, "unused import") {
+                    imports = imports + 1
+                }
                 w = w + 1
             }
+            assert.assertEqI(vars, 3, 209)
+            assert.assertEqI(imports, 1, 210)
             fs.dirDeleteAll(navFixtureDir())
         }
         case "a sema error is reported with its real position": {

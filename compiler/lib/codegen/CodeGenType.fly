@@ -4,7 +4,6 @@ import fly.compiler.sema.*
 import fly.compiler.target.*
 import fly.compiler.codegen.CodeGenLLVM
 import llvm.api.*
-import fly.mem
 import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────

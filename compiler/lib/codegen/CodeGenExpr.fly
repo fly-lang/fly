@@ -15,7 +15,6 @@ import fly.compiler.codegen.CodeGenCall
 import fly.compiler.codegen.CodeGenClass
 import fly.compiler.codegen.CodeGenError
 import llvm.api.*
-import fly.mem
 import fly.data.List
 import fly.str
 

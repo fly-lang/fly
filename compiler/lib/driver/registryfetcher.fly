@@ -6,7 +6,6 @@ import fly.json
 import fly.targz
 import fly.net.http
 import fly.os.fs
-import fly.os.proc
 import fly.os.io
 
 // ─────────────────────────────────────────────────────────────────────────────

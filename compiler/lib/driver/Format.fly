@@ -1,6 +1,5 @@
 namespace fly.driver
 
-import fly.compiler.parser.Parser
 import fly.compiler.basic.*
 import fly.compiler.ast.*
 import fly.data.List

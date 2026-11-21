@@ -520,7 +520,8 @@ public void randSeed(fly_rng rng, const ulong seed) {
 public double randFloat(fly_rng rng) {
     ulong r = fly.math.rngNext(rng)
     ulong m = r >> 11
-    double d = m
+    // 53 bits: exactly what a double's mantissa holds, so the conversion is exact
+    double d = (double)m
     return d * 1.1102230246251565e-16
 }
 

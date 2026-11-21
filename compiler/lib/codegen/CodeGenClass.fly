@@ -12,7 +12,6 @@ import fly.compiler.codegen.CodeGenIntrinsics
 import fly.compiler.codegen.CodeGenTrace
 import fly.compiler.codegen.CodeGenStmt
 import llvm.api.*
-import fly.mem
 import fly.data.List
 import fly.str
 import fly.math

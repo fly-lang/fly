@@ -5,7 +5,6 @@ import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaNode
 import fly.compiler.sema.SemaType
 import fly.compiler.sema.SemaCall
-import fly.mem
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SemaExpr — base of every resolved expression, a 1:1 port of C++ SemaExpr

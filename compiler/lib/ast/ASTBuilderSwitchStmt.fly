@@ -2,7 +2,6 @@ namespace fly.compiler.ast
 
 import fly.compiler.basic.*
 import fly.compiler.ast.*
-import fly.data.*
 
 // ASTBuilderSwitchStmt — 1:1 port of fly/.../ASTBuilderSwitchStmt.cpp.
 public class ASTBuilderSwitchStmt {

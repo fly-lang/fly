@@ -470,6 +470,7 @@ public class ResolverStmt {
             ssw.setDefault(dBlk)
         }
 
+        ResolverStmt.warnNonExhaustive(r, node, sExpr)
         r.exitSwitch()
         SemaBlockStmt blk = r.getCurrentSemaBlock()
         if blk != null {
@@ -479,7 +480,65 @@ public class ResolverStmt {
         r.setStmtExits(allExit)
     }
 
-    // loop — init / condition / body / post, all sharing one loop scope.
+    // warnNonExhaustive — a switch over an enum, with no default, that leaves some
+    // of the enum's values out: those values go through the switch doing nothing,
+    // which is usually a value added to the enum and forgotten here. The values
+    // are read from the case labels as written (`Color.RED`, `RED`).
+    public static void warnNonExhaustive(const Resolver r, const ASTSwitchStmt node, const SemaExpr sExpr) {
+        if sExpr == null || node.getDefault() != null {
+            return
+        }
+        SemaType st = sExpr.getType()
+        if st == null {
+            return
+        }
+        SemaEnumType et = st.asEnum()
+        if et == null {
+            return
+        }
+        List<string> covered = new List<string>()
+        List<ASTCaseStmt> cases = node.getCases()
+        int i = 0
+        while i < cases.size() {
+            ASTCaseStmt c = cases.get(i)
+            ASTExpr ce = c.getExpr()
+            if ce != null {
+                ASTExprKind k = ce.getExprKind()
+                if k == ASTExprKind.EXPR_MEMBER {
+                    ASTMember m = ce.asMember()
+                    covered.add(m.getName())
+                } elsif k == ASTExprKind.EXPR_IDENTIFIER {
+                    ASTIdentifier id = ce.asIdentifier()
+                    covered.add(id.getName())
+                }
+            }
+            i = i + 1
+        }
+        string missing = ""
+        int count = 0
+        List<ASTNode> nodes = et.getAST().getNodes()
+        int j = 0
+        while j < nodes.size() {
+            ASTNode n = nodes.get(j)
+            ASTEnumEntry e = n.asEnumEntry()
+            if e != null && listHasName(covered, e.getName()) == false {
+                if count < 4 {
+                    if count > 0 {
+                        missing = str.concat(missing, ", ")
+                    }
+                    missing = str.concat(missing, e.getName())
+                }
+                count = count + 1
+            }
+            j = j + 1
+        }
+        if count > 4 {
+            missing = str.concat(missing, str.concat(" and ", str.concat(str.convert(count - 4), " more")))
+        }
+        if count > 0 {
+            r.diagStr2(node.getLoc(), DiagID.warn_sema_non_exhaustive_switch, et.getName(), missing)
+        }
+    }    // loop — init / condition / body / post, all sharing one loop scope.
     public static void loopStmt(const Resolver r, const ASTLoopStmt node) {
         SemaLoopStmt slp = SemaBuilder.CreateLoopStmt(node, false)
         r.enterLoop()

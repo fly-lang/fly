@@ -803,6 +803,23 @@ public void checkNarrowing(const Resolver r, const SourceLocation loc, const Sem
     }
     int lr = lhs.getRank()
     int rr = rhs.getRank()
+    // An integer into a floating type is implicit but may round: a float holds 24
+    // bits of mantissa, a double 53. Warned (not rejected) beyond that, unless the
+    // value is a literal, whose rounding the program can see.
+    if rhs.isInteger() && lhs.isInteger() == false {
+        int ibits = rr
+        if ibits % 2 == 1 {
+            ibits = ibits + 1
+        }
+        int mbits = 24
+        if lr > 320 {
+            mbits = 53
+        }
+        if ibits > mbits && rhsExpr != r.getLitExpr() {
+            r.diagStr2(loc, DiagID.warn_sema_lossy_conversion, rhs.getName(), lhs.getName())
+        }
+        return
+    }
     // A signed value into an unsigned type has no counterpart when it is negative
     // (`uint u = -1` is 4294967295): it needs a cast, whatever the ranks, unless it
     // is a literal that fits. `pointer` is exempt: address arithmetic.

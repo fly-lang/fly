@@ -13,7 +13,6 @@ import fly.compiler.ast.ASTStructValue
 import fly.compiler.ast.ASTNullValue
 import fly.compiler.ast.ASTUnsetValue
 import fly.data.List
-import fly.data.Map
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SemaValue — resolved literal values, 1:1 with C++ SemaValue and subclasses.

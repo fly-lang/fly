@@ -4,7 +4,6 @@ import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaExpr
 import fly.compiler.sema.SemaType
 import fly.compiler.ast.ASTVar
-import fly.mem
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SemaVar — base of the resolved variable kinds (local var, parameter, class

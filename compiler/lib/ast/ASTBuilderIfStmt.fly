@@ -2,7 +2,6 @@ namespace fly.compiler.ast
 
 import fly.compiler.basic.*
 import fly.compiler.ast.*
-import fly.data.*
 
 // ASTBuilderIfStmt — 1:1 port of fly/.../ASTBuilderIfStmt.cpp. Fluent builder for
 // an if / elsif* / else chain.

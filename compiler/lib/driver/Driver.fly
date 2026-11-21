@@ -1356,7 +1356,8 @@ public class Driver {
         io.printErrLn("  -v, --verbose   log each compilation phase")
         io.printErrLn("  -w, --no-warning  report no warning")
         io.printErrLn("  --warnings-as-errors  a warning fails the build like an error")
-        io.printErrLn("  --no-warn=NAME  switch off one warning: unused-variable, shadow, header-private")
+        io.printErrLn("  --no-warn=NAME  switch off a warning: unused-variable, unused-import, shadow,")
+        io.printErrLn("                  lossy-conversion, non-exhaustive-switch, header-private")
         io.printErrLn("  --version       print version")
         io.printErrLn("  --help          display this help")
     }

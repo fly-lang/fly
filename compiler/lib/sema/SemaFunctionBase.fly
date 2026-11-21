@@ -1,7 +1,6 @@
 namespace fly.compiler.sema
 
 import fly.compiler.sema.SemaKind
-import fly.mem
 import fly.compiler.sema.SemaNode
 import fly.compiler.sema.SemaType
 import fly.compiler.sema.SemaParam

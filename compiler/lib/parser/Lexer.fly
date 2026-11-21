@@ -1,6 +1,5 @@
 namespace fly.compiler.parser
 import fly.compiler.basic.*
-import fly.compiler.ast.*
 import fly.compiler.parser.*
 import fly.str
 

@@ -5,7 +5,6 @@ import fly.str
 import fly.os.fs
 import fly.os.io
 import fly.os.path
-import fly.os.env
 import fly.compiler.basic.*
 import fly.os.proc
 

@@ -1,0 +1,5 @@
+main.fly:6:16: warning: 'long' to 'double' may round
+main.fly:8:15: warning: 'int' to 'float' may round
+!main.fly:9:
+!main.fly:11:
+!main.fly:12:

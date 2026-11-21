@@ -4,7 +4,6 @@ import fly.compiler.ast.ASTModule
 import fly.data.Map
 import fly.os.fs
 import fly.os.fs.Stat
-import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ASTModuleCache — parsed modules reused across compiles of the same process.

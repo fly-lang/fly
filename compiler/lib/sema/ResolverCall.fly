@@ -5,7 +5,6 @@ import fly.compiler.ast.*
 import fly.compiler.basic.*
 import fly.data.List
 import fly.str
-import fly.os.io
 
 // ResolverCall — call resolution companion (decomposed into small helpers; the C++
 // visit(ASTCall) is ~530 lines). Stage-6 scope: exact-match resolution of a free

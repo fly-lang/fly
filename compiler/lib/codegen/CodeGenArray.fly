@@ -1,7 +1,6 @@
 namespace fly.compiler.codegen
 
 import fly.compiler.sema.*
-import fly.compiler.ast.*
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenModule
 import fly.compiler.codegen.CodeGenLLVM

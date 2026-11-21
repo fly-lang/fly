@@ -11,11 +11,8 @@ import fly.compiler.codegen.CodeGenClass
 import fly.compiler.codegen.CodeGenTrace
 import fly.compiler.codegen.CodeGenStmt
 import llvm.api.*
-import fly.mem
 import fly.data.List
-import fly.data.Map
 import fly.str
-import fly.os.io
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenModule — owns the LLVM context/module/builder and drives lowering of the
