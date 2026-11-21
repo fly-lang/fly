@@ -45,15 +45,16 @@ done
 DBG=""; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && DBG="--debug-symbols"
 # Same mapping as build_compiler.sh: the stage2 fly reads its headers from
 # build/stage2/lib, the one that built stage 2 from build/stage1/lib — both
-# become "lib" in the DWARF, or the objects would differ by that path alone.
-[ -n "$DBG" ] && DBG="$DBG --debug-prefix-map=$(cd build/stage2/lib && pwd)=lib"
+# become "lib" in the DWARF and in trap messages, or the objects would differ by
+# that path alone. Passed with or without debug symbols.
+MAP="--debug-prefix-map=$(cd build/stage2/lib && pwd)=lib"
 
 # Compile the compiler with the STAGE-2 fly into $1; print the object path.
 # Same invocation as build_compiler.sh STAGE=2 (self-host: -c, no link).
 build_driver() {
     local dir="$1"
     rm -rf "$dir"; mkdir -p "$dir"
-    "$FLY2" --src-dir compiler $DBG -c -o Driver --out-dir "$dir" > "$dir/emit.log" 2>&1 || true
+    "$FLY2" --src-dir compiler $DBG $MAP -c -o Driver --out-dir "$dir" > "$dir/emit.log" 2>&1 || true
     if [ ! -f "$dir/Driver" ]; then
         echo "error: stage3 driver object not emitted; see $dir/emit.log:" >&2
         grep -m5 -E 'error:|broken|abort' "$dir/emit.log" | sed 's/^/      /' >&2 || true

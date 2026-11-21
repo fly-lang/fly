@@ -65,6 +65,14 @@ public class CodeGenLLVM {
         this.freeBuf(buf, n)
     }
 
+    // structTypeN — LLVMStructTypeInContext (literal, not packed) over an element list.
+    public void structTypeN(const pointer ctx, const List<pointer> elemAddrs, pointer ty) {
+        int n = (int)elemAddrs.size()
+        pointer buf = this.packAddrs(elemAddrs)
+        this.llvm.structTypeInContext(ctx, buf, n, false, ty)
+        this.freeBuf(buf, n)
+    }
+
     // structSetBodyN — LLVMStructSetBody over a marshalled element-type array.
     public void structSetBodyN(const pointer structTy, const List<pointer> elemAddrs, const bool packed) {
         int n = (int)elemAddrs.size()

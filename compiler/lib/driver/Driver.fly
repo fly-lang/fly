@@ -319,9 +319,10 @@ public class Driver {
             } elsif str.equals(a, "--debug-symbols") {
                 debugSymbols = true
             } elsif str.startsWith(a, "--debug-prefix-map=") {
-                // clang's -fdebug-prefix-map: rewrite a directory prefix in the
-                // DWARF file names, so where the sources (or the compiler) sit
-                // does not leak into the object. OLD=NEW, split at the first '='.
+                // clang's -ffile-prefix-map: rewrite a directory prefix in the
+                // DWARF file names and in the positions of run-time trap
+                // messages, so where the sources (or the compiler) sit does not
+                // leak into the object. OLD=NEW, split at the first '='.
                 string dpmPair = this.eqValue(a)
                 if str.indexOf(dpmPair, "=") <= 0 {
                     io.printErrLn(str.concat("error: --debug-prefix-map expects OLD=NEW, got: ", dpmPair))
@@ -1332,7 +1333,7 @@ public class Driver {
         io.printErrLn("                  a namespace runs every suite declared under it (prefix match)")
         io.printErrLn("  --debug         verbose logging (+ --debug-symbols)")
         io.printErrLn("  --debug-symbols emit DWARF: source lines, parameters and local variables")
-        io.printErrLn("  --debug-prefix-map=OLD=NEW  write NEW instead of the directory prefix OLD in the DWARF file names")
+        io.printErrLn("  --debug-prefix-map=OLD=NEW  write NEW for the directory prefix OLD (DWARF, trap positions)")
         io.printErrLn("  --trace-calls   log every function entry/exit via fly.log (visible at FLY_LOG_LEVEL=trace)")
         io.printErrLn("  --print-stats   print compilation statistics to stderr")
         io.printErrLn("  --ftime-report  phase timers (no effect yet: a warning says so)")

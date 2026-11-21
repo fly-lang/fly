@@ -15,6 +15,7 @@ import llvm.api.*
 import fly.mem
 import fly.data.List
 import fly.str
+import fly.math
 import fly.os.io
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -342,7 +343,7 @@ public class CodeGenClass {
             byte kb = str.byteAt(key, i)
             int kc = kb & 255
             h = h ^ kc
-            h = h * 1099511628211
+            h = math.wrapMulL(h, 1099511628211)
             i = i + 1
         }
         if h == 0 {

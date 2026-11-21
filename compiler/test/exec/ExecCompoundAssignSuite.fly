@@ -59,11 +59,11 @@ suite ExecCompoundAssignSuite {
     }
 
     void widthTest() {
-        case "byte compound wraps in the byte width": {
+        case "byte compound stays in the byte width": {
             byte w = (byte)200
-            w += (byte)100                               // 300 & 255 = 44
+            w += (byte)50                                // 250: fits (300 would trap)
             int wi = (int)w
-            assert.assertEqI(wi & 255, 44, 301)
+            assert.assertEqI(wi & 255, 250, 301)
         }
         case "long compound keeps 64-bit magnitude": {
             long l = 4294967296

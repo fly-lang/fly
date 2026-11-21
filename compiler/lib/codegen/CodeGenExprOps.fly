@@ -8,6 +8,7 @@ import fly.compiler.codegen.CodeGenStmt
 import llvm.api.*
 import fly.mem
 import fly.data.List
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenExprOps — static companions for the larger binary/unary/cast operators,
@@ -350,10 +351,86 @@ public class CodeGenExprOps {
         r = cge.coerce(r, right.getType(), t)
         bool uns = cge.isUnsignedInt(t)
         r = CodeGenExprOps.divCheck(cge, k, l, r, isF, uns)
-        pointer v = CodeGenExprOps.arithValues(cge, k, l, r, isF, uns)
+        bool checked = CodeGenExprOps.isCheckedInt(t) && CodeGenExprOps.isCheckedInt(left.getType()) &&
+                CodeGenExprOps.isCheckedInt(right.getType())
+        pointer v = CodeGenExprOps.arithValues(cge, k, l, r, isF, uns, checked)
         node.setLlvmValue(v)
     }
 
+    // isCheckedInt — an integer type whose `+ - *` stop on overflow: every integer
+    // type except `pointer`, whose arithmetic is address arithmetic (an offset
+    // added as a large unsigned value must wrap, not trap).
+    public static bool isCheckedInt(const SemaType t) {
+        if t == null {
+            return false
+        }
+        if t.isInteger() == false {
+            return false
+        }
+        return str.equals(t.getName(), "pointer") == false
+    }
+
+    // checkedArith — integer `+`, `-` or `*` (op "add", "sub" or "mul") that stops the
+    // program on overflow, in every build: llvm.{s,u}<op>.with.overflow.iN yields the
+    // wrapped result and an overflow bit, and trapIf stops on the bit with "error 134:
+    // integer overflow in '<sym>' at <file>:<line>:<col>". Two constant operands are
+    // folded by the builder instead (a constant expression is computed at compile
+    // time). Arithmetic that must wrap says so: math.wrapAdd and its siblings.
+    public static pointer checkedArith(const CodeGenExpr cge, const string op, const pointer l, const pointer r,
+            const bool uns, const string sym) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        pointer v
+        if llvm.isConstInt(l) && llvm.isConstInt(r) {
+            if str.equals(op, "add") {
+                llvm.buildAdd(b, l, r, "add", v)
+            } elsif str.equals(op, "sub") {
+                llvm.buildSub(b, l, r, "sub", v)
+            } else {
+                llvm.buildMul(b, l, r, "mul", v)
+            }
+            return v
+        }
+        CodeGenModule cgm = cge.getCgm()
+        CodeGenLLVM cg = cgm.getCg()
+        pointer ty
+        llvm.typeOf(l, ty)
+        int w = llvm.intTypeWidth(ty)
+        string sgn = "llvm.s"
+        if uns {
+            sgn = "llvm.u"
+        }
+        string head = str.concat(sgn, str.concat(op, ".with.overflow.i"))
+        string iname = str.concat(head, str.convert(w))
+        pointer i1t
+        llvm.int1TypeInContext(cgm.getCtx(), i1t)
+        List<pointer> elems = new List<pointer>()
+        elems.add(ty)
+        elems.add(i1t)
+        pointer sty
+        cg.structTypeN(cgm.getCtx(), elems, sty)
+        List<pointer> ptys = new List<pointer>()
+        ptys.add(ty)
+        ptys.add(ty)
+        pointer fty
+        cg.functionTypeN(sty, ptys, false, fty)
+        pointer fn
+        llvm.getNamedFunction(cgm.getModule(), iname, fn)
+        if fn == 0 {
+            llvm.addFunction(cgm.getModule(), iname, fty, fn)
+        }
+        List<pointer> args = new List<pointer>()
+        args.add(l)
+        args.add(r)
+        pointer pair
+        cg.buildCallN(b, fty, fn, args, "ovf", pair)
+        llvm.buildExtractValue(b, pair, 0, "val", v)
+        pointer o
+        llvm.buildExtractValue(b, pair, 1, "ovfbit", o)
+        string what = str.concat("integer overflow in '", str.concat(sym, "'"))
+        cge.trapIf(o, what, "ovf")
+        return v
+    }
     // divCheck — before an integer `/` or `%`, in every build: a zero divisor stops
     // the program with "error 134: division by zero at <file>:<line>:<col>", and a
     // signed `/` of the minimum value by -1 (whose result does not fit) with
@@ -413,28 +490,34 @@ public class CodeGenExprOps {
     }
 
     // arithValues — emit one arithmetic/bitwise/shift op over two ALREADY
-    // coerced values (shared by arith() and compoundAssign()).
-    public static pointer arithValues(const CodeGenExpr cge, const ASTBinaryKind k,
-                                      const pointer l, const pointer r,
-                                      const bool isF, const bool uns) {
+    // coerced values (shared by arith() and compoundAssign()). `checked`: an integer type
+    // whose `+ - *` stop on overflow (isCheckedInt).
+    public static pointer arithValues(const CodeGenExpr cge, const ASTBinaryKind k, const pointer l,
+            const pointer r, const bool isF, const bool uns, const bool checked) {
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         pointer v
         if k == ASTBinaryKind.OP_BINARY_ARITH_ADD {
             if isF {
                 llvm.buildFAdd(b, l, r, "add", v)
+            } elsif checked {
+                v = CodeGenExprOps.checkedArith(cge, "add", l, r, uns, "+")
             } else {
                 llvm.buildAdd(b, l, r, "add", v)
             }
         } elsif k == ASTBinaryKind.OP_BINARY_ARITH_SUB {
             if isF {
                 llvm.buildFSub(b, l, r, "sub", v)
+            } elsif checked {
+                v = CodeGenExprOps.checkedArith(cge, "sub", l, r, uns, "-")
             } else {
                 llvm.buildSub(b, l, r, "sub", v)
             }
         } elsif k == ASTBinaryKind.OP_BINARY_ARITH_MUL {
             if isF {
                 llvm.buildFMul(b, l, r, "mul", v)
+            } elsif checked {
+                v = CodeGenExprOps.checkedArith(cge, "mul", l, r, uns, "*")
             } else {
                 llvm.buildMul(b, l, r, "mul", v)
             }
@@ -540,7 +623,27 @@ public class CodeGenExprOps {
         bool uns = cge.isUnsignedInt(at)
         ASTBinaryKind ak = CodeGenExprOps.toArithKind(ck)
         r = CodeGenExprOps.divCheck(cge, ak, l, r, isF, uns)
-        pointer v = CodeGenExprOps.arithValues(cge, ak, l, r, isF, uns)
+        bool checked = CodeGenExprOps.isCheckedInt(at) && CodeGenExprOps.isCheckedInt(lt) &&
+                CodeGenExprOps.isCheckedInt(rt)
+        pointer v = CodeGenExprOps.arithValues(cge, ak, l, r, isF, uns, checked)
+        // `s += 1` on a narrower variable is computed in the wider type `at`: the
+        // result must still fit the variable, or the store would cut it silently
+        bool arithOp = ak == ASTBinaryKind.OP_BINARY_ARITH_ADD || ak == ASTBinaryKind.OP_BINARY_ARITH_SUB ||
+                ak == ASTBinaryKind.OP_BINARY_ARITH_MUL || ak == ASTBinaryKind.OP_BINARY_ARITH_DIV
+        if checked && arithOp && cge.numWidth(lt) < cge.numWidth(at) {
+            pointer cut
+            llvm.buildTrunc(b, v, lty, "fit", cut)
+            pointer back
+            if cge.isUnsignedInt(lt) {
+                llvm.buildZExt(b, cut, cge.lowerType(at), "fitback", back)
+            } else {
+                llvm.buildSExt(b, cut, cge.lowerType(at), "fitback", back)
+            }
+            pointer lost
+            llvm.buildICmp(b, 33, back, v, "fitlost", lost)
+            string what = str.concat("integer overflow: the result does not fit in '", str.concat(lt.getName(), "'"))
+            cge.trapIf(lost, what, "fit")
+        }
         v = cge.coerce(v, at, lt)
         llvm.buildStore(cge.getBuilder(), v, addr)
         node.setLlvmValue(v)
@@ -900,6 +1003,14 @@ public class CodeGenExprOps {
             pointer nv2
             if isF {
                 llvm.buildFNeg(b, nval, "neg", nv2)
+            } elsif CodeGenExprOps.isCheckedInt(nt) {
+                // -x is 0 - x: the minimum of a signed type has no opposite, and an
+                // unsigned value has one only when it is 0
+                pointer nty
+                llvm.typeOf(nval, nty)
+                pointer zero
+                llvm.constNull(nty, zero)
+                nv2 = CodeGenExprOps.checkedArith(cge, "sub", zero, nval, cge.isUnsignedInt(nt), "-")
             } else {
                 llvm.buildNeg(b, nval, "neg", nv2)
             }
@@ -916,7 +1027,15 @@ public class CodeGenExprOps {
         llvm.constInt(ty, 1, true, one)
         pointer nv
         bool incr = k == ASTUnaryKind.OP_UNARY_PRE_INCR || k == ASTUnaryKind.OP_UNARY_POST_INCR
-        if incr {
+        SemaType et = e.getType()
+        if CodeGenExprOps.isCheckedInt(et) {
+            bool eu = cge.isUnsignedInt(et)
+            if incr {
+                nv = CodeGenExprOps.checkedArith(cge, "add", old, one, eu, "++")
+            } else {
+                nv = CodeGenExprOps.checkedArith(cge, "sub", old, one, eu, "--")
+            }
+        } elsif incr {
             llvm.buildAdd(b, old, one, "inc", nv)
         } else {
             llvm.buildSub(b, old, one, "dec", nv)

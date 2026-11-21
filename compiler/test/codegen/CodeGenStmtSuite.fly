@@ -67,7 +67,7 @@ suite CodeGenStmtSuite {
             assert.assertTrue(str.contains(ir, "loopbody"), 26)
             assert.assertTrue(str.contains(ir, "looppost"), 27)
             assert.assertTrue(str.contains(ir, "icmp slt i32"), 28)
-            assert.assertTrue(str.contains(ir, "add i32"), 29)
+            assert.assertTrue(str.contains(ir, "llvm.sadd.with.overflow.i32"), 29)
         }
     }
 

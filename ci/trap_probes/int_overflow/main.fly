@@ -1,0 +1,9 @@
+int total(const int a, const int b) {
+    return a + b
+}
+
+// An integer `+`, `-` or `*` whose result does not fit its type stops the
+// program, in every build: the wrapping result is asked for with math.wrapAdd.
+void main() {
+    int n = total(2147483647, 1)
+}

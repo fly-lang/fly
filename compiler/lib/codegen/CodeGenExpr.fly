@@ -4,6 +4,7 @@ import fly.compiler.sema.*
 import fly.compiler.ast.*
 import fly.compiler.basic.SourceLocation
 import fly.compiler.basic.SourceManager
+import fly.compiler.basic.CodeGenOptions
 import fly.compiler.codegen.CodeGenModule
 import fly.compiler.codegen.CodeGenLLVM
 import fly.compiler.codegen.CodeGenDebug
@@ -265,7 +266,14 @@ public class CodeGenExpr : SemaVisitor {
         if sm == null {
             return ""
         }
-        string file = str.concat(sm.getFilename(), ":")
+        // the same --debug-prefix-map as the DWARF: a std header read from the
+        // compiler's own lib directory reads "lib/map.fly.h", not a machine path
+        string path = sm.getFilename()
+        CodeGenOptions o = this.cgm.getCodeGenOpts()
+        if o != null {
+            path = remapPath(path, o.getDebugPrefixMap())
+        }
+        string file = str.concat(path, ":")
         string line = str.concat(str.convert(sm.getLineNumber(loc)), ":")
         string fileLine = str.concat(file, line)
         return str.concat(fileLine, str.convert(sm.getColumnNumber(loc)))

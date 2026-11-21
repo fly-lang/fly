@@ -1,0 +1,46 @@
+import fly.math
+
+// Integer arithmetic that must NOT stop: results that fit, constant expressions
+// folded at compile time, address arithmetic on `pointer` (a negative offset
+// wraps by design), explicit narrowing casts, and the fly.math wrap functions.
+void main() {
+    int max = 2147483646
+    int up = max + 1
+    if up != 2147483647 {
+        fail 1, "the largest int is reachable"
+    }
+    int min = -2147483647 - 1
+    int down = min + 1
+    if down != -2147483647 {
+        fail 2, "a constant expression reaching the minimum"
+    }
+    uint u = 10
+    uint d = u - 10
+    if d != 0 {
+        fail 3, "an unsigned subtraction down to zero"
+    }
+    pointer p = 100
+    long back = -8
+    pointer q = p + back
+    if q != 92 {
+        fail 4, "pointer arithmetic wraps"
+    }
+    int big = 300
+    byte cut = (byte)big
+    if (cut & 255) != 44 {
+        fail 5, "an explicit cast truncates"
+    }
+    byte b = 200
+    b += 55
+    if (b & 255) != 255 {
+        fail 6, "a byte compound that fits"
+    }
+    if math.wrapAdd(2147483647, 1) != min {
+        fail 7, "math.wrapAdd wraps"
+    }
+    int n = 5
+    int neg = -n
+    if neg != -5 {
+        fail 8, "unary minus"
+    }
+}

@@ -121,6 +121,101 @@ public void divmod(const long a, const long b, long out_q, long out_r) {
     out_r = a % b
 }
 
+// ── Wrapping arithmetic ──────────────────────────────────────────────────────
+//
+// From 0.15 an integer `+`, `-` or `*` whose result does not fit its type stops
+// the program ("integer overflow"). Code that WANTS two's-complement wrapping —
+// hashes, checksums, pseudo-random generators — says so with these functions:
+// the result is the exact one reduced modulo 2^bits. Their bodies use only
+// operations that cannot overflow (a wider type, or 32-bit halves), so they give
+// the same result under every compiler, checked or not.
+
+// wrapAdd — a + b wrapped to 32 bits (int).
+public int wrapAdd(const int a, const int b) {
+    long s = a
+    s = s + b
+    return (int)s
+}
+
+// wrapSub — a - b wrapped to 32 bits (int).
+public int wrapSub(const int a, const int b) {
+    long s = a
+    s = s - b
+    return (int)s
+}
+
+// wrapMul — a * b wrapped to 32 bits (int).
+public int wrapMul(const int a, const int b) {
+    long p = a
+    p = p * b
+    return (int)p
+}
+
+// wrapAddU — a + b wrapped to 32 bits (uint).
+public uint wrapAddU(const uint a, const uint b) {
+    ulong s = a
+    s = s + b
+    return (uint)s
+}
+
+// wrapSubU — a - b wrapped to 32 bits (uint).
+public uint wrapSubU(const uint a, const uint b) {
+    long s = a
+    s = s - b
+    return (uint)s
+}
+
+// wrapMulU — a * b wrapped to 32 bits (uint).
+public uint wrapMulU(const uint a, const uint b) {
+    ulong p = a
+    p = p * b
+    return (uint)p
+}
+
+// wrapAddUL — a + b wrapped to 64 bits (ulong): the two 32-bit halves are added
+// separately, carrying from the low half into the high one.
+public ulong wrapAddUL(const ulong a, const ulong b) {
+    ulong m = 4294967295
+    ulong lo = (a & m) + (b & m)
+    ulong hi = (a >> 32) + (b >> 32) + (lo >> 32)
+    return ((hi & m) << 32) | (lo & m)
+}
+
+// wrapSubUL — a - b wrapped to 64 bits (ulong): a plus the two's complement of b.
+public ulong wrapSubUL(const ulong a, const ulong b) {
+    long allOnes = -1
+    ulong notB = b ^ (ulong)allOnes
+    ulong one = 1
+    return fly.math.wrapAddUL(a, fly.math.wrapAddUL(notB, one))
+}
+
+// wrapMulUL — a * b wrapped to 64 bits (ulong): low x low in full, plus the low 32
+// bits of the two cross products shifted up (high x high only reaches bit 64).
+public ulong wrapMulUL(const ulong a, const ulong b) {
+    ulong m = 4294967295
+    ulong al = a & m
+    ulong ah = a >> 32
+    ulong bl = b & m
+    ulong bh = b >> 32
+    ulong low = al * bl
+    ulong cross = ((ah * bl) & m) + ((al * bh) & m)
+    return fly.math.wrapAddUL(low, (cross & m) << 32)
+}
+
+// wrapAddL — a + b wrapped to 64 bits (long).
+public long wrapAddL(const long a, const long b) {
+    return (long)fly.math.wrapAddUL((ulong)a, (ulong)b)
+}
+
+// wrapSubL — a - b wrapped to 64 bits (long).
+public long wrapSubL(const long a, const long b) {
+    return (long)fly.math.wrapSubUL((ulong)a, (ulong)b)
+}
+
+// wrapMulL — a * b wrapped to 64 bits (long).
+public long wrapMulL(const long a, const long b) {
+    return (long)fly.math.wrapMulUL((ulong)a, (ulong)b)
+}
 // ── Trigonometry ─────────────────────────────────────────────────────────────
 
 public double sin(const double x) {
@@ -385,8 +480,8 @@ private ulong rngRotl(const ulong x, const int k) {
 
 public ulong rngNext(fly_rng rng) {
     ulong res
-    ulong r = fly.math.rngRotl(rng.s1 * 5, 7)
-    res = r * 9
+    ulong r = fly.math.rngRotl(fly.math.wrapMulUL(rng.s1, 5), 7)
+    res = fly.math.wrapMulUL(r, 9)
     ulong t = rng.s1 << 17
     rng.s2 = rng.s2 ^ rng.s0
     rng.s3 = rng.s3 ^ rng.s1
@@ -399,25 +494,25 @@ public ulong rngNext(fly_rng rng) {
 }
 
 private ulong splitmix(const ulong s) {
-    ulong z = s + 0x9e3779b97f4a7c15
-    z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9
-    z = (z ^ (z >> 27)) * 0x94d049bb133111eb
+    ulong z = fly.math.wrapAddUL(s, 0x9e3779b97f4a7c15)
+    z = fly.math.wrapMulUL(z ^ (z >> 30), 0xbf58476d1ce4e5b9)
+    z = fly.math.wrapMulUL(z ^ (z >> 27), 0x94d049bb133111eb)
     return z ^ (z >> 31)
 }
 
 public void randSeed(fly_rng rng, const ulong seed) {
     ulong s = seed
     ulong z = 0
-    s = s + 0x9e3779b97f4a7c15
+    s = fly.math.wrapAddUL(s, 0x9e3779b97f4a7c15)
     z = fly.math.splitmix(s)
     rng.s0 = z
-    s = s + 0x9e3779b97f4a7c15
+    s = fly.math.wrapAddUL(s, 0x9e3779b97f4a7c15)
     z = fly.math.splitmix(s)
     rng.s1 = z
-    s = s + 0x9e3779b97f4a7c15
+    s = fly.math.wrapAddUL(s, 0x9e3779b97f4a7c15)
     z = fly.math.splitmix(s)
     rng.s2 = z
-    s = s + 0x9e3779b97f4a7c15
+    s = fly.math.wrapAddUL(s, 0x9e3779b97f4a7c15)
     z = fly.math.splitmix(s)
     rng.s3 = z
 }

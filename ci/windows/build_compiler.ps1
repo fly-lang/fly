@@ -62,18 +62,18 @@ New-Item -ItemType Directory -Force $D | Out-Null
 $DBG = @(); if ($env:FLY_DEBUG_SYMBOLS -eq '1') { $DBG += '--debug-symbols' }
 # The compiling fly reads its std headers from its own <exe>\..\lib: build\stage1\lib
 # at stage 1 (fly0.exe is linked there) and build\stage<N-1>\lib after. Mapping that
-# directory to "lib" keeps the path out of the DWARF, so stage 2 and stage 3
-# describe the same sources with the same bits (the fixpoint compares bytes).
-if ($DBG) {
-    $hdrStage = if ($STAGE -eq '1') { 1 } else { [int]$STAGE - 1 }
-    $DBG += "--debug-prefix-map=$((Resolve-Path "build/stage$hdrStage/lib").Path)=lib"
-}
+# directory to "lib" keeps the path out of the DWARF and out of the positions in
+# run-time trap messages (generic code instantiated from a std header carries
+# them), so stage 2 and stage 3 describe the same sources with the same bits (the
+# fixpoint compares bytes). Passed with or without debug symbols.
+$hdrStage = if ($STAGE -eq '1') { 1 } else { [int]$STAGE - 1 }
+$MAP = @("--debug-prefix-map=$((Resolve-Path "build/stage$hdrStage/lib").Path)=lib")
 Write-Host "stage${STAGE}: compiling driver + compiler (monolithic, from source) ...$(if ($DBG) { ' (+debug-symbols)' })"
 # DIRECTORY CLI: no positional — the entry (the single main(),
 # compiler/lib/driver/Driver.fly) is discovered from --src-dir and its import
 # closure pulls the whole compiler. -c emits a clean object, no link attempt.
 & $FLY --src-dir compiler `
-    @DBG @FLY_TARGET_ARGS -c -o Driver --out-dir $D > "$D/emit.log" 2>&1
+    @DBG @MAP @FLY_TARGET_ARGS -c -o Driver --out-dir $D > "$D/emit.log" 2>&1
 if (-not (Test-Path "$D/Driver")) {
     Write-Host "error: driver object not emitted; see $D\emit.log:"
     Get-Content "$D/emit.log" | Select-String 'error:' | Select-Object -First 5 | ForEach-Object { Write-Host "      $_" }
