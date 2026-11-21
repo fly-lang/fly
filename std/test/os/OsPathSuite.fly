@@ -295,8 +295,8 @@ suite OsPathSuite {
         }
         case "comp agrees with compCount": {
             fly.os.env.StringArray c = path.comp("/foo/bar/baz")
-            assert.assertEqI(c.count, path.compCount("/foo/bar/baz"), 705)
-            assert.assertEqI(c.count, 3, 706)
+            assert.assertEqI((int)c.count, path.compCount("/foo/bar/baz"), 705)
+            assert.assertEqI((int)c.count, 3, 706)
         }
         case "sep is a separator byte": {
             int s = (int)path.sep() & 255
@@ -368,8 +368,8 @@ suite OsPathSuite {
         case "glob agrees with globCount": {
             fs.writeStr("fly_path_glob_c.txt", "c", 420)
             fly.os.env.StringArray hits = path.glob("./fly_path_glob_c*.txt")
-            assert.assertEqI(hits.count, path.globCount("./fly_path_glob_c*.txt"), 911)
-            assert.assertGtI(hits.count, 0, 912)
+            assert.assertEqI((int)hits.count, path.globCount("./fly_path_glob_c*.txt"), 911)
+            assert.assertGtI((int)hits.count, 0, 912)
             fs.del("fly_path_glob_c.txt")
         }
         case "glob walks past a long entry name": {
@@ -380,7 +380,7 @@ suite OsPathSuite {
             fs.writeStr("fly_path_glob_long/z.txt", "z", 420)
             assert.assertEqI(path.globCount("fly_path_glob_long/*"), 2, 913)
             fly.os.env.StringArray all = path.glob("fly_path_glob_long/*")
-            assert.assertEqI(all.count, 2, 914)
+            assert.assertEqI((int)all.count, 2, 914)
             fs.dirDeleteAll("fly_path_glob_long")
         }
     }

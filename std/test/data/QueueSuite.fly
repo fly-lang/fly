@@ -29,7 +29,7 @@ suite QueueSuite {
     void emptyTest() {
         case "fresh queue": {
             Queue<long> q = new Queue<long>()
-            assert.assertEqI(q.size(), 0, 101)
+            assert.assertEqI((int)q.size(), 0, 101)
             assert.assertTrue(q.isEmpty(), 102)
             q.free()
         }
@@ -37,13 +37,13 @@ suite QueueSuite {
             Queue<long> q = new Queue<long>()
             assert.assertEqL(q.dequeue(), 0, 103)
             assert.assertEqL(q.peek(), 0, 104)
-            assert.assertEqI(q.size(), 0, 105)
+            assert.assertEqI((int)q.size(), 0, 105)
             q.free()
         }
         case "free on a never-used queue": {
             Queue<long> q = new Queue<long>()
             q.free()
-            assert.assertEqI(q.size(), 0, 106)
+            assert.assertEqI((int)q.size(), 0, 106)
         }
         case "drained queue behaves like a fresh one": {
             Queue<long> q = new Queue<long>()
@@ -62,10 +62,10 @@ suite QueueSuite {
             Queue<long> q = new Queue<long>()
             q.enqueue(100)
             q.enqueue(200)
-            assert.assertEqI(q.size(), 2, 201)
+            assert.assertEqI((int)q.size(), 2, 201)
             assert.assertEqL(q.peek(), 100, 202)
             assert.assertEqL(q.peek(), 100, 203)
-            assert.assertEqI(q.size(), 2, 204)
+            assert.assertEqI((int)q.size(), 2, 204)
             q.free()
         }
         case "dequeue returns in enqueue order": {
@@ -89,7 +89,7 @@ suite QueueSuite {
             assert.assertEqL(q.peek(), 2, 211)
             assert.assertEqL(q.dequeue(), 2, 212)
             assert.assertEqL(q.dequeue(), 3, 213)
-            assert.assertEqI(q.size(), 0, 214)
+            assert.assertEqI((int)q.size(), 0, 214)
             q.free()
         }
     }
@@ -116,7 +116,7 @@ suite QueueSuite {
                 n = n + 1
             }
             assert.assertEqI(bad, 0 - 1, 301)
-            assert.assertEqI(q.size(), 6, 302)
+            assert.assertEqI((int)q.size(), 6, 302)
             assert.assertEqI(q.peek(), 30, 303)
             q.free()                                  // live range straddles the wrap
         }
@@ -135,7 +135,7 @@ suite QueueSuite {
             q.enqueue(100)
             q.enqueue(101)
             q.enqueue(102)                            // head = 6, tail = 3: wrapped
-            assert.assertEqI(q.size(), 5, 304)
+            assert.assertEqI((int)q.size(), 5, 304)
             assert.assertEqI(q.peek(), 6, 305)
             q.free()
         }
@@ -157,13 +157,13 @@ suite QueueSuite {
                 q.dequeue()
                 i = i + 1
             }
-            assert.assertEqI(q.size(), 3, 401)
+            assert.assertEqI((int)q.size(), 3, 401)
             i = 0
             while i < 8 {
                 q.enqueue(100 + i)
                 i = i + 1
             }
-            assert.assertEqI(q.size(), 11, 402)
+            assert.assertEqI((int)q.size(), 11, 402)
             // Survivors of the pre-grow ring come out first, in order.
             assert.assertEqI(q.dequeue(), 5, 403)
             assert.assertEqI(q.dequeue(), 6, 404)
@@ -188,7 +188,7 @@ suite QueueSuite {
                 q.enqueue(i)
                 i = i + 1
             }
-            assert.assertEqI(q.size(), 40, 408)
+            assert.assertEqI((int)q.size(), 40, 408)
             assert.assertEqI(q.peek(), 0, 409)
             int bad = 0 - 1
             i = 0
@@ -211,7 +211,7 @@ suite QueueSuite {
                 }
                 i = i + 1
             }
-            assert.assertEqI(q.size(), 66, 411)
+            assert.assertEqI((int)q.size(), 66, 411)
             assert.assertEqI(q.peek(), 34, 412)
             q.free()
         }
@@ -224,7 +224,7 @@ suite QueueSuite {
             string built = str.concat("foo", "bar")
             q.enqueue(built)
             q.enqueue("baz")
-            assert.assertEqI(q.size(), 2, 501)
+            assert.assertEqI((int)q.size(), 2, 501)
             assert.assertStr(q.peek(), "foobar", 502)
             assert.assertStr(built, "foobar", 503)
             q.free()
@@ -261,7 +261,7 @@ suite QueueSuite {
                 q.enqueue(str.concat("b", str.convert(i)))
                 i = i + 1
             }
-            assert.assertEqI(q.size(), 11, 508)
+            assert.assertEqI((int)q.size(), 11, 508)
             assert.assertStr(q.dequeue(), "a5", 509)
             assert.assertStr(q.peek(), "a6", 510)
             q.free()

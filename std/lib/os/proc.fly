@@ -38,7 +38,7 @@ private pointer strToCstr(const string src) {
     fly.llvm.strSize(src, size)
     int cap = size + 1
     pointer buf = 0
-    fly.runtime.mem_alloc(cap, buf)
+    fly.runtime.mem_alloc((ulong)cap, buf)
     int i = 0
     while i < size {
         byte b = 0
@@ -56,7 +56,7 @@ public pointer argsNew() {
     fly.runtime.mem_alloc(16, h)
     int cap = 4
     pointer items = 0
-    fly.runtime.mem_alloc(cap * 8, items)
+    fly.runtime.mem_alloc((ulong)(cap * 8), items)
     mem.writePtr(h, 0, items)
     mem.writeInt(h, 8, 0)
     mem.writeInt(h, 12, cap)
@@ -74,7 +74,7 @@ public void argsAdd(const pointer h, const string a) {
     if count == cap {
         int newCap = cap * 2
         pointer bigger = 0
-        fly.runtime.mem_realloc(items, newCap * 8, bigger)
+        fly.runtime.mem_realloc(items, (ulong)(newCap * 8), bigger)
         items = bigger
         mem.writePtr(h, 0, items)
         mem.writeInt(h, 12, newCap)
@@ -98,7 +98,7 @@ public int exec(const string path, const pointer h) {
     // argv = [ path, args..., NULL ] → (count + 2) pointer slots.
     int slots = count + 2
     pointer argv = 0
-    fly.runtime.mem_alloc(slots * 8, argv)
+    fly.runtime.mem_alloc((ulong)(slots * 8), argv)
 
     pointer cpath = strToCstr(path)
     mem.writePtr(argv, 0, cpath)
@@ -117,7 +117,7 @@ public int exec(const string path, const pointer h) {
     // Free the path C-string + the argv array. The ArgList's own C-strings stay
     // owned by the ArgList (released by argsFree); we only borrowed their pointers.
     fly.runtime.mem_free(cpath, 0)
-    fly.runtime.mem_free(argv, slots * 8)
+    fly.runtime.mem_free(argv, (ulong)(slots * 8))
 
     return code
 }
@@ -152,7 +152,7 @@ public int execCapture(const string path, const pointer h, const string outPath)
     // argv = [ path, args..., NULL ] → (count + 2) pointer slots.
     int slots = count + 2
     pointer argv = 0
-    fly.runtime.mem_alloc(slots * 8, argv)
+    fly.runtime.mem_alloc((ulong)(slots * 8), argv)
 
     pointer cpath = strToCstr(path)
     mem.writePtr(argv, 0, cpath)
@@ -171,7 +171,7 @@ public int execCapture(const string path, const pointer h, const string outPath)
 
     fly.runtime.mem_free(cpath, 0)
     fly.runtime.mem_free(cout, 0)
-    fly.runtime.mem_free(argv, slots * 8)
+    fly.runtime.mem_free(argv, (ulong)(slots * 8))
 
     return code
 }

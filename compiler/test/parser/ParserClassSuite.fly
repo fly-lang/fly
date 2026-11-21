@@ -12,7 +12,7 @@ suite ParserClassSuite {
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
             List<ASTNode> nodes = m.getNodes()
-            assert.assertEqI(nodes.size(), 1, 2)
+            assert.assertEqI((int)nodes.size(), 1, 2)
         }
         case "class with base + ctor": {
             Parser p = new Parser("public class Box : Base { int n  public Box(const int v) { this.n = v }  public int get() { return this.n } }")

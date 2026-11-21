@@ -1412,7 +1412,7 @@ public class Driver {
         // `clean` read after the arg loop comes back ";clea" (";"+"clea", last byte
         // dropped) and `why` → ";wh". Owning our own copy makes every read safe.
         pointer buf = 0
-        fly.runtime.mem_alloc(len, buf)
+        fly.runtime.mem_alloc((ulong)len, buf)
         int j = 0
         while j < len {
             byte b = 0

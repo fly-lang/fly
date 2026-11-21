@@ -58,7 +58,7 @@ suite SemaBuilderSuite {
             SemaClassInstance ths = foo.getThis()
             assert.assertTrue(ths != null, 21)
             List<SemaNode> ns = sm.getNodes()
-            assert.assertEqI(ns.size(), 1, 22)
+            assert.assertEqI((int)ns.size(), 1, 22)
 
             // a constructor method (name == class name)
             List<ASTParam> params = new List<ASTParam>()
@@ -86,7 +86,7 @@ suite SemaBuilderSuite {
             assert.assertStr(fn.getName(), "add", 30)
             assert.assertTrue(fn.getVisibility() == SemaVisibilityKind.PUBLIC, 31)
             List<SemaNode> ns = sm.getNodes()
-            assert.assertEqI(ns.size(), 1, 32)
+            assert.assertEqI((int)ns.size(), 1, 32)
         }
     }
 }

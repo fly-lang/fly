@@ -267,7 +267,7 @@ public string toUpper(const string src) {
     int size = 0
     fly.llvm.strSize(src, size)
     pointer buf = 0
-    fly.runtime.mem_alloc(size, buf)
+    fly.runtime.mem_alloc((ulong)size, buf)
     int i = 0
     while i < size {
         byte b = 0
@@ -276,7 +276,7 @@ public string toUpper(const string src) {
         if ib >= 97 && ib <= 122 {
             ib = ib - 32
         }
-        fly.llvm.strPoke(buf, i, ib)
+        fly.llvm.strPoke(buf, i, (byte)ib)
         i = i + 1
     }
     fly.llvm.strMake(buf, size, res)
@@ -288,7 +288,7 @@ public string toLower(const string src) {
     int size = 0
     fly.llvm.strSize(src, size)
     pointer buf = 0
-    fly.runtime.mem_alloc(size, buf)
+    fly.runtime.mem_alloc((ulong)size, buf)
     int i = 0
     while i < size {
         byte b = 0
@@ -297,7 +297,7 @@ public string toLower(const string src) {
         if ib >= 65 && ib <= 90 {
             ib = ib + 32
         }
-        fly.llvm.strPoke(buf, i, ib)
+        fly.llvm.strPoke(buf, i, (byte)ib)
         i = i + 1
     }
     fly.llvm.strMake(buf, size, res)
@@ -333,7 +333,7 @@ public string trim(const string src) {
     }
     int len = hi - lo
     pointer buf = 0
-    fly.runtime.mem_alloc(len, buf)
+    fly.runtime.mem_alloc((ulong)len, buf)
     int i = 0
     while i < len {
         fly.llvm.strByteAt(src, lo + i, b)
@@ -361,7 +361,7 @@ public string trimLeft(const string src) {
     }
     int len = size - lo
     pointer buf = 0
-    fly.runtime.mem_alloc(len, buf)
+    fly.runtime.mem_alloc((ulong)len, buf)
     int i = 0
     while i < len {
         fly.llvm.strByteAt(src, lo + i, b)
@@ -388,7 +388,7 @@ public string trimRight(const string src) {
         }
     }
     pointer buf = 0
-    fly.runtime.mem_alloc(hi, buf)
+    fly.runtime.mem_alloc((ulong)hi, buf)
     int i = 0
     while i < hi {
         fly.llvm.strByteAt(src, i, b)
@@ -416,7 +416,7 @@ public string substring(const string src, const int start, const int end) {
     }
     int len = e - s
     pointer buf = 0
-    fly.runtime.mem_alloc(len, buf)
+    fly.runtime.mem_alloc((ulong)len, buf)
     byte b = 0
     int i = 0
     while i < len {
@@ -451,7 +451,7 @@ public string repeat(const string src, const int count) {
     }
     int newSize = (int)total
     pointer buf = 0
-    fly.runtime.mem_alloc(newSize, buf)
+    fly.runtime.mem_alloc((ulong)newSize, buf)
     byte b = 0
     int ci = 0
     while ci < count {
@@ -511,7 +511,7 @@ public string replace(const string src, const string from, const string to) {
     }
     int newSize = ss + occ * (ts - fs)
     pointer buf = 0
-    fly.runtime.mem_alloc(newSize, buf)
+    fly.runtime.mem_alloc((ulong)newSize, buf)
     int ri = 0
     int wi = 0
     byte b = 0
@@ -578,7 +578,7 @@ public string convert(const int src) {
     while n < 0 {
         int q = n / 10
         int digit = q * 10 - n
-        fly.llvm.strPoke(buf, len, 48 + digit)
+        fly.llvm.strPoke(buf, len, (byte)(48 + digit))
         len = len + 1
         n = q
     }
@@ -622,7 +622,7 @@ public string convertL(const long src) {
     while n < 0 {
         long q = n / 10
         int digit = (int)(q * 10 - n)
-        fly.llvm.strPoke(buf, len, 48 + digit)
+        fly.llvm.strPoke(buf, len, (byte)(48 + digit))
         len = len + 1
         n = q
     }

@@ -1,0 +1,6 @@
+// A negative value has no unsigned counterpart: `uint u = -1` would store
+// 4294967295. From 0.15 a signed value into an unsigned type needs a cast,
+// unless it is a literal that fits (`uint u = 5`).
+void main() {
+    uint u = -1
+}

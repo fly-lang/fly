@@ -125,7 +125,7 @@ private void tlsToCStr(const string s, pointer out) {
     pointer src = 0
     fly.llvm.strGetPtr(s, src)
     pointer buf = 0
-    fly.runtime.LocalAlloc(64, n + 1, buf)
+    fly.runtime.LocalAlloc(64, (ulong)(n + 1), buf)
     int i = 0
     while i < n {
         byte b = 0
@@ -190,7 +190,7 @@ public void tls_connect(const long sock, const pointer sniHost, const int verify
     // to hold more than one plus a fragment.
     int encCap = 32768
     pointer encBuf = 0
-    fly.runtime.LocalAlloc(64, encCap, encBuf)
+    fly.runtime.LocalAlloc(64, (ulong)encCap, encBuf)
     // WSABUF (len u32@0, buf ptr@8) plus the two out-DWORDs the Winsock calls
     // report through, and the throwaway LocalFree result.
     pointer wsaBuf = 0
@@ -267,7 +267,7 @@ public void tls_connect(const long sock, const pointer sniHost, const int verify
         fly.llvm.ptrPokeLong(outBufs, 8, 0)
         fly.llvm.ptrPokeInt(outDesc, 0, 0)          // SECBUFFER_VERSION
         fly.llvm.ptrPokeInt(outDesc, 4, 1)
-        fly.llvm.ptrPokeLong(outDesc, 8, outBufs)
+        fly.llvm.ptrPokeLong(outDesc, 8, (long)outBufs)
 
         if first {
             fly.runtime.InitializeSecurityContextA(cred, 0, sniHost, req, 0, 16,
@@ -279,13 +279,13 @@ public void tls_connect(const long sock, const pointer sniHost, const int verify
             // one record. Losing that leftover is the classic Schannel bug.
             fly.llvm.ptrPokeInt(inBufs, 0, encLen)
             fly.llvm.ptrPokeInt(inBufs, 4, 2)       // SECBUFFER_TOKEN
-            fly.llvm.ptrPokeLong(inBufs, 8, encBuf)
+            fly.llvm.ptrPokeLong(inBufs, 8, (long)encBuf)
             fly.llvm.ptrPokeInt(inBufs, 16, 0)
             fly.llvm.ptrPokeInt(inBufs, 20, 0)      // SECBUFFER_EMPTY
             fly.llvm.ptrPokeLong(inBufs, 24, 0)
             fly.llvm.ptrPokeInt(inDesc, 0, 0)
             fly.llvm.ptrPokeInt(inDesc, 4, 2)
-            fly.llvm.ptrPokeLong(inDesc, 8, inBufs)
+            fly.llvm.ptrPokeLong(inDesc, 8, (long)inBufs)
             fly.runtime.InitializeSecurityContextA(cred, ctxh, sniHost, req, 0, 16,
                                                    inDesc, 0, ctxh, outDesc, attrBuf, tsBuf, st)
             usedInput = true
@@ -305,7 +305,7 @@ public void tls_connect(const long sock, const pointer sniHost, const int verify
                 bool sending = true
                 while sending {
                     fly.llvm.ptrPokeInt(wsaBuf, 0, tokLen - off)
-                    fly.llvm.ptrPokeLong(wsaBuf, 8, tok + off)
+                    fly.llvm.ptrPokeLong(wsaBuf, 8, (long)(tok + off))
                     fly.llvm.ptrPokeInt(nbuf, 0, 0)
                     int rc = 0
                     fly.runtime.WSASend(sock, wsaBuf, 1, nbuf, 0, 0, 0, rc)
@@ -386,7 +386,7 @@ public void tls_connect(const long sock, const pointer sniHost, const int verify
                         done = true
                     } else {
                         fly.llvm.ptrPokeInt(wsaBuf, 0, encCap - encLen)
-                        fly.llvm.ptrPokeLong(wsaBuf, 8, encBuf + encLen)
+                        fly.llvm.ptrPokeLong(wsaBuf, 8, (long)(encBuf + encLen))
                         fly.llvm.ptrPokeInt(nbuf, 0, 0)
                         fly.llvm.ptrPokeInt(flagsBuf, 0, 0)
                         int rc = 0
@@ -474,27 +474,27 @@ public void tls_connect(const long sock, const pointer sniHost, const int verify
 
     int ioCap = cbHeader + cbMax + cbTrailer
     pointer ioBuf = 0
-    fly.runtime.LocalAlloc(64, ioCap, ioBuf)
+    fly.runtime.LocalAlloc(64, (ulong)ioCap, ioBuf)
     int decCap = cbMax + 1
     pointer decBuf = 0
-    fly.runtime.LocalAlloc(64, decCap, decBuf)
+    fly.runtime.LocalAlloc(64, (ulong)decCap, decBuf)
 
     fly.llvm.ptrPokeLong(h, 0, sock)
-    fly.llvm.ptrPokeLong(h, 8, cred)
-    fly.llvm.ptrPokeLong(h, 16, ctxh)
+    fly.llvm.ptrPokeLong(h, 8, (long)cred)
+    fly.llvm.ptrPokeLong(h, 16, (long)ctxh)
     fly.llvm.ptrPokeInt(h, 24, cbHeader)
     fly.llvm.ptrPokeInt(h, 28, cbTrailer)
     fly.llvm.ptrPokeInt(h, 32, cbMax)
     fly.llvm.ptrPokeInt(h, 36, 0)
-    fly.llvm.ptrPokeLong(h, 40, encBuf)
+    fly.llvm.ptrPokeLong(h, 40, (long)encBuf)
     fly.llvm.ptrPokeInt(h, 48, encLen)
     fly.llvm.ptrPokeInt(h, 52, encCap)
-    fly.llvm.ptrPokeLong(h, 56, decBuf)
+    fly.llvm.ptrPokeLong(h, 56, (long)decBuf)
     fly.llvm.ptrPokeInt(h, 64, 0)
     fly.llvm.ptrPokeInt(h, 68, 0)
     fly.llvm.ptrPokeInt(h, 72, decCap)
     fly.llvm.ptrPokeInt(h, 76, 1)
-    fly.llvm.ptrPokeLong(h, 80, ioBuf)
+    fly.llvm.ptrPokeLong(h, 80, (long)ioBuf)
     fly.llvm.ptrPokeInt(h, 88, ioCap)
     fly.runtime.LocalFree(pkg, discard)
     fly.runtime.LocalFree(sc, discard)
@@ -573,19 +573,19 @@ public void tls_send(const pointer ctx, const pointer buf, const int n, long out
 
             fly.llvm.ptrPokeInt(bufs, 0, cbHeader)
             fly.llvm.ptrPokeInt(bufs, 4, 7)          // SECBUFFER_STREAM_HEADER
-            fly.llvm.ptrPokeLong(bufs, 8, ioBuf)
+            fly.llvm.ptrPokeLong(bufs, 8, (long)ioBuf)
             fly.llvm.ptrPokeInt(bufs, 16, chunk)
             fly.llvm.ptrPokeInt(bufs, 20, 1)         // SECBUFFER_DATA
-            fly.llvm.ptrPokeLong(bufs, 24, ioBuf + cbHeader)
+            fly.llvm.ptrPokeLong(bufs, 24, (long)(ioBuf + cbHeader))
             fly.llvm.ptrPokeInt(bufs, 32, cbTrailer)
             fly.llvm.ptrPokeInt(bufs, 36, 6)         // SECBUFFER_STREAM_TRAILER
-            fly.llvm.ptrPokeLong(bufs, 40, ioBuf + cbHeader + chunk)
+            fly.llvm.ptrPokeLong(bufs, 40, (long)(ioBuf + cbHeader + chunk))
             fly.llvm.ptrPokeInt(bufs, 48, 0)
             fly.llvm.ptrPokeInt(bufs, 52, 0)         // SECBUFFER_EMPTY
             fly.llvm.ptrPokeLong(bufs, 56, 0)
             fly.llvm.ptrPokeInt(msgDesc, 0, 0)
             fly.llvm.ptrPokeInt(msgDesc, 4, 4)
-            fly.llvm.ptrPokeLong(msgDesc, 8, bufs)
+            fly.llvm.ptrPokeLong(msgDesc, 8, (long)bufs)
 
             int st = 0
             fly.runtime.EncryptMessage(ctxh, 0, msgDesc, 0, st)
@@ -604,7 +604,7 @@ public void tls_send(const pointer ctx, const pointer buf, const int n, long out
                 int off = 0
                 while off < total {
                     fly.llvm.ptrPokeInt(wsaBuf, 0, total - off)
-                    fly.llvm.ptrPokeLong(wsaBuf, 8, ioBuf + off)
+                    fly.llvm.ptrPokeLong(wsaBuf, 8, (long)(ioBuf + off))
                     fly.llvm.ptrPokeInt(nbuf, 0, 0)
                     int rc = 0
                     fly.runtime.WSASend(sockL, wsaBuf, 1, nbuf, 0, 0, 0, rc)
@@ -713,7 +713,7 @@ public void tls_recv(const pointer ctx, const pointer buf, const int n, long out
     while settled == false {
         if encLen == 0 {
             fly.llvm.ptrPokeInt(wsaBuf, 0, encCap)
-            fly.llvm.ptrPokeLong(wsaBuf, 8, encBuf)
+            fly.llvm.ptrPokeLong(wsaBuf, 8, (long)encBuf)
             fly.llvm.ptrPokeInt(nbuf, 0, 0)
             fly.llvm.ptrPokeInt(flagsBuf, 0, 0)
             int rc = 0
@@ -737,7 +737,7 @@ public void tls_recv(const pointer ctx, const pointer buf, const int n, long out
         if settled == false {
             fly.llvm.ptrPokeInt(bufs, 0, encLen)
             fly.llvm.ptrPokeInt(bufs, 4, 1)          // SECBUFFER_DATA
-            fly.llvm.ptrPokeLong(bufs, 8, encBuf)
+            fly.llvm.ptrPokeLong(bufs, 8, (long)encBuf)
             fly.llvm.ptrPokeInt(bufs, 16, 0)
             fly.llvm.ptrPokeInt(bufs, 20, 0)
             fly.llvm.ptrPokeLong(bufs, 24, 0)
@@ -749,7 +749,7 @@ public void tls_recv(const pointer ctx, const pointer buf, const int n, long out
             fly.llvm.ptrPokeLong(bufs, 56, 0)
             fly.llvm.ptrPokeInt(msgDesc, 0, 0)
             fly.llvm.ptrPokeInt(msgDesc, 4, 4)
-            fly.llvm.ptrPokeLong(msgDesc, 8, bufs)
+            fly.llvm.ptrPokeLong(msgDesc, 8, (long)bufs)
 
             int st = 0
             fly.runtime.DecryptMessage(ctxh, msgDesc, 0, 0, st)
@@ -762,7 +762,7 @@ public void tls_recv(const pointer ctx, const pointer buf, const int n, long out
                     settled = true
                 } else {
                     fly.llvm.ptrPokeInt(wsaBuf, 0, encCap - encLen)
-                    fly.llvm.ptrPokeLong(wsaBuf, 8, encBuf + encLen)
+                    fly.llvm.ptrPokeLong(wsaBuf, 8, (long)(encBuf + encLen))
                     fly.llvm.ptrPokeInt(nbuf, 0, 0)
                     fly.llvm.ptrPokeInt(flagsBuf, 0, 0)
                     int rc2 = 0
@@ -938,10 +938,10 @@ public void tls_shutdown(const pointer ctx) {
     fly.llvm.ptrPokeInt(tokenVal, 0, 1)
     fly.llvm.ptrPokeInt(sb, 0, 4)
     fly.llvm.ptrPokeInt(sb, 4, 2)                   // SECBUFFER_TOKEN
-    fly.llvm.ptrPokeLong(sb, 8, tokenVal)
+    fly.llvm.ptrPokeLong(sb, 8, (long)tokenVal)
     fly.llvm.ptrPokeInt(desc, 0, 0)
     fly.llvm.ptrPokeInt(desc, 4, 1)
-    fly.llvm.ptrPokeLong(desc, 8, sb)
+    fly.llvm.ptrPokeLong(desc, 8, (long)sb)
     int ac = 0
     fly.runtime.ApplyControlToken(ctxh, desc, ac)
     if ac == 0 {
@@ -950,7 +950,7 @@ public void tls_shutdown(const pointer ctx) {
         fly.llvm.ptrPokeLong(outBufs, 8, 0)
         fly.llvm.ptrPokeInt(outDesc, 0, 0)
         fly.llvm.ptrPokeInt(outDesc, 4, 1)
-        fly.llvm.ptrPokeLong(outDesc, 8, outBufs)
+        fly.llvm.ptrPokeLong(outDesc, 8, (long)outBufs)
         int st = 0
         fly.runtime.InitializeSecurityContextA(cred, ctxh, 0, 33052, 0, 16,
                                                0, 0, ctxh, outDesc, attrBuf, tsBuf, st)
@@ -963,7 +963,7 @@ public void tls_shutdown(const pointer ctx) {
         if tokLen > 0 {
             if tok != 0 {
                 fly.llvm.ptrPokeInt(wsaBuf, 0, tokLen)
-                fly.llvm.ptrPokeLong(wsaBuf, 8, tok)
+                fly.llvm.ptrPokeLong(wsaBuf, 8, (long)tok)
                 fly.llvm.ptrPokeInt(nbuf, 0, 0)
                 int wrc = 0
                 fly.runtime.WSASend(sockL, wsaBuf, 1, nbuf, 0, 0, 0, wrc)

@@ -47,7 +47,7 @@ suite SemaExprSuite {
             SemaIntValue e = new SemaIntValue(an, it, "1")
             sav.addValue(e)
             List<SemaValue> vs = sav.getValues()
-            assert.assertEqI(vs.size(), 1, 7)
+            assert.assertEqI((int)vs.size(), 1, 7)
         }
     }
 

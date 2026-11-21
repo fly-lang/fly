@@ -84,6 +84,18 @@ public class ASTBinary : ASTExpr {
         return r
     }
 
+    // isCompare — true for `== != > >= < <=`.
+    public bool isCompare() {
+        ASTBinaryKind k = this.binaryKind
+        bool r = k == ASTBinaryKind.OP_BINARY_COMPARE_EQ
+            || k == ASTBinaryKind.OP_BINARY_COMPARE_NE
+            || k == ASTBinaryKind.OP_BINARY_COMPARE_GT
+            || k == ASTBinaryKind.OP_BINARY_COMPARE_GTE
+            || k == ASTBinaryKind.OP_BINARY_COMPARE_LT
+            || k == ASTBinaryKind.OP_BINARY_COMPARE_LTE
+        return r
+    }
+
     // isCompoundAssign — true for `+=` … `>>=` (B015): they resolve like an
     // assignment (assignee type, assign-compat check) and lower as `a = a op b`.
     public bool isCompoundAssign() {

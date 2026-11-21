@@ -116,7 +116,7 @@ suite ParserErrorSuite {
             assert.assertEqI(sink.count(), 0, 41)
             // top-level node count: 1 import + 1 function (namespace is not a node)
             List<ASTNode> nodes = mod.getNodes()
-            assert.assertEqI(nodes.size(), 2, 42)
+            assert.assertEqI((int)nodes.size(), 2, 42)
         }
     }
 }

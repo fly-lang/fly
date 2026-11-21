@@ -1,0 +1,9 @@
+// An argument is stored into its parameter like a value into a variable: a long
+// into an int parameter would keep only the low 32 bits.
+void take(const int x) {
+}
+
+void main() {
+    long big = 5000000000
+    take(big)
+}

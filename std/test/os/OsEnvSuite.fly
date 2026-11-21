@@ -146,12 +146,12 @@ suite OsEnvSuite {
     // ── process argv ─────────────────────────────────────────────────────────
     void argsTest() {
         case "argsCount is at least 1": {
-            assert.assertGtI(env.argsCount(), 0, 401)
+            assert.assertGtI((int)env.argsCount(), 0, 401)
         }
         case "argsGet agrees with argsCount and has a non-empty argv[0]": {
             fly.os.env.StringArray a = env.argsGet()
-            assert.assertEqI(a.count, env.argsCount(), 402)
-            assert.assertGtI(a.count, 0, 403)
+            assert.assertEqI((int)a.count, (int)env.argsCount(), 402)
+            assert.assertGtI((int)a.count, 0, 403)
         }
         case "exePath is a non-empty absolute-looking path": {
             string p = env.exePath()
@@ -200,12 +200,12 @@ suite OsEnvSuite {
     // ── all() / allCount() ───────────────────────────────────────────────────
     void listingTest() {
         case "allCount is positive": {
-            assert.assertGtI(env.allCount(), 0, 601)
+            assert.assertGtI((int)env.allCount(), 0, 601)
         }
         case "all() agrees with allCount": {
             fly.os.env.StringArray vars = env.all()
-            assert.assertEqI(vars.count, env.allCount(), 602)
-            assert.assertGtI(vars.count, 0, 603)
+            assert.assertEqI((int)vars.count, (int)env.allCount(), 602)
+            assert.assertGtI((int)vars.count, 0, 603)
         }
         case "setting a new variable adds exactly one to the count": {
             env.del("FLY_ENV_TEST_COUNTED")            // make sure it is absent
@@ -213,13 +213,13 @@ suite OsEnvSuite {
             // pointer→int narrowing (the self-host coerces), so cast.
             int before = (int)env.allCount()
             env.set("FLY_ENV_TEST_COUNTED", "yes")
-            assert.assertEqI(env.allCount(), before + 1, 604)
+            assert.assertEqI((int)env.allCount(), before + 1, 604)
             assert.assertStr(env.get("FLY_ENV_TEST_COUNTED"), "yes", 605)
             // Overwriting an existing variable must NOT add another entry.
             env.set("FLY_ENV_TEST_COUNTED", "no")
-            assert.assertEqI(env.allCount(), before + 1, 606)
+            assert.assertEqI((int)env.allCount(), before + 1, 606)
             env.del("FLY_ENV_TEST_COUNTED")
-            assert.assertEqI(env.allCount(), before, 607)  // and del removes it
+            assert.assertEqI((int)env.allCount(), before, 607)  // and del removes it
         }
     }
 }

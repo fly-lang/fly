@@ -1851,7 +1851,7 @@ public class Parser {
         int ni = 0
         while ni < names.size() {
             ASTExpr rid = ASTBuilder.CreateIdentifier(loc, names.get(ni), null)
-            ASTArg ra = new ASTArg(loc, rid, idx)
+            ASTArg ra = new ASTArg(loc, rid, (uint)idx)
             call.addArg(ra)
             idx = idx + 1
             ni = ni + 1

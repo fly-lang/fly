@@ -255,7 +255,7 @@ public class ParserExpr {
         int idx = 0
         while go {
             ASTExpr a = ParserExpr.parse(p)
-            ASTArg arg = new ASTArg(loc, a, idx)
+            ASTArg arg = new ASTArg(loc, a, (uint)idx)
             call.addArg(arg)
             idx = idx + 1
             if p.curIsPunct(",") {

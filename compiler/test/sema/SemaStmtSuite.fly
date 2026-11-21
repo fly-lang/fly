@@ -22,7 +22,7 @@ suite SemaStmtSuite {
             blk.addContent(sr)
             assert.assertTrue(blk.isEmpty() == false, 3)
             List<SemaStmt> c = blk.getContent()
-            assert.assertEqI(c.size(), 1, 4)
+            assert.assertEqI((int)c.size(), 1, 4)
         }
     }
 
@@ -56,7 +56,7 @@ suite SemaStmtSuite {
             SemaBlockStmt elB = new SemaBlockStmt(aelse)
             sif.addElsif(ec, elB)
             List<SemaRuleStmt> el = sif.getElsif()
-            assert.assertEqI(el.size(), 1, 21)
+            assert.assertEqI((int)el.size(), 1, 21)
             SemaRuleStmt r0 = el.get(0)
             SemaExpr re = r0.getExpr()
             assert.assertTrue(re.getKind() == SemaKind.VALUE, 22)
@@ -71,7 +71,7 @@ suite SemaStmtSuite {
             assert.assertTrue(sl.hasVerifyConditionAtEnd() == false, 30)
             assert.assertTrue(sl.getKind() == SemaKind.STMT_LOOP, 31)
             List<SemaStmt> ini = sl.getInit()
-            assert.assertEqI(ini.size(), 0, 32)
+            assert.assertEqI((int)ini.size(), 0, 32)
         }
     }
 }

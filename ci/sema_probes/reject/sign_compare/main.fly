@@ -1,0 +1,9 @@
+// int and uint are compared in uint, where -1 reads as 4294967295: `-1 < 1`
+// would be false. The comparison needs a cast that says which way.
+bool below(const int a, const uint b) {
+    return a < b
+}
+
+void main() {
+    bool r = below(-1, 1)
+}

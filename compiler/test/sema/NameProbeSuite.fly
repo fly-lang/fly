@@ -91,7 +91,7 @@ suite NameProbeSuite {
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
             List<ASTNode> nodes = m.getNodes()
-            assert.assertEqI(nodes.size(), 1, 2)
+            assert.assertEqI((int)nodes.size(), 1, 2)
 
             ASTNode n0 = nodes.get(0)
             NameProbe probe = new NameProbe()

@@ -43,7 +43,7 @@ private pointer strToCstr(const string src) {
     fly.llvm.strSize(src, size)
     int cap = size + 1
     pointer buf = 0
-    fly.runtime.mem_alloc(cap, buf)
+    fly.runtime.mem_alloc((ulong)cap, buf)
     int i = 0
     while i < size {
         byte b = 0
@@ -185,7 +185,7 @@ public pointer resolveAll(const string host) {
         return 0
     }
     pointer h = 0
-    fly.runtime.mem_alloc(8 + n * 4, h)
+    fly.runtime.mem_alloc((ulong)(8 + n * 4), h)
     mem.writeInt(h, 0, n)
     int i = 0
     while i < n {
@@ -627,7 +627,7 @@ public string recvStr(const long s, const int max) {
         return res
     }
     pointer buf = 0
-    fly.runtime.mem_alloc(max, buf)
+    fly.runtime.mem_alloc((ulong)max, buf)
     long got = 0
     fly.runtime.net_recv(s, buf, max, got)
     if got <= 0 {
@@ -655,7 +655,7 @@ public string recvUpTo(const long s, const int limit) {
         cap = limit
     }
     pointer buf = 0
-    fly.runtime.mem_alloc(cap, buf)
+    fly.runtime.mem_alloc((ulong)cap, buf)
     int len = 0
     bool go = true
     while go {
@@ -668,7 +668,7 @@ public string recvUpTo(const long s, const int limit) {
                     want = limit
                 }
                 pointer bigger = 0
-                fly.runtime.mem_realloc(buf, want, bigger)
+                fly.runtime.mem_realloc(buf, (ulong)want, bigger)
                 buf = bigger
                 cap = want
             }
@@ -810,7 +810,7 @@ public string recvStrFrom(const long s, const int max, const pointer from) {
         return res
     }
     pointer buf = 0
-    fly.runtime.mem_alloc(max, buf)
+    fly.runtime.mem_alloc((ulong)max, buf)
     long got = 0
     fly.runtime.net_recv_from(s, buf, max, from, got)
     if got <= 0 {
@@ -878,7 +878,7 @@ public pointer pollNew() {
     fly.runtime.mem_alloc(16, ps)
     int cap = 8
     pointer items = 0
-    fly.runtime.mem_alloc(cap * 16, items)
+    fly.runtime.mem_alloc((ulong)(cap * 16), items)
     mem.writePtr(ps, 0, items)
     mem.writeInt(ps, 8, 0)
     mem.writeInt(ps, 12, cap)
@@ -907,7 +907,7 @@ public int pollAdd(const pointer ps, const long s, const int events) {
     if count >= cap {
         int want = cap * 2
         pointer bigger = 0
-        fly.runtime.mem_realloc(items, want * 16, bigger)
+        fly.runtime.mem_realloc(items, (ulong)(want * 16), bigger)
         items = bigger
         mem.writePtr(ps, 0, items)
         mem.writeInt(ps, 12, want)

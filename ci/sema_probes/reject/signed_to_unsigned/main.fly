@@ -1,0 +1,6 @@
+// A signed value into a wider unsigned type still loses its sign: a negative
+// int into a ulong is 18446744073709551615.
+void main() {
+    int n = -3
+    ulong size = n
+}

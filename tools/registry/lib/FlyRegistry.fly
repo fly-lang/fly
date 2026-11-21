@@ -45,7 +45,7 @@ string argAt(const fly.os.env.StringArray args, const int i) {
         return ""
     }
     pointer buf = 0
-    fly.runtime.mem_alloc(len, buf)
+    fly.runtime.mem_alloc((ulong)len, buf)
     mem.copy(buf, ptr, len)
     string s = str.fromBytes(buf, len)
     return s

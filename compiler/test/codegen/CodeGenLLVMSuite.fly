@@ -30,8 +30,8 @@ public bool buildAddVerifies() {
     pointer i32
     llvm.int32TypeInContext(ctx, i32)
     List<long> params = new List<long>()
-    params.add(i32)
-    params.add(i32)
+    params.add((long)i32)
+    params.add((long)i32)
     pointer fnTy
     cg.functionTypeN(i32, params, false, fnTy)
     pointer fn

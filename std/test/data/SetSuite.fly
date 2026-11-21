@@ -30,26 +30,26 @@ suite SetSuite {
     void emptyTest() {
         case "fresh set": {
             Set<long> s = new Set<long>()
-            assert.assertEqI(s.size(), 0, 101)
+            assert.assertEqI((int)s.size(), 0, 101)
             s.free()
         }
         case "has / remove before any add": {
             Set<long> s = new Set<long>()
             assert.assertFalse(s.has(42), 102)
             s.remove(42)
-            assert.assertEqI(s.size(), 0, 103)
+            assert.assertEqI((int)s.size(), 0, 103)
             s.free()
         }
         case "free on a never-used set": {
             Set<long> s = new Set<long>()
             s.free()
-            assert.assertEqI(s.size(), 0, 104)
+            assert.assertEqI((int)s.size(), 0, 104)
         }
         case "emptied set still answers misses": {
             Set<long> s = new Set<long>()
             s.add(1)
             s.remove(1)
-            assert.assertEqI(s.size(), 0, 105)
+            assert.assertEqI((int)s.size(), 0, 105)
             assert.assertFalse(s.has(1), 106)
             s.free()
         }
@@ -62,7 +62,7 @@ suite SetSuite {
             s.add(10)
             s.add(20)
             s.add(30)
-            assert.assertEqI(s.size(), 3, 201)
+            assert.assertEqI((int)s.size(), 3, 201)
             assert.assertTrue(s.has(10), 202)
             assert.assertTrue(s.has(20), 203)
             assert.assertTrue(s.has(30), 204)
@@ -75,7 +75,7 @@ suite SetSuite {
             s.add(20)
             s.add(10)
             s.add(10)
-            assert.assertEqI(s.size(), 2, 206)
+            assert.assertEqI((int)s.size(), 2, 206)
             assert.assertTrue(s.has(10), 207)
             s.free()
         }
@@ -85,10 +85,10 @@ suite SetSuite {
             s.add(20)
             s.remove(20)
             assert.assertFalse(s.has(20), 208)
-            assert.assertEqI(s.size(), 1, 209)
+            assert.assertEqI((int)s.size(), 1, 209)
             s.remove(20)                              // already gone
             s.remove(4321)                            // never present
-            assert.assertEqI(s.size(), 1, 210)
+            assert.assertEqI((int)s.size(), 1, 210)
             assert.assertTrue(s.has(10), 211)
             s.free()
         }
@@ -96,7 +96,7 @@ suite SetSuite {
             Set<long> s = new Set<long>()
             s.add(0)
             assert.assertTrue(s.has(0), 212)
-            assert.assertEqI(s.size(), 1, 213)
+            assert.assertEqI((int)s.size(), 1, 213)
             s.remove(0)
             assert.assertFalse(s.has(0), 214)
             s.free()
@@ -110,7 +110,7 @@ suite SetSuite {
             assert.assertFalse(s.has(0 - 2), 217)
             s.remove(0 - 1)
             assert.assertFalse(s.has(0 - 1), 218)
-            assert.assertEqI(s.size(), 1, 219)
+            assert.assertEqI((int)s.size(), 1, 219)
             s.free()
         }
     }
@@ -122,7 +122,7 @@ suite SetSuite {
             s.add(8)
             s.add(16)
             s.add(24)
-            assert.assertEqI(s.size(), 3, 301)
+            assert.assertEqI((int)s.size(), 3, 301)
             assert.assertTrue(s.has(8), 302)
             assert.assertTrue(s.has(16), 303)
             assert.assertTrue(s.has(24), 304)
@@ -133,7 +133,7 @@ suite SetSuite {
             s.add(8)
             s.add(16)
             s.add(16)                                 // found at chain position 1
-            assert.assertEqI(s.size(), 2, 305)
+            assert.assertEqI((int)s.size(), 2, 305)
             s.free()
         }
         case "remove the head of a chain keeps the tail reachable": {
@@ -145,7 +145,7 @@ suite SetSuite {
             assert.assertFalse(s.has(8), 306)
             assert.assertTrue(s.has(16), 307)         // probes over the tombstone
             assert.assertTrue(s.has(24), 308)
-            assert.assertEqI(s.size(), 2, 309)
+            assert.assertEqI((int)s.size(), 2, 309)
             s.free()
         }
         case "miss whose probe chain crosses a tombstone": {
@@ -164,9 +164,9 @@ suite SetSuite {
             Set<long> s = new Set<long>()
             s.add(5)
             s.remove(5)
-            assert.assertEqI(s.size(), 0, 401)
+            assert.assertEqI((int)s.size(), 0, 401)
             s.add(5)
-            assert.assertEqI(s.size(), 1, 402)
+            assert.assertEqI((int)s.size(), 1, 402)
             assert.assertTrue(s.has(5), 403)
             s.free()
         }
@@ -176,7 +176,7 @@ suite SetSuite {
             s.add(16)
             s.remove(8)
             s.add(32)                                 // same bucket as 8 and 16
-            assert.assertEqI(s.size(), 2, 404)
+            assert.assertEqI((int)s.size(), 2, 404)
             assert.assertTrue(s.has(32), 405)
             assert.assertTrue(s.has(16), 406)
             assert.assertFalse(s.has(8), 407)
@@ -187,9 +187,9 @@ suite SetSuite {
             int i = 0
             while i < 30 {
                 s.add(7)
-                assert.assertEqI(s.size(), 1, 408)
+                assert.assertEqI((int)s.size(), 1, 408)
                 s.remove(7)
-                assert.assertEqI(s.size(), 0, 409)
+                assert.assertEqI((int)s.size(), 0, 409)
                 i = i + 1
             }
             assert.assertFalse(s.has(7), 410)
@@ -209,7 +209,7 @@ suite SetSuite {
                 }
                 k = k + 1
             }
-            assert.assertEqI(s.size(), 12, 411)
+            assert.assertEqI((int)s.size(), 12, 411)
             long bad = 0 - 1
             k = 0
             while k < 24 {
@@ -238,7 +238,7 @@ suite SetSuite {
                 s.add(i)
                 i = i + 1
             }
-            assert.assertEqI(s.size(), 200, 501)
+            assert.assertEqI((int)s.size(), 200, 501)
             long bad = 0 - 1
             i = 0
             while i < 200 {
@@ -261,7 +261,7 @@ suite SetSuite {
                 }
                 i = i + 1
             }
-            assert.assertEqI(s.size(), 80, 504)
+            assert.assertEqI((int)s.size(), 80, 504)
             long bad = 0 - 1
             i = 0
             while i < 120 {
@@ -286,7 +286,7 @@ suite SetSuite {
                 s.add(i * 8)
                 i = i + 1
             }
-            assert.assertEqI(s.size(), 40, 506)
+            assert.assertEqI((int)s.size(), 40, 506)
             long bad = 0 - 1
             i = 0
             while i < 40 {
@@ -310,7 +310,7 @@ suite SetSuite {
                 s.add(i)                              // all duplicates
                 i = i + 1
             }
-            assert.assertEqI(s.size(), 50, 508)
+            assert.assertEqI((int)s.size(), 50, 508)
             s.free()
         }
         case "remove everything after a rehash": {
@@ -325,9 +325,9 @@ suite SetSuite {
                 s.remove(i)
                 i = i + 1
             }
-            assert.assertEqI(s.size(), 0, 509)
+            assert.assertEqI((int)s.size(), 0, 509)
             s.add(1)                                  // reuses a tombstone
-            assert.assertEqI(s.size(), 1, 510)
+            assert.assertEqI((int)s.size(), 1, 510)
             assert.assertTrue(s.has(1), 511)
             s.free()
         }
@@ -339,12 +339,12 @@ suite SetSuite {
             Set<string> s = new Set<string>()
             s.add("red")
             s.add("green")
-            assert.assertEqI(s.size(), 2, 601)
+            assert.assertEqI((int)s.size(), 2, 601)
             assert.assertTrue(s.has("red"), 602)
             assert.assertFalse(s.has("blue"), 603)
             s.remove("red")
             assert.assertFalse(s.has("red"), 604)
-            assert.assertEqI(s.size(), 1, 605)
+            assert.assertEqI((int)s.size(), 1, 605)
             s.free()
         }
         case "dedup compares by content, not identity": {
@@ -352,7 +352,7 @@ suite SetSuite {
             string built = str.concat("re", "d")
             s.add("red")
             s.add(built)                              // same content → dedup
-            assert.assertEqI(s.size(), 1, 606)
+            assert.assertEqI((int)s.size(), 1, 606)
             assert.assertTrue(s.has(built), 607)
             assert.assertStr(built, "red", 608)       // source intact
             s.free()
@@ -361,9 +361,9 @@ suite SetSuite {
             Set<string> s = new Set<string>()
             s.add("")
             assert.assertTrue(s.has(""), 609)
-            assert.assertEqI(s.size(), 1, 610)
+            assert.assertEqI((int)s.size(), 1, 610)
             s.add("")
-            assert.assertEqI(s.size(), 1, 611)
+            assert.assertEqI((int)s.size(), 1, 611)
             s.remove("")
             assert.assertFalse(s.has(""), 612)
             s.free()
@@ -373,10 +373,10 @@ suite SetSuite {
             s.add("alpha")
             s.remove("alpha")
             s.add("alpha")                            // tombstone reuse + reclone
-            assert.assertEqI(s.size(), 1, 613)
+            assert.assertEqI((int)s.size(), 1, 613)
             assert.assertTrue(s.has("alpha"), 614)
             s.remove("missing")
-            assert.assertEqI(s.size(), 1, 615)
+            assert.assertEqI((int)s.size(), 1, 615)
             s.free()
         }
         case "string members survive a rehash": {
@@ -386,7 +386,7 @@ suite SetSuite {
                 s.add(str.concat("k", str.convert(i)))
                 i = i + 1
             }
-            assert.assertEqI(s.size(), 60, 616)
+            assert.assertEqI((int)s.size(), 60, 616)
             int bad = 0 - 1
             i = 0
             while i < 60 {
@@ -408,7 +408,7 @@ suite SetSuite {
             s.add(1)
             s.add(2)
             s.add(1)
-            assert.assertEqI(s.size(), 2, 701)
+            assert.assertEqI((int)s.size(), 2, 701)
             assert.assertTrue(s.has(2), 702)
             assert.assertFalse(s.has(3), 703)
             s.free()
@@ -417,9 +417,9 @@ suite SetSuite {
             Set<bool> s = new Set<bool>()
             s.add(true)
             s.add(true)
-            assert.assertEqI(s.size(), 1, 704)
+            assert.assertEqI((int)s.size(), 1, 704)
             s.add(false)
-            assert.assertEqI(s.size(), 2, 705)
+            assert.assertEqI((int)s.size(), 2, 705)
             assert.assertTrue(s.has(true), 706)
             assert.assertTrue(s.has(false), 707)
             s.free()
@@ -429,7 +429,7 @@ suite SetSuite {
             s.add(4096)
             s.add(8192)
             s.add(4096)
-            assert.assertEqI(s.size(), 2, 708)
+            assert.assertEqI((int)s.size(), 2, 708)
             assert.assertTrue(s.has(8192), 709)
             assert.assertFalse(s.has(1), 710)
             s.free()

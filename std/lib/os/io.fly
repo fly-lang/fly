@@ -53,7 +53,7 @@ public class FileReader : Reader {
         fly.runtime.fs_read(fd, buf.ptr, n, nread)
         if nread > 0 {
             res = nread
-            buf.size = nread
+            buf.size = (ulong)nread
         } else {
             return 0
         }
@@ -320,7 +320,7 @@ private long writeFd(const int fd, const pointer p, const ulong n) {
         if nw <= 0 {
             return 0 - 1
         }
-        ulong adv = nw
+        ulong adv = (ulong)nw
         done = done + adv
     }
     long r = (long)done
@@ -384,7 +384,7 @@ public Buf readAll(Reader r) {
         if nread <= 0 {
             done = true
         } else {
-            ulong got = nread
+            ulong got = (ulong)nread
             total = total + got
             if total >= cap {
                 ulong newcap = cap * 2
@@ -435,7 +435,7 @@ public Buf readExact(Reader r, const ulong n) {
             if nread <= 0 {
                 done = true
             } else {
-                ulong got = nread
+                ulong got = (ulong)nread
                 ulong i = 0
                 while i < got {
                     byte b = 0
@@ -474,7 +474,7 @@ public string readLine(Reader r) {
     string res = ""
     int cap = 256
     pointer buf = 0
-    fly.runtime.mem_alloc(cap, buf)
+    fly.runtime.mem_alloc((ulong)cap, buf)
     // One 1-byte landing slot for the whole line: it used to be allocated per
     // byte read and never freed.
     pointer one = 0
@@ -499,7 +499,7 @@ public string readLine(Reader r) {
                 if pos >= cap {
                     int newcap = cap * 2
                     pointer newbuf = 0
-                    fly.runtime.mem_realloc(buf, newcap, newbuf)
+                    fly.runtime.mem_realloc(buf, (ulong)newcap, newbuf)
                     buf = newbuf
                     cap = newcap
                 }
@@ -520,7 +520,7 @@ public fly.os.env.StringArray readLines(Reader r) {
     fly.os.env.StringArray res
     int arr_cap = 16
     pointer arr = 0
-    fly.runtime.mem_alloc(arr_cap * 16, arr)
+    fly.runtime.mem_alloc((ulong)(arr_cap * 16), arr)
     pointer one = 0
     fly.runtime.mem_alloc(1, one)
     int count = 0
@@ -528,7 +528,7 @@ public fly.os.env.StringArray readLines(Reader r) {
     while at_eof == false {
         int line_cap = 256
         pointer line_buf = 0
-        fly.runtime.mem_alloc(line_cap, line_buf)
+        fly.runtime.mem_alloc((ulong)line_cap, line_buf)
         int pos = 0
         bool line_done = false
         while line_done == false {
@@ -550,7 +550,7 @@ public fly.os.env.StringArray readLines(Reader r) {
                     if pos >= line_cap {
                         int newcap = line_cap * 2
                         pointer newbuf = 0
-                        fly.runtime.mem_realloc(line_buf, newcap, newbuf)
+                        fly.runtime.mem_realloc(line_buf, (ulong)newcap, newbuf)
                         line_buf = newbuf
                         line_cap = newcap
                     }
@@ -570,7 +570,7 @@ public fly.os.env.StringArray readLines(Reader r) {
             if count >= arr_cap {
                 int newcap = arr_cap * 2
                 pointer newarr = 0
-                fly.runtime.mem_realloc(arr, newcap * 16, newarr)
+                fly.runtime.mem_realloc(arr, (ulong)(newcap * 16), newarr)
                 arr = newarr
                 arr_cap = newcap
             }
@@ -579,7 +579,7 @@ public fly.os.env.StringArray readLines(Reader r) {
         } else {
             // the empty tail after a final newline is not a line: its buffer
             // is nobody's
-            fly.runtime.mem_free(line_buf, line_cap)
+            fly.runtime.mem_free(line_buf, (ulong)line_cap)
         }
     }
     fly.runtime.mem_free(one, 1)
@@ -603,7 +603,7 @@ public bool writeString(Writer w, const string s) {
     int size = 0
     fly.llvm.strGetPtr(s, ptr)
     fly.llvm.strSize(s, size)
-    ulong size_u = size
+    ulong size_u = (ulong)size
     Buf buf = new Buf()
     buf.ptr = ptr
     buf.size = size_u
@@ -762,14 +762,14 @@ public void bufWriterClose(BufWriter w) {
 public long copy(Reader src, Writer dst) {
     int chunk_sz = 8192
     pointer tmp = 0
-    fly.runtime.mem_alloc(chunk_sz, tmp)
+    fly.runtime.mem_alloc((ulong)chunk_sz, tmp)
     long total = 0
     bool done = false
     while done == false {
         Buf chunk = new Buf()
         chunk.ptr = tmp
         chunk.size = 0
-        ulong chunk_sz_u = chunk_sz
+        ulong chunk_sz_u = (ulong)chunk_sz
         chunk.cap = chunk_sz_u
         long nread = 0
         nread = src.read(chunk, chunk_sz_u)
@@ -778,11 +778,11 @@ public long copy(Reader src, Writer dst) {
         if nread <= 0 {
             done = true
         } else {
-            chunk.size = nread
+            chunk.size = (ulong)nread
             // Write exactly what was read. Passing the chunk CAPACITY here would
             // emit the whole 8 KiB buffer, padding the destination with whatever
             // uninitialized bytes follow the payload.
-            ulong nread_u = nread
+            ulong nread_u = (ulong)nread
             long nwritten = 0
             nwritten = dst.write(chunk, nread_u)
             if nwritten < 0 {
@@ -792,7 +792,7 @@ public long copy(Reader src, Writer dst) {
             }
         }
     }
-    fly.runtime.mem_free(tmp, chunk_sz)
+    fly.runtime.mem_free(tmp, (ulong)chunk_sz)
     return total
 }
 
@@ -801,7 +801,7 @@ public long copy(Reader src, Writer dst) {
 public long copyN(Reader src, Writer dst, const ulong n) {
     int chunk_sz = 8192
     pointer tmp = 0
-    fly.runtime.mem_alloc(chunk_sz, tmp)
+    fly.runtime.mem_alloc((ulong)chunk_sz, tmp)
     long total = 0
     ulong remaining = n
     bool done = false
@@ -809,7 +809,7 @@ public long copyN(Reader src, Writer dst, const ulong n) {
         if remaining == 0 {
             done = true
         } else {
-            ulong chunk_sz_u = chunk_sz
+            ulong chunk_sz_u = (ulong)chunk_sz
             ulong to_read = chunk_sz_u
             if remaining < to_read {
                 to_read = remaining
@@ -823,10 +823,10 @@ public long copyN(Reader src, Writer dst, const ulong n) {
             if nread <= 0 {
                 done = true
             } else {
-                chunk.size = nread
+                chunk.size = (ulong)nread
                 // Write what was read, not what was requested: a short read must
                 // not emit the untouched tail of the chunk buffer.
-                ulong nread_u = nread
+                ulong nread_u = (ulong)nread
                 long nwritten = 0
                 nwritten = dst.write(chunk, nread_u)
                 if nwritten < 0 {
@@ -838,7 +838,7 @@ public long copyN(Reader src, Writer dst, const ulong n) {
             }
         }
     }
-    fly.runtime.mem_free(tmp, chunk_sz)
+    fly.runtime.mem_free(tmp, (ulong)chunk_sz)
     return total
 }
 
@@ -874,14 +874,14 @@ private void printTo(const int fd, const string s, const bool nl) {
     fly.llvm.strGetPtr(s, p)
     fly.llvm.strSize(s, size)
     if nl == false {
-        ulong n = size
+        ulong n = (ulong)size
         writeFd(fd, p, n)
         return
     }
-    ulong total = size + 1
+    ulong total = (ulong)(size + 1)
     pointer line = 0
     fly.runtime.mem_alloc(total, line)
-    ulong n2 = size
+    ulong n2 = (ulong)size
     fly.llvm.memcpy(line, p, n2)
     fly.llvm.strPoke(line, size, 10)
     writeFd(fd, line, total)

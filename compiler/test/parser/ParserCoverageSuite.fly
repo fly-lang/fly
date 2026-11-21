@@ -92,7 +92,7 @@ suite ParserCoverageSuite {
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 60)
             List<ASTNode> nodes = mod.getNodes()
-            assert.assertEqI(nodes.size(), 1, 61)
+            assert.assertEqI((int)nodes.size(), 1, 61)
         }
         case "generic class with bound + two params": {
             Parser p = new Parser("class Pair<A, B> { A a  B b }")

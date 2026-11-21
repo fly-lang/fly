@@ -473,7 +473,7 @@ public int trailingZeros(const long n) {
 // ── Random (xoshiro256**) ─────────────────────────────────────────────────────
 
 private ulong rngRotl(const ulong x, const int k) {
-    ulong kl = k
+    ulong kl = (ulong)k
     ulong r = 64 - kl
     return (x << kl) | (x >> r)
 }

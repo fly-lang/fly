@@ -39,21 +39,21 @@ suite ListSuite {
     void accessTest() {
         case "fresh list is empty": {
             List<long> l = new List<long>()
-            assert.assertEqI(l.size(), 0, 101)
+            assert.assertEqI((int)l.size(), 0, 101)
             l.free()
         }
         case "free on a never-used list is a no-op": {
             // items == 0 → free() must not call mem_free on a null buffer.
             List<long> l = new List<long>()
             l.free()
-            assert.assertEqI(l.size(), 0, 102)
+            assert.assertEqI((int)l.size(), 0, 102)
         }
         case "get in range": {
             List<long> l = new List<long>()
             l.add(10)
             l.add(20)
             l.add(30)
-            assert.assertEqI(l.size(), 3, 103)
+            assert.assertEqI((int)l.size(), 3, 103)
             assert.assertEqL(l.get(0), 10, 104)
             assert.assertEqL(l.get(1), 20, 105)
             assert.assertEqL(l.get(2), 30, 106)
@@ -87,7 +87,7 @@ suite ListSuite {
             l.set(1, 21)
             assert.assertEqL(l.get(0), 11, 201)
             assert.assertEqL(l.get(1), 21, 202)
-            assert.assertEqI(l.size(), 2, 203)
+            assert.assertEqI((int)l.size(), 2, 203)
             l.free()
         }
         case "set out of range is a no-op": {
@@ -95,7 +95,7 @@ suite ListSuite {
             l.add(10)
             l.set(1, 99)                               // idx == len
             l.set(500, 99)                             // far past len
-            assert.assertEqI(l.size(), 1, 204)
+            assert.assertEqI((int)l.size(), 1, 204)
             assert.assertEqL(l.get(0), 10, 205)
             l.free()
         }
@@ -105,7 +105,7 @@ suite ListSuite {
             l.add(20)
             l.add(30)
             l.remove(0)
-            assert.assertEqI(l.size(), 2, 206)
+            assert.assertEqI((int)l.size(), 2, 206)
             assert.assertEqL(l.get(0), 20, 207)
             assert.assertEqL(l.get(1), 30, 208)
             l.free()
@@ -116,7 +116,7 @@ suite ListSuite {
             l.add(20)
             l.add(30)
             l.remove(1)
-            assert.assertEqI(l.size(), 2, 209)
+            assert.assertEqI((int)l.size(), 2, 209)
             assert.assertEqL(l.get(0), 10, 210)
             assert.assertEqL(l.get(1), 30, 211)
             l.free()
@@ -127,7 +127,7 @@ suite ListSuite {
             l.add(10)
             l.add(20)
             l.remove(1)
-            assert.assertEqI(l.size(), 1, 212)
+            assert.assertEqI((int)l.size(), 1, 212)
             assert.assertEqL(l.get(0), 10, 213)
             assert.assertEqL(l.get(1), 0, 214)
             l.free()
@@ -137,7 +137,7 @@ suite ListSuite {
             l.add(10)
             l.remove(1)                                // idx == len
             l.remove(400)
-            assert.assertEqI(l.size(), 1, 215)
+            assert.assertEqI((int)l.size(), 1, 215)
             assert.assertEqL(l.get(0), 10, 216)
             l.free()
         }
@@ -147,9 +147,9 @@ suite ListSuite {
             l.add(2)
             l.remove(0)
             l.remove(0)
-            assert.assertEqI(l.size(), 0, 217)
+            assert.assertEqI((int)l.size(), 0, 217)
             l.add(42)
-            assert.assertEqI(l.size(), 1, 218)
+            assert.assertEqI((int)l.size(), 1, 218)
             assert.assertEqL(l.get(0), 42, 219)
             l.free()
         }
@@ -166,7 +166,7 @@ suite ListSuite {
                 l.add(i * 3)
                 i = i + 1
             }
-            assert.assertEqI(l.size(), 40, 301)
+            assert.assertEqI((int)l.size(), 40, 301)
             assert.assertEqL(l.get(0), 0, 302)         // survived every realloc
             assert.assertEqL(l.get(7), 21, 303)        // last of the first block
             assert.assertEqL(l.get(8), 24, 304)        // first past it
@@ -180,7 +180,7 @@ suite ListSuite {
                 l.add(i)
                 i = i + 1
             }
-            assert.assertEqI(l.size(), 100, 306)
+            assert.assertEqI((int)l.size(), 100, 306)
             int bad = 0 - 1
             i = 0
             while i < 100 {
@@ -200,7 +200,7 @@ suite ListSuite {
                 i = i + 1
             }
             l.remove(0)
-            assert.assertEqI(l.size(), 19, 308)
+            assert.assertEqI((int)l.size(), 19, 308)
             assert.assertEqI(l.get(0), 1, 309)
             assert.assertEqI(l.get(18), 19, 310)
             l.free()
@@ -215,19 +215,19 @@ suite ListSuite {
             l.add(2)
             l.add(3)
             l.clear()
-            assert.assertEqI(l.size(), 0, 401)
+            assert.assertEqI((int)l.size(), 0, 401)
             assert.assertEqL(l.get(0), 0, 402)
             l.add(9)
-            assert.assertEqI(l.size(), 1, 403)
+            assert.assertEqI((int)l.size(), 1, 403)
             assert.assertEqL(l.get(0), 9, 404)
             l.free()
         }
         case "clear on an empty list": {
             List<long> l = new List<long>()
             l.clear()
-            assert.assertEqI(l.size(), 0, 405)
+            assert.assertEqI((int)l.size(), 0, 405)
             l.clear()
-            assert.assertEqI(l.size(), 0, 406)
+            assert.assertEqI((int)l.size(), 0, 406)
             l.free()
         }
         case "clear frees string elements": {
@@ -235,7 +235,7 @@ suite ListSuite {
             ls.add("alpha")
             ls.add("beta")
             ls.clear()
-            assert.assertEqI(ls.size(), 0, 407)
+            assert.assertEqI((int)ls.size(), 0, 407)
             ls.add("gamma")
             assert.assertStr(ls.get(0), "gamma", 408)
             ls.free()
@@ -249,7 +249,7 @@ suite ListSuite {
             string built = str.concat("foo", "bar")
             ls.add(built)                              // deep clone into the slot
             ls.add("baz")                              // literal → heap copy
-            assert.assertEqI(ls.size(), 2, 501)
+            assert.assertEqI((int)ls.size(), 2, 501)
             assert.assertStr(ls.get(0), "foobar", 502)
             assert.assertStr(ls.get(1), "baz", 503)
             assert.assertStr(built, "foobar", 504)     // source untouched
@@ -280,11 +280,11 @@ suite ListSuite {
             ls.add("two")
             ls.add("three")
             ls.remove(0)
-            assert.assertEqI(ls.size(), 2, 511)
+            assert.assertEqI((int)ls.size(), 2, 511)
             assert.assertStr(ls.get(0), "two", 512)
             assert.assertStr(ls.get(1), "three", 513)
             ls.remove(1)                               // last: no memmove
-            assert.assertEqI(ls.size(), 1, 514)
+            assert.assertEqI((int)ls.size(), 1, 514)
             assert.assertStr(ls.get(0), "two", 515)
             ls.free()
         }
@@ -302,7 +302,7 @@ suite ListSuite {
                 ls.add(str.concat("item", str.convert(i)))
                 i = i + 1
             }
-            assert.assertEqI(ls.size(), 20, 518)
+            assert.assertEqI((int)ls.size(), 20, 518)
             assert.assertStr(ls.get(0), "item0", 519)
             assert.assertStr(ls.get(19), "item19", 520)
             ls.free()
@@ -344,7 +344,7 @@ suite ListSuite {
             c.v = 99                                   // visible through the list
             Cell got = lc.get(0)
             assert.assertEqI(got.v, 99, 608)
-            assert.assertEqI(lc.size(), 1, 609)
+            assert.assertEqI((int)lc.size(), 1, 609)
             lc.free()
             assert.assertEqI(c.v, 99, 610)             // pointee outlives the list
         }
@@ -359,10 +359,10 @@ suite ListSuite {
             l.add("a")
             l.add("b")
             l.free()
-            assert.assertEqI(l.size(), 0, 701)
+            assert.assertEqI((int)l.size(), 0, 701)
             l.free()
             l.add("c")
-            assert.assertEqI(l.size(), 1, 702)
+            assert.assertEqI((int)l.size(), 1, 702)
             assert.assertStr(l.get(0), "c", 703)
             l.free()
         }

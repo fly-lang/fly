@@ -148,8 +148,8 @@ public void tls_connect(const long sock, const pointer sniHost, const int verify
     }
     pointer h = 0
     fly.runtime.CRYPTO_malloc(24, 0, 0, h)
-    fly.llvm.ptrPokeLong(h, 0, ssl)
-    fly.llvm.ptrPokeLong(h, 8, sslCtx)
+    fly.llvm.ptrPokeLong(h, 0, (long)ssl)
+    fly.llvm.ptrPokeLong(h, 8, (long)sslCtx)
     fly.llvm.ptrPokeInt(h, 16, 0)
     out = h
 }

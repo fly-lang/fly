@@ -13,7 +13,7 @@ private pointer strToCstr(const string src) {
     fly.llvm.strSize(src, size)
     int cap = size + 1
     pointer buf = 0
-    fly.runtime.mem_alloc(cap, buf)
+    fly.runtime.mem_alloc((ulong)cap, buf)
     int i = 0
     while i < size {
         byte b = 0
@@ -35,9 +35,9 @@ private string cwdGet() {
     string res = ""
     int cap = 4096
     pointer buf = 0
-    fly.runtime.mem_alloc(cap, buf)
+    fly.runtime.mem_alloc((ulong)cap, buf)
     int len = 0
-    fly.runtime.env_getcwd(buf, cap, len)
+    fly.runtime.env_getcwd(buf, (ulong)cap, len)
     if len < 0 {
         fly.llvm.strMake(buf, 0, res)
         return res
@@ -76,7 +76,7 @@ public string join(const string base, const string comp) {
     }
     int total = bs + need_sep + cs
     pointer buf = 0
-    fly.runtime.mem_alloc(total + 1, buf)
+    fly.runtime.mem_alloc((ulong)(total + 1), buf)
     int i = 0
     while i < bs {
         byte b = 0
@@ -114,7 +114,7 @@ public string joinN(fly.os.env.StringArray parts) {
         fly.runtime.str_slot_ptr(base, i, sp)
         fly.runtime.str_slot_size(base, i, size)
         pointer cp = 0
-        fly.runtime.mem_alloc(size + 1, cp)
+        fly.runtime.mem_alloc((ulong)(size + 1), cp)
         mem.copy(cp, sp, size)
         string part
         fly.llvm.strMake(cp, size, part)             // part owns the copy
@@ -177,7 +177,7 @@ public string basename(const string path) {
         return res
     }
     pointer buf = 0
-    fly.runtime.mem_alloc(len, buf)
+    fly.runtime.mem_alloc((ulong)len, buf)
     i = 0
     while i < len {
         byte b = 0
@@ -214,7 +214,7 @@ public string dirname(const string path) {
         len = last_slash
     }
     pointer buf = 0
-    fly.runtime.mem_alloc(len, buf)
+    fly.runtime.mem_alloc((ulong)len, buf)
     if last_slash < 0 {
         fly.llvm.strPoke(buf, 0, 46)
     } elsif last_slash == 0 {
@@ -263,7 +263,7 @@ public string ext(const string path) {
     }
     int len = size - last_dot
     pointer buf = 0
-    fly.runtime.mem_alloc(len, buf)
+    fly.runtime.mem_alloc((ulong)len, buf)
     i = 0
     while i < len {
         byte b = 0
@@ -311,7 +311,7 @@ public string stem(const string path) {
         return res
     }
     pointer buf = 0
-    fly.runtime.mem_alloc(len, buf)
+    fly.runtime.mem_alloc((ulong)len, buf)
     i = 0
     while i < len {
         byte b = 0
@@ -387,7 +387,7 @@ public string normalize(const string path) {
     bool absolute = first_b == 47
 
     pointer buf = 0
-    fly.runtime.mem_alloc(plen + 2, buf)
+    fly.runtime.mem_alloc((ulong)(plen + 2), buf)
     int out_len = 0
 
     if absolute {
@@ -644,7 +644,7 @@ public string rel(const string base, const string target) {
     int suffix_len = tlen - t_start
     int total = dotdot_count * 3 + suffix_len + 2
     pointer buf = 0
-    fly.runtime.mem_alloc(total, buf)
+    fly.runtime.mem_alloc((ulong)total, buf)
     int pos = 0
 
     int d = 0
@@ -780,7 +780,7 @@ public fly.os.env.StringArray glob(const string pattern) {
     }
 
     pointer dir_buf = 0
-    fly.runtime.mem_alloc(dir_len + 1, dir_buf)
+    fly.runtime.mem_alloc((ulong)(dir_len + 1), dir_buf)
     if last_sep < 0 {
         fly.llvm.strPoke(dir_buf, 0, 46)
     } elsif last_sep == 0 {
@@ -799,7 +799,7 @@ public fly.os.env.StringArray glob(const string pattern) {
     fly.llvm.strMake(dir_buf, dir_len, dir_str)
 
     pointer pat_buf = 0
-    fly.runtime.mem_alloc(pat_len + 1, pat_buf)
+    fly.runtime.mem_alloc((ulong)(pat_len + 1), pat_buf)
     int ki2 = 0
     while ki2 < pat_len {
         byte b = 0
@@ -823,17 +823,17 @@ public fly.os.env.StringArray glob(const string pattern) {
 
     int cap = 8
     pointer arr = 0
-    fly.runtime.mem_alloc(cap * 16, arr)
+    fly.runtime.mem_alloc((ulong)(cap * 16), arr)
     int count = 0
 
     int gbuf_cap = 4096
     pointer gbuf = 0
-    fly.runtime.mem_alloc(gbuf_cap, gbuf)
+    fly.runtime.mem_alloc((ulong)gbuf_cap, gbuf)
 
     bool done = false
     while done == false {
         int nread = 0
-        fly.runtime.dir_read(dh, gbuf, gbuf_cap, nread)
+        fly.runtime.dir_read(dh, gbuf, (ulong)gbuf_cap, nread)
         if nread <= 0 {
             done = true
         } else {
@@ -884,7 +884,7 @@ public fly.os.env.StringArray glob(const string pattern) {
 
                     if skip == false {
                         pointer nbuf = 0
-                        fly.runtime.mem_alloc(name_len + 1, nbuf)
+                        fly.runtime.mem_alloc((ulong)(name_len + 1), nbuf)
                         int ni = 0
                         while ni < name_len {
                             byte nb = 0
@@ -901,7 +901,7 @@ public fly.os.env.StringArray glob(const string pattern) {
                         if matched {
                             int full_len = dir_len + need_sep + name_len
                             pointer fbuf = 0
-                            fly.runtime.mem_alloc(full_len + 1, fbuf)
+                            fly.runtime.mem_alloc((ulong)(full_len + 1), fbuf)
                             int fi = 0
                             while fi < dir_len {
                                 byte b = 0
@@ -924,7 +924,7 @@ public fly.os.env.StringArray glob(const string pattern) {
                             if count >= cap {
                                 cap = cap * 2
                                 pointer new_arr = 0
-                                fly.runtime.mem_alloc(cap * 16, new_arr)
+                                fly.runtime.mem_alloc((ulong)(cap * 16), new_arr)
                                 int ci = 0
                                 while ci < count {
                                     pointer ptri = 0
@@ -950,7 +950,7 @@ public fly.os.env.StringArray glob(const string pattern) {
     }
 
     fly.runtime.dir_close(dh)
-    fly.runtime.mem_free(gbuf, gbuf_cap)
+    fly.runtime.mem_free(gbuf, (ulong)gbuf_cap)
     res.items = arr
     res.count = count
     return res
@@ -994,7 +994,7 @@ public int globCount(const string pattern) {
     }
 
     pointer dir_buf = 0
-    fly.runtime.mem_alloc(dir_len + 1, dir_buf)
+    fly.runtime.mem_alloc((ulong)(dir_len + 1), dir_buf)
     if last_sep < 0 {
         fly.llvm.strPoke(dir_buf, 0, 46)
     } elsif last_sep == 0 {
@@ -1013,7 +1013,7 @@ public int globCount(const string pattern) {
     fly.llvm.strMake(dir_buf, dir_len, dir_str)
 
     pointer pat_buf = 0
-    fly.runtime.mem_alloc(pat_len + 1, pat_buf)
+    fly.runtime.mem_alloc((ulong)(pat_len + 1), pat_buf)
     int ki2 = 0
     while ki2 < pat_len {
         byte b = 0
@@ -1036,12 +1036,12 @@ public int globCount(const string pattern) {
     int count = 0
     int gbuf_cap = 4096
     pointer gbuf = 0
-    fly.runtime.mem_alloc(gbuf_cap, gbuf)
+    fly.runtime.mem_alloc((ulong)gbuf_cap, gbuf)
     bool done = false
 
     while done == false {
         int nread = 0
-        fly.runtime.dir_read(dh, gbuf, gbuf_cap, nread)
+        fly.runtime.dir_read(dh, gbuf, (ulong)gbuf_cap, nread)
         if nread <= 0 {
             done = true
         } else {
@@ -1090,7 +1090,7 @@ public int globCount(const string pattern) {
                     }
                     if skip == false {
                         pointer nbuf = 0
-                        fly.runtime.mem_alloc(name_len + 1, nbuf)
+                        fly.runtime.mem_alloc((ulong)(name_len + 1), nbuf)
                         int ni = 0
                         while ni < name_len {
                             byte nb = 0
@@ -1113,7 +1113,7 @@ public int globCount(const string pattern) {
     }
 
     fly.runtime.dir_close(dh)
-    fly.runtime.mem_free(gbuf, gbuf_cap)
+    fly.runtime.mem_free(gbuf, (ulong)gbuf_cap)
     return count
 }
 
@@ -1231,7 +1231,7 @@ public fly.os.env.StringArray comp(const string path) {
     }
 
     pointer arr = 0
-    fly.runtime.mem_alloc(count * 16, arr)
+    fly.runtime.mem_alloc((ulong)(count * 16), arr)
 
     i = start
     int ci = 0
@@ -1251,7 +1251,7 @@ public fly.os.env.StringArray comp(const string path) {
             if in_comp2 {
                 int clen = i - comp_start
                 pointer cbuf = 0
-                fly.runtime.mem_alloc(clen + 1, cbuf)
+                fly.runtime.mem_alloc((ulong)(clen + 1), cbuf)
                 int k = 0
                 while k < clen {
                     byte bk = 0

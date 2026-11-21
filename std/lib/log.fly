@@ -117,7 +117,7 @@ string filePathStr() {
     int n = LogState.fpLen
     pointer src = LogState.fpPtr
     pointer buf = 0
-    fly.runtime.mem_alloc(n, buf)
+    fly.runtime.mem_alloc((ulong)n, buf)
     mem.copy(buf, src, n)
     fly.llvm.strMake(buf, n, res)
     return res
@@ -268,7 +268,7 @@ public void setFile(const string path) {
         return
     }
     pointer buf = 0
-    fly.runtime.mem_alloc(n, buf)
+    fly.runtime.mem_alloc((ulong)n, buf)
     int i = 0
     while i < n {
         byte b = 0
@@ -279,7 +279,7 @@ public void setFile(const string path) {
     if LogState.fpPtr != 0 {
         pointer old = LogState.fpPtr
         int oldLen = LogState.fpLen
-        fly.runtime.mem_free(old, oldLen)
+        fly.runtime.mem_free(old, (ulong)oldLen)
     }
     LogState.fpPtr = buf
     LogState.fpLen = n
@@ -296,7 +296,7 @@ public void reset() {
     if LogState.fpPtr != 0 {
         pointer old = LogState.fpPtr
         int oldLen = LogState.fpLen
-        fly.runtime.mem_free(old, oldLen)
+        fly.runtime.mem_free(old, (ulong)oldLen)
     }
     LogState.fpPtr = 0
     LogState.fpLen = 0

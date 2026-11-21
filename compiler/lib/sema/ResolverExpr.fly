@@ -108,6 +108,9 @@ public class ResolverExpr {
         ASTExpr l = node.getLeftExpr()
         l.accept(r)
         SemaExpr left = r.getCurrentExpr()
+        // literal operands, for checkSignCompare (only the last literal is tracked)
+        bool lLit = left != null && left == r.getLitExpr()
+        bool lNeg = r.isLitNeg()
         ASTExpr rt = node.getRightExpr()
         // `owner = new unique C()`: an owner may take a fresh object, so the
         // right side is a place where `new unique` is allowed.
@@ -123,7 +126,12 @@ public class ResolverExpr {
         rt.accept(r)
         r.setUniqueSite(savedSite)
         SemaExpr right = r.getCurrentExpr()
+        bool rLit = right != null && right == r.getLitExpr()
+        bool rNeg = r.isLitNeg()
         SemaBinary b = SemaBuilder.CreateBinary(node, left, right)
+        if node.isCompare() && left != null && right != null {
+            checkSignCompare(r, node.getOpLocation(), left.getType(), right.getType(), lLit, lNeg, rLit, rNeg)
+        }
         // Numeric promotion: an arithmetic op over two numbers yields the wider type
         // (Stage 7). Comparisons/logic (bool) and assignments (assignee type) keep the
         // default. CreateBinary defaulted the type to the left operand's.
@@ -795,6 +803,20 @@ public void checkNarrowing(const Resolver r, const SourceLocation loc, const Sem
     }
     int lr = lhs.getRank()
     int rr = rhs.getRank()
+    // A signed value into an unsigned type has no counterpart when it is negative
+    // (`uint u = -1` is 4294967295): it needs a cast, whatever the ranks, unless it
+    // is a literal that fits. `pointer` is exempt: address arithmetic.
+    if lhs.isInteger() && rhs.isInteger() {
+        if isSignedInt(rhs) && isPlainUnsignedInt(lhs) {
+            if rhsExpr == r.getLitExpr() {
+                if intLiteralFits(r.getLitRaw(), r.isLitNeg(), lr) {
+                    return
+                }
+            }
+            r.diagStr2(loc, DiagID.err_sema_narrowing, rhs.getName(), lhs.getName())
+            return
+        }
+    }
     if lr >= rr {
         return
     }
@@ -998,4 +1020,65 @@ public bool classMayAccess(const Resolver r, const SemaClassType owner) {
         return true
     }
     return str.equals(here.getName(), owner.getName())
+}
+
+// isSignedInt — an integer type with a sign (odd rank: short, int, long).
+public bool isSignedInt(const SemaType t) {
+    if t == null {
+        return false
+    }
+    if t.isInteger() == false {
+        return false
+    }
+    return t.getRank() % 2 == 1
+}
+
+// isPlainUnsignedInt — an unsigned integer type other than `pointer` (byte,
+// ushort, uint, ulong). `pointer` is address arithmetic: a negative offset added
+// to it is meant to wrap, so it takes signed values freely.
+public bool isPlainUnsignedInt(const SemaType t) {
+    if t == null {
+        return false
+    }
+    if t.isInteger() == false {
+        return false
+    }
+    if t.getRank() % 2 == 1 {
+        return false
+    }
+    return str.equals(t.getName(), "pointer") == false
+}
+
+// checkSignCompare — a comparison of a signed with an unsigned integer is done
+// in the unsigned type when that one is the wider (`-1 < 1u` is false: -1 reads
+// as 4294967295). Rejected unless the signed side is a non-negative literal, or
+// the signed type is the wider one (`aLong < aUint` compares exactly). The
+// literal operands are passed in because only the last literal is tracked.
+public void checkSignCompare(const Resolver r, const SourceLocation loc, const SemaType lt, const SemaType rt,
+        const bool lLit, const bool lNeg, const bool rLit, const bool rNeg) {
+    SemaType st = null
+    SemaType ut = null
+    bool sLit = false
+    bool sNeg = false
+    if isSignedInt(lt) && isPlainUnsignedInt(rt) {
+        st = lt
+        ut = rt
+        sLit = lLit
+        sNeg = lNeg
+    } elsif isSignedInt(rt) && isPlainUnsignedInt(lt) {
+        st = rt
+        ut = lt
+        sLit = rLit
+        sNeg = rNeg
+    }
+    if st == null {
+        return
+    }
+    if st.getRank() > ut.getRank() {
+        return
+    }
+    if sLit && sNeg == false {
+        return
+    }
+    r.diagStr2(loc, DiagID.err_sema_sign_compare, st.getName(), ut.getName())
 }
