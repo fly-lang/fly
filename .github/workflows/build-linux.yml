@@ -171,6 +171,15 @@ jobs:
       - name: Stage 3 (fixpoint check)
         run: ./ci/linux/stage3.sh
 
+      # Every build: what ships is REPRODUCIBLE. Stage 2 is rebuilt from scratch
+      # with the same stage-1 compiler and every file of build/stage2/{bin,lib} must
+      # come out byte-identical (stage 3 only compares the compiler object). Costs
+      # one more build of runtime, std, compiler and tools. BLOCKING.
+      - name: Reproducible build check
+        env:
+          FLY_BUNDLE_LLVM: "1"
+        run: bash ./ci/linux/repro_check.sh
+
       - name: Set artifact name
         id: artifact
         shell: bash

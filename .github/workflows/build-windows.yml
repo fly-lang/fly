@@ -194,6 +194,16 @@ jobs:
         shell: pwsh
         run: .\ci\windows\stage3.ps1
 
+      # Every build: what ships is REPRODUCIBLE. Stage 2 is rebuilt from scratch
+      # with the same stage-1 compiler and every file of build\stage2\{bin,lib} must
+      # come out byte-identical (stage 3 only compares the compiler object). Costs
+      # one more build of runtime, std, compiler and tools. BLOCKING.
+      - name: Reproducible build check
+        shell: pwsh
+        env:
+          FLY_BUNDLE_LLVM: "1"
+        run: .\ci\windows\repro_check.ps1
+
       - name: Set artifact name
         id: artifact
         shell: bash
