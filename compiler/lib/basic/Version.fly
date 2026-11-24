@@ -10,5 +10,5 @@ namespace fly.compiler.basic
 // ─────────────────────────────────────────────────────────────────────────────
 
 public string flyVersion() {
-    return "0.15.0"
+    return "0.15.1"
 }
