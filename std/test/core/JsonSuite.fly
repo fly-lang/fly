@@ -42,9 +42,8 @@ int byteOf(const string s, const int i) {
 // std/lib/json.fly for why a class would not survive the .fly.h boundary.
 // kind(0) is -1, so a "missing" lookup answers every predicate with false.
 //
-// Numbers keep their raw literal text (std has no string→double), hence
-// asNumber() is pinned at 0.0 and asInt() parses the integral part. That is the
-// documented contract, not an oversight.
+// Numbers keep their raw literal text: asNumber() converts it (str.toDouble),
+// asInt() parses the integral part, asString() returns the literal itself.
 //
 // Assert codes: 1xx scalars/kinds, 2xx arrays, 3xx objects, 4xx parse errors,
 // 5xx escapes on read, 6xx escapes on write, 7xx writer and round-trip.
@@ -106,11 +105,15 @@ suite JsonSuite {
             assert.assertStr(json.asString(v), "1e10", 118)
             json.freeValue(v)
         }
-        case "asNumber is pinned at 0.0 — std has no string to double": {
+        case "asNumber converts the literal to a double": {
             int e = 0
-            pointer v = json.parse("42", e)
-            assert.assertApprox(json.asNumber(v), 0.0, 119)
+            pointer v = json.parse("-12.5e-1", e)
+            assert.assertApprox(json.asNumber(v), 0.0 - 1.25, 119)
             json.freeValue(v)
+            pointer d = json.newDouble(0.1)
+            assert.assertStr(json.asString(d), "0.1", 191)
+            assert.assertApprox(json.asNumber(d), 0.1, 192)
+            json.freeValue(d)
         }
         case "a string parses to the string kind": {
             int e = 0

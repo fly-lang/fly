@@ -33,10 +33,8 @@ import fly.str
 // Ownership: a node owns sptr, items/keys and every child. freeValue() releases
 // the whole tree; a value handed to add()/put() is ADOPTED by its parent.
 //
-// Numbers keep their raw source text (std still has no string→double), so
-// asNumber() is always 0.0 — read them with asInt(), or asString() for the
-// literal. This is unchanged from the driver version and is why registry
-// payloads spell versions as strings.
+// Numbers keep their raw source text; asNumber() converts it (str.toDouble)
+// and asInt() reads the integral part, asString() the literal itself.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Error codes, all 30x, reported through the errOut parameter of parse():
@@ -256,10 +254,16 @@ public string asString(const pointer v) {
     return nodeGetStr(v)
 }
 
-// asNumber — always 0.0: std has no string→double yet. Use asInt() or
-// asString() instead.
+// asNumber — the number's value as a double (str.toDouble over its literal: the
+// nearest double, correctly rounded). 0.0 for any other kind, or a literal beyond
+// the range of a double.
 public double asNumber(const pointer v) {
-    return 0.0
+    if kind(v) != 2 {
+        return 0.0
+    }
+    int e = 0
+    double d = str.toDouble(nodeGetStr(v), e)
+    return d
 }
 
 // asInt — the integral part of a number's literal (a leading '-' is honoured,
@@ -440,8 +444,26 @@ public pointer newInt(const int n) {
     return v
 }
 
-// newNumber — a number whose literal text the caller supplies verbatim (std has
-// no double→string formatter).
+// newDouble — a number holding `d`, written as the shortest text that reads back
+// as it (str.convertD). A non-finite d (inf, nan) has no JSON spelling: null.
+public pointer newDouble(const double d) {
+    string t = str.convertD(d)
+    int c0 = str.byteAt(t, 0) & 255
+    if c0 == 105 || c0 == 110 {
+        return newNull()
+    }
+    if c0 == 45 {
+        if (str.byteAt(t, 1) & 255) == 105 {
+            return newNull()
+        }
+    }
+    pointer v = nodeNew(2)
+    nodeSetStr(v, t)
+    return v
+}
+
+// newNumber — a number whose literal text the caller supplies verbatim
+// (newDouble formats a double itself).
 public pointer newNumber(const string literal) {
     pointer v = nodeNew(2)
     nodeSetStr(v, literal)
@@ -894,7 +916,7 @@ private string pRawString(const string src, const pointer ps) {
     return raw
 }
 
-// pNumber — a JSON number; the raw literal text is kept (no string→double).
+// pNumber — a JSON number; the raw literal text is kept (asNumber converts it).
 private pointer pNumber(const string src, const pointer ps) {
     int start = mem.readInt(ps, 0)
     if psCur(src, ps) == 45 {

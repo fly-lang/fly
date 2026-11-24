@@ -134,6 +134,10 @@ public void GetModuleFileNameA(const pointer mod, const pointer buf, const int n
 public void GetCommandLineA(pointer out) {}
 public void strlen(const pointer s, ulong out) {}
 // math (libm) — declaration-only externs
+// text <-> double (libc): strtod parses, _gcvt formats with N significant digits.
+// Declaration-only; fly.str goes through the num_* primitives below.
+public void strtod(const pointer s, const pointer endp, double out) {}
+public void _gcvt(const double v, const int digits, const pointer buf, pointer out) {}
 public void erf(const double x, double out) {}
 public void erfc(const double x, double out) {}
 public void tgamma(const double x, double out) {}
@@ -382,6 +386,19 @@ private void winMtimeFromInfo(const pointer info, long out) {
     long loL = lo & 4294967295
     long ft = (hiL << 32) | loL
     out = (ft - 116444736000000000) * 100
+}
+// num_strtod — the double the NUL-terminated text at `s` spells (libc strtod: an
+// overflow gives +-inf, an underflow 0). fly.str.toDouble validates the syntax
+// first, so the text is always a well-formed decimal number.
+public void num_strtod(const pointer s, double out) {
+    fly.runtime.strtod(s, 0, out)
+}
+// num_gcvt — `v` written with `digits` significant digits (1-17) into `buf`
+// (at least 32 bytes), NUL-terminated, in the C library's own %g-like layout;
+// fly.str.convertD reads digits and exponent back out and lays them out itself.
+public void num_gcvt(const double v, const int digits, const pointer buf) {
+    pointer p = 0
+    fly.runtime._gcvt(v, digits, buf, p)
 }
 public void fs_mtime(const pointer path, long out) {
     pointer info = 0

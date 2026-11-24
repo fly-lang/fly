@@ -656,4 +656,69 @@ suite StrSuite {
             assert.assertEqL(l, 0, 1120)
         }
     }
+
+    // ── toDouble / convertD ──────────────────────────────────────────────────
+    void doubleTest() {
+        case "toDouble reads a decimal number": {
+            int e = 9
+            assert.assertTrue(str.toDouble("1.5", e) == 1.5, 1201)
+            assert.assertEqI(e, 0, 1202)
+            assert.assertTrue(str.toDouble("-0.25", e) == 0.0 - 0.25, 1203)
+            assert.assertTrue(str.toDouble(".5", e) == 0.5, 1204)
+            assert.assertTrue(str.toDouble("5.", e) == 5.0, 1205)
+            assert.assertTrue(str.toDouble("+42", e) == 42.0, 1206)
+            assert.assertTrue(str.toDouble("1e3", e) == 1000.0, 1207)
+            assert.assertTrue(str.toDouble("2.5E-1", e) == 0.25, 1208)
+            assert.assertTrue(str.toDouble("1e-400", e) == 0.0, 1209)
+            assert.assertEqI(e, 0, 1210)
+        }
+        case "toDouble errOut 1 for what is not a number, 2 out of range": {
+            int e = 0
+            double d = str.toDouble("", e)
+            assert.assertEqI(e, 1, 1211)
+            d = str.toDouble(".", e)
+            assert.assertEqI(e, 1, 1212)
+            d = str.toDouble("1e", e)
+            assert.assertEqI(e, 1, 1213)
+            d = str.toDouble(" 1", e)
+            assert.assertEqI(e, 1, 1214)
+            d = str.toDouble("inf", e)
+            assert.assertEqI(e, 1, 1215)
+            d = str.toDouble("1.5x", e)
+            assert.assertEqI(e, 1, 1216)
+            d = str.toDouble("1e999", e)
+            assert.assertEqI(e, 2, 1217)
+            assert.assertTrue(d == 0.0, 1218)
+        }
+        case "convertD writes the shortest text that reads back": {
+            assert.assertStr(str.convertD(0.1), "0.1", 1221)
+            assert.assertStr(str.convertD(1.0), "1.0", 1222)
+            assert.assertStr(str.convertD(0.0 - 2.5), "-2.5", 1223)
+            assert.assertStr(str.convertD(0.0), "0.0", 1224)
+            assert.assertStr(str.convertD(123456.789), "123456.789", 1225)
+            assert.assertStr(str.convertD(0.1 + 0.2), "0.30000000000000004", 1226)
+            assert.assertStr(str.convertD(100.0), "100.0", 1227)
+            assert.assertStr(str.convertD(0.001), "0.001", 1228)
+        }
+        case "convertD switches to an exponent outside 1e-4 .. 1e16": {
+            int e = 0
+            assert.assertStr(str.convertD(str.toDouble("1e16", e)), "1e+16", 1231)
+            assert.assertStr(str.convertD(str.toDouble("1e15", e)), "1000000000000000.0", 1232)
+            assert.assertStr(str.convertD(str.toDouble("0.0001", e)), "0.0001", 1233)
+            assert.assertStr(str.convertD(str.toDouble("0.000015", e)), "1.5e-05", 1234)
+            assert.assertStr(str.convertD(str.toDouble("1.7976931348623157e308", e)), "1.7976931348623157e+308", 1235)
+            assert.assertStr(str.convertD(str.toDouble("5e-324", e)), "5e-324", 1236)
+        }
+        case "convertD of non-finite values": {
+            double big = 1.0
+            int i = 0
+            while i < 400 {
+                big = big * 10.0
+                i = i + 1
+            }
+            assert.assertStr(str.convertD(big), "inf", 1241)
+            assert.assertStr(str.convertD(0.0 - big), "-inf", 1242)
+            assert.assertStr(str.convertD(big - big), "nan", 1243)
+        }
+    }
 }
