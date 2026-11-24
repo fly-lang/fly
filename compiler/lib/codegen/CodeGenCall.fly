@@ -5,6 +5,7 @@ import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenModule
 import fly.compiler.codegen.CodeGenLLVM
 import fly.compiler.codegen.CodeGenIntrinsics
+import fly.compiler.codegen.CodeGenError
 import llvm.api.*
 import fly.data.List
 import fly.str
@@ -224,6 +225,7 @@ public class CodeGenCall {
         pointer callV
         cg.buildCallN(b, fnTy, fnVal, argAddrs, "", callV)
         CodeGenExprOps.freeArgTemps(cge, argTemps)
+        CodeGenError.propagate(cge)
 
         // the call's rvalue is the out slot reloaded (void calls produce nothing).
         if hasOut {

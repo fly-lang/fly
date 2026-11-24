@@ -236,6 +236,27 @@ suite OsFsSuite {
             fs.del(src)
             fs.dirDeleteAll(dir)
         }
+        case "copy is byte-exact: no newline translation, no stop at 0x1A": {
+            // A CRLF source used to come out of a text-mode copy with LFs
+            // expanded and the uninitialized tail of the buffer appended.
+            string src = "fly_fs_cp_bin_src.bin"
+            string dst = "fly_fs_cp_bin_dst.bin"
+            pointer buf = mem.alloc(6)
+            mem.writeByte(buf, 0, 65)
+            mem.writeByte(buf, 1, 13)
+            mem.writeByte(buf, 2, 10)
+            mem.writeByte(buf, 3, 10)
+            mem.writeByte(buf, 4, 26)
+            mem.writeByte(buf, 5, 0)
+            string payload = str.fromBytes(buf, 6)
+            fs.writeBytes(src, payload, 420)
+            fs.copy(src, dst)
+            string back = fs.readBytes(dst)
+            fs.del(src)
+            fs.del(dst)
+            assert.assertEqL((long)str.len(back), 6, 414)
+            assert.assertStr(back, payload, 415)
+        }
     }
 
     // ── directories ──────────────────────────────────────────────────────────

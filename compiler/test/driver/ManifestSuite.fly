@@ -948,4 +948,114 @@ suite ManifestSuite {
             assert.assertEqI(rc2, 3, 289)
         }
     }
+
+    // ── named form (0.15.2): struct-literal targets and profiles ─────────────
+    void namedFormTest() {
+        case "reads a named-form target with every field": {
+            string t = str.concat("    { name = ", qq("fly"))
+            t = str.concat(t, str.concat(", lib = ", qq("static")))
+            t = str.concat(t, str.concat(", os = ", qq("linux")))
+            t = str.concat(t, str.concat(", artifact = ", qq("fly_std_lib")))
+            t = str.concat(t, str.concat(", entry = ", qq("tools/x/Main.fly")))
+            t = str.concat(t, str.concat(", srcDirs = { ", str.concat(qq("compiler"), str.concat(", ", str.concat(qq("gen"), " }")))))
+            t = str.concat(t, str.concat(", files = { ", str.concat(qq("runtime/lib/A.fly"), " }")))
+            t = str.concat(t, str.concat(", libDirs = { ", str.concat(qq("@out"), " }")))
+            t = str.concat(t, str.concat(", linkLibs = { ", str.concat(qq("ssl"), " }")))
+            t = str.concat(t, str.concat(", flags = { ", str.concat(qq("--tls"), str.concat(", ", str.concat(qq("-O1"), " }")))))
+            t = str.concat(t, " }")
+            string s = nlc("import fly.meta.*")
+            s = str.concat(s, nlc("class Manifest : fly.meta.Manifest {"))
+            s = str.concat(s, nlc(str.concat("    string name = ", qq("p"))))
+            s = str.concat(s, nlc("    Target[] targets = {"))
+            s = str.concat(s, nlc(str.concat(t, ",")))
+            s = str.concat(s, nlc(str.concat("        new Target(", str.concat(qq("app"), str.concat(", ", str.concat(qq("src/main.fly"), str.concat(", ", str.concat(qq(""), ")"))))))))
+            s = str.concat(s, nlc("    }"))
+            s = str.concat(s, "}")
+            int e = 0
+            FlyManifestReader mr = new FlyManifestReader()
+            Manifest m = mr.read(s, e)
+            assert.assertEqI(e, 0, 1001)
+            assert.assertEqI(m.targetCount(), 2, 1002)
+            Target n = m.targetAt(0)
+            assert.assertStr(n.getName(), "fly", 1003)
+            assert.assertStr(n.getLib(), "static", 1004)
+            assert.assertStr(n.getOs(), "linux", 1005)
+            assert.assertStr(n.getArtifact(), "fly_std_lib", 1006)
+            assert.assertStr(n.getEntry(), "tools/x/Main.fly", 1007)
+            assert.assertEqI((int)n.getSrcDirs().size(), 2, 1008)
+            assert.assertStr(n.getSrcDirs().get(1), "gen", 1009)
+            assert.assertStr(n.getFiles().get(0), "runtime/lib/A.fly", 1010)
+            assert.assertStr(n.getLibDirs().get(0), "@out", 1011)
+            assert.assertStr(n.getLinkLibs().get(0), "ssl", 1012)
+            assert.assertEqI((int)n.getFlags().size(), 2, 1013)
+            assert.assertStr(n.getFlags().get(1), "-O1", 1014)
+            // the positional form still reads, next to it
+            assert.assertStr(m.targetAt(1).getPath(), "src/main.fly", 1015)
+        }
+        case "reads named-form profiles; a field left out keeps the default": {
+            string s = nlc("import fly.meta.*")
+            s = str.concat(s, nlc("class Manifest : fly.meta.Manifest {"))
+            s = str.concat(s, nlc("    Profile[] profiles = {"))
+            s = str.concat(s, nlc(str.concat("        { name = ", str.concat(qq("dist"), ", optLevel = 2, warningsAsErrors = true },"))))
+            s = str.concat(s, nlc(str.concat("        { name = ", str.concat(qq("release"), str.concat(", debugPrefixMap = ", str.concat(qq("@out=lib"), " }"))))))
+            s = str.concat(s, nlc("    }"))
+            s = str.concat(s, "}")
+            int e = 0
+            FlyManifestReader mr = new FlyManifestReader()
+            Manifest m = mr.read(s, e)
+            assert.assertEqI(e, 0, 1021)
+            assert.assertTrue(m.hasProfile("dist"), 1022)
+            BuildProfile d = m.getProfile("dist")
+            assert.assertEqI(d.getOptLevel(), 2, 1023)
+            assert.assertTrue(d.getWarningsAsErrors(), 1024)
+            assert.assertTrue(d.getDebugInfo(), 1025)          // debug default kept
+            BuildProfile r = m.getProfile("release")
+            assert.assertEqI(r.getOptLevel(), 3, 1026)          // release default kept
+            assert.assertFalse(r.getDebugInfo(), 1027)
+            assert.assertStr(r.getDebugPrefixMap(), "@out=lib", 1028)
+        }
+        case "serialize writes named targets and profiles back": {
+            Manifest m = new Manifest()
+            m.setName("p")
+            m.setVersion("1.0.0")
+            Target t = new Target("tool", "tool", "", "")
+            t.getSrcDirs().add("tools/x")
+            t.setEntry("tools/x/Main.fly")
+            t.getFlags().add("--tls")
+            m.addTarget(t)
+            m.addTarget(new Target("app", "app", "src/main.fly", ""))
+            BuildProfile p = new BuildProfile()
+            p.setOptLevel(1)
+            p.setWarningsAsErrors(true)
+            m.addProfile("dist", p)
+            int e = 0
+            FlyManifestReader mr = new FlyManifestReader()
+            Manifest b = mr.read(m.serialize(), e)
+            assert.assertEqI(e, 0, 1031)
+            assert.assertEqI(b.targetCount(), 2, 1032)
+            Target bt = b.targetAt(0)
+            assert.assertStr(bt.getEntry(), "tools/x/Main.fly", 1033)
+            assert.assertStr(bt.getSrcDirs().get(0), "tools/x", 1034)
+            assert.assertStr(bt.getFlags().get(0), "--tls", 1035)
+            assert.assertStr(b.targetAt(1).getPath(), "src/main.fly", 1036)
+            BuildProfile bp = b.getProfile("dist")
+            assert.assertEqI(bp.getOptLevel(), 1, 1037)
+            assert.assertTrue(bp.getWarningsAsErrors(), 1038)
+        }
+        case "the repository's own Manifest.fly is the compiler's version": {
+            // The root Manifest.fly is the single source of the version: the build
+            // writes it into fly.meta.package, which flyVersion() returns. Run from
+            // the repository root (as the CI scripts do).
+            if fs.exists("Manifest.fly") {
+                int e = 0
+                FlyManifestReader mr = new FlyManifestReader()
+                Manifest m = mr.read(fs.readStr("Manifest.fly"), e)
+                assert.assertEqI(e, 0, 1041)
+                assert.assertStr(m.getName(), "fly", 1042)
+                assert.assertStr(m.getVersion(), flyVersion(), 1043)
+                assert.assertTrue(m.targetCount() >= 10, 1044)
+                assert.assertTrue(m.hasProfile("dist"), 1045)
+            }
+        }
+    }
 }

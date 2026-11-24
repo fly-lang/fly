@@ -129,6 +129,60 @@ public class CodeGenError {
         }
     }
 
+    // propagate — emitted right after every call to a Fly function (plain, method,
+    // interface, constructor): a failure is not ignorable. If the callee left a
+    // code in the shared %error, the caller stops where it is and takes the same
+    // exit a `fail` of its own would take: the enclosing handle's safe block, the
+    // enclosing suite case's end, or a return (scope cleanup + trace hook). The
+    // error is NOT cleared: it travels on to whoever handles it, or to main.
+    //
+    // Like failWithCode it runs mid-expression, so it leaves the builder in a
+    // fresh "call.ok" block where the expression goes on.
+    public static void propagate(const CodeGenExpr cge) {
+        if cge.isTerminated() {
+            return
+        }
+        pointer errPtr = cge.getErrPtr()
+        if errPtr == 0 {
+            return
+        }
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        pointer errTy = cgm.getErrorTy()
+        pointer i32
+        llvm.int32TypeInContext(cgm.getCtx(), i32)
+        pointer zero
+        llvm.constInt(i32, 0, true, zero)
+        pointer cp
+        llvm.buildStructGEP2(b, errTy, errPtr, 0, "pcode", cp)
+        pointer codeV
+        llvm.buildLoad2(b, i32, cp, "pcodev", codeV)
+        pointer hasErr
+        llvm.buildICmp(b, 33, codeV, zero, "pfailed", hasErr)   // NE
+
+        pointer okBB = cge.newBlock("call.ok")
+        pointer safe = cge.getHandleSafe()
+        pointer caseEnd = cge.getCaseEnd()
+        pointer cbr
+        if safe != 0 {
+            llvm.buildCondBr(b, hasErr, safe, okBB, cbr)
+        } elsif caseEnd != 0 {
+            llvm.buildCondBr(b, hasErr, caseEnd, okBB, cbr)
+        } else {
+            pointer failBB = cge.newBlock("call.fail")
+            llvm.buildCondBr(b, hasErr, failBB, okBB, cbr)
+            cge.setTerminated(true)
+            cge.position(failBB)
+            cge.emitReturnCleanup()
+            CodeGenTrace.emitExitFail(cge)
+            pointer r
+            llvm.buildRetVoid(b, r)
+        }
+        cge.setTerminated(true)
+        cge.position(okBB)
+    }
+
     // writeField — store one fail operand into its slot: int/enum/bool → code (0),
     // string → str (1), class/other ptr → obj (2).
     public static void writeField(const CodeGenExpr cge, const pointer errTy, const pointer errPtr, const SemaExpr e) {

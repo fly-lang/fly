@@ -48,7 +48,8 @@ public Manifest loadManifest(int errOut) {
 }
 
 public int cmdVersion() {
-    // Same single source of truth as `fly --version` (Version.fly).
+    // Same single source of truth as `fly --version` (the root Manifest.fly, via the
+    // generated build/gen/Version.fly).
     io.printLn(str.concat("fly ", flyVersion()))
     return 0
 }

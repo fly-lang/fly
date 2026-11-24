@@ -341,6 +341,40 @@ public class ResolverClass {
         r.setCurrentErrorHandler(savedEH)
     }
 
+    // isTemplateClass — a generic class as written (Box<T>), not one of its
+    // specializations: it never gets code of its own.
+    public static bool isTemplateClass(const SemaClassType cls) {
+        if cls.isGeneric() == false {
+            return false
+        }
+        return cls.getGenericTemplate() == null
+    }
+
+    // noteFieldSpec — a field whose type is a CLASS specialization: the owner's
+    // code (drop of an owning field, free()) may call into it, so the field's
+    // specialization is used whenever the owner is — now, or at the owner's own
+    // first use when the owner is an unused specialization itself.
+    public static void noteFieldSpec(const SemaClassType cls, const SemaType t) {
+        if t == null {
+            return
+        }
+        SemaClassType fc = t.asClass()
+        if fc == null {
+            return
+        }
+        if fc.isLazySpec() == false {
+            return
+        }
+        if ResolverClass.isTemplateClass(cls) {
+            return
+        }
+        if cls.waitsForUse() {
+            cls.addPendingDep(fc)
+        } else {
+            fc.markUsed()
+        }
+    }
+
     // resolveBaseClasses — resolve each `extends` type to a class, resolve that base
     // fully (depth-first), and link it. Non-class / unresolved bases are skipped
     // (kind/diamond/abstract checks are Stage 8).
@@ -360,6 +394,13 @@ public class ResolverClass {
             if bc != null {
                 ResolverClass.resolveClassType(r, bc)
                 cls.addBaseClass(bc)
+                // a class with code needs the code of its bases (its vtable holds
+                // their methods); an unused specialization marks them on its use
+                if ResolverClass.isTemplateClass(cls) == false {
+                    if cls.waitsForUse() == false {
+                        bc.markUsed()
+                    }
+                }
                 // a `final` class is a leaf of the hierarchy
                 if bc.isFinal() {
                     r.diagStr2(ac.getLoc(), DiagID.err_sema_final_class_subclassed, cls.getName(), bc.getName())
@@ -430,6 +471,7 @@ public class ResolverClass {
         SemaType t = r.getCurrentType()
         SemaClassAttribute attr = SemaBuilder.CreateClassAttribute(cls, node, t)
         cls.addAttribute(attr)
+        ResolverClass.noteFieldSpec(cls, t)
         // An OWNING field (the parser saw `this.f = new unique ...` or an owner
         // stored into it): deleted with the object, borrowed by every read.
         ASTClass cast = cls.getAST()
@@ -624,7 +666,13 @@ public class ResolverClass {
             }
             if isTemplate == false {
                 Registry reg = r.getReg()
-                reg.addBody(meth)
+                // An unused CLASS specialization holds its bodies back until its
+                // first use (SemaClassType.markUsed queues them then).
+                if cls.waitsForUse() {
+                    cls.deferBody(meth, reg)
+                } else {
+                    reg.addBody(meth)
+                }
             }
         }
 

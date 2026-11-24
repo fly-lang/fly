@@ -14,6 +14,8 @@ import fly.lsp.navModeCallAt
 import fly.lsp.navModeCalls
 import fly.str
 import fly.os.fs
+import fly.os.env
+import fly.os.path
 import fly.data.List
 import fly.assert
 import fly.lsp
@@ -214,7 +216,46 @@ bool symNamed(const List<LspSym> xs, const string name, const int kind) {
     return false
 }
 
+// lspScratch — the suite's working directory: a fresh directory under the OS
+// temp dir, OUTSIDE the repository. The fixtures are written relative to the
+// working directory, and resolveRoot walks up from a file to the nearest
+// Manifest.fly: inside the repo it would find the repository's own (0.15.2) and
+// every fixture would belong to the Fly project.
+string lspScratch() {
+    string tmp = env.get("TMPDIR")
+    if str.isEmpty(tmp) {
+        tmp = env.get("TEMP")
+    }
+    if str.isEmpty(tmp) {
+        tmp = "/tmp"
+    }
+    return path.join(tmp, "fly_lsp_analyzer_suite")
+}
+
 suite LspAnalyzerSuite {
+
+    // setup / teardown — run the cases in the scratch directory (see lspScratch);
+    // the environment variable keeps the directory to come back to.
+    void setup() {
+        env.set("FLY_LSP_SUITE_HOME", env.cwdGet())
+        string d = lspScratch()
+        if fs.exists(d) {
+            fs.dirDeleteAll(d)
+        }
+        fs.dirCreateAll(d, 493)
+        env.cwdSet(d)
+    }
+
+    void teardown() {
+        string home = env.get("FLY_LSP_SUITE_HOME")
+        if str.isEmpty(home) == false {
+            env.cwdSet(home)
+        }
+        string d = lspScratch()
+        if fs.exists(d) {
+            fs.dirDeleteAll(d)
+        }
+    }
 
     // ── before any compile ───────────────────────────────────────────────────
     void beforeCompileTest() {
@@ -553,6 +594,40 @@ suite LspAnalyzerSuite {
             }
             assert.assertTrue(sawSquare, 918)
             fs.dirDeleteAll(navFixtureDir())
+        }
+        case "a raw string over several lines keeps the names after it in place": {
+            // A """...""" literal (0.15) may span lines. The tokens are names only,
+            // so the literal yields none; what must hold is that every name AFTER
+            // it still reports its own line and column, not one shifted by the
+            // newlines inside the literal.
+            string q = str.repeat("\"", 3)
+            string s = "void main() {\n"
+            s = str.concat(s, str.concat("    string t = ", str.concat(q, "a\n")))
+            s = str.concat(s, "b\n")
+            s = str.concat(s, str.concat("c", str.concat(q, "\n")))
+            s = str.concat(s, "    int k = 1\n")
+            s = str.concat(s, "    int m = k\n")
+            s = str.concat(s, "}\n")
+            fs.dirCreateAll("lsp_suite_fx_raw", 493)
+            fs.writeStr("lsp_suite_fx_raw/raw.fly", s, 420)
+            LspAnalyzer a = new LspAnalyzer()
+            List<LspDiag> d = a.compileFile("lsp_suite_fx_raw/raw.fly")
+            List<LspSym> toks = a.semanticTokens()
+            bool sawK = false
+            int j = 0
+            while j < toks.size() {
+                LspSym t = toks.get(j)
+                assert.assertTrue(t.line != 3 && t.line != 4, 919)
+                if str.equals(t.name, "k") {
+                    if t.line == 6 {
+                        sawK = true
+                        assert.assertEqI(t.col, 13, 920)
+                    }
+                }
+                j = j + 1
+            }
+            assert.assertTrue(sawK, 921)
+            fs.dirDeleteAll("lsp_suite_fx_raw")
         }
         case "workspace symbols match by substring and answer everything on empty": {
             LspAnalyzer a = compiled()

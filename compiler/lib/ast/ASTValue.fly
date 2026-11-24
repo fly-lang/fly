@@ -68,6 +68,9 @@ public class ASTBoolValue : ASTValue {
     public bool getValue() {
         return this.value
     }
+    public ASTBoolValue asBoolValue() {
+        return this
+    }
 
     public void accept(const ASTVisitor v) {
         v.visit(this)
@@ -159,6 +162,9 @@ public class ASTStructValue : ASTValue {
     }
     public List<ASTExpr> getExprs() {
         return this.exprs
+    }
+    public ASTStructValue asStructValue() {
+        return this
     }
     public void addField(const string name, const ASTExpr e) {
         this.names.add(name)

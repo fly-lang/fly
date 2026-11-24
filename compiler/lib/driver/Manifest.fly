@@ -91,6 +91,8 @@ public class BuildProfile {
     bool assertions
     bool lto
     bool strip
+    bool warningsAsErrors    // a warning fails the build (--warnings-as-errors)
+    string debugPrefixMap    // "OLD=NEW" for --debug-prefix-map ("" = none; @out = the output dir)
 
     public BuildProfile() {
         this.optLevel = 0
@@ -98,6 +100,8 @@ public class BuildProfile {
         this.assertions = true
         this.lto = false
         this.strip = false
+        this.warningsAsErrors = false
+        this.debugPrefixMap = ""
     }
 
     public int getOptLevel() {
@@ -130,20 +134,92 @@ public class BuildProfile {
     public void setStrip(const bool v) {
         this.strip = v
     }
+    public bool getWarningsAsErrors() {
+        return this.warningsAsErrors
+    }
+    public void setWarningsAsErrors(const bool v) {
+        this.warningsAsErrors = v
+    }
+    public string getDebugPrefixMap() {
+        return this.debugPrefixMap
+    }
+    public void setDebugPrefixMap(const string v) {
+        this.debugPrefixMap = v
+    }
 }
 
-// A build target: `key = { path, name?, lib? }`. No `lib` = bin.
+// A build target. The positional form `new Target(name, path, lib)` names one
+// source file whose directory is compiled; the named form (0.15.2)
+// `{ name = ..., srcDirs = {...}, ... }` also carries the fields below. No
+// `lib` = an executable. Paths are relative to the package root; in libDirs,
+// flags and a profile's debugPrefixMap, `@out` stands for the output directory.
 public class Target {
     string key
     string name
     string path
     string lib
+    List<string> srcDirs    // source roots; the FIRST is the discovery root (overrides path)
+    List<string> files      // compile exactly these files (staged into a dir of their own)
+    string entry            // the file declaring main(), instead of discovering it
+    string os               // "linux" | "windows" | "macos": build only on that host ("" = all)
+    string artifact         // exact output name (no lib prefix; extension added per platform)
+    List<string> libDirs    // -L package dirs (headers + archives)
+    List<string> linkLibs   // native libraries for this target (--link-lib)
+    List<string> flags      // extra compiler arguments, passed verbatim
 
     public Target(const string k, const string nm, const string p, const string lb) {
         this.key = k
         this.name = nm
         this.path = p
         this.lib = lb
+        this.srcDirs = new List<string>()
+        this.files = new List<string>()
+        this.entry = ""
+        this.os = ""
+        this.artifact = ""
+        this.libDirs = new List<string>()
+        this.linkLibs = new List<string>()
+        this.flags = new List<string>()
+    }
+
+    public List<string> getSrcDirs() {
+        return this.srcDirs
+    }
+    public List<string> getFiles() {
+        return this.files
+    }
+    public string getEntry() {
+        return this.entry
+    }
+    public void setEntry(const string v) {
+        this.entry = v
+    }
+    public string getOs() {
+        return this.os
+    }
+    public void setOs(const string v) {
+        this.os = v
+    }
+    public string getArtifact() {
+        return this.artifact
+    }
+    public void setArtifact(const string v) {
+        this.artifact = v
+    }
+    public List<string> getLibDirs() {
+        return this.libDirs
+    }
+    public List<string> getLinkLibs() {
+        return this.linkLibs
+    }
+    public List<string> getFlags() {
+        return this.flags
+    }
+    public void setPath(const string v) {
+        this.path = v
+    }
+    public void setLib(const string v) {
+        this.lib = v
     }
 
     public string getKey() {
@@ -574,11 +650,107 @@ public class Manifest {
         if this.devDeps.size() > 0 {
             s = str.concat(s, this.depArray("devDependencies", this.devDeps, q, nl))
         }
+        if this.profiles.size() > 0 {
+            s = str.concat(s, this.profileArray(q, nl))
+        }
         if this.targets.size() > 0 {
             s = str.concat(s, this.targetArray(this.targets, q, nl))
         }
         s = str.concat(s, str.concat("}", nl))
         return s
+    }
+
+    // profileArray — `  Profile[] profiles = { { name = "dist", optLevel = 0, ... } }`,
+    // every field written, so reading it back gives the same profile whatever
+    // the built-in defaults of its name are.
+    string profileArray(const string q, const string nl) {
+        string a = str.concat("  Profile[] profiles = {", nl)
+        int i = 0
+        while i < this.profiles.size() {
+            ProfileEntry e = this.profiles.get(i)
+            BuildProfile p = e.getProf()
+            string l = str.concat("    { name = ", str.concat(q, str.concat(e.getName(), q)))
+            l = str.concat(l, str.concat(", optLevel = ", str.convert(p.getOptLevel())))
+            l = str.concat(l, this.boolField("debugInfo", p.getDebugInfo()))
+            l = str.concat(l, this.boolField("assertions", p.getAssertions()))
+            l = str.concat(l, this.boolField("lto", p.getLto()))
+            l = str.concat(l, this.boolField("strip", p.getStrip()))
+            l = str.concat(l, this.boolField("warningsAsErrors", p.getWarningsAsErrors()))
+            if str.isEmpty(p.getDebugPrefixMap()) == false {
+                l = str.concat(l, str.concat(", debugPrefixMap = ", str.concat(q, str.concat(p.getDebugPrefixMap(), q))))
+            }
+            l = str.concat(l, " }")
+            if i + 1 < this.profiles.size() {
+                l = str.concat(l, ",")
+            }
+            a = str.concat(a, str.concat(l, nl))
+            i = i + 1
+        }
+        return str.concat(a, str.concat("  }", nl))
+    }
+
+    // boolField — `, <name> = true|false`.
+    string boolField(const string name, const bool v) {
+        string b = "false"
+        if v {
+            b = "true"
+        }
+        return str.concat(", ", str.concat(name, str.concat(" = ", b)))
+    }
+
+    // usesNamedForm — a target with any 0.15.2 field, written as a struct literal.
+    bool usesNamedForm(const Target t) {
+        if t.getSrcDirs().size() > 0 || t.getFiles().size() > 0 {
+            return true
+        }
+        if t.getLibDirs().size() > 0 || t.getLinkLibs().size() > 0 || t.getFlags().size() > 0 {
+            return true
+        }
+        if str.isEmpty(t.getEntry()) == false || str.isEmpty(t.getOs()) == false {
+            return true
+        }
+        return str.isEmpty(t.getArtifact()) == false
+    }
+
+    // namedTarget — `{ name = "...", <each non-empty field> }`.
+    string namedTarget(const Target t, const string q) {
+        string l = str.concat("{ name = ", str.concat(q, str.concat(t.getName(), q)))
+        l = str.concat(l, this.optStr("path", t.getPath(), q))
+        l = str.concat(l, this.optStr("lib", t.getLib(), q))
+        l = str.concat(l, this.optStr("os", t.getOs(), q))
+        l = str.concat(l, this.optStr("artifact", t.getArtifact(), q))
+        l = str.concat(l, this.optStr("entry", t.getEntry(), q))
+        l = str.concat(l, this.optList("srcDirs", t.getSrcDirs(), q))
+        l = str.concat(l, this.optList("files", t.getFiles(), q))
+        l = str.concat(l, this.optList("libDirs", t.getLibDirs(), q))
+        l = str.concat(l, this.optList("linkLibs", t.getLinkLibs(), q))
+        l = str.concat(l, this.optList("flags", t.getFlags(), q))
+        return str.concat(l, " }")
+    }
+
+    // optStr — `, <name> = "<v>"`, or nothing for an empty value.
+    string optStr(const string name, const string v, const string q) {
+        if str.isEmpty(v) {
+            return ""
+        }
+        return str.concat(", ", str.concat(name, str.concat(" = ", str.concat(q, str.concat(v, q)))))
+    }
+
+    // optList — `, <name> = { "a", "b" }`, or nothing for an empty list.
+    string optList(const string name, const List<string> xs, const string q) {
+        if xs.size() == 0 {
+            return ""
+        }
+        string l = str.concat(", ", str.concat(name, " = { "))
+        int i = 0
+        while i < xs.size() {
+            if i > 0 {
+                l = str.concat(l, ", ")
+            }
+            l = str.concat(l, str.concat(q, str.concat(xs.get(i), q)))
+            i = i + 1
+        }
+        return str.concat(l, " }")
     }
 
     // scalarField — `  string <name> = "<val>"`.
@@ -641,7 +813,8 @@ public class Manifest {
         return str.concat(s, ")")
     }
 
-    // targetArray — `  Target[] targets = { new Target("name", "path", "lib"), ... }`.
+    // targetArray — `  Target[] targets = { new Target("name", "path", "lib"), ... }`;
+    // a target with any 0.15.2 field is written in the named form instead.
     string targetArray(const List<Target> ts, const string q, const string nl) {
         string a = "  Target[] targets = { "
         int i = 0
@@ -650,10 +823,14 @@ public class Manifest {
                 a = str.concat(a, ", ")
             }
             Target t = ts.get(i)
-            string tn = str.concat("new Target(", this.qc(t.getName(), q))
-            tn = str.concat(tn, this.qc(t.getPath(), q))
-            tn = str.concat(tn, str.concat(q, str.concat(t.getLib(), str.concat(q, ")"))))
-            a = str.concat(a, tn)
+            if this.usesNamedForm(t) {
+                a = str.concat(a, this.namedTarget(t, q))
+            } else {
+                string tn = str.concat("new Target(", this.qc(t.getName(), q))
+                tn = str.concat(tn, this.qc(t.getPath(), q))
+                tn = str.concat(tn, str.concat(q, str.concat(t.getLib(), str.concat(q, ")"))))
+                a = str.concat(a, tn)
+            }
             i = i + 1
         }
         return str.concat(a, str.concat(" }", nl))

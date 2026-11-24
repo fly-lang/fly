@@ -13,3 +13,5 @@ compiler/_bundle/
 *.bak
 *.swp
 *.DS_Store
+# fly build output
+target/

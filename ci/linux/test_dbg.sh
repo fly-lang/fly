@@ -71,6 +71,25 @@ void main() {
     int x = 10
     int y = 32
     int r = add(x, y)
+    Box bx = new Box()
+    bx.v = r
+    int z = bx.v
+}
+
+struct Pt {
+    int x
+    int y
+}
+
+class Box {
+    public int v
+    public Pt p
+
+    public Box() {
+        this.v = 0
+        this.p.x = 3
+        this.p.y = 4
+    }
 }
 EOF
 
@@ -82,7 +101,7 @@ if ! "$FLY" --debug-symbols --src-dir "$OUT" -o dbg_probe --out-dir "$OUT" > "$O
 fi
 [ -x "$OUT/dbg_probe" ] || { echo "  FAIL  probe executable not produced"; exit 1; }
 
-bp="$("$DBG" -b -o 'breakpoint set -f dbg_probe.fly -l 2' -o 'run' -o 'bt 2' -o 'frame variable a b' -o 'next' -o 'frame variable s' -o 'continue' \
+bp="$("$DBG" -b -o 'breakpoint set -f dbg_probe.fly -l 2' -o 'run' -o 'bt 2' -o 'frame variable a b' -o 'next' -o 'frame variable s' -o 'breakpoint set -f dbg_probe.fly -l 12' -o 'continue' -o 'frame variable *bx' -o 'continue' \
       -- "$OUT/dbg_probe" 2>&1)"
 rc=$?
 if [ "$rc" -ne 0 ]; then echo "  FAIL  lldb batch run (exit $rc)"; echo "$bp"; exit 1; fi
@@ -98,8 +117,10 @@ expect '\(int\) b = 32'                                     'parameter b has its
 expect 'stop reason = step over'                            'next stopped'
 expect 'add\(.*\) at dbg_probe\.fly:3'                      'next steps to the following line'
 expect '\(int\) s = 42'                                     'the local holds a + b after the step'
+expect 'v = 42'                                             'a class field has its value'
+expect 'p = \(x = 3, y = 4\)'                               'an inline struct field has its members'
 expect 'exited with status = 0'                             'probe exited cleanly'
-echo "  ok    self-host DWARF: breakpoint at dbg_probe.fly:2, caller at :9, a=10 b=32, step to :3 with s=42, exit 0"
+echo "  ok    self-host DWARF: breakpoint at dbg_probe.fly:2, caller at :9, a=10 b=32, step to :3 with s=42, Box fields v=42 p=(3,4), exit 0"
 
 # -- 3. lldb-dap presence ------------------------------------------------------
 DAP="$BIN/lldb-dap"

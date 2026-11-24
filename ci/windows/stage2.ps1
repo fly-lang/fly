@@ -68,9 +68,11 @@ if (-not (Test-Path 'build/stage2/bin/fly.exe' -PathType Leaf)) {
 # sources, and no suite can see it (a suite compiles both sides with one compiler).
 # test_sema: the compiler must still REJECT what the language forbids. No suite
 # can see a check that went missing - suites only compile valid programs.
+# test_fly_build: `fly build --profile dist` builds the whole toolchain from the root
+# Manifest.fly and what it builds works (0.15.2: what release/0.16.X bootstraps with).
 # test_traps: a run-time error (a null reference) must stop the program with its
 # diagnostic. No suite can see a trap that went missing - suites run valid programs.
-foreach ($step in 'build_lsp', 'test_lsp', 'build_registry', 'test_registry', 'test_tools', 'test_abi', 'test_sema', 'test_traps', 'test_leaks', 'test_dbg') {
+foreach ($step in 'build_lsp', 'test_lsp', 'build_registry', 'test_registry', 'test_tools', 'test_abi', 'test_sema', 'test_traps', 'test_leaks', 'test_dbg', 'test_fly_build') {
     & ".\ci\windows\$step.ps1"
     if ($LASTEXITCODE -ne 0) { Write-Host "error: $step.ps1 failed (exit $LASTEXITCODE)"; exit 1 }
 }

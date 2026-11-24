@@ -1059,3 +1059,238 @@ public int toInt(const string s, int errOut) {
     }
     return (int)v
 }
+
+// digitAt — is byte i of s (of length n) a decimal digit? False past the end.
+private bool digitAt(const string s, const int i, const int n) {
+    if i >= n {
+        return false
+    }
+    int c = fly.str.byteAt(s, i) & 255
+    return c >= 48 && c <= 57
+}
+
+// toDouble — the decimal number `s` spells: an optional sign, digits with an
+// optional fraction ("1.5", ".5", "5.") and an optional exponent ("1e-3", "2E+8"),
+// and nothing else (no blanks, no "inf" or "nan"). errOut: 0 ok, 1 not a number,
+// 2 out of the range of a double (beyond about 1.8e308); the result is then 0.0.
+// A value nearer to zero than the smallest double reads as 0.0.
+public double toDouble(const string s, int errOut) {
+    errOut = 0
+    int n = fly.str.len(s)
+    int i = 0
+    if n > 0 {
+        int c0 = fly.str.byteAt(s, 0) & 255
+        if c0 == 45 || c0 == 43 {
+            i = 1
+        }
+    }
+    int mant = 0
+    while fly.str.digitAt(s, i, n) {
+        mant = mant + 1
+        i = i + 1
+    }
+    if i < n {
+        if (fly.str.byteAt(s, i) & 255) == 46 {
+            i = i + 1
+            while fly.str.digitAt(s, i, n) {
+                mant = mant + 1
+                i = i + 1
+            }
+        }
+    }
+    if mant == 0 {
+        errOut = 1
+        return 0.0
+    }
+    if i < n {
+        int ce = fly.str.byteAt(s, i) & 255
+        if ce == 101 || ce == 69 {
+            i = i + 1
+            if i < n {
+                int cs = fly.str.byteAt(s, i) & 255
+                if cs == 45 || cs == 43 {
+                    i = i + 1
+                }
+            }
+            if fly.str.digitAt(s, i, n) == false {
+                errOut = 1
+                return 0.0
+            }
+            while fly.str.digitAt(s, i, n) {
+                i = i + 1
+            }
+        }
+    }
+    if i != n {
+        errOut = 1
+        return 0.0
+    }
+    // The syntax is checked: the C library does the correctly rounded conversion.
+    pointer buf = 0
+    fly.runtime.mem_alloc((ulong)(n + 1), buf)
+    int k = 0
+    while k < n {
+        fly.llvm.strPoke(buf, k, fly.str.byteAt(s, k))
+        k = k + 1
+    }
+    fly.llvm.strPoke(buf, n, 0)
+    double v = 0.0
+    fly.runtime.num_strtod(buf, v)
+    fly.runtime.mem_free(buf, 0)
+    if fly.str.isInfD(v) {
+        errOut = 2
+        return 0.0
+    }
+    return v
+}
+
+// isInfD / isNaND — local copies of the fly.math tests (str must not depend on math).
+private bool isInfD(const double x) {
+    bool s = x == x + x
+    bool nz = x != 0.0
+    return s && nz
+}
+private bool isNaND(const double x) {
+    bool a = x >= 0.0
+    bool b = x < 0.0
+    return !a && !b
+}
+
+// zeros — n zero digits ("" for n <= 0).
+private string zeros(const int n) {
+    if n <= 0 {
+        return ""
+    }
+    return fly.str.repeat("0", n)
+}
+
+// convertD — the SHORTEST decimal text that reads back (toDouble) as exactly `v`:
+// "0.1", "1.0", "-2.5", "123456.789". Positional while the decimal exponent is in
+// -4..15, else scientific with a signed exponent of at least two digits: "1e+16",
+// "1.5e-05", "5e-324". Non-finite values: "inf", "-inf", "nan".
+public string convertD(const double v) {
+    if fly.str.isNaND(v) {
+        return "nan"
+    }
+    if fly.str.isInfD(v) {
+        if v < 0.0 {
+            return "-inf"
+        }
+        return "inf"
+    }
+    // Fewest significant digits (1..17; 17 always round-trips) whose text reads
+    // back as v. num_gcvt writes the C library's %g-like layout into buf.
+    pointer buf = 0
+    fly.runtime.mem_alloc(40, buf)
+    int p = 1
+    while p < 17 {
+        fly.runtime.num_gcvt(v, p, buf)
+        double back = 0.0
+        fly.runtime.num_strtod(buf, back)
+        if back == v {
+            break
+        }
+        p = p + 1
+    }
+    if p == 17 {
+        fly.runtime.num_gcvt(v, 17, buf)
+    }
+
+    // Read sign, digits and exponent back out of the C text: value = 0.D x 10^point
+    // where D are the significant digits (no leading or trailing zeros).
+    bool neg = false
+    string digs = ""
+    int intLen = 0
+    bool inFrac = false
+    int exp = 0
+    bool expNeg = false
+    bool inExp = false
+    int i = 0
+    bool go = true
+    while go {
+        byte b = 0
+        fly.llvm.ptrByteAt(buf, i, b)
+        int c = b & 255
+        if c == 0 {
+            go = false
+        } elsif inExp {
+            if c == 45 {
+                expNeg = true
+            } elsif c >= 48 && c <= 57 {
+                exp = exp * 10 + (c - 48)
+            }
+        } elsif c == 45 {
+            neg = true
+        } elsif c == 46 {
+            inFrac = true
+        } elsif c == 101 || c == 69 {
+            inExp = true
+        } elsif c >= 48 && c <= 57 {
+            digs = fly.str.concat(digs, fly.str.fromCharCode(c))
+            if inFrac == false {
+                intLen = intLen + 1
+            }
+        }
+        i = i + 1
+    }
+    fly.runtime.mem_free(buf, 0)
+    if expNeg {
+        exp = 0 - exp
+    }
+    int point = intLen + exp
+    int dn = fly.str.len(digs)
+    int lead = 0
+    while lead < dn {
+        if (fly.str.byteAt(digs, lead) & 255) != 48 {
+            break
+        }
+        lead = lead + 1
+    }
+    int tail = dn
+    while tail > lead {
+        if (fly.str.byteAt(digs, tail - 1) & 255) != 48 {
+            break
+        }
+        tail = tail - 1
+    }
+    string sign = ""
+    if neg {
+        sign = "-"
+    }
+    if lead == tail {
+        return fly.str.concat(sign, "0.0")
+    }
+    string d = fly.str.substring(digs, lead, tail)
+    point = point - lead
+    int nd = tail - lead
+
+    int sci = point - 1
+    string body = ""
+    if sci >= 0 - 4 && sci < 16 {
+        if point <= 0 {
+            body = fly.str.concat("0.", fly.str.concat(fly.str.zeros(0 - point), d))
+        } elsif point >= nd {
+            body = fly.str.concat(d, fly.str.concat(fly.str.zeros(point - nd), ".0"))
+        } else {
+            body = fly.str.concat(fly.str.substring(d, 0, point),
+                    fly.str.concat(".", fly.str.substring(d, point, nd)))
+        }
+    } else {
+        body = fly.str.substring(d, 0, 1)
+        if nd > 1 {
+            body = fly.str.concat(body, fly.str.concat(".", fly.str.substring(d, 1, nd)))
+        }
+        string es = "+"
+        int ea = sci
+        if sci < 0 {
+            es = "-"
+            ea = 0 - sci
+        }
+        string en = fly.str.convert(ea)
+        if ea < 10 {
+            en = fly.str.concat("0", en)
+        }
+        body = fly.str.concat(body, fly.str.concat("e", fly.str.concat(es, en)))
+    }
+    return fly.str.concat(sign, body)
+}

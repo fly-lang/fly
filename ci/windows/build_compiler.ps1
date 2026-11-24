@@ -14,6 +14,8 @@
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
+# the package module (build\gen\package.fly) the compiler sources need, from Manifest.fly
+& "$PSScriptRoot\gen_package.ps1" | Out-Null
 . "$PSScriptRoot\gnu_common.ps1"
 
 # -- Stage plumbing: pick the compiler and the in/out dirs from $STAGE. --------
@@ -75,7 +77,7 @@ Write-Host "stage${STAGE}: compiling driver + compiler (monolithic, from source)
 # DIRECTORY CLI: no positional — the entry (the single main(),
 # compiler/lib/driver/Driver.fly) is discovered from --src-dir and its import
 # closure pulls the whole compiler. -c emits a clean object, no link attempt.
-& $FLY --src-dir compiler `
+& $FLY --src-dir compiler --src-dir build/gen `
     @DBG @MAP @WERR @FLY_TARGET_ARGS -c -o Driver --out-dir $D > "$D/emit.log" 2>&1
 if (-not (Test-Path "$D/Driver")) {
     Write-Host "error: driver object not emitted; see $D\emit.log:"

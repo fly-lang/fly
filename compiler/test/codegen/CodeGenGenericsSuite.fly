@@ -35,4 +35,49 @@ suite CodeGenGenericsSuite {
             assert.assertTrue(str.contains(ir, "@Wrapper_int_F0"), 12)
         }
     }
+
+    // Lazy instantiation (0.15.1): a class specialization that only appears in a
+    // signature has no code; the first use in a body (a `new`, a call, a field)
+    // brings in all of it.
+    void lazyTest() {
+        case "a specialization named only in a signature emits nothing": {
+            string ir = cgIR("
+                public class Wrapper<T> { T value
+                    public Wrapper(const T v) { this.value = v }
+                    public T get() { return this.value }
+                }
+                int peek(const Wrapper<long> w) { return 0 }
+                void main() { int x = 1 }
+            ")
+            // (the NAME may still appear in peek's mangled symbol: no type, no method)
+            assert.assertFalse(str.contains(ir, "%.Wrapper_long = type"), 21)
+            assert.assertFalse(str.contains(ir, "@Wrapper_long_F"), 25)
+        }
+        case "a call through a parameter brings the specialization in": {
+            string ir = cgIR("
+                public class Wrapper<T> { T value
+                    public Wrapper(const T v) { this.value = v }
+                    public T get() { return this.value }
+                }
+                long peek(const Wrapper<long> w) { return w.get() }
+                void main() { int x = 1 }
+            ")
+            assert.assertTrue(str.contains(ir, "@Wrapper_long_F0"), 22)
+        }
+        case "a specialization used only by another one comes in with it": {
+            string ir = cgIR("
+                public class Wrapper<T> { T value
+                    public Wrapper(const T v) { this.value = v }
+                    public T get() { return this.value }
+                }
+                public class Holder<T> { Wrapper<T> inner
+                    public Holder(const T v) { this.inner = new Wrapper<T>(v) }
+                }
+                Holder<int> keep(const Holder<int> h) { return h }
+                void main() { Holder<int> h = new Holder<int>(3) }
+            ")
+            assert.assertTrue(str.contains(ir, "%.Holder_int = type"), 23)
+            assert.assertTrue(str.contains(ir, "%.Wrapper_int = type"), 24)
+        }
+    }
 }

@@ -152,6 +152,11 @@ public class ResolverType {
         }
         SemaClassType spec = SemaBuilder.CreateSpecialization(template, typeArgs, r.getCurrentScope())
         ResolverClass.resolveClassTypeIsolated(r, spec)
+        // Named inside a body (a local, a `new`, a cast): a use. Named only in a
+        // signature or a field of an unused specialization: not yet.
+        if r.isInBodies() {
+            spec.markUsed()
+        }
         return spec
     }
 

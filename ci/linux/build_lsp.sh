@@ -19,6 +19,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 cd "$(dirname "$0")/../.."
+# the package module (build/gen/package.fly) the compiler sources need, from Manifest.fly
+bash ci/linux/gen_package.sh > /dev/null
 
 # EXPORTED, not just local: link_bin.sh derives its own lib dir from $STAGE and
 # defaults to 1, so a standalone run of this script would otherwise compile the
@@ -38,7 +40,7 @@ DBG=""; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && DBG="--debug-symbols"
 WERR="--warnings-as-errors"
 
 echo "stage$STAGE: compiling tools/lsp (monolithic, compiler from source) ..."
-"$FLY" --entry tools/lsp/lib/FlyLsp.fly --src-dir tools/lsp --src-dir compiler/lib \
+"$FLY" --entry tools/lsp/lib/FlyLsp.fly --src-dir tools/lsp --src-dir compiler/lib --src-dir build/gen \
        $DBG $WERR -c -o FlyLsp --out-dir "$D" -L "$LIB"
 
 # The emitted object's name varies by producer, as in build_compiler.sh.

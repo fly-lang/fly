@@ -18,6 +18,8 @@
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
+# the package module (build\gen\package.fly) the compiler sources need, from Manifest.fly
+& "$PSScriptRoot\gen_package.ps1" | Out-Null
 
 $SEL = if ($args.Count -gt 0 -and $args[0]) { $args[0] } elseif ($env:FLY_TEST_SUITE) { $env:FLY_TEST_SUITE } else { '' }
 
@@ -49,7 +51,7 @@ foreach ($s in $SUITES) {
     if ($SEL -and $s.Name -ne $SEL) { continue }
     $log = "$OUT/tools_$($s.Name).log"
     if ($s.Compiler) {
-        & $FLY --suite=$($s.Name) --src-dir $($s.Root) --src-dir compiler/lib `
+        & $FLY --suite=$($s.Name) --src-dir $($s.Root) --src-dir compiler/lib --src-dir build/gen `
                -o "test_$($s.Name)" --out-dir $OUT -L $STD *> $log
     } else {
         & $FLY --suite=$($s.Name) --src-dir $($s.Root) `

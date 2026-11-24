@@ -8,6 +8,7 @@ import fly.os.env
 import fly.os.path
 import fly.str
 import fly.assert
+import fly.data.List
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BuilderSuite — exercises the `fly build` flow DIRECTLY (loadManifest → Builder →
@@ -22,6 +23,18 @@ import fly.assert
 // Real quotes for the generated Manifest.fly come from fly.driver.dq() (the lexer
 // keeps `\"` raw). Free helpers, not `this.` methods (suite `this` is invalid).
 // ─────────────────────────────────────────────────────────────────────────────
+
+// builderTmp — the OS temp dir (TMPDIR/TEMP, /tmp fallback) for scratch trees.
+string builderTmp() {
+    string tmp = env.get("TMPDIR")
+    if str.isEmpty(tmp) {
+        tmp = env.get("TEMP")
+    }
+    if str.isEmpty(tmp) {
+        tmp = "/tmp"
+    }
+    return tmp
+}
 
 string qb(const string v) {
     return str.concat(driver.dq(), str.concat(v, driver.dq()))
@@ -260,6 +273,82 @@ suite BuilderSuite {
             assert.assertTrue(ok3, 27)                 // rebuild after edit
             assert.assertTrue(fresh3, 28)              // fresh again after rebuild
             assert.assertTrue(ok4, 29)                 // --force still succeeds
+        }
+    }
+
+    // ── named-form targets (0.15.2) ──────────────────────────────────────────
+    void namedTargetTest() {
+        case "an executable's package module carries name, version, description": {
+            Manifest m = new Manifest()
+            m.setName("demo")
+            m.setVersion("2.3.4")
+            m.setDescription("a demo")
+            Builder b = new Builder(m, "debug", false)
+            string t = b.packageModule()
+            assert.assertTrue(str.startsWith(t, "namespace fly.meta.package"), 501)
+            assert.assertTrue(str.contains(t, "public string name() {"), 502)
+            assert.assertTrue(str.contains(t, str.concat("return ", str.concat(driver.dq(), str.concat("2.3.4", driver.dq())))), 503)
+            assert.assertTrue(str.contains(t, "public string description() {"), 504)
+        }
+        case "a quote or backslash in a manifest value is escaped": {
+            Manifest m = new Manifest()
+            string q = driver.dq()
+            m.setName("x")
+            m.setVersion("1.0.0")
+            m.setDescription(str.concat("say ", str.concat(q, str.concat("hi", q))))
+            Builder b = new Builder(m, "debug", false)
+            string bs = b.backslash()
+            assert.assertTrue(str.contains(b.packageModule(), str.concat(bs, q)), 505)
+        }
+        case "os filter, @out, artifact names and source roots": {
+            Manifest m = new Manifest()
+            Builder b = new Builder(m, "debug", false)
+            Target other = new Target("t", "t", "", "")
+            if str.equals(b.hostOs(), "windows") {
+                other.setOs("linux")
+            } else {
+                other.setOs("windows")
+            }
+            assert.assertTrue(b.skipsHost(other), 511)
+            Target here = new Target("h", "h", "", "")
+            here.setOs(b.hostOs())
+            assert.assertFalse(b.skipsHost(here), 512)
+            assert.assertFalse(b.skipsHost(new Target("a", "a", "", "")), 513)
+            assert.assertStr(b.expandOut("-L@out"), str.concat("-L", b.outDir()), 514)
+
+            Target lib = new Target("std", "std", "", "static")
+            lib.setArtifact("fly_std_lib")
+            assert.assertTrue(b.isNamed(lib), 515)
+            assert.assertTrue(str.endsWith(b.namedArtifact(lib), str.concat("fly_std_lib", b.archiveExt())), 516)
+
+            Target bin = new Target("tool", "tool", "", "")
+            bin.getSrcDirs().add("tools/x")
+            bin.getSrcDirs().add("compiler/lib")
+            List<string> roots = b.targetRoots(bin)
+            assert.assertEqI((int)roots.size(), 3, 517)             // two srcDirs + the package module
+            assert.assertTrue(str.endsWith(roots.get(0), "x"), 518)
+            assert.assertStr(roots.get(2), b.genDir(bin), 519)
+            List<string> lroots = b.targetRoots(lib)               // a library: no package module
+            assert.assertEqI((int)lroots.size(), 1, 520)
+        }
+        case "the fingerprint lists files sorted, whatever the directory order": {
+            string root = path.join(builderTmp(), "fly_fp_sort")
+            if fs.exists(root) {
+                fs.dirDeleteAll(root)
+            }
+            fs.dirCreateAll(path.join(root, "sub"), 493)
+            fs.writeStr(path.join(root, "b.fly"), "x", 420)
+            fs.writeStr(path.join(root, "a.fly"), "y", 420)
+            fs.writeStr(path.join(path.join(root, "sub"), "c.fly"), "z", 420)
+            Fingerprint f = new Fingerprint()
+            string txt = f.compute(root, "h\n")
+            fs.dirDeleteAll(root)
+            int ia = str.indexOf(txt, "a.fly")
+            int ib = str.indexOf(txt, "b.fly")
+            int ic = str.indexOf(txt, "sub/c.fly")
+            assert.assertTrue(ia > 0, 531)
+            assert.assertTrue(ia < ib, 532)
+            assert.assertTrue(ib < ic, 533)
         }
     }
 }
