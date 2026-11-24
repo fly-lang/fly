@@ -4,7 +4,7 @@
 #
 #   stage0  the downloaded seed + its precompiled lib (build/stage0, set up by
 #           stage0.sh — which also fetches LLVM). Since 0.15 the seed is the
-#           previous SELF-HOST release (0.14.9), not the C++ compiler: every
+#           previous SELF-HOST release (0.15.2 from 0.16), not the C++ compiler: every
 #           stage is compiled by a Fly compiler written in Fly.
 #   stage1  THIS SCRIPT: stage0 builds runtime → std → compiler → driver FROM
 #           IN-TREE SOURCES and links the first self-host fly, all into

@@ -67,9 +67,10 @@ done
 # be a recorded decision, not an accident. A probe the seed is known to accept
 # carries a seed-accepts.txt saying why; anything else must be refused by both.
 # A seed that starts accepting or refusing something else fails here, which is
-# exactly the moment a seed re-cut changed the language. Since 0.15 the seed is
-# the previous self-host release, which enforces every rule: no probe carries a
-# seed-accepts.txt (those recorded where the C++ seed was more permissive).
+# exactly the moment a seed re-cut changed the language. From 0.16 the seed is
+# the 0.15.2 self-host release, which enforces every rule the tree checks: no
+# probe carries a seed-accepts.txt (release/0.15.X recorded the rules 0.14.9 did
+# not have yet).
 SEED="build/stage0/bin/fly"
 SEEDLIB="build/stage1/lib"
 if [ -x "$SEED" ] && [ -d "$SEEDLIB" ]; then

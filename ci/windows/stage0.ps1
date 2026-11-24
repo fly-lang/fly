@@ -64,7 +64,13 @@ $LLVM_VERSION = if ($env:LLVM_VERSION) { $env:LLVM_VERSION } else { "20.1.8" }
 # tree may use is now bounded by what 0.14.9 can compile, not by the C++ code.
 # Its archive has the same layout the C++ seeds had: bin\ (fly.exe and the
 # bundled tools) and lib\ (std + runtime archives and their headers).
-$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.14.9" }
+#
+# From release/0.16.X the seed is the 0.15.2 self-host release: the first seed
+# that can build Fly with `fly build` (named-form targets and profiles in the
+# root Manifest.fly, the generated fly.meta.package module). Chain from scratch:
+# 0.13.19 -> release/0.14.X -> 0.14.9 -> release/0.15.X -> 0.15.2 -> this branch.
+# What the tree may use is bounded by what 0.15.2 can compile.
+$FLY_VERSION  = if ($env:FLY_VERSION)  { $env:FLY_VERSION }  else { "0.15.2" }
 
 # Resolve everything against the PROJECT ROOT (this script lives in ci\windows\,
 # two levels down) so the downloads land next to the build regardless of the
@@ -228,10 +234,14 @@ Assert-LdLld                                   # build\llvm\bin\ld.lld.exe (extr
 #   0.14.9   fly-0.14.9-win-x64.zip, the self-host release of 2026-11-20 (tag
 #            v0.14.9, release/0.14.X 1b7047976): the first self-host seed
 #            (SHA256SUMS of the release)
+#   0.15.2   fly-0.15.2-win-x64.zip, the self-host release of 2026-11-24 (tag
+#            v0.15.2, release/0.15.X 37f78e069, main dbe6f1734): the seed of
+#            release/0.16.X (SHA256SUMS of the release)
 $SEED_SHA256_TABLE = @{
     '0.13.18' = 'fa0f7507f60e34905e502a593ede54e56624b41d9c0ebf404112ad4e77e748ab'
     '0.13.19' = '60d8d6ed6b91fb02b215604c837fbfe031e4136eaa6ccf5850972545822fb091'
     '0.14.9'  = 'b0f083c1e7f0385bb1ca14f0d0b8ce1e14adacd4c9c653e276c7a8510e7259ab'
+    '0.15.2'  = '95b09db9752371d0e22d7d03296832a581c55b7a088c4ac42e3221263328ec2e'
 }
 # FLY_SEED_SHA256 overrides the table: the hash of a candidate seed under test,
 # or `none` to skip verification (testing only - never set it in CI).

@@ -45,7 +45,7 @@ automatically, class instances are released explicitly.
 - [LLVM](https://llvm.org/) 20.1.8, upstream and unmodified, built by
   [fly-lang/llvm](https://github.com/fly-lang/llvm) and downloaded by the bootstrap —
   no system LLVM, no package manager.
-- A **seed compiler**: the previous Fly release, **0.14.9** — itself written in Fly. It is
+- A **seed compiler**: the previous Fly release, **0.15.2** — itself written in Fly. It is
   downloaded as a pinned, SHA-256-verified binary and used once, to compile this tree for
   the first time. The chain goes back to the C++ implementation of Fly
   (`release/0.13.X`, frozen at 0.13.19), which built 0.14.x: to rebuild everything from
@@ -82,7 +82,7 @@ Fly builds itself in three stages:
 
 | Stage | What happens |
 |---|---|
-| 0 | downloads the pinned seed (Fly 0.14.9) and LLVM into `build/` |
+| 0 | downloads the pinned seed (Fly 0.15.2) and LLVM into `build/` |
 | 1 | the seed compiles runtime, std and compiler from this tree and links the first `fly`; the suites then run under it |
 | 2 | that `fly` recompiles the runtime and the compiler, builds the tools and runs every guard; `build/stage2` is what a release ships |
 

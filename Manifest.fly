@@ -19,7 +19,7 @@ class Manifest : fly.meta.Manifest {
     string version = "0.15.2"
     string description = "The Fly programming language: compiler, runtime, standard library and tools"
     string license = "Apache-2.0"
-    string flyVersion = "0.14.9"
+    string flyVersion = "0.15.2"
     string homepage = "https://flylang.org"
     string repository = "https://github.com/fly-lang/fly"
 

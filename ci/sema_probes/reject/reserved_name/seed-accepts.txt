@@ -1,3 +1,0 @@
-The seed (0.14.9) accepts any reserved word as a declared name: its parser takes
-keywords wherever a name part is allowed. From 0.15 a declaration that names a
-reserved word (`int delete = 3`, `int while = 3`) is an error.

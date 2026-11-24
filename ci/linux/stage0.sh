@@ -66,7 +66,13 @@ ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # tree may use is now bounded by what 0.14.9 can compile, not by the C++ code.
 # Its archive has the same layout the C++ seeds had: bin/ (fly and the bundled
 # tools) and lib/ (std + runtime archives and their headers).
-FLY_VERSION="${FLY_VERSION:-0.14.9}"
+#
+# From release/0.16.X the seed is the 0.15.2 self-host release: the first seed
+# that can build Fly with `fly build` (named-form targets and profiles in the
+# root Manifest.fly, the generated fly.meta.package module). Chain from scratch:
+# 0.13.19 → release/0.14.X → 0.14.9 → release/0.15.X → 0.15.2 → this branch.
+# What the tree may use is bounded by what 0.15.2 can compile.
+FLY_VERSION="${FLY_VERSION:-0.15.2}"
 
 BUILD_DIR="$ROOT/build"
 STAGE0_DIR="$BUILD_DIR/stage0"
@@ -211,6 +217,9 @@ fi
 #   0.14.9   fly-0.14.9-{linux-x86_64,macos-arm64}.tar.gz, the self-host release of
 #            2026-11-20 (tag v0.14.9, release/0.14.X 1b7047976): the first
 #            self-host seed (SHA256SUMS of the release)
+#   0.15.2   fly-0.15.2-{linux-x86_64,macos-arm64}.tar.gz, the self-host release of
+#            2026-11-24 (tag v0.15.2, release/0.15.X 37f78e069, main dbe6f1734):
+#            the seed of release/0.16.X (SHA256SUMS of the release)
 seed_sha256() {
     case "$1/$2" in
         0.13.18/linux-x86_64) echo "f328c4d081de52140e3e704c6f73d71792f21b34b7039be8dc4470b7fb1bbf50" ;;
@@ -218,6 +227,8 @@ seed_sha256() {
         0.13.19/macos-arm64)  echo "f08d95898a321067eb5ca31c69a7b1e8c48bbd30ac1a02f123c3848ebd5ac484" ;;
         0.14.9/linux-x86_64)  echo "4d5f3eb67c0c9541eea0ce4214b6b3c1493f5e5195715422e6da6e4cc43cdd86" ;;
         0.14.9/macos-arm64)   echo "445afdd27c797a525d456fd21e84bcac38125b5a115c7101f4a338e185632489" ;;
+        0.15.2/linux-x86_64)  echo "cc8097e6b00641369f502aa22a4f2b2c44221ca130599fdb0327032d4bfe388e" ;;
+        0.15.2/macos-arm64)   echo "4235ce886c8eacff1943fb737ce9953f93e9a7940e12386edb5620ea8aad6cce" ;;
         *)                    echo "" ;;
     esac
 }

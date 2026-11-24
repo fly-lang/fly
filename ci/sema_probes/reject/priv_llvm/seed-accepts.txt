@@ -1,3 +1,0 @@
-The seed (0.14.9) lets any module call fly.llvm.* and fly.runtime.*. From 0.15
-they are reserved to the standard library and the toolchain (namespace fly.*):
-user code goes through fly.mem or a std function that wraps the primitive.

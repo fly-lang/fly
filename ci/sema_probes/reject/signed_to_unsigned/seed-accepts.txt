@@ -1,2 +1,0 @@
-The seed (0.14.9) does not check this conversion. From 0.15 the self-host
-requires an explicit cast: the value may not fit, or may be negative.
