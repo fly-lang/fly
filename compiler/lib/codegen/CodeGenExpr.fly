@@ -944,28 +944,6 @@ public class CodeGenExpr : SemaVisitor {
     public void visit(const SemaStructValue node) {
         CodeGenClass.structValue(this, node)
     }
-    // unset — lower to a typed zero. The empty visit left llvmValue = 0, and a
-    // null handle reaching buildStore/buildRet crashes inside libLLVM.
-    public void visit(const SemaUnsetValue node) {
-        SemaType t = node.getType()
-        pointer c = 0
-        if t != null {
-            if t.isFloat() {
-                pointer fty = this.lowerType(t)
-                this.llvm.constReal(fty, 0.0, c)
-            } elsif t.isNumber() || t.isBool() || t.isEnum() {
-                pointer ity = this.lowerType(t)
-                this.llvm.constInt(ity, 0, false, c)
-            } else {
-                pointer pty = this.ptrType()
-                this.llvm.constPointerNull(pty, c)
-            }
-        } else {
-            pointer pty2 = this.ptrType()
-            this.llvm.constPointerNull(pty2, c)
-        }
-        node.setLlvmValue(c)
-    }
     public void visit(const SemaLoopInStmt node) {
         CodeGenArray.loopIn(this, node)
     }

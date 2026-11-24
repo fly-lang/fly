@@ -11,7 +11,6 @@ import fly.compiler.ast.ASTStringValue
 import fly.compiler.ast.ASTArrayValue
 import fly.compiler.ast.ASTStructValue
 import fly.compiler.ast.ASTNullValue
-import fly.compiler.ast.ASTUnsetValue
 import fly.data.List
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -189,11 +188,3 @@ public class SemaNullValue : SemaValue {
     }
 }
 
-public class SemaUnsetValue : SemaValue {
-    public SemaUnsetValue(const ASTUnsetValue ast, const SemaType type) {
-        super(ast, type)
-    }
-    public void accept(const SemaVisitor v) {
-        v.visit(this)
-    }
-}

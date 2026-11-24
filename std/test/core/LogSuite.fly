@@ -27,12 +27,12 @@ suite LogSuite {
 
     // ── the enum ladder itself ───────────────────────────────────────────────
     void enumTest() {
-        case "values are the severity ladder 1..5": {
-            assert.assertEqI(LogLevel.ERROR.value, 1, 101)
-            assert.assertEqI(LogLevel.WARN.value, 2, 102)
-            assert.assertEqI(LogLevel.INFO.value, 3, 103)
-            assert.assertEqI(LogLevel.DEBUG.value, 4, 104)
-            assert.assertEqI(LogLevel.TRACE.value, 5, 105)
+        case "values are the severity ladder 0..4": {
+            assert.assertEqI(LogLevel.ERROR.value, 0, 101)
+            assert.assertEqI(LogLevel.WARN.value, 1, 102)
+            assert.assertEqI(LogLevel.INFO.value, 2, 103)
+            assert.assertEqI(LogLevel.DEBUG.value, 3, 104)
+            assert.assertEqI(LogLevel.TRACE.value, 4, 105)
         }
         case "names are the declared identifiers": {
             assert.assertStr(LogLevel.ERROR.name, "ERROR", 106)
@@ -41,18 +41,18 @@ suite LogSuite {
         case "parseLevel maps names case-insensitively": {
             LogLevel a = log.parseLevel("error")
             int av = a.value
-            assert.assertEqI(av, 1, 108)
+            assert.assertEqI(av, 0, 108)
             LogLevel b = log.parseLevel("Warn")
             int bv = b.value
-            assert.assertEqI(bv, 2, 109)
+            assert.assertEqI(bv, 1, 109)
             LogLevel c = log.parseLevel("TRACE")
             int cv = c.value
-            assert.assertEqI(cv, 5, 110)
+            assert.assertEqI(cv, 4, 110)
         }
         case "an unknown name parses to the INFO default and is not a level name": {
             LogLevel u = log.parseLevel("bogus")
             int uv = u.value
-            assert.assertEqI(uv, 3, 111)
+            assert.assertEqI(uv, 2, 111)
             assert.assertFalse(log.isLevelName("bogus"), 112)
             assert.assertTrue(log.isLevelName("dEbUg"), 113)
         }
@@ -65,7 +65,7 @@ suite LogSuite {
             log.setLevel(LogLevel.DEBUG)
             LogLevel got = log.getLevel()
             int gv = got.value
-            assert.assertEqI(gv, 4, 201)
+            assert.assertEqI(gv, 3, 201)
             assert.assertFalse(log.isOff(), 202)
             log.reset()
         }
@@ -74,11 +74,11 @@ suite LogSuite {
             log.setLevelName("WARN")
             LogLevel got = log.getLevel()
             int gv = got.value
-            assert.assertEqI(gv, 2, 203)
+            assert.assertEqI(gv, 1, 203)
             log.setLevelName("bogus")
             LogLevel still = log.getLevel()
             int sv = still.value
-            assert.assertEqI(sv, 2, 204)
+            assert.assertEqI(sv, 1, 204)
             log.reset()
         }
         case "setOff silences and isOff reports it": {
@@ -92,7 +92,7 @@ suite LogSuite {
             env.set("FLY_LOG_LEVEL", "trace")
             LogLevel got = log.getLevel()
             int gv = got.value
-            assert.assertEqI(gv, 5, 206)
+            assert.assertEqI(gv, 4, 206)
             env.del("FLY_LOG_LEVEL")
             log.reset()
         }
@@ -108,7 +108,7 @@ suite LogSuite {
             env.del("FLY_LOG_LEVEL")
             LogLevel got = log.getLevel()
             int gv = got.value
-            assert.assertEqI(gv, 3, 208)
+            assert.assertEqI(gv, 2, 208)
             log.reset()
         }
     }

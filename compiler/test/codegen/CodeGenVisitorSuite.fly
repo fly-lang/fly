@@ -70,7 +70,6 @@ public class Probe : SemaVisitor {
     public void visit(const SemaArrayValue node) { }
     public void visit(const SemaStructValue node) { }
     public void visit(const SemaNullValue node) { }
-    public void visit(const SemaUnsetValue node) { }
     public void visit(const SemaLocalVar node) { }
     public void visit(const SemaParam node) { }
     public void visit(const SemaClassInstance node) { }

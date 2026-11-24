@@ -14,8 +14,7 @@ public enum ASTValueKind {
     VAL_STRUCT,
     VAL_NULL,
     VAL_DEFAULT,
-    VAL_ENUM,
-    VAL_UNSET
+    VAL_ENUM
 }
 
 public class ASTValue : ASTExpr {
@@ -50,9 +49,6 @@ public class ASTValue : ASTExpr {
     }
     public bool isDefault() {
         return this.valueKind == ASTValueKind.VAL_DEFAULT
-    }
-    public bool isUnset() {
-        return this.valueKind == ASTValueKind.VAL_UNSET
     }
 }
 
@@ -187,13 +183,3 @@ public class ASTNullValue : ASTValue {
     }
 }
 
-public class ASTUnsetValue : ASTValue {
-
-    public ASTUnsetValue(const SourceLocation loc) {
-        super(ASTValueKind.VAL_UNSET, loc)
-    }
-
-    public void accept(const ASTVisitor v) {
-        v.visit(this)
-    }
-}

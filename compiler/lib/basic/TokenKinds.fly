@@ -132,7 +132,6 @@ public enum TokenKind {
     kw_true,
     kw_uint,
     kw_ulong,
-    kw_unset,
     kw_ushort,
     kw_pointer,
     kw_void,
@@ -295,9 +294,6 @@ public TokenKind getKeywordKind(const string w) {
     }
     if w == "ulong" {
         return TokenKind.kw_ulong
-    }
-    if w == "unset" {
-        return TokenKind.kw_unset
     }
     if w == "ushort" {
         return TokenKind.kw_ushort

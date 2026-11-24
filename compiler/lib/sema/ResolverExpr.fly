@@ -551,7 +551,7 @@ public class ResolverExpr {
             return
         }
 
-        // Enum property access: `<entry-or-enum-var>.value` (int, the 1-based
+        // Enum property access: `<entry-or-enum-var>.value` (int, the 0-based
         // index) / `.name` (string). Builds SemaEnumAccessor with exactly one of
         // {entry, var} set — mirrors the reference's SemaEnumAccessor model.
         SemaEnumType pen = pt.asEnum()

@@ -51,7 +51,6 @@ public interface SemaVisitor {
     public void visit(const SemaArrayValue node)
     public void visit(const SemaStructValue node)
     public void visit(const SemaNullValue node)
-    public void visit(const SemaUnsetValue node)
 
     // variable references
     public void visit(const SemaLocalVar node)

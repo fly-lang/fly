@@ -16,13 +16,13 @@ import fly.test.util.*
 // i32, comparison via icmp. Faithful port of fly/test/CodeGen/CodeGenEnumTest.cpp
 // (CGEnum / CGEnumAccessorLiteral / CGEnumAccessorVariable).
 //
-// DEFERRED: CGEnumUnset (unset value), CGEnumList (Color.list), `.name` accessor.
+// DEFERRED: CGEnumList (Color.list), `.name` accessor.
 // ─────────────────────────────────────────────────────────────────────────────
 
 suite CodeGenEnumSuite {
 
     void enumTest() {
-        case "entry constants (BLUE=3) + enum comparison via icmp": {
+        case "entry constants (BLUE=2) + enum comparison via icmp": {
             string ir = cgIR("
                 public enum Color { RED, GREEN, BLUE }
                 int classify(const Color c) { int r = 11
@@ -33,7 +33,7 @@ suite CodeGenEnumSuite {
                     fail classify(c)
                 }
             ")
-            assert.assertTrue(str.contains(ir, "store i32 3"), 11)        // c = Color.BLUE
+            assert.assertTrue(str.contains(ir, "store i32 2"), 11)        // c = Color.BLUE
             assert.assertTrue(str.contains(ir, "icmp eq i32"), 12)        // c == Color.GREEN/BLUE
         }
     }

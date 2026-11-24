@@ -727,6 +727,5 @@ public class LspNavVisitor : ASTVisitor {
     public void visit(const ASTArrayValue node) { }
     public void visit(const ASTStructValue node) { }
     public void visit(const ASTNullValue node) { }
-    public void visit(const ASTUnsetValue node) { }
     public void visit(const ASTEnumEntry node) { }
 }

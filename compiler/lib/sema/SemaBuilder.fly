@@ -221,7 +221,7 @@ public class SemaBuilder {
         SemaEnumEntry entry = new SemaEnumEntry(ast, en)
         Map<string, SemaEnumEntry> es = en.getEntries()
         int sz = (int)es.size()
-        entry.setIndex(sz + 1)
+        entry.setIndex(sz)
         en.addEntry(entry)
         return entry
     }
@@ -486,9 +486,6 @@ public class SemaBuilder {
         return new SemaNullValue(ast, null)
     }
 
-    public static SemaValue CreateUnsetValue(const ASTUnsetValue ast) {
-        return new SemaUnsetValue(ast, null)
-    }
 
     // ─── Statement factory methods ──────────────────────────────────────────
     public static SemaBlockStmt CreateBlockStmt(const ASTStmt ast) {

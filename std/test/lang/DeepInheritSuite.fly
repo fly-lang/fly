@@ -106,7 +106,7 @@ suite DeepInheritSuite {
         case "a root method called on the deepest class": {
             D o = new D(Kind.LEAF, 1, 2, 3, 4)
             assert.assertEqI(o.getA(), 1, 101)
-            assert.assertEqI(o.kindVal(), 2, 102)      // Kind.LEAF == 2
+            assert.assertEqI(o.kindVal(), 1, 102)      // Kind.LEAF == 1
         }
         case "a root field read directly from depth 4": {
             D o = new D(Kind.LEAF, 1, 2, 3, 4)
@@ -196,7 +196,7 @@ suite DeepInheritSuite {
         case "a mid-chain instance works on its own": {
             C c = new C(Kind.NONE, 1, 2, 3)
             assert.assertEqI(c.reach(), 6, 308)
-            assert.assertEqI(c.kindVal(), 1, 309)      // Kind.NONE == 1
+            assert.assertEqI(c.kindVal(), 0, 309)      // Kind.NONE == 0
             assert.assertEqI(rootA(c), 1, 310)
         }
     }
@@ -236,8 +236,8 @@ suite DeepInheritSuite {
         case "the enum field survives the whole chain": {
             D leaf = new D(Kind.LEAF, 0, 0, 0, 0)
             D none = new D(Kind.NONE, 0, 0, 0, 0)
-            assert.assertEqI(leaf.kindVal(), 2, 409)
-            assert.assertEqI(none.kindVal(), 1, 410)
+            assert.assertEqI(leaf.kindVal(), 1, 409)
+            assert.assertEqI(none.kindVal(), 0, 410)
         }
     }
 }

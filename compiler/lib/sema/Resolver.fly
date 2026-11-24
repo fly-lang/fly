@@ -845,7 +845,4 @@ public class Resolver : ASTVisitor {
     public void visit(const ASTNullValue node) {
         this.currentExpr = SemaBuilder.CreateNullValue(node)
     }
-    public void visit(const ASTUnsetValue node) {
-        this.currentExpr = SemaBuilder.CreateUnsetValue(node)
-    }
 }

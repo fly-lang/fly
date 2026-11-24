@@ -103,8 +103,9 @@ public class ASTBuilder {
             const List<ASTModifier> modifiers) {
         ASTEnumEntry entry = new ASTEnumEntry(loc, e, name)
         List<ASTNode> nodes = e.getNodes()
-        // Index starts from 1 since 0 is reserved for the 'unset' value.
-        entry.setIndex((uint)(nodes.size() + 1))
+        // Constants are numbered from 0 in declaration order: an enum variable
+        // without an initializer (zero) holds the first one.
+        entry.setIndex((uint)nodes.size())
         e.addNode(entry)
         return entry
     }
@@ -169,9 +170,6 @@ public class ASTBuilder {
     // ── Values ───────────────────────────────────────────────────────────────
     public static ASTNullValue CreateNullValue(const SourceLocation loc) {
         return new ASTNullValue(loc)
-    }
-    public static ASTUnsetValue CreateUnsetValue(const SourceLocation loc) {
-        return new ASTUnsetValue(loc)
     }
     public static ASTBoolValue CreateBoolValue(const SourceLocation loc, const bool val) {
         return new ASTBoolValue(loc, val)

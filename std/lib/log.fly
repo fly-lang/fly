@@ -14,8 +14,8 @@ import fly.os.env
 //
 // Lines go to stderr as `YYYY-MM-DD HH:MM:SS [LEVEL] message`; setFile() adds
 // an append-mode file sink on top. The level ladder is the LogLevel enum,
-// severity-ordered (ERROR=1 … TRACE=5): a message prints when its level value
-// is <= the configured one. The first emission (or getLevel/isOff) reads
+// severity-ordered; internally a level is its RANK, ERROR=1 … TRACE=5 (rankOf),
+// and a message prints when its rank is <= the configured one. The first emission (or getLevel/isOff) reads
 // FLY_LOG_LEVEL from the environment — a level name, or "off" to silence
 // everything; unset or unknown falls back to INFO. setLevel/setLevelName win
 // over the environment and stop it from being consulted.
@@ -35,7 +35,7 @@ public enum LogLevel { ERROR, WARN, INFO, DEBUG, TRACE }
 
 // LogState — the module state. Static attributes lower to zero-initialized
 // module globals; any declared initializer is decorative, so every field's
-// "empty" state MUST be the zero value (level 0 = uninitialized, hasFile 0 =
+// "empty" state MUST be the zero value (level 0 = off / not read, hasFile 0 =
 // stderr only). The file path is held as a RAW byte buffer, not a `static
 // string`: a static string field with an initializer crashes the 0.13.14 seed
 // outright, and reading one into a local aliases the global's buffer, which
@@ -53,27 +53,35 @@ class LogState {
 
 // ── private helpers ───────────────────────────────────────────────────────────
 
-// parseValue — level name (case-insensitive) to its LogLevel value; 0 = unknown.
+// rankOf — a level's rank, ERROR=1 … TRACE=5, whatever number the compiler gives
+// the first enum constant (0 from 0.16; 1 for the seed that builds the std at
+// stage 1): 0 stays free for "off".
+int rankOf(const LogLevel level) {
+    int r = level.value - LogLevel.ERROR.value
+    return r + 1
+}
+
+// parseValue — level name (case-insensitive) to its rank; 0 = unknown.
 int parseValue(const string name) {
     if str.equalsIgnoreCase(name, LogLevel.ERROR.name) {
-        return LogLevel.ERROR.value
+        return rankOf(LogLevel.ERROR)
     }
     if str.equalsIgnoreCase(name, LogLevel.WARN.name) {
-        return LogLevel.WARN.value
+        return rankOf(LogLevel.WARN)
     }
     if str.equalsIgnoreCase(name, LogLevel.INFO.name) {
-        return LogLevel.INFO.value
+        return rankOf(LogLevel.INFO)
     }
     if str.equalsIgnoreCase(name, LogLevel.DEBUG.name) {
-        return LogLevel.DEBUG.value
+        return rankOf(LogLevel.DEBUG)
     }
     if str.equalsIgnoreCase(name, LogLevel.TRACE.name) {
-        return LogLevel.TRACE.value
+        return rankOf(LogLevel.TRACE)
     }
     return 0
 }
 
-// levelFromValue — 1..5 back to the enum entry; anything else maps to ERROR
+// levelFromValue — rank 1..5 back to the enum entry; anything else maps to ERROR
 // (the least verbose defined level; callers gate the 0/off case via isOff).
 LogLevel levelFromValue(const int v) {
     if v == 2 {
@@ -153,7 +161,7 @@ void ensureInit() {
         return
     }
     LogState.inited = 1
-    LogState.level = LogLevel.INFO.value
+    LogState.level = rankOf(LogLevel.INFO)
     string v = env.get("FLY_LOG_LEVEL")
     if str.isEmpty(v) {
         return
@@ -190,17 +198,16 @@ void emit(const int lvl, const string msg) {
     }
 }
 
-// emitL — level entry to its value then emit.
+// emitL — level entry to its rank then emit.
 void emitL(const LogLevel lv, const string msg) {
-    int v = lv.value
-    emit(v, msg)
+    emit(rankOf(lv), msg)
 }
 
 // ── configuration ─────────────────────────────────────────────────────────────
 
-// setLevel — set the threshold; messages at level.value <= it will print.
+// setLevel — set the threshold; messages of this level or a more severe one print.
 public void setLevel(const LogLevel level) {
-    int v = level.value
+    int v = rankOf(level)
     if v < 1 {
         return
     }
