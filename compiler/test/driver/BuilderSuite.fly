@@ -351,4 +351,84 @@ suite BuilderSuite {
             assert.assertTrue(ib < ic, 533)
         }
     }
+
+    // ── dir, copy, rpaths (0.16) ─────────────────────────────────────────────
+    void layoutTest() {
+        case "dir puts the artifact in a subdirectory of the output": {
+            Manifest m = new Manifest()
+            Builder b = new Builder(m, "debug", false)
+            Target lib = new Target("std", "std", "", "static")
+            lib.setArtifact("fly_std_lib")
+            assert.assertStr(b.targetOut(lib), b.outDir(), 541)
+            lib.setDir("lib")
+            assert.assertStr(b.targetOut(lib), path.join(b.outDir(), "lib"), 542)
+            string want = path.join(path.join(b.outDir(), "lib"), str.concat("fly_std_lib", b.archiveExt()))
+            assert.assertStr(b.namedArtifact(lib), want, 543)
+        }
+        case "a target of copies alone compiles nothing": {
+            Manifest m = new Manifest()
+            Builder b = new Builder(m, "debug", false)
+            Target c = new Target("bundle", "bundle", "", "")
+            c.getCopy().add("build/llvm/bin/ld.lld")
+            assert.assertTrue(b.copyOnly(c), 544)
+            Target withSrc = new Target("tool", "tool", "", "")
+            withSrc.getSrcDirs().add("tools/x")
+            withSrc.getCopy().add("README.md")
+            assert.assertFalse(b.copyOnly(withSrc), 545)
+            assert.assertFalse(b.copyOnly(new Target("app", "app", "src/main.fly", "")), 546)
+        }
+        case "copyFiles: a file, a tree, a pattern; a missing file fails": {
+            string root = path.join(builderTmp(), "fly_builder_copy")
+            if fs.exists(root) {
+                fs.dirDeleteAll(root)
+            }
+            string src = path.join(root, "src")
+            fs.dirCreateAll(path.join(path.join(src, "tree"), "sub"), 493)
+            fs.writeStr(path.join(src, "a.txt"), "a", 420)
+            fs.writeStr(path.join(path.join(path.join(src, "tree"), "sub"), "b.txt"), "b", 420)
+            fs.writeStr(path.join(src, "libx.so.1"), "1", 420)
+            fs.writeStr(path.join(src, "libx.so.2"), "2", 420)
+            fs.writeStr(path.join(src, "other.so.3"), "3", 420)
+            // the Builder's output is cwd-relative (target/<profile>): run in the scratch
+            string home = env.cwdGet()
+            env.cwdSet(root)
+            Manifest m = new Manifest()
+            Builder b = new Builder(m, "debug", false)
+            Target t = new Target("bundle", "bundle", "", "")
+            t.setDir("lib")
+            t.getCopy().add(path.join(src, "a.txt"))
+            t.getCopy().add(path.join(src, "tree"))
+            t.getCopy().add(path.join(src, "libx*"))
+            t.getCopy().add(path.join(src, "nothing*"))      // a pattern may match nothing
+            bool ok = b.copyFiles(t)
+            string od = b.targetOut(t)
+            bool a = fs.exists(path.join(od, "a.txt"))
+            string bText = fs.readStr(path.join(path.join(path.join(od, "tree"), "sub"), "b.txt"))
+            bool x1 = fs.exists(path.join(od, "libx.so.1"))
+            bool x2 = fs.exists(path.join(od, "libx.so.2"))
+            bool other = fs.exists(path.join(od, "other.so.3"))
+            Target bad = new Target("bad", "bad", "", "")
+            bad.getCopy().add(path.join(src, "missing.txt"))
+            bool badOk = b.copyFiles(bad)
+            env.cwdSet(home)
+            fs.dirDeleteAll(root)
+            assert.assertTrue(ok, 551)
+            assert.assertTrue(a, 552)
+            assert.assertStr(bText, "b", 553)
+            assert.assertTrue(x1, 554)
+            assert.assertTrue(x2, 555)
+            assert.assertFalse(other, 556)
+            assert.assertFalse(badOk, 557)
+        }
+        case "the fingerprint sees dir and rpaths": {
+            Manifest m = new Manifest()
+            Builder b = new Builder(m, "debug", false)
+            Target t = new Target("fly", "fly", "", "")
+            t.setDir("bin")
+            t.getRpaths().add("$ORIGIN/../lib")
+            string l = b.targetLine(t)
+            assert.assertTrue(str.contains(l, "dir=bin"), 558)
+            assert.assertTrue(str.contains(l, "rpaths=$ORIGIN/../lib"), 559)
+        }
+    }
 }

@@ -166,6 +166,10 @@ public class Target {
     List<string> libDirs    // -L package dirs (headers + archives)
     List<string> linkLibs   // native libraries for this target (--link-lib)
     List<string> flags      // extra compiler arguments, passed verbatim
+    string dir              // subdirectory of the output dir the artifact lands in ("" = the output dir)
+    List<string> copy       // files or directories copied into the target dir (a target of copies only
+                            // compiles nothing)
+    List<string> rpaths     // run-time library search paths of an executable (--rpath)
 
     public Target(const string k, const string nm, const string p, const string lb) {
         this.key = k
@@ -180,6 +184,9 @@ public class Target {
         this.libDirs = new List<string>()
         this.linkLibs = new List<string>()
         this.flags = new List<string>()
+        this.dir = ""
+        this.copy = new List<string>()
+        this.rpaths = new List<string>()
     }
 
     public List<string> getSrcDirs() {
@@ -214,6 +221,18 @@ public class Target {
     }
     public List<string> getFlags() {
         return this.flags
+    }
+    public string getDir() {
+        return this.dir
+    }
+    public void setDir(const string v) {
+        this.dir = v
+    }
+    public List<string> getCopy() {
+        return this.copy
+    }
+    public List<string> getRpaths() {
+        return this.rpaths
     }
     public void setPath(const string v) {
         this.path = v
@@ -698,9 +717,13 @@ public class Manifest {
         return str.concat(", ", str.concat(name, str.concat(" = ", b)))
     }
 
-    // usesNamedForm — a target with any 0.15.2 field, written as a struct literal.
+    // usesNamedForm — a target with any 0.15.2 (or later) field, written as a
+    // struct literal.
     bool usesNamedForm(const Target t) {
         if t.getSrcDirs().size() > 0 || t.getFiles().size() > 0 {
+            return true
+        }
+        if t.getCopy().size() > 0 || t.getRpaths().size() > 0 || str.isEmpty(t.getDir()) == false {
             return true
         }
         if t.getLibDirs().size() > 0 || t.getLinkLibs().size() > 0 || t.getFlags().size() > 0 {
@@ -725,6 +748,9 @@ public class Manifest {
         l = str.concat(l, this.optList("libDirs", t.getLibDirs(), q))
         l = str.concat(l, this.optList("linkLibs", t.getLinkLibs(), q))
         l = str.concat(l, this.optList("flags", t.getFlags(), q))
+        l = str.concat(l, this.optStr("dir", t.getDir(), q))
+        l = str.concat(l, this.optList("copy", t.getCopy(), q))
+        l = str.concat(l, this.optList("rpaths", t.getRpaths(), q))
         return str.concat(l, " }")
     }
 

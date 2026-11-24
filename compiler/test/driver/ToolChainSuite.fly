@@ -150,4 +150,21 @@ suite ToolChainSuite {
             assert.assertFalse(lin.isOSWindows(), 54)
         }
     }
+
+    void rpathTest() {
+        case "--rpath: $ORIGIN stays on ELF, becomes @loader_path on Mach-O": {
+            ToolChain tc = tcFor("x86_64-unknown-linux-gnu")
+            assert.assertStr(tc.rpathFor("$ORIGIN/../lib", false), "$ORIGIN/../lib", 90)
+            assert.assertStr(tc.rpathFor("$ORIGIN/../lib", true), "@loader_path/../lib", 91)
+            assert.assertStr(tc.rpathFor("/opt/llvm/lib", true), "/opt/llvm/lib", 92)
+        }
+        case "the options keep every --rpath, in order": {
+            CodeGenOptions o = new CodeGenOptions()
+            o.addRpath("$ORIGIN/../lib")
+            o.addRpath("/opt/x")
+            string rp = o.getRpaths()
+            assert.assertEqI(segCount(rp), 2, 93)
+            assert.assertStr(segAt(rp, 1), "/opt/x", 94)
+        }
+    }
 }

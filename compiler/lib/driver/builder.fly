@@ -211,6 +211,13 @@ public class Builder {
                 proc.argsAdd(h, "--entry")
                 proc.argsAdd(h, path.absolute(t.getEntry()))
             }
+            List<string> rp = t.getRpaths()
+            int pi = 0
+            while pi < rp.size() {
+                proc.argsAdd(h, "--rpath")
+                proc.argsAdd(h, this.expandOut(rp.get(pi)))
+                pi = pi + 1
+            }
         }
         proc.argsAdd(h, "-o")
         proc.argsAdd(h, output)
@@ -347,13 +354,22 @@ public class Builder {
         return ".a"
     }
 
-    // namedArtifact — the file a named-form target leaves in the output dir.
+    // targetOut — the directory a target's artifact (and a library's headers, and
+    // its copies) land in: the output dir, or its `dir` subdirectory.
+    public string targetOut(const Target t) {
+        if str.isEmpty(t.getDir()) {
+            return this.outDir()
+        }
+        return path.join(this.outDir(), t.getDir())
+    }
+
+    // namedArtifact — the file a named-form target leaves in its target dir.
     public string namedArtifact(const Target t) {
         string base = t.getArtifact()
         if str.isEmpty(base) {
             base = t.getName()
         }
-        string p = path.join(this.outDir(), base)
+        string p = path.join(this.targetOut(t), base)
         if t.isLib() {
             return str.concat(p, this.archiveExt())
         }
@@ -372,7 +388,8 @@ public class Builder {
         if str.isEmpty(base) {
             base = t.getName()
         }
-        string od = this.outDir()
+        string od = this.targetOut(t)
+        fs.dirCreateAll(od, 493)
         if t.isLib() {
             string lib = t.getLib()
             bool dyn = str.equals(lib, "dynamic")
@@ -392,6 +409,134 @@ public class Builder {
             return ok
         }
         return this.runFly(t, roots, path.join(od, base), "", "", t.getKey())
+    }
+
+    // ── copies (0.16) ────────────────────────────────────────────────────────
+
+    // hasSources — the target compiles something: source roots, files or a path.
+    public bool hasSources(const Target t) {
+        if t.getSrcDirs().size() > 0 || t.getFiles().size() > 0 {
+            return true
+        }
+        return str.isEmpty(t.getPath()) == false
+    }
+
+    // copyOnly — a target made of copies alone: nothing to compile.
+    public bool copyOnly(const Target t) {
+        return t.getCopy().size() > 0 && this.hasSources(t) == false
+    }
+
+    // copyFiles — every `copy` entry into the target dir: a file under its own
+    // name (a symbolic link is followed: the copy has the link's name and the
+    // target's bytes), a directory as a whole tree, or `dir/prefix*suffix` for
+    // the files of dir that match (possibly none: a pattern is how an optional
+    // file is listed). False, with a message, when a plain entry names nothing.
+    public bool copyFiles(const Target t) {
+        string od = this.targetOut(t)
+        fs.dirCreateAll(od, 493)
+        List<string> cl = t.getCopy()
+        int i = 0
+        while i < cl.size() {
+            string src = this.projectPath(cl.get(i))
+            string base = path.basename(src)
+            if str.contains(base, "*") {
+                this.copyMatching(path.dirname(src), base, od)
+            } elsif path.isDir(src) {
+                this.copyTree(src, path.join(od, base))
+            } elsif fs.exists(src) {
+                this.copyOne(src, path.join(od, base))
+            } else {
+                io.printErrLn(str.concat("error: copy: not found: ", cl.get(i)))
+                return false
+            }
+            i = i + 1
+        }
+        return true
+    }
+
+    // copyOne — copy a file unless the copy is already there: same size and no
+    // older than the source. The mode comes along (an executable stays one).
+    public void copyOne(const string src, const string dst) {
+        fly.os.fs.Stat ss = fs.stat(src)
+        if fs.exists(dst) {
+            fly.os.fs.Stat ds = fs.stat(dst)
+            if ds.size == ss.size && ds.mtime_sec >= ss.mtime_sec {
+                return
+            }
+        }
+        fs.copy(src, dst)
+        if str.equals(this.hostOs(), "windows") == false {
+            uint perm = ss.mode & (uint)4095
+            fs.chmod(dst, (int)perm)
+        }
+    }
+
+    // copyTree — a directory and everything under it.
+    public void copyTree(const string src, const string dst) {
+        fs.dirCreateAll(dst, 493)
+        List<string> names = this.dirNames(src)
+        int i = 0
+        while i < names.size() {
+            string from = path.join(src, names.get(i))
+            string to = path.join(dst, names.get(i))
+            if path.isDir(from) {
+                this.copyTree(from, to)
+            } else {
+                this.copyOne(from, to)
+            }
+            i = i + 1
+        }
+    }
+
+    // copyMatching — the files of `dir` matching `pattern` (one `*`) into
+    // `dst`; returns how many.
+    public int copyMatching(const string dir, const string pattern, const string dst) {
+        int star = str.indexOf(pattern, "*")
+        string pre = str.substring(pattern, 0, star)
+        string post = str.substring(pattern, star + 1, str.len(pattern))
+        List<string> names = this.dirNames(dir)
+        int count = 0
+        int i = 0
+        while i < names.size() {
+            string nm = names.get(i)
+            bool fits = str.len(nm) >= str.len(pre) + str.len(post)
+            if fits && str.startsWith(nm, pre) && str.endsWith(nm, post) {
+                string from = path.join(dir, nm)
+                if path.isDir(from) == false {
+                    this.copyOne(from, path.join(dst, nm))
+                    count = count + 1
+                }
+            }
+            i = i + 1
+        }
+        return count
+    }
+
+    // dirNames — the entry names of `dir`. The bytes are copied before fromBytes,
+    // which takes ownership of what it is given (the DirEntries array keeps its own).
+    public List<string> dirNames(const string dir) {
+        List<string> names = new List<string>()
+        fly.os.fs.DirEntries de = fs.dirRead(dir)
+        pointer items = de.items
+        if items == 0 {
+            return names
+        }
+        long lenL = (long)de.len
+        int n = 0
+        fly.llvm.longToInt(lenL, n)
+        int i = 0
+        while i < n {
+            int off = i * 56
+            pointer namePtr = mem.readPtr(items, off)
+            int nameLen = mem.readInt(items, off + 8)
+            if nameLen > 0 {
+                pointer cp = mem.alloc(nameLen)
+                mem.copy(cp, namePtr, nameLen)
+                names.add(str.fromBytes(cp, nameLen))
+            }
+            i = i + 1
+        }
+        return names
     }
 
     // ── Incremental fingerprint cache ────────────────────────────────────────
@@ -471,6 +616,8 @@ public class Builder {
         l = str.concat(l, this.listLine(" libDirs=", t.getLibDirs()))
         l = str.concat(l, this.listLine(" linkLibs=", t.getLinkLibs()))
         l = str.concat(l, this.listLine(" flags=", t.getFlags()))
+        l = str.concat(l, str.concat(" dir=", t.getDir()))
+        l = str.concat(l, this.listLine(" rpaths=", t.getRpaths()))
         return l
     }
 
@@ -658,6 +805,11 @@ public class Builder {
             io.printLn(str.concat("  skipped ", str.concat(key, str.concat(" (os ", str.concat(t.getOs(), ")")))))
             return true
         }
+        // a target of copies alone compiles nothing; copyOne keeps it incremental
+        if this.copyOnly(t) {
+            io.printLn(str.concat("  copy ", key))
+            return this.copyFiles(t)
+        }
         // staged files and the package module are part of what is fingerprinted
         if t.getFiles().size() > 0 {
             this.stageFiles(t)
@@ -697,6 +849,9 @@ public class Builder {
         }
         if ok {
             this.saveFp(fpFile, computed)
+        }
+        if ok && t.getCopy().size() > 0 {
+            ok = this.copyFiles(t)
         }
         return ok
     }

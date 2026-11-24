@@ -33,6 +33,13 @@ public class Dependency {
 // are relative to the package root; `@out` in libDirs and flags is the output
 // directory. An executable is built with a generated `fly.meta.package` module
 // (name(), version(), description() of this manifest).
+//
+// 0.16: `dir` puts the artifact (a library's headers too) in a subdirectory of
+// the output, e.g. "bin" and "lib" for an installable layout; `copy` copies
+// files or directories there (a symbolic link is followed, `dir/prefix*suffix`
+// takes the matching files) — a target with only copies compiles nothing;
+// `rpaths` are where an executable finds its shared libraries at run time,
+// `$ORIGIN` being its own directory (@loader_path on macOS; Windows has none).
 public class Target {
     string   name       // output name (was the [targets] table key)
     string   path       // source file, e.g. "src/main.fly": its directory is compiled
@@ -45,6 +52,9 @@ public class Target {
     string[] libDirs    // -L package dirs: headers resolve imports, archives are linked
     string[] linkLibs   // native libraries for this target
     string[] flags      // extra compiler arguments, passed verbatim
+    string   dir        // subdirectory of the output dir the artifact lands in
+    string[] copy       // files or directories copied into the target's directory
+    string[] rpaths     // run-time library search paths of an executable
 }
 
 // Profile — one [profiles.*] entry: build settings for a named profile

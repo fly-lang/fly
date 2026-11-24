@@ -23,19 +23,23 @@ class Manifest : fly.meta.Manifest {
     string homepage = "https://flylang.org"
     string repository = "https://github.com/fly-lang/fly"
 
-    // `fly build --profile dist` builds the whole toolchain into target/dist,
-    // in this order: runtime (one per OS) and the TLS archives, the standard
-    // library, the compiler, then the tools. A library lands in target/dist
-    // under its artifact name with its headers next to it, which is where the
-    // targets after it find it (`@out`). It is what the build scripts do today
-    // (ci/*/build_*); release/0.16.X bootstraps with it. The compiler and fly-lsp
-    // link the LLVM C API from the LLVM stage0 fetches (build/llvm/lib).
+    // `fly build --profile dist` builds the whole toolchain into target/dist, laid
+    // out as a release: bin/ (fly, fly-lsp, fly-registry, the linker, the
+    // debugger and, on Windows, the mingw sysroot) and lib/ (runtime, TLS and std
+    // archives with their headers, the LLVM shared libraries). In order: runtime
+    // (one per OS) and the TLS archives, the standard library, the compiler, the
+    // tools, then the LLVM pieces stage 0 fetched into build/ (copy targets). A
+    // library lands in lib/ with its headers, where the targets after it find it
+    // (`@out/lib`). The executables find lib/ at run time through `$ORIGIN/../lib`
+    // (Linux and macOS; Windows looks next to the executable). It is what the
+    // build scripts do today (ci/*/build_*, link_fly).
     //
     // Stage 1 (ci/*/stage1) builds the same targets with the seed, one at a
     // time, through the `stage1` profile (`stage1-debug` when CI embeds DWARF):
     // no --warnings-as-errors, since the seed's warnings are not the tree's
     // contract, and its own output directory, so stage 2's `fly build --profile
-    // dist` never finds the seed's artifacts up to date.
+    // dist` never finds the seed's artifacts up to date. The seed (0.15.2) knows
+    // neither `dir` nor `rpaths` and writes everything flat: stage 1 lays it out.
     Profile[] profiles = {
         { name = "dist", optLevel = 0, debugInfo = false, warningsAsErrors = true },
         { name = "stage1", optLevel = 0, debugInfo = false, warningsAsErrors = false },
@@ -43,27 +47,49 @@ class Manifest : fly.meta.Manifest {
     }
 
     Target[] targets = {
-        { name = "runtime-linux", os = "linux", lib = "static", artifact = "fly_runtime_lib",
+        { name = "runtime-linux", os = "linux", lib = "static", artifact = "fly_runtime_lib", dir = "lib",
           files = { "runtime/lib/RuntimeLinux.fly" } },
-        { name = "runtime-macos", os = "macos", lib = "static", artifact = "fly_runtime_lib",
+        { name = "runtime-macos", os = "macos", lib = "static", artifact = "fly_runtime_lib", dir = "lib",
           files = { "runtime/lib/RuntimeMacos.fly" } },
-        { name = "runtime-windows", os = "windows", lib = "static", artifact = "fly_runtime_lib",
+        { name = "runtime-windows", os = "windows", lib = "static", artifact = "fly_runtime_lib", dir = "lib",
           files = { "runtime/lib/RuntimeWindows.fly" } },
-        { name = "tls-stub", lib = "static", artifact = "fly_tls_stub",
-          files = { "runtime/lib/TlsStub.fly" }, libDirs = { "@out" } },
-        { name = "tls-openssl-linux", os = "linux", lib = "static", artifact = "fly_tls_lib",
-          files = { "runtime/lib/TlsOpenSSL.fly" }, libDirs = { "@out" } },
-        { name = "tls-openssl-macos", os = "macos", lib = "static", artifact = "fly_tls_lib",
-          files = { "runtime/lib/TlsOpenSSL.fly" }, libDirs = { "@out" } },
-        { name = "tls-schannel", os = "windows", lib = "static", artifact = "fly_tls_lib",
-          files = { "runtime/lib/TlsSchannel.fly" }, libDirs = { "@out" } },
-        { name = "std", lib = "static", artifact = "fly_std_lib",
-          srcDirs = { "std/lib" }, libDirs = { "@out" } },
-        { name = "fly", srcDirs = { "compiler" }, libDirs = { "@out" },
-          flags = { "--runtime-lib-dir", "@out", "--llvm-lib-dir", "build/llvm/lib" } },
-        { name = "fly-lsp", srcDirs = { "tools/lsp", "compiler/lib" }, entry = "tools/lsp/lib/FlyLsp.fly",
-          libDirs = { "@out" }, flags = { "--runtime-lib-dir", "@out", "--llvm-lib-dir", "build/llvm/lib" } },
-        { name = "fly-registry", srcDirs = { "tools/registry" }, entry = "tools/registry/lib/FlyRegistry.fly",
-          libDirs = { "@out" }, flags = { "--runtime-lib-dir", "@out" } }
+        { name = "tls-stub", lib = "static", artifact = "fly_tls_stub", dir = "lib",
+          files = { "runtime/lib/TlsStub.fly" }, libDirs = { "@out/lib" } },
+        { name = "tls-openssl-linux", os = "linux", lib = "static", artifact = "fly_tls_lib", dir = "lib",
+          files = { "runtime/lib/TlsOpenSSL.fly" }, libDirs = { "@out/lib" } },
+        { name = "tls-openssl-macos", os = "macos", lib = "static", artifact = "fly_tls_lib", dir = "lib",
+          files = { "runtime/lib/TlsOpenSSL.fly" }, libDirs = { "@out/lib" } },
+        { name = "tls-schannel", os = "windows", lib = "static", artifact = "fly_tls_lib", dir = "lib",
+          files = { "runtime/lib/TlsSchannel.fly" }, libDirs = { "@out/lib" } },
+        { name = "std", lib = "static", artifact = "fly_std_lib", dir = "lib",
+          srcDirs = { "std/lib" }, libDirs = { "@out/lib" } },
+        { name = "fly", dir = "bin", srcDirs = { "compiler" }, libDirs = { "@out/lib" }, rpaths = { "$ORIGIN/../lib" },
+          flags = { "--runtime-lib-dir", "@out/lib", "--llvm-lib-dir", "build/llvm/lib" } },
+        { name = "fly-lsp", dir = "bin", srcDirs = { "tools/lsp", "compiler/lib" }, entry = "tools/lsp/lib/FlyLsp.fly",
+          libDirs = { "@out/lib" }, rpaths = { "$ORIGIN/../lib" },
+          flags = { "--runtime-lib-dir", "@out/lib", "--llvm-lib-dir", "build/llvm/lib" } },
+        { name = "fly-registry", dir = "bin", srcDirs = { "tools/registry" },
+          entry = "tools/registry/lib/FlyRegistry.fly", libDirs = { "@out/lib" }, rpaths = { "$ORIGIN/../lib" },
+          flags = { "--runtime-lib-dir", "@out/lib" } },
+
+        // The LLVM pieces a release ships, from build/ (stage 0). A `*` pattern
+        // may match nothing (an optional file); a plain path must exist.
+        { name = "llvm-header", dir = "lib", copy = { "build/stage0/lib/llvm.fly.h" } },
+        { name = "llvm-windows", os = "windows", dir = "bin",
+          copy = { "build/llvm/bin/LLVM-C.dll", "build/llvm/bin/ld.lld.exe", "build/llvm/bin/lldb.exe",
+                   "build/llvm/bin/liblldb.dll", "build/llvm/bin/lldb-dap.exe", "build/llvm/bin/lldb-argdumper.exe",
+                   "build/mingw" } },
+        { name = "llvm-linux-bin", os = "linux", dir = "bin",
+          copy = { "build/llvm/bin/ld.lld", "build/llvm/bin/lldb", "build/llvm/bin/lldb-server",
+                   "build/llvm/bin/lldb-dap", "build/llvm/bin/lldb-argdumper" } },
+        { name = "llvm-linux-lib", os = "linux", dir = "lib",
+          copy = { "build/llvm/lib/libLLVM.so.20.1", "build/llvm/lib/liblldb.so.20.1" } },
+        { name = "llvm-linux-builtins", os = "linux", dir = "lib/clang/20/lib/x86_64-unknown-linux-gnu",
+          copy = { "build/llvm/lib/clang/20/lib/x86_64-unknown-linux-gnu/libclang_rt.builtins.a" } },
+        { name = "llvm-macos-bin", os = "macos", dir = "bin",
+          copy = { "build/llvm/bin/ld64.lld", "build/llvm/bin/lldb", "build/llvm/bin/lldb-dap",
+                   "build/llvm/bin/lldb-argdumper", "build/llvm/bin/debugserver*", "build/llvm/bin/dsymutil*" } },
+        { name = "llvm-macos-lib", os = "macos", dir = "lib",
+          copy = { "build/llvm/lib/libLLVM.dylib", "build/llvm/lib/liblldb*.dylib" } }
     }
 }

@@ -307,6 +307,9 @@ public class FlyManifestReader {
         this.fieldStrs(sv, "libDirs", t.getLibDirs())
         this.fieldStrs(sv, "linkLibs", t.getLinkLibs())
         this.fieldStrs(sv, "flags", t.getFlags())
+        t.setDir(this.fieldStr(sv, "dir"))
+        this.fieldStrs(sv, "copy", t.getCopy())
+        this.fieldStrs(sv, "rpaths", t.getRpaths())
         return t
     }
 

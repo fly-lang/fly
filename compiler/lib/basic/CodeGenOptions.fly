@@ -94,6 +94,7 @@ public class CodeGenOptions {
 
     // ── ";"-delimited lists ──
     string linkerOptions      // LinkerOptions (";-lfoo;-lbar;")
+    string rpaths             // run-time library search paths of an executable (";dir1;dir2;")
     string noBuiltinFuncs     // NoBuiltinFuncs (";name1;name2;")
     string dependentLibraries // DependentLibraries
     string linkBitcodeFiles   // LinkBitcodeFiles (filenames only)
@@ -165,6 +166,7 @@ public class CodeGenOptions {
         this.optimizationRemarkMissedPattern = ""
         this.optimizationRemarkAnalysisPattern = ""
         this.linkerOptions = ";"
+        this.rpaths = ";"
         this.noBuiltinFuncs = ";"
         this.dependentLibraries = ";"
         this.linkBitcodeFiles = ";"
@@ -533,6 +535,14 @@ public class CodeGenOptions {
     }
     public string getLinkerOptions() {
         return this.linkerOptions
+    }
+
+    // ── run-time search paths (--rpath; ELF and Mach-O only) ──
+    public void addRpath(const string dir) {
+        this.rpaths = str.concat(this.rpaths, str.concat(dir, ";"))
+    }
+    public string getRpaths() {
+        return this.rpaths
     }
 
     // ── -fno-builtin-<name> functions ──

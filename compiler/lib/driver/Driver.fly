@@ -134,6 +134,7 @@ public class Driver {
         string mingwSysrootDir = ""     // --mingw-sysroot: mingw/UCRT sysroot (Windows link)
         string llvmLibDir = ""          // --llvm-lib-dir: dir holding LLVM-20.lib (Windows LLVM-C link)
         string linkLibs = ";"           // ";-lfoo;" native [link] deps
+        string rpaths = ";"             // ";dir;" --rpath run-time search paths
         string libInputs = ";"          // ";lib1.a;lib2.a;" — package archives from the -L dir
         string srcInputs = ";"          // ";a.fly;b.fly;" — the DISCOVERED .fly inputs
         // ── Option model: three INDEPENDENT axes (ported from the reference) ─────────
@@ -403,6 +404,17 @@ public class Driver {
                 // spelling above (distinct temp: self-alias gotcha).
                 llNew = str.concat(linkLibs, str.concat(str.concat("-l", this.eqValue(a)), ";"))
                 linkLibs = llNew
+            } elsif str.equals(a, "--rpath") {
+                i = i + 1
+                if i < n {
+                    string rpNew = str.concat(rpaths, str.concat(this.argAt(args, i), ";"))
+                    rpaths = rpNew
+                } else {
+                    return this.missingValue(a)
+                }
+            } elsif str.startsWith(a, "--rpath=") {
+                string rpEq = str.concat(rpaths, str.concat(this.eqValue(a), ";"))
+                rpaths = rpEq
             } elsif str.equals(a, "--lib-dyn") || str.equals(a, "--lib-dynamic") {
                 // `--shared` was an old spelling and is GONE: it now falls
                 // through to the unknown-option branch rather than quietly building
@@ -686,6 +698,12 @@ public class Driver {
         while li < nl {
             cgo.addLinkerOption(segAt(linkLibs, li))
             li = li + 1
+        }
+        int nr = segCount(rpaths)
+        int ri = 0
+        while ri < nr {
+            cgo.addRpath(segAt(rpaths, ri))
+            ri = ri + 1
         }
 
         TargetOptions topts = new TargetOptions(effTriple)
@@ -1332,6 +1350,8 @@ public class Driver {
         io.printErrLn("  --entry <file>       the source file declaring main(), instead of discovering it (builds a second executable from a tree that already has one)")
         io.printErrLn("  --tls                link the real TLS backend (needs libssl); without it fly.net.tls.tlsAvailable() is false")
         io.printErrLn("  --link-lib <name>    link native library (-lname)")
+        io.printErrLn("  --rpath <dir>        run-time library search path of the executable (ELF, Mach-O);")
+        io.printErrLn("                       $ORIGIN is the executable's directory (@loader_path on macOS)")
         io.printErrLn("  -static / -pie       link mode flags (ELF/Linux targets; ignored by the Windows linker)")
         io.printErrLn("  -O<n>                optimisation level 0..3")
         io.printErrLn("  -j, --jobs <n>       LLVM parallelism (0 = auto)")

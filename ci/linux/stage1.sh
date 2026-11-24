@@ -28,6 +28,12 @@
 # writes a library as one object under the archive's name; it is wrapped in a
 # real archive here, as build_runtime.sh / build_std.sh do.
 #
+# The seed (0.15.2) knows neither `dir` nor `rpaths` and writes every target
+# flat into target/<profile>, but expands `@out/lib` — where the targets find
+# the libraries before them — to target/<profile>/lib: that directory is kept a
+# mirror of build/stage1/lib. The stage-1 fly honours `dir`, so the std it
+# rebuilds lands in target/<profile>/lib.
+#
 # After the link, the std is built AGAIN by the fly just produced: the seed's
 # std only served to link that fly; the stage-1 suites and stage 2 use a std
 # built by the tree's own compiler.
@@ -47,6 +53,7 @@ BIN=build/stage1/bin
 LIB=build/stage1/lib
 PROFILE=stage1; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && PROFILE=stage1-debug
 T="target/$PROFILE"
+TLIB="$T/lib"
 AR="${AR:-ar}"
 if is_macos; then
     OSKEY=macos
@@ -58,11 +65,15 @@ RUNTIME_HDR="${RUNTIME_SRC%.fly}.fly.h"
 [ -x build/stage0/bin/fly ] || { echo "error: stage0 compiler missing — run ci/linux/stage0.sh first." >&2; exit 1; }
 [ -f build/stage0/lib/llvm.fly.h ] || { echo "error: build/stage0/lib/llvm.fly.h missing — run stage0.sh first." >&2; exit 1; }
 rm -rf "$BIN" "$LIB" "$T"
-mkdir -p "$BIN" "$LIB"
+mkdir -p "$BIN" "$LIB" "$TLIB"
 FLY0="$BIN/fly0"
 ln -f build/stage0/bin/fly "$FLY0" 2>/dev/null || cp -f build/stage0/bin/fly "$FLY0"
 # The LLVM C API declarations every Fly compiler build needs.
 cp -f build/stage0/lib/llvm.fly.h "$LIB/llvm.fly.h"
+cp -f build/stage0/lib/llvm.fly.h "$TLIB/llvm.fly.h"
+# Where the target just built left its output: flat for the seed, lib/ for the
+# stage-1 fly (switched before the rebuild below).
+SRC="$T"
 
 # fly_build FLY KEY [--force] — `fly build` one Manifest target.
 fly_build() {
@@ -72,10 +83,11 @@ fly_build() {
         || { echo "error: fly build --target $key failed" >&2; exit 1; }
 }
 
-# install_archive NAME — target/<profile>/NAME → build/stage1/lib/NAME, as a
-# real archive (the object `fly build` writes under that name is its member).
+# install_archive NAME — the built library NAME → build/stage1/lib/NAME (and the
+# target/<profile>/lib mirror), as a real archive: the object `fly build`
+# writes under that name becomes its member.
 install_archive() {
-    local src="$T/$1"
+    local src="$SRC/$1"
     [ -f "$src" ] || { echo "error: $src was not built." >&2; exit 1; }
     rm -f "$LIB/$1"
     if [ "$(head -c 7 "$src")" = '!<arch>' ]; then
@@ -87,29 +99,33 @@ install_archive() {
         "$AR" rcs "$LIB/$1" "$o"
         rm -rf build/tmp_stage1
     fi
+    cp -f "$LIB/$1" "$TLIB/$1"
 }
 
-# install_header SRC DST — a generated header into build/stage1/lib, with nested
-# generic closers spaced (`>>` → `> >`) as build_runtime.sh does.
+# install_header SRC DST — a generated header into build/stage1/lib (and the
+# mirror), with nested generic closers spaced (`>>` → `> >`) as
+# build_runtime.sh does.
 install_header() {
-    [ -f "$T/$1" ] || { echo "error: $T/$1 was not generated." >&2; exit 1; }
-    space_generic_closers "$T/$1" "$LIB/$2"
+    [ -f "$SRC/$1" ] || { echo "error: $SRC/$1 was not generated." >&2; exit 1; }
+    space_generic_closers "$SRC/$1" "$LIB/$2"
+    cp -f "$LIB/$2" "$TLIB/$2"
 }
 
-# install_std_headers — every header the std target left in target/<profile>
-# (the runtime and TLS ones are installed under their own names above).
+# install_std_headers — every std header the std target generated (not the
+# runtime, TLS and LLVM ones, installed under their own names).
 install_std_headers() {
     local n=0 h b
-    for h in "$T"/*.fly.h; do
+    for h in "$SRC"/*.fly.h; do
         [ -e "$h" ] || continue
         b="$(basename "$h")"
         case "$b" in
-            Runtime[A-Z]*|Tls[A-Z]*) continue ;;
+            Runtime[A-Z]*|Tls[A-Z]*|runtime.fly.h|llvm.fly.h) continue ;;
         esac
         cp -f "$h" "$LIB/$b"
+        [ "$SRC" = "$TLIB" ] || cp -f "$h" "$TLIB/$b"
         n=$((n + 1))
     done
-    [ "$n" -gt 0 ] || { echo "error: no std headers in $T." >&2; exit 1; }
+    [ "$n" -gt 0 ] || { echo "error: no std headers in $SRC." >&2; exit 1; }
     echo "stage1: std -> $LIB (fly_std_lib.a + $n headers)"
 }
 
@@ -132,8 +148,9 @@ fly_build "$FLY0" fly
 cp -f "$T/fly" "$BIN/fly"
 FLY_LINKED=1 ./ci/linux/link_fly.sh
 
-# ── the std again, built by the stage-1 fly ───────────────────────────────────
+# ── the std again, built by the stage-1 fly (which honours `dir`) ─────────────
 fly_build "$BIN/fly" std --force
+SRC="$TLIB"
 install_archive fly_std_lib.a
 install_std_headers
 

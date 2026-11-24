@@ -436,6 +436,7 @@ public class ToolChain {
         // Output
         proc.argsAdd(h, "-o")
         proc.argsAdd(h, outFile)
+        this.addRpaths(h, false)
 
         // Path list (";"-delimited)
         string pathList = this.CreatePathList()
@@ -600,6 +601,7 @@ public class ToolChain {
         }
         proc.argsAdd(h, "-o")
         proc.argsAdd(h, outFile)
+        this.addRpaths(h, true)
 
         if str.isEmpty(this.codeGenOpts.getToolchainLibDir()) == false {
             proc.argsAdd(h, str.concat("-L", this.codeGenOpts.getToolchainLibDir()))
@@ -1337,6 +1339,30 @@ public class ToolChain {
     // already the platform-specific link function, and hardcoding one pair made
     // the Windows link ask for OpenSSL. They must follow the archive: the linker
     // resolves left to right.
+    // addRpaths — one `-rpath <dir>` per --rpath, for ld.lld (ELF) and ld64.lld
+    // (Mach-O). PE/COFF has no run-time search path: a DLL is looked up next to
+    // the executable, so Windows ignores the option.
+    public void addRpaths(const pointer h, const bool macho) {
+        string rp = this.codeGenOpts.getRpaths()
+        int n = segCount(rp)
+        int i = 0
+        while i < n {
+            proc.argsAdd(h, "-rpath")
+            proc.argsAdd(h, this.rpathFor(segAt(rp, i), macho))
+            i = i + 1
+        }
+    }
+
+    // rpathFor — a --rpath as the linker spells it: `$ORIGIN` (the directory of
+    // the executable, the ELF spelling the manifest uses) becomes @loader_path on
+    // Mach-O. Pure, for ToolChainSuite.
+    public string rpathFor(const string dir, const bool macho) {
+        if macho {
+            return str.replace(dir, "$ORIGIN", "@loader_path")
+        }
+        return dir
+    }
+
     public void addTlsArchives(const pointer h, const string dep1, const string dep2) {
         bool tookReal = false
         if this.codeGenOpts.getEnableTls() {
