@@ -35,6 +35,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 cd "$(dirname "$0")/../.."
+# the package module (build/gen/package.fly) the compiler sources need, from Manifest.fly
+bash ci/linux/gen_package.sh > /dev/null
 . ci/linux/platform.sh
 
 FLY2=build/stage2/bin/fly
@@ -54,7 +56,7 @@ MAP="--debug-prefix-map=$(cd build/stage2/lib && pwd)=lib"
 build_driver() {
     local dir="$1"
     rm -rf "$dir"; mkdir -p "$dir"
-    "$FLY2" --src-dir compiler $DBG $MAP -c -o Driver --out-dir "$dir" > "$dir/emit.log" 2>&1 || true
+    "$FLY2" --src-dir compiler --src-dir build/gen $DBG $MAP -c -o Driver --out-dir "$dir" > "$dir/emit.log" 2>&1 || true
     if [ ! -f "$dir/Driver" ]; then
         echo "error: stage3 driver object not emitted; see $dir/emit.log:" >&2
         grep -m5 -E 'error:|broken|abort' "$dir/emit.log" | sed 's/^/      /' >&2 || true

@@ -29,6 +29,8 @@ $PSNativeCommandUseErrorActionPreference = $false
 
 # Scripts live in ci\windows\; operate from the project root (two levels up).
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
+# the package module (build\gen\package.fly) the compiler sources need, from Manifest.fly
+& "$PSScriptRoot\gen_package.ps1" | Out-Null
 
 # The CodeGen/Target suites link the LLVM C API, so their test executables import
 # LLVM-C.dll. They run from $OUT, not next to the DLL, so put the LLVM bin dir on
@@ -138,9 +140,9 @@ $perSuite = ($env:FLY_TEST_PER_SUITE -eq '1')
 if (-not $perSuite) {
     $log = "$OUT/_oneshot.log"
     if ($SEL) {
-        & $FLY --suite=$SEL --src-dir compiler -o test_all --out-dir $OUT -L $STD *> $log
+        & $FLY --suite=$SEL --src-dir compiler --src-dir build/gen -o test_all --out-dir $OUT -L $STD *> $log
     } else {
-        & $FLY --suite --src-dir compiler -o test_all --out-dir $OUT -L $STD *> $log
+        & $FLY --suite --src-dir compiler --src-dir build/gen -o test_all --out-dir $OUT -L $STD *> $log
     }
     $code = $LASTEXITCODE
 
@@ -205,7 +207,7 @@ foreach ($suite in $selected) {
     # is discovered by name from the compiler/ tree (suite names repeat across
     # trees — ManifestSuite also exists in std/test — and compiler/ as the root
     # keeps the driver/compiler imports resolving from source).
-    & $FLY --suite=$name --src-dir compiler -o "test_$name" --out-dir $OUT -L $STD *> $log
+    & $FLY --suite=$name --src-dir compiler --src-dir build/gen -o "test_$name" --out-dir $OUT -L $STD *> $log
     if ($LASTEXITCODE -eq 0) {
         Write-Host "  PASS          $name"
         $pass++

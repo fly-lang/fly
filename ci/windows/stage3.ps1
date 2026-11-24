@@ -38,6 +38,8 @@
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
+# the package module (build\gen\package.fly) the compiler sources need, from Manifest.fly
+& "$PSScriptRoot\gen_package.ps1" | Out-Null
 . "$PSScriptRoot\gnu_common.ps1"
 
 $FLY2 = 'build/stage2/bin/fly.exe'
@@ -59,7 +61,7 @@ $MAP = @("--debug-prefix-map=$((Resolve-Path 'build/stage2/lib').Path)=lib")
 function Build-Driver([string]$dir) {
     Remove-Item $dir -Recurse -Force -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Force $dir | Out-Null
-    & $FLY2 --src-dir compiler @DBG @MAP @FLY_TARGET_ARGS -c -o Driver --out-dir $dir > "$dir/emit.log" 2>&1
+    & $FLY2 --src-dir compiler --src-dir build/gen @DBG @MAP @FLY_TARGET_ARGS -c -o Driver --out-dir $dir > "$dir/emit.log" 2>&1
     $obj = @("$dir/Driver", "$dir/Driver.fly.o", "$dir/Driver.fly.obj") | Where-Object { Test-Path $_ } | Select-Object -First 1
     if (-not $obj) {
         Write-Host "error: stage3 driver object not emitted; see $dir\emit.log:"

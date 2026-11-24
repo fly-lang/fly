@@ -14,10 +14,12 @@ import fly.compiler.ast.*
 // Mirrors HeaderGen's declarative AST walk.
 //
 // Field names below match the fly.meta.Manifest schema. Object collections use
-// array literals of `new T(...)` with POSITIONAL string args (interim, until
-// struct-literals land):
+// array literals of `new T(...)` with POSITIONAL string args:
 //   dependencies = { new Dependency("bar", "^1.2"), ... }   // (name, version)
 //   targets      = { new Target("app", "src/main.fly", "") } // (name, path, lib)
+// or (0.15.2, targets and profiles) of STRUCT literals with named fields:
+//   targets  = { { name = "app", srcDirs = { "src", "gen" }, entry = "src/main.fly" } }
+//   profiles = { { name = "release", optLevel = 2, warningsAsErrors = true } }
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class FlyManifestReader {
@@ -152,6 +154,10 @@ public class FlyManifestReader {
             this.readTargets(init, m)
             return
         }
+        if str.equals(name, "profiles") {
+            this.readProfiles(init, m)
+            return
+        }
     }
 
     // strOf — the string value of a scalar initializer ("" if not a string literal).
@@ -263,6 +269,10 @@ public class FlyManifestReader {
         List<ASTExpr> vals = arr.getValues()
         int i = 0
         while i < vals.size() {
+            ASTStructValue sv = vals.get(i).asStructValue()
+            if sv != null {
+                m.addTarget(this.targetOf(sv))
+            }
             ASTCall call = vals.get(i).asCall()
             if call != null {
                 List<ASTArg> args = call.getArgs()
@@ -282,6 +292,140 @@ public class FlyManifestReader {
             }
             i = i + 1
         }
+    }
+
+    // targetOf — a named-form target `{ name = ..., ... }`. Unknown fields are
+    // ignored, as unknown manifest fields are.
+    Target targetOf(const ASTStructValue sv) {
+        string tn = this.fieldStr(sv, "name")
+        Target t = new Target(tn, tn, this.fieldStr(sv, "path"), this.fieldStr(sv, "lib"))
+        t.setEntry(this.fieldStr(sv, "entry"))
+        t.setOs(this.fieldStr(sv, "os"))
+        t.setArtifact(this.fieldStr(sv, "artifact"))
+        this.fieldStrs(sv, "srcDirs", t.getSrcDirs())
+        this.fieldStrs(sv, "files", t.getFiles())
+        this.fieldStrs(sv, "libDirs", t.getLibDirs())
+        this.fieldStrs(sv, "linkLibs", t.getLinkLibs())
+        this.fieldStrs(sv, "flags", t.getFlags())
+        return t
+    }
+
+    // readProfiles — `{ { name = "release", optLevel = 2, debugInfo = false,
+    // warningsAsErrors = true, debugPrefixMap = "@out=lib" }, ... }`. A field left
+    // out keeps the built-in default of that profile (defaultProfile).
+    void readProfiles(const ASTExpr e, const Manifest m) {
+        ASTArrayValue arr = e.asArrayValue()
+        if arr == null {
+            return
+        }
+        List<ASTExpr> vals = arr.getValues()
+        int i = 0
+        while i < vals.size() {
+            ASTStructValue sv = vals.get(i).asStructValue()
+            if sv != null {
+                string pn = this.fieldStr(sv, "name")
+                BuildProfile p = fly.driver.defaultProfile(pn)
+                if this.hasField(sv, "optLevel") {
+                    p.setOptLevel(this.fieldInt(sv, "optLevel"))
+                }
+                if this.hasField(sv, "debugInfo") {
+                    p.setDebugInfo(this.fieldBool(sv, "debugInfo"))
+                }
+                if this.hasField(sv, "assertions") {
+                    p.setAssertions(this.fieldBool(sv, "assertions"))
+                }
+                if this.hasField(sv, "lto") {
+                    p.setLto(this.fieldBool(sv, "lto"))
+                }
+                if this.hasField(sv, "strip") {
+                    p.setStrip(this.fieldBool(sv, "strip"))
+                }
+                if this.hasField(sv, "warningsAsErrors") {
+                    p.setWarningsAsErrors(this.fieldBool(sv, "warningsAsErrors"))
+                }
+                p.setDebugPrefixMap(this.fieldStr(sv, "debugPrefixMap"))
+                if str.isEmpty(pn) == false {
+                    m.addProfile(pn, p)
+                }
+            }
+            i = i + 1
+        }
+    }
+
+    // fieldExpr — the value of field `name` in a struct literal, null if absent.
+    ASTExpr fieldExpr(const ASTStructValue sv, const string name) {
+        List<string> names = sv.getNames()
+        List<ASTExpr> exprs = sv.getExprs()
+        int i = 0
+        while i < names.size() {
+            if str.equals(names.get(i), name) {
+                return exprs.get(i)
+            }
+            i = i + 1
+        }
+        return null
+    }
+
+    bool hasField(const ASTStructValue sv, const string name) {
+        return this.fieldExpr(sv, name) != null
+    }
+
+    // fieldStr — a string field ("" when absent or not a string literal).
+    string fieldStr(const ASTStructValue sv, const string name) {
+        ASTExpr e = this.fieldExpr(sv, name)
+        if e == null {
+            return ""
+        }
+        return this.strOf(e)
+    }
+
+    // fieldStrs — a `{ "a", "b" }` field, appended to `out` (absent → nothing).
+    void fieldStrs(const ASTStructValue sv, const string name, const List<string> out) {
+        ASTExpr e = this.fieldExpr(sv, name)
+        if e == null {
+            return
+        }
+        ASTArrayValue arr = e.asArrayValue()
+        if arr == null {
+            return
+        }
+        List<ASTExpr> vals = arr.getValues()
+        int i = 0
+        while i < vals.size() {
+            out.add(this.strOf(vals.get(i)))
+            i = i + 1
+        }
+    }
+
+    // fieldBool — a `true` / `false` field (false when absent or not a bool).
+    bool fieldBool(const ASTStructValue sv, const string name) {
+        ASTExpr e = this.fieldExpr(sv, name)
+        if e == null {
+            return false
+        }
+        ASTBoolValue bv = e.asBoolValue()
+        if bv == null {
+            return false
+        }
+        return bv.getValue()
+    }
+
+    // fieldInt — a non-negative integer literal field (0 when absent or not one).
+    int fieldInt(const ASTStructValue sv, const string name) {
+        ASTExpr e = this.fieldExpr(sv, name)
+        if e == null {
+            return 0
+        }
+        ASTNumberValue nv = e.asNumberValue()
+        if nv == null {
+            return 0
+        }
+        int err = 0
+        int n = str.toInt(nv.getValue(), err)
+        if err != 0 {
+            return 0
+        }
+        return n
     }
 
     // argStr — the string value of the idx-th call argument.

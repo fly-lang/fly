@@ -11,6 +11,8 @@
 # -----------------------------------------------------------------------------
 set -u
 cd "$(dirname "$0")/../.."
+# the package module (build/gen/package.fly) the compiler sources need, from Manifest.fly
+bash ci/linux/gen_package.sh > /dev/null
 
 SEL="${1:-${FLY_TEST_SUITE:-}}"
 STAGE="${STAGE:-2}"
@@ -35,7 +37,7 @@ for entry in $SUITES; do
     [ -n "$SEL" ] && [ "$SEL" != "$name" ] && continue
     log="$OUT/tools_$name.log"
     if [ "$needsc" = "1" ]; then
-        "$FLY" --suite="$name" --src-dir "$root" --src-dir compiler/lib \
+        "$FLY" --suite="$name" --src-dir "$root" --src-dir compiler/lib --src-dir build/gen \
                -o "test_$name" --out-dir "$OUT" -L "$STD" > "$log" 2>&1
     else
         "$FLY" --suite="$name" --src-dir "$root" \

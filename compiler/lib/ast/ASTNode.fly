@@ -95,6 +95,14 @@ public class ASTNode : ASTBase {
     public ASTNumberValue asNumberValue() {
         return null
     }
+    // asStructValue / asBoolValue — the manifest reader walks `{ name = value }`
+    // targets and profiles (0.15.2). Appended last, same reason.
+    public ASTStructValue asStructValue() {
+        return null
+    }
+    public ASTBoolValue asBoolValue() {
+        return null
+    }
 
     // accept — virtual visitor dispatch. Concrete leaf nodes override this with
     // `v.visit(this)`; this base no-op lets a base-typed node (ASTExpr/ASTStmt/

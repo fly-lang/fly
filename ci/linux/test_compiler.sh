@@ -16,6 +16,8 @@
 set -uo pipefail
 # Scripts live in ci/linux/; operate from the project root (two levels up).
 cd "$(dirname "$0")/../.."
+# the package module (build/gen/package.fly) the compiler sources need, from Manifest.fly
+bash ci/linux/gen_package.sh > /dev/null
 . ci/linux/platform.sh
 
 # Scratch for per-suite test binaries/logs; under build/ but separate from
@@ -121,9 +123,9 @@ fi
 if [ "${FLY_TEST_PER_SUITE:-}" != "1" ]; then
     log="$OUT/_oneshot.log"
     if [ -n "$SEL" ]; then
-        "$FLY" --suite="$SEL" --src-dir compiler -o test_all --out-dir "$OUT" -L "$STD" >"$log" 2>&1
+        "$FLY" --suite="$SEL" --src-dir compiler --src-dir build/gen -o test_all --out-dir "$OUT" -L "$STD" >"$log" 2>&1
     else
-        "$FLY" --suite --src-dir compiler -o test_all --out-dir "$OUT" -L "$STD" >"$log" 2>&1
+        "$FLY" --suite --src-dir compiler --src-dir build/gen -o test_all --out-dir "$OUT" -L "$STD" >"$log" 2>&1
     fi
     code=$?
 
@@ -186,7 +188,7 @@ for suite in $selected; do
     # discovered by name from the compiler/ tree (suite names repeat across
     # trees — ManifestSuite also exists in std/test — and compiler/ as the root
     # keeps the driver/compiler imports resolving from source).
-    if "$FLY" --suite="$name" --src-dir compiler -o "test_$name" --out-dir "$OUT" -L "$STD" >"$log" 2>&1; then
+    if "$FLY" --suite="$name" --src-dir compiler --src-dir build/gen -o "test_$name" --out-dir "$OUT" -L "$STD" >"$log" 2>&1; then
         echo "  PASS          $name"
         pass=$((pass + 1))
     else

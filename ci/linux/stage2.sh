@@ -54,5 +54,6 @@ mkdir -p build/stage2/lib
 # The debugger is PROVISIONED (bundled by link_fly.sh from the fork LLVM), not
 # compiled — but it ships from build/stage2/bin like the tools, so verify it here.
 ./ci/linux/test_dbg.sh
+bash ./ci/linux/test_fly_build.sh
 
 echo "stage2: done — build/stage2/bin/fly"

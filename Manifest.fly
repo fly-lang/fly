@@ -1,0 +1,61 @@
+namespace fly.project
+
+import fly.meta.*
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Manifest.fly — the package manifest of Fly itself: compiler, runtime, standard
+// library and tools. Since 0.15.2 it is the SINGLE source of truth for the
+// version: the build scripts read `version` from here and generate the module
+// that answers `fly --version` (ci/*/gen_package), and release.yml tags the
+// release with it. Bump the version here and ONLY here; keep the line's shape
+// (`string version = "x.y.z"`) stable, the scripts read it with a pattern.
+//
+// `flyVersion` is the toolchain that builds this tree: the pinned stage-0 seed
+// (ci/*/stage0 FLY_VERSION).
+// ─────────────────────────────────────────────────────────────────────────────
+
+class Manifest : fly.meta.Manifest {
+    string name = "fly"
+    string version = "0.15.2"
+    string description = "The Fly programming language: compiler, runtime, standard library and tools"
+    string license = "Apache-2.0"
+    string flyVersion = "0.14.9"
+    string homepage = "https://flylang.org"
+    string repository = "https://github.com/fly-lang/fly"
+
+    // `fly build --profile dist` builds the whole toolchain into target/dist,
+    // in this order: runtime (one per OS) and the TLS archives, the standard
+    // library, the compiler, then the tools. A library lands in target/dist
+    // under its artifact name with its headers next to it, which is where the
+    // targets after it find it (`@out`). It is what the build scripts do today
+    // (ci/*/build_*); release/0.16.X bootstraps with it. The compiler and fly-lsp
+    // link the LLVM C API from the LLVM stage0 fetches (build/llvm/lib).
+    Profile[] profiles = {
+        { name = "dist", optLevel = 0, debugInfo = false, warningsAsErrors = true }
+    }
+
+    Target[] targets = {
+        { name = "runtime-linux", os = "linux", lib = "static", artifact = "fly_runtime_lib",
+          files = { "runtime/lib/RuntimeLinux.fly" } },
+        { name = "runtime-macos", os = "macos", lib = "static", artifact = "fly_runtime_lib",
+          files = { "runtime/lib/RuntimeMacos.fly" } },
+        { name = "runtime-windows", os = "windows", lib = "static", artifact = "fly_runtime_lib",
+          files = { "runtime/lib/RuntimeWindows.fly" } },
+        { name = "tls-stub", lib = "static", artifact = "fly_tls_stub",
+          files = { "runtime/lib/TlsStub.fly" }, libDirs = { "@out" } },
+        { name = "tls-openssl-linux", os = "linux", lib = "static", artifact = "fly_tls_lib",
+          files = { "runtime/lib/TlsOpenSSL.fly" }, libDirs = { "@out" } },
+        { name = "tls-openssl-macos", os = "macos", lib = "static", artifact = "fly_tls_lib",
+          files = { "runtime/lib/TlsOpenSSL.fly" }, libDirs = { "@out" } },
+        { name = "tls-schannel", os = "windows", lib = "static", artifact = "fly_tls_lib",
+          files = { "runtime/lib/TlsSchannel.fly" }, libDirs = { "@out" } },
+        { name = "std", lib = "static", artifact = "fly_std_lib",
+          srcDirs = { "std/lib" }, libDirs = { "@out" } },
+        { name = "fly", srcDirs = { "compiler" }, libDirs = { "@out" },
+          flags = { "--runtime-lib-dir", "@out", "--llvm-lib-dir", "build/llvm/lib" } },
+        { name = "fly-lsp", srcDirs = { "tools/lsp", "compiler/lib" }, entry = "tools/lsp/lib/FlyLsp.fly",
+          libDirs = { "@out" }, flags = { "--runtime-lib-dir", "@out", "--llvm-lib-dir", "build/llvm/lib" } },
+        { name = "fly-registry", srcDirs = { "tools/registry" }, entry = "tools/registry/lib/FlyRegistry.fly",
+          libDirs = { "@out" }, flags = { "--runtime-lib-dir", "@out" } }
+    }
+}

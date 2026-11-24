@@ -16,6 +16,8 @@
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
+# the package module (build\gen\package.fly) the compiler sources need, from Manifest.fly
+& "$PSScriptRoot\gen_package.ps1" | Out-Null
 . "$PSScriptRoot\gnu_common.ps1"
 
 # Written back into the ENVIRONMENT, not just a local: link_bin.ps1 derives its
@@ -44,7 +46,7 @@ $WERR = @('--warnings-as-errors')
 $TARGET = @(); if ($env:FLY_TARGET_ARGS) { $TARGET = $env:FLY_TARGET_ARGS -split ' ' }
 
 Write-Host "stage${STAGE}: compiling tools/lsp (monolithic, compiler from source) ..."
-& $FLY --entry tools/lsp/lib/FlyLsp.fly --src-dir tools/lsp --src-dir compiler/lib `
+& $FLY --entry tools/lsp/lib/FlyLsp.fly --src-dir tools/lsp --src-dir compiler/lib --src-dir build/gen `
        @DBG @WERR @TARGET -c -o FlyLsp --out-dir $D -L $LIB
 if ($LASTEXITCODE -ne 0) { throw "fly-lsp compile failed (exit $LASTEXITCODE)" }
 

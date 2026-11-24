@@ -11,6 +11,8 @@
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 cd "$(dirname "$0")/../.."
+# the package module (build/gen/package.fly) the compiler sources need, from Manifest.fly
+bash ci/linux/gen_package.sh > /dev/null
 
 # ── Stage plumbing: pick the compiler and the in/out dirs from $STAGE. ────────
 STAGE="${STAGE:-1}"
@@ -62,7 +64,7 @@ echo "stage$STAGE: compiling driver + compiler (monolithic, from source) ...${DB
 # DIRECTORY CLI: no positional — the entry (the single main(),
 # compiler/lib/driver/Driver.fly) is discovered from --src-dir and its import
 # closure pulls the whole compiler. -c emits a clean object, no link attempt.
-"$FLY" --src-dir compiler \
+"$FLY" --src-dir compiler --src-dir build/gen \
     $DBG $MAP $WERR -c -o Driver --out-dir "$D" > "$D/emit.log" 2>&1 || true
 OBJ="$D/Driver"
 if [ ! -f "$OBJ" ]; then

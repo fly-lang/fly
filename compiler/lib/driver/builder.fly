@@ -6,6 +6,9 @@ import fly.os.path
 import fly.os.fs
 import fly.os.io
 import fly.os.proc
+import fly.data.List
+import fly.mem
+import fly.llvm
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Builder — invoke the fly compiler to build a manifest's targets. Port of
@@ -105,6 +108,12 @@ public class Builder {
         if bp.getDebugInfo() {
             f = str.concat(f, " --debug-symbols")
         }
+        if bp.getWarningsAsErrors() {
+            f = str.concat(f, " --warnings-as-errors")
+        }
+        if str.isEmpty(bp.getDebugPrefixMap()) == false {
+            f = str.concat(f, str.concat(" --debug-prefix-map=", bp.getDebugPrefixMap()))
+        }
         return f
     }
 
@@ -131,6 +140,19 @@ public class Builder {
     // `/bin/sh`→`\bin\sh`, absent → exit 127). Direct exec also needs no shellQuote
     // (each arg is passed verbatim, never re-parsed by a shell). Returns true on exit 0.
     public bool invokeFly(const string source, const string output, const string extra) {
+        List<string> roots = new List<string>()
+        roots.add(path.dirname(source))
+        return this.runFly(null, roots, output, "", extra, source)
+    }
+
+    // runFly — the compiler run behind every build: profile flags, link libraries,
+    // runtime lib dir and triple as before, then for a named-form target `t` its
+    // own link libraries, -L dirs, verbatim flags and --entry; `-o output` (with
+    // `--out-dir outDirArg` when given: a library's headers land there) and one
+    // --src-dir per root, the first being the discovery root. `label` is what the
+    // progress line names.
+    public bool runFly(const Target t, const List<string> roots, const string output, const string outDirArg,
+            const string extra, const string label) {
         fs.dirCreateAll(this.outDir(), 493)
 
         pointer h = proc.argsNew()
@@ -139,6 +161,12 @@ public class Builder {
         proc.argsAdd(h, str.concat("-O", str.convert(bp.getOptLevel())))
         if bp.getDebugInfo() {
             proc.argsAdd(h, "--debug-symbols")
+        }
+        if bp.getWarningsAsErrors() {
+            proc.argsAdd(h, "--warnings-as-errors")
+        }
+        if str.isEmpty(bp.getDebugPrefixMap()) == false {
+            proc.argsAdd(h, str.concat("--debug-prefix-map=", this.expandOut(bp.getDebugPrefixMap())))
         }
         // [link].libs → --link-lib=<name>
         int i = 0
@@ -159,18 +187,211 @@ public class Builder {
         if str.isEmpty(extra) == false {
             proc.argsAdd(h, extra)
         }
+        if t != null {
+            List<string> tl = t.getLinkLibs()
+            int li = 0
+            while li < tl.size() {
+                proc.argsAdd(h, str.concat("--link-lib=", tl.get(li)))
+                li = li + 1
+            }
+            List<string> ld = t.getLibDirs()
+            int di = 0
+            while di < ld.size() {
+                proc.argsAdd(h, "-L")
+                proc.argsAdd(h, this.projectPath(ld.get(di)))
+                di = di + 1
+            }
+            List<string> tf = t.getFlags()
+            int fi = 0
+            while fi < tf.size() {
+                proc.argsAdd(h, this.expandOut(tf.get(fi)))
+                fi = fi + 1
+            }
+            if str.isEmpty(t.getEntry()) == false {
+                proc.argsAdd(h, "--entry")
+                proc.argsAdd(h, path.absolute(t.getEntry()))
+            }
+        }
         proc.argsAdd(h, "-o")
         proc.argsAdd(h, output)
-        // DIRECTORY CLI: no positional source — the target's directory is the
-        // source root (a bin target's main() is discovered there; --lib compiles
-        // the whole directory).
-        proc.argsAdd(h, "--src-dir")
-        proc.argsAdd(h, path.dirname(source))
+        if str.isEmpty(outDirArg) == false {
+            proc.argsAdd(h, "--out-dir")
+            proc.argsAdd(h, outDirArg)
+        }
+        // DIRECTORY CLI: no positional source — the first root is where main() is
+        // discovered (or, with --lib, the whole directory compiled); the others
+        // resolve imports.
+        int ri = 0
+        while ri < roots.size() {
+            proc.argsAdd(h, "--src-dir")
+            proc.argsAdd(h, roots.get(ri))
+            ri = ri + 1
+        }
 
-        io.printLn(str.concat("  fly ", source))
+        io.printLn(str.concat("  fly ", label))
         int rc = proc.exec(this.getFlyBinary(), h)
         proc.argsFree(h)
         return rc == 0
+    }
+
+    // ── named-form targets (0.15.2) ──────────────────────────────────────────
+
+    // hostOs — "linux" | "windows" | "macos", what a target's `os` is matched with.
+    public string hostOs() {
+        return env.osname()
+    }
+
+    // skipsHost — a target restricted to another OS is not built here.
+    public bool skipsHost(const Target t) {
+        if str.isEmpty(t.getOs()) {
+            return false
+        }
+        return str.equals(t.getOs(), this.hostOs()) == false
+    }
+
+    // expandOut — `@out` in a flag, -L dir or prefix map is the output directory.
+    public string expandOut(const string s) {
+        return str.replace(s, "@out", this.outDir())
+    }
+
+    // projectPath — a manifest path made absolute (`@out` expanded first).
+    public string projectPath(const string p) {
+        string e = this.expandOut(p)
+        if path.isAbsolute(e) {
+            return e
+        }
+        return path.absolute(e)
+    }
+
+    // isNamed — a target that uses any 0.15.2 field: built with --out-dir and
+    // its exact artifact name, from its source roots.
+    public bool isNamed(const Target t) {
+        if t.getSrcDirs().size() > 0 {
+            return true
+        }
+        if t.getFiles().size() > 0 {
+            return true
+        }
+        return str.isEmpty(t.getArtifact()) == false
+    }
+
+    // stageDir — where a target's `files` are copied to be compiled on their own
+    // (the CLI compiles directories). A dot-dir, so discovery never enters it.
+    public string stageDir(const Target t) {
+        return path.join(this.fpDir(), path.join("src", t.getKey()))
+    }
+
+    // genDir — where a bin target's package module is written.
+    public string genDir(const Target t) {
+        return path.join(this.fpDir(), path.join("gen", t.getKey()))
+    }
+
+    // stageFiles — copy the target's files into a fresh stage dir.
+    public void stageFiles(const Target t) {
+        string d = this.stageDir(t)
+        if fs.exists(d) {
+            fs.dirDeleteAll(d)
+        }
+        fs.dirCreateAll(d, 493)
+        List<string> fl = t.getFiles()
+        int i = 0
+        while i < fl.size() {
+            string src = this.projectPath(fl.get(i))
+            fs.copy(src, path.join(d, path.basename(src)))
+            i = i + 1
+        }
+    }
+
+    // writePackageModule — the bin target's `fly.meta.package` module (name,
+    // version, description from the manifest), rewritten only when it changes.
+    public void writePackageModule(const Target t) {
+        string d = this.genDir(t)
+        fs.dirCreateAll(d, 493)
+        string p = path.join(d, "package.fly")
+        string text = this.packageModule()
+        if fs.exists(p) {
+            if str.equals(fs.readStr(p), text) {
+                return
+            }
+        }
+        fs.writeStr(p, text, 420)
+    }
+
+    // targetRoots — the --src-dir list: the staged files or the srcDirs (or the
+    // directory of `path`), then, for an executable, the package module.
+    public List<string> targetRoots(const Target t) {
+        List<string> roots = new List<string>()
+        if t.getFiles().size() > 0 {
+            roots.add(this.stageDir(t))
+        }
+        List<string> sd = t.getSrcDirs()
+        int i = 0
+        while i < sd.size() {
+            roots.add(this.projectPath(sd.get(i)))
+            i = i + 1
+        }
+        if roots.size() == 0 {
+            roots.add(path.dirname(path.absolute(t.getPath())))
+        }
+        if t.isBin() {
+            roots.add(this.genDir(t))
+        }
+        return roots
+    }
+
+    // archiveExt — the static-library extension the toolchain looks for.
+    public string archiveExt() {
+        if str.equals(this.hostOs(), "windows") {
+            return ".lib"
+        }
+        return ".a"
+    }
+
+    // namedArtifact — the file a named-form target leaves in the output dir.
+    public string namedArtifact(const Target t) {
+        string base = t.getArtifact()
+        if str.isEmpty(base) {
+            base = t.getName()
+        }
+        string p = path.join(this.outDir(), base)
+        if t.isLib() {
+            return str.concat(p, this.archiveExt())
+        }
+        if str.equals(this.hostOs(), "windows") {
+            return str.concat(p, ".exe")
+        }
+        return p
+    }
+
+    // buildNamed — build a named-form target: a static library goes to the
+    // output dir under its exact name (+ extension) with its headers next to it;
+    // an executable gets its package module as an extra source root.
+    public bool buildNamed(const Target t) {
+        List<string> roots = this.targetRoots(t)
+        string base = t.getArtifact()
+        if str.isEmpty(base) {
+            base = t.getName()
+        }
+        string od = this.outDir()
+        if t.isLib() {
+            string lib = t.getLib()
+            bool dyn = str.equals(lib, "dynamic")
+            bool ok = this.runFly(t, roots, base, od, this.libShapeFlag(dyn), t.getKey())
+            if ok && (dyn == false) {
+                // the CLI writes the archive under the exact -o name: give it the
+                // extension the linker and --runtime-lib-dir look for
+                string raw = path.join(od, base)
+                string want = this.namedArtifact(t)
+                if fs.exists(raw) {
+                    if fs.exists(want) {
+                        fs.del(want)
+                    }
+                    fs.rename(raw, want)
+                }
+            }
+            return ok
+        }
+        return this.runFly(t, roots, path.join(od, base), "", "", t.getKey())
     }
 
     // ── Incremental fingerprint cache ────────────────────────────────────────
@@ -232,7 +453,79 @@ public class Builder {
         }
         h = str.concat(h, str.concat("lock ", lock))
         h = str.concat(h, fly.driver.nl())
+        // the package module every executable gets carries name and version
+        h = str.concat(h, str.concat("package ", str.concat(this.manifest.getName(), str.concat(" ",
+                this.manifest.getVersion()))))
+        h = str.concat(h, fly.driver.nl())
         return h
+    }
+
+    // targetLine — the named-form fields of a target, one line, for its
+    // fingerprint (a changed flag, entry or -L dir rebuilds it).
+    public string targetLine(const Target t) {
+        string l = str.concat("os=", t.getOs())
+        l = str.concat(l, str.concat(" artifact=", t.getArtifact()))
+        l = str.concat(l, str.concat(" entry=", t.getEntry()))
+        l = str.concat(l, this.listLine(" srcDirs=", t.getSrcDirs()))
+        l = str.concat(l, this.listLine(" files=", t.getFiles()))
+        l = str.concat(l, this.listLine(" libDirs=", t.getLibDirs()))
+        l = str.concat(l, this.listLine(" linkLibs=", t.getLinkLibs()))
+        l = str.concat(l, this.listLine(" flags=", t.getFlags()))
+        return l
+    }
+
+    public string listLine(const string label, const List<string> xs) {
+        string l = label
+        int i = 0
+        while i < xs.size() {
+            if i > 0 {
+                l = str.concat(l, ",")
+            }
+            l = str.concat(l, xs.get(i))
+            i = i + 1
+        }
+        return l
+    }
+
+    // backslash — a one-byte string holding a backslash (92): the seed reads
+    // literals raw, so code it compiles holds no backslash literal.
+    public string backslash() {
+        pointer buf = mem.alloc(1)
+        byte c = 92
+        fly.llvm.strPoke(buf, 0, c)
+        string r = ""
+        fly.llvm.strMake(buf, 1, r)
+        return r
+    }
+
+    // packageModule — the `fly.meta.package` module an executable is built with:
+    // the manifest's name, version and description as functions, so a program
+    // reads its own manifest data (`import fly.meta.package`, then
+    // `package.version()`). Functions, not static strings: a static string
+    // initializer is a known seed landmine. ci/*/gen_package writes the same text
+    // for the compiler's own build.
+    public string packageModule() {
+        string q = fly.driver.dq()
+        string nl = fly.driver.nl()
+        string t = str.concat("namespace fly.meta.package", nl)
+        t = str.concat(t, nl)
+        t = str.concat(t, str.concat("// GENERATED from Manifest.fly - do not edit.", nl))
+        t = str.concat(t, this.packageFn("name", this.manifest.getName(), q, nl))
+        t = str.concat(t, this.packageFn("version", this.manifest.getVersion(), q, nl))
+        t = str.concat(t, this.packageFn("description", this.manifest.getDescription(), q, nl))
+        return t
+    }
+
+    // packageFn — `public string <fn>() { return "<value>" }`, the value with its
+    // quotes and backslashes escaped.
+    public string packageFn(const string fn, const string value, const string q, const string nl) {
+        string bs = this.backslash()
+        string v = str.replace(value, bs, str.concat(bs, bs))
+        v = str.replace(v, q, str.concat(bs, q))
+        string t = str.concat("public string ", str.concat(fn, str.concat("() {", nl)))
+        t = str.concat(t, str.concat("    return ", str.concat(q, str.concat(v, str.concat(q, nl)))))
+        t = str.concat(t, str.concat("}", nl))
+        return t
     }
 
     // computeFpForDir — full fingerprint text for one source dir. Also used by
@@ -256,14 +549,37 @@ public class Builder {
                 kind = "lib-static"
             }
         }
-        string srcDir = path.dirname(path.absolute(t.getPath()))
-        return this.computeFpForDir(srcDir, kind, t.getName())
+        if this.isNamed(t) == false {
+            string srcDir = path.dirname(path.absolute(t.getPath()))
+            return this.computeFpForDir(srcDir, kind, t.getName())
+        }
+        // a named-form target: every root, and what else reaches the command line
+        string head = this.fpHeader(kind, t.getName())
+        head = str.concat(head, str.concat("target ", this.targetLine(t)))
+        head = str.concat(head, fly.driver.nl())
+        List<string> roots = this.targetRoots(t)
+        string all = ""
+        Fingerprint fpr = new Fingerprint()
+        int i = 0
+        while i < roots.size() {
+            string r = roots.get(i)
+            if fs.exists(r) {
+                all = str.concat(all, fpr.compute(r, str.concat(head, str.concat("root ", r))))
+            } else {
+                all = str.concat(all, str.concat("missing root ", r))
+            }
+            i = i + 1
+        }
+        return all
     }
 
     // artifactsExist — every output the target produces is still on disk (a
     // deleted artifact must rebuild even with a matching fingerprint). Mirrors
     // buildTarget's outputs, including the deliberate lib<name>.so naming.
     public bool artifactsExist(const Target t) {
+        if this.isNamed(t) {
+            return fs.exists(this.namedArtifact(t))
+        }
         bool res
         string od = this.outDir()
         if t.isLib() {
@@ -338,6 +654,17 @@ public class Builder {
             io.printErrLn(str.concat("error: no [targets] entry named ", key))
             return false
         }
+        if this.skipsHost(t) {
+            io.printLn(str.concat("  skipped ", str.concat(key, str.concat(" (os ", str.concat(t.getOs(), ")")))))
+            return true
+        }
+        // staged files and the package module are part of what is fingerprinted
+        if t.getFiles().size() > 0 {
+            this.stageFiles(t)
+        }
+        if t.isBin() {
+            this.writePackageModule(t)
+        }
         string computed = this.computeFpFor(t)
         string fpFile = this.fpPath(t.getKey())
         if this.force == false {
@@ -348,7 +675,9 @@ public class Builder {
         }
         string src = path.absolute(t.getPath())
         bool ok = true
-        if t.isLib() {
+        if this.isNamed(t) {
+            ok = this.buildNamed(t)
+        } elsif t.isLib() {
             string lib = t.getLib()
             if str.equals(lib, "dynamic") || str.equals(lib, "both") {
                 string so = str.concat(this.outDir(), str.concat("/lib", str.concat(t.getName(), ".so")))
@@ -360,7 +689,11 @@ public class Builder {
             }
         } else {
             string o = str.concat(this.outDir(), str.concat("/", t.getName()))
-            ok = this.invokeFly(src, o, "")
+            this.writePackageModule(t)
+            List<string> broots = new List<string>()
+            broots.add(path.dirname(src))
+            broots.add(this.genDir(t))
+            ok = this.runFly(null, broots, o, "", "", src)
         }
         if ok {
             this.saveFp(fpFile, computed)
@@ -401,6 +734,9 @@ public class Builder {
             return 1
         }
         string bin = str.concat(this.outDir(), str.concat("/", t.getName()))
+        if this.isNamed(t) {
+            bin = this.namedArtifact(t)
+        }
         // Direct spawn, not `sh -c`: the shell form is dead on Windows, and there
         // is nothing here a shell was needed for.
         return proc.run(bin)

@@ -1,14 +1,19 @@
 namespace fly.compiler.basic
 
+import fly.meta.package
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Version — the SINGLE source of truth for the self-host compiler version,
-// mirroring the reference's CMakeLists.txt FLY_VERSION model. Consumed by:
+// Version — the compiler's version, as the root Manifest.fly declares it. Since
+// 0.15.2 the version lives ONLY in Manifest.fly (`string version`): the build
+// writes it into the `fly.meta.package` module, the same module `fly build`
+// gives every executable it builds (package.name/version/description). Today
+// ci/*/gen_package writes it into build/gen/package.fly; once the tree is built
+// with `fly build` (release/0.16.X) the Builder does. Consumed by:
 //   - Driver.printVersion()  (the `fly --version` output)
-//   - .github/workflows/release.yml, which greps the quoted x.y.z from the
-//     flyVersion line below to tag the release without a manual input.
-// Bump the version here and ONLY here; keep the line's shape stable.
+//   - `fly new` (the flyVersion of a new project) and the build fingerprints
+//   - .github/workflows/release.yml reads the same Manifest.fly line.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public string flyVersion() {
-    return "0.15.1"
+    return package.version()
 }

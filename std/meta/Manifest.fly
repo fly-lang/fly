@@ -27,11 +27,24 @@ public class Dependency {
     string path         // local path (path deps)
 }
 
-// Target — one [targets.*] entry: a compilable unit (binary or library).
+// Target — one [targets.*] entry: a compilable unit (binary or library). Written
+// either positionally, `new Target(name, path, lib)`, or (0.15.2) as a struct
+// literal with named fields, `{ name = "app", srcDirs = { "src" }, ... }`. Paths
+// are relative to the package root; `@out` in libDirs and flags is the output
+// directory. An executable is built with a generated `fly.meta.package` module
+// (name(), version(), description() of this manifest).
 public class Target {
-    string name         // output name (was the [targets] table key)
-    string path         // source file, e.g. "src/main.fly"
-    string lib          // "" = executable; "static" | "dynamic" | "both" = library
+    string   name       // output name (was the [targets] table key)
+    string   path       // source file, e.g. "src/main.fly": its directory is compiled
+    string   lib        // "" = executable; "static" | "dynamic" | "both" = library
+    string[] srcDirs    // source roots, the first is the discovery root (instead of path)
+    string[] files      // compile exactly these files (e.g. one per-platform runtime source)
+    string   entry      // the file declaring main(), when the tree has more than one
+    string   os         // "linux" | "windows" | "macos": built only on that host
+    string   artifact   // exact output name, no lib prefix (extension added per platform)
+    string[] libDirs    // -L package dirs: headers resolve imports, archives are linked
+    string[] linkLibs   // native libraries for this target
+    string[] flags      // extra compiler arguments, passed verbatim
 }
 
 // Profile — one [profiles.*] entry: build settings for a named profile
@@ -43,6 +56,8 @@ public class Profile {
     bool   assertions   // keep assertions
     bool   lto          // link-time optimisation
     bool   strip        // strip the output
+    bool   warningsAsErrors  // a warning fails the build
+    string debugPrefixMap    // "OLD=NEW" written into the debug info (@out = output dir)
 }
 
 // TestConfig — the [test] table.
