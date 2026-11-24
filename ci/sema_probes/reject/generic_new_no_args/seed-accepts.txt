@@ -1,0 +1,1 @@
+The v0.15.2 seed accepts `new List()` on a generic class with no type arguments at the type-check: the template has no layout, and in codegen it crashes the compiler. From 0.16 it is err_sema_generic_new_no_args.

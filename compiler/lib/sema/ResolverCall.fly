@@ -879,8 +879,17 @@ public class ResolverCall {
         if cls == null {
             return null
         }
+        // The constructors carry the class's own name, which is not the written
+        // one under an import alias (`import geom.Circle as C` … `new C()`).
+        string ctorName = cls.getName()
         // Generic instantiation: new Wrapper<int>() — swap to the specialization.
+        // Without type arguments a generic class is only a template: it has no
+        // layout, and building one used to crash the compiler in codegen.
         List<ASTType> typeArgsAst = node.getTypeArgs()
+        if typeArgsAst.size() == 0 && cls.isGeneric() {
+            r.diagStr(node.getLoc(), DiagID.err_sema_generic_new_no_args, node.getName())
+            return null
+        }
         if typeArgsAst.size() > 0 {
             SemaClassType spec = ResolverType.instantiate(r, tt, typeArgsAst)
             if spec == null {
@@ -902,7 +911,7 @@ public class ResolverCall {
         // follow the reference protocol in codegen (malloc + <Id>.init_ctor from
         // the archive + mangled ctor) — both constructible now (audit V4 fase 2).
         SymbolTable cscope = cls.getSymbols()
-        Symbol csym = reg.LookupFunction(node.getName(), argTypes, cscope)
+        Symbol csym = reg.LookupFunction(ctorName, argTypes, cscope)
         if csym == null {
             return null
         }

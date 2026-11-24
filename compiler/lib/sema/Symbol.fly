@@ -25,6 +25,7 @@ public class Symbol {
     SemaType typeRef            // the ref as a SemaType, for BUILTIN_TYPE/CLASS/ENUM (else null)
     bool used                   // a name lookup found it (the unused-variable warning)
     SourceLocation declLoc      // where a LOCAL_VAR was declared (its name), else null
+    Symbol aliasOf              // `import ns.X as Y`: the symbol Y stands for, else null
 
     public Symbol(const string name, const SymbolKind kind, const SemaNode ref) {
         this.name = name
@@ -32,15 +33,31 @@ public class Symbol {
         this.ref = ref
         this.used = false
         this.declLoc = null
+        this.aliasOf = null
+    }
+
+    // alias — `name` standing for `of` (`import geom.Circle as C`). Everything but
+    // the name reads through to `of`, which the resolver keeps completing (param
+    // types, type ref) after the import has been injected.
+    public static Symbol alias(const string name, const Symbol of) {
+        Symbol s = new Symbol(name, of.getKind(), of.getRef())
+        s.aliasOf = of
+        return s
     }
 
     public string getName() {
         return this.name
     }
     public SymbolKind getKind() {
+        if this.aliasOf != null {
+            return this.aliasOf.getKind()
+        }
         return this.kind
     }
     public SemaNode getRef() {
+        if this.aliasOf != null {
+            return this.aliasOf.getRef()
+        }
         return this.ref
     }
 
@@ -50,6 +67,9 @@ public class Symbol {
 
     public void setUsed(const bool u) {
         this.used = u
+        if this.aliasOf != null {
+            this.aliasOf.setUsed(u)
+        }
     }
 
     public SourceLocation getDeclLoc() {
@@ -64,6 +84,9 @@ public class Symbol {
     // function/method symbol (the C++ recovers this via static_cast on the ref;
     // Fly has no downcast, so it is carried on the Symbol instead).
     public List<SemaType> getParamTypes() {
+        if this.aliasOf != null {
+            return this.aliasOf.getParamTypes()
+        }
         return this.paramTypes
     }
     public void setParamTypes(const List<SemaType> paramTypes) {
@@ -73,6 +96,9 @@ public class Symbol {
     // The variable this symbol denotes, as a SemaExpr (set for VAR/LOCAL_VAR/PARAM),
     // so an identifier reference can recover it without downcasting `ref`.
     public SemaExpr getExprRef() {
+        if this.aliasOf != null {
+            return this.aliasOf.getExprRef()
+        }
         return this.exprRef
     }
     public void setExprRef(const SemaExpr exprRef) {
@@ -82,6 +108,9 @@ public class Symbol {
     // The type this symbol denotes (set for BUILTIN_TYPE/CLASS/ENUM), recovered
     // without downcasting `ref`.
     public SemaType getTypeRef() {
+        if this.aliasOf != null {
+            return this.aliasOf.getTypeRef()
+        }
         return this.typeRef
     }
     public void setTypeRef(const SemaType typeRef) {

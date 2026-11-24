@@ -1,0 +1,20 @@
+// An alias on a single-symbol import binds that symbol under the alias:
+// a class, a generic class and a function. Up to 0.15 the alias was ignored
+// and the symbol came into scope under its own name only.
+import geom.Circle as C
+import geom.area as surface
+import fly.data.List as L
+
+void main() {
+    C c = new C()
+    c.radius = 3
+    int a = surface(c.radius)
+    L<int> xs = new L<int>()
+    xs.add(a)
+    int n = (int)xs.size()
+    delete xs
+    delete c
+    if a != 9 || n != 1 {
+        fail 1
+    }
+}

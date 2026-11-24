@@ -16,6 +16,7 @@ import fly.compiler.codegen.CodeGenClass
 import fly.compiler.codegen.CodeGenError
 import llvm.api.*
 import fly.data.List
+import fly.math
 import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1085,6 +1086,10 @@ public class CodeGenExpr : SemaVisitor {
 }
 
 // ── literal parsing helpers (free functions; intrinsic byte access) ─────────────
+// parseLong — the 64-bit pattern of an integer literal. The digits accumulate with
+// WRAPPING arithmetic: a ulong literal above the long range (up to
+// 18446744073709551615) keeps its bits instead of tripping the compiler's own
+// overflow check; whether the value fits its target is Sema's business.
 public long parseLong(const string s) {
     long r = 0
     int n = str.len(s)
@@ -1103,13 +1108,13 @@ public long parseLong(const string s) {
         if bi >= 48 {
             if bi <= 57 {
                 long d = bi - 48
-                r = r * 10 + d
+                r = math.wrapAddL(math.wrapMulL(r, 10), d)
             }
         }
         i = i + 1
     }
     if neg {
-        r = 0 - r
+        r = math.wrapSubL(0, r)
     }
     return r
 }

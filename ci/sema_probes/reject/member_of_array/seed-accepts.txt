@@ -1,0 +1,3 @@
+The v0.15.2 seed resolves a member of a non-object (an array, a number, a string)
+to nothing without a diagnostic: `xs.size` compiles and reads 0, and inside an
+expression it crashes the compiler. From 0.16 it is err_sema_unknown_member.

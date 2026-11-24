@@ -584,6 +584,10 @@ public class ResolverExpr {
 
         SemaClassType pcls = pt.asClass()
         if pcls == null {
+            // A member of a value that is not an object (an array, a number, a
+            // string): there is none. Resolving to nothing without a diagnostic made
+            // `xs.size` read 0, or crash the compiler inside an expression.
+            r.diagStr(node.getLoc(), DiagID.err_sema_unknown_member, node.getName())
             r.setCurrentExpr(null)
             return
         }

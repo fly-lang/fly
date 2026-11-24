@@ -1,0 +1,7 @@
+void main() {
+    int[] xs = {1, 2, 3}
+    long n = xs.size
+    if n > 0 {
+        return
+    }
+}

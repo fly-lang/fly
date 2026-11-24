@@ -1,0 +1,9 @@
+namespace geom
+
+public class Circle {
+    public int radius
+}
+
+public int area(const int r) {
+    return r * r
+}

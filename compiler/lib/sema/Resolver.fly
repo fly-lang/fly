@@ -607,6 +607,15 @@ public class Resolver : ASTVisitor {
                         ASTName lastN = inames.get(inames.size() - 1)
                         SymbolTable psyms = pns.getSymbols()
                         List<Symbol> found = psyms.lookupInParents(lastN.getName())
+                        // `import geom.Circle as C`: the symbol is in scope under
+                        // the alias only (it used to be injected under its own
+                        // name, the alias silently ignored).
+                        string aliasName = ""
+                        List<ASTName> aliasNames = imp.getTarget()
+                        if aliasNames != null && aliasNames.size() > 0 {
+                            ASTName a0 = aliasNames.get(aliasNames.size() - 1)
+                            aliasName = a0.getName()
+                        }
                         if found != null {
                             int fi2 = 0
                             while fi2 < found.size() {
@@ -615,7 +624,11 @@ public class Resolver : ASTVisitor {
                                 // would put "llvm" in scope and shadow the V3
                                 // short-prefix expansion of `llvm.strSize(…)`
                                 if fs.getKind() != SymbolKind.NAMESPACE {
-                                    bool _ok3 = modScope.insert(fs)
+                                    if str.isEmpty(aliasName) {
+                                        bool _ok3 = modScope.insert(fs)
+                                    } else {
+                                        bool _ok4 = modScope.insert(Symbol.alias(aliasName, fs))
+                                    }
                                 }
                                 fi2 = fi2 + 1
                             }

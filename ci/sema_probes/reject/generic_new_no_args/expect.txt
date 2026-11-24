@@ -1,0 +1,1 @@
+is a generic class: give its type arguments

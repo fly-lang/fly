@@ -1,0 +1,6 @@
+import fly.data.List
+
+void main() {
+    List<int> l = new List()
+    delete l
+}
