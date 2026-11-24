@@ -8,10 +8,10 @@ import fly.str
 // main(), which prints "error <code>: <message>" to stderr and exits with <code>.
 // A passing assertion does nothing.
 //
-// NOTE: fail is not stack unwinding — execution continues after a failed assert,
-// and a later failing assert overwrites the recorded error (the reported failure
-// is the LAST one). The suite runner isolates errors per-case; in plain
-// main()-based tests keep asserts independent. Mirrors the reference.
+// A failure is not ignorable: the caller of a failed assert stops there too, up to
+// the enclosing `handle`, the end of the suite `case` (the runner reports each
+// case on its own and goes on with the next), or main — so the reported failure
+// is the FIRST one. fail is not stack unwinding: each frame returns normally.
 
 public void errExit(const int code) {
     fail code, "errExit"
