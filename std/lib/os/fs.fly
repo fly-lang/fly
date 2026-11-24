@@ -394,43 +394,10 @@ public void del(const string path) {
     cstrFree(cpath)
 }
 
-// copy copies the file at src to dst, creating or truncating dst.
-// Permissions of dst are 0644 (420).
+// copy copies the file at src to dst VERBATIM (no newline translation),
+// creating or truncating dst. Permissions of dst are 0644 (420).
 public void copy(const string src, const string dst) {
-    pointer cpath_src = strToCstr(src)
-    long fsize = 0
-    fly.runtime.fs_size(cpath_src, fsize)
-    if fsize < 0 {
-        fsize = 0
-    }
-    ulong write_size = (ulong)fsize
-    ulong alloc_size = (ulong)fsize
-    if alloc_size == 0 {
-        alloc_size = 1
-    }
-    pointer buf = 0
-    fly.runtime.mem_alloc(alloc_size, buf)
-    if fsize > 0 {
-        int fd_src = 0
-        fly.runtime.fs_open(cpath_src, 0, 0, fd_src)
-        if fd_src >= 0 {
-            long nread = 0
-            fly.runtime.fs_read(fd_src, buf, write_size, nread)
-            fly.runtime.fs_close(fd_src)
-        }
-    }
-    cstrFree(cpath_src)
-    pointer cpath_dst = strToCstr(dst)
-    int flags = 577
-    int fd_dst = 0
-    fly.runtime.fs_open(cpath_dst, flags, 420, fd_dst)
-    cstrFree(cpath_dst)
-    if fd_dst >= 0 {
-        long nwritten = 0
-        fly.runtime.fs_write(fd_dst, buf, write_size, nwritten)
-        fly.runtime.fs_close(fd_dst)
-    }
-    fly.runtime.mem_free(buf, alloc_size)
+    writeBytes(dst, readBytes(src), 420)
 }
 
 // move renames src to dst using the rename(2) syscall.
