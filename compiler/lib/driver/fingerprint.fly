@@ -6,6 +6,7 @@ import fly.os.path
 import fly.mem
 import fly.str
 import fly.llvm
+import fly.data.List
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Fingerprint — content-hash staleness key for the Builder's incremental cache.
@@ -84,37 +85,22 @@ public string fpCompilerId(const string flyBinaryPath) {
     return r
 }
 
-// Fingerprint — computes the "files" section for one source dir. A CLASS with
-// field accumulators, mirroring Driver.collectFlySources/scanOneDirAt: the walk
-// and the sort are ITERATIVE and their per-item work lives in helper methods
-// called with a SCALAR index only — a string argument at a call site inside a
-// long-running loop costs a dynamic call-site alloca under the pinned seed's
-// codegen, and the allocas of one frame are only reclaimed at return; the
-// helpers' frames (which do carry the string temps, bounded per item) die at
-// every return.
+// Fingerprint — computes the "files" section for one source dir: every *.fly
+// under it, sorted bytewise by absolute path (so the text does not depend on
+// the filesystem's directory order), each with its sha256.
+//
+// Lists, an insertion sort and per-item helpers: O(n²) compares with O(1)
+// access. It used to keep its lists as ";"-joined strings with a selection sort
+// re-scanning them on every access - about n³ bytes of work, which took six
+// minutes for the 343 files of the compiler tree once `fly build` built it
+// (0.15.2). The output text is unchanged, so existing .fp files stay valid.
 public class Fingerprint {
-    string pending   // ";"-list worklist of directories still to scan
-    string files     // ";"-list of absolute *.fly paths found
-    string sorted    // ";"-list of the same paths, bytewise sorted
     string lines     // accumulated "relpath sha256:<hex>\n" text
     string root      // absolute source dir (relpath base)
-    string rem       // sort scratch: elements not yet emitted
-    string next      // sort scratch: rem minus the emitted element
-    string best      // sort scratch: smallest candidate this pass
-    int bestIdx      // sort scratch: its index in rem
-    bool hasBest     // sort scratch: best is valid
 
     public Fingerprint() {
-        this.pending = ";"
-        this.files = ";"
-        this.sorted = ";"
         this.lines = ""
         this.root = ""
-        this.rem = ";"
-        this.next = ";"
-        this.best = ""
-        this.bestIdx = 0
-        this.hasBest = false
     }
 
     // compute — walk srcDir, sort, hash; return header + "files" section.
@@ -127,30 +113,28 @@ public class Fingerprint {
         } else {
             this.root = path.absolute(srcDir)
         }
-        this.files = ";"
-        this.pending = segAppend(";", this.root)
+        List<string> pending = new List<string>()
+        List<string> files = new List<string>()
+        pending.add(this.root)
         int qi = 0
-        while qi < segCount(this.pending) {
-            this.scanOneDirAt(qi)
+        while qi < pending.size() {
+            this.scanDir(pending.get(qi), pending, files)
             qi = qi + 1
         }
-        this.sortFiles()
+        this.sortPaths(files)
         this.lines = ""
-        int n = segCount(this.sorted)
         int i = 0
-        while i < n {
-            this.hashOneAt(i)
+        while i < files.size() {
+            this.hashOne(files.get(i))
             i = i + 1
         }
         string filesHdr = str.concat("files", fly.driver.nl())
         return str.concat(header, str.concat(filesHdr, this.lines))
     }
 
-    // scanOneDirAt — scan the qi-th pending directory: enqueue subdirectories,
-    // append *.fly files (never *.fly.h — it does not end with ".fly"). Same
-    // DirEntry-stride read pattern as Driver.scanOneDirAt.
-    public void scanOneDirAt(const int qi) {
-        string dir = segAt(this.pending, qi)
+    // scanDir — enqueue the subdirectories of `dir` and collect its *.fly files
+    // (never *.fly.h — it does not end with ".fly").
+    public void scanDir(const string dir, const List<string> pending, const List<string> files) {
         if path.isDir(dir) == false {
             return
         }
@@ -170,74 +154,43 @@ public class Fingerprint {
             string entry = str.fromBytes(namePtr, nameLen)
             string full = path.join(dir, entry)
             if path.isDir(full) {
-                this.pending = segAppend(this.pending, full)
+                pending.add(full)
             } elsif str.endsWith(entry, ".fly") {
-                this.files = segAppend(this.files, full)
+                files.add(full)
             }
             i = i + 1
         }
     }
 
-    // sortFiles — selection sort of `files` into `sorted`, so the fingerprint is
-    // independent of the filesystem's directory order. O(n²) segAt scans — fine
-    // for target-sized trees (hundreds of files).
-    public void sortFiles() {
-        this.sorted = ";"
-        this.rem = str.concat("", this.files)
-        while segCount(this.rem) > 0 {
-            int n = segCount(this.rem)
-            this.hasBest = false
-            this.best = ""
-            this.bestIdx = 0
-            int i = 0
-            while i < n {
-                this.considerAt(i)
-                i = i + 1
+    // sortPaths — insertion sort, bytewise (fpStrCompare).
+    public void sortPaths(const List<string> xs) {
+        int i = 1
+        while i < xs.size() {
+            string cur = xs.get(i)
+            int j = i - 1
+            bool go = true
+            while go {
+                if j < 0 {
+                    go = false
+                } elsif fpStrCompare(xs.get(j), cur) > 0 {
+                    xs.set(j + 1, xs.get(j))
+                    j = j - 1
+                } else {
+                    go = false
+                }
             }
-            this.sorted = segAppend(this.sorted, this.best)
-            this.next = ";"
-            int j = 0
-            while j < n {
-                this.keepAt(j)
-                j = j + 1
-            }
-            this.rem = str.concat("", this.next)
+            xs.set(j + 1, cur)
+            i = i + 1
         }
     }
 
-    // considerAt — track the smallest not-yet-emitted element (fields, so the
-    // caller's loop passes only the scalar index).
-    public void considerAt(const int i) {
-        string cand = segAt(this.rem, i)
-        if this.hasBest == false {
-            this.best = str.concat("", cand)
-            this.bestIdx = i
-            this.hasBest = true
-            return
-        }
-        if fpStrCompare(cand, this.best) < 0 {
-            this.best = str.concat("", cand)
-            this.bestIdx = i
-        }
-    }
-
-    // keepAt — copy every element except the emitted one into `next`.
-    public void keepAt(const int i) {
-        if i == this.bestIdx {
-            return
-        }
-        string cand = segAt(this.rem, i)
-        this.next = segAppend(this.next, cand)
-    }
-
-    // hashOneAt — append "relpath sha256:<hex>\n" for the i-th sorted file.
-    // relpath is relative to root with "\" normalized to "/", so Windows and
-    // Linux produce byte-identical fingerprints for identical trees.
-    public void hashOneAt(const int i) {
-        string path = segAt(this.sorted, i)
-        string hash = fly.driver.sha256File(path)
+    // hashOne — append "relpath sha256:<hex>\n" for one file. relpath is relative
+    // to root with "\" normalized to "/", so Windows and Linux produce
+    // byte-identical fingerprints for identical trees.
+    public void hashOne(const string full) {
+        string hash = fly.driver.sha256File(full)
         int rootLen = str.len(this.root)
-        string rel = str.substring(path, rootLen + 1, str.len(path))
+        string rel = str.substring(full, rootLen + 1, str.len(full))
         string relNorm = str.replace(rel, fpBackslash(), "/")
         string line = str.concat(relNorm, str.concat(" ", hash))
         this.lines = str.concat(this.lines, str.concat(line, fly.driver.nl()))
