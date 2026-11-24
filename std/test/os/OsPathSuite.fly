@@ -5,8 +5,6 @@ import fly.os.fs
 import fly.os.env
 import fly.str
 import fly.assert
-import fly.llvm
-import fly.runtime
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OsPathSuite — fly.os.path (std/lib/os/path.fly): path construction, splitting,
@@ -29,17 +27,6 @@ import fly.runtime
 // ─────────────────────────────────────────────────────────────────────────────
 
 suite OsPathSuite {
-
-    // backslash — a one-byte "\" (92) built from its byte value: literals keep
-    // escapes raw, so a lone backslash cannot be written as a string literal.
-    string backslash() {
-        pointer buf = 0
-        fly.runtime.mem_alloc(1, buf)
-        fly.llvm.strPoke(buf, 0, 92)
-        string s = ""
-        fly.llvm.strMake(buf, 1, s)
-        return s
-    }
 
     // ── join / joinN ─────────────────────────────────────────────────────────
     void joinTest() {
@@ -243,7 +230,7 @@ suite OsPathSuite {
             assert.assertTrue(path.isAbsolute("C:/Users"), 514)
             assert.assertTrue(path.isAbsolute("C:"), 515)      // drive prefix alone
             assert.assertFalse(path.isRelative("C:/Users"), 516)
-            string bs = backslash()
+            string bs = "\\"
             assert.assertTrue(path.isAbsolute(bs), 517)                   // "\"
             assert.assertTrue(path.isAbsolute(str.concat(bs, "foo")), 518)  // "\foo"
             string cwin = str.concat("C:", str.concat(bs, "Users"))
@@ -251,7 +238,7 @@ suite OsPathSuite {
             assert.assertFalse(path.isAbsolute("ab"), 520)     // second byte not ':'
         }
         case "absolute does not cwd-prefix a Windows-absolute path": {
-            string bs2 = backslash()
+            string bs2 = "\\"
             string win = str.concat("C:", str.concat(bs2, "Users"))
             // Backslashes are opaque to normalize (only '/' separates), so the
             // path comes back byte-identical — in particular with no cwd glued on.

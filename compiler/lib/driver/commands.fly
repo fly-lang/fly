@@ -71,38 +71,27 @@ public int cmdInit(const string nameArg, const string versionArg) {
     }
     fs.dirCreateAll("src", 493)
 
-    // src/main.fly — a valid Fly hello-world (void main + fly.os.io). Real
-    // newlines come from a MULTI-LINE literal (Fly keeps `\n` escapes raw); the
-    // `Q` placeholder becomes a double quote via dq()+replace.
-    string q = fly.driver.dq()
-    string progTpl = "namespace app
-
-import fly.os.io
-
-void main() {
-    fly.os.io.printLn(QHello, world!Q)
-}
-"
-    fs.writeStr("src/main.fly", str.replace(progTpl, "Q", q), 420)
+    // src/main.fly — a valid Fly hello-world (void main + fly.os.io).
+    string prog = "namespace app\n\nimport fly.os.io\n\nvoid main() {\n    fly.os.io.printLn(\"Hello, world!\")\n}\n"
+    fs.writeStr("src/main.fly", prog, 420)
 
     // Manifest.fly — a class extending fly.meta.Manifest. Placeholders: %N% = name,
     // %V% = version, %F% = the current compiler version (the toolchain the project
-    // is scaffolded for), Q = double-quote (dq()+replace). The placeholders are
-    // delimited so they don't collide with field names like `flyVersion`.
+    // is scaffolded for). The placeholders are delimited so they don't collide with
+    // field names like `flyVersion`.
     string manTpl = "namespace pkg.manifest
 import fly.meta.*
 
 class Manifest : fly.meta.Manifest {
-    string name = Q%N%Q
-    string version = Q%V%Q
-    string flyVersion = Q%F%Q
-    Target[] targets = { new Target(Q%N%Q, Qsrc/main.flyQ, QQ) }
+    string name = \"%N%\"
+    string version = \"%V%\"
+    string flyVersion = \"%F%\"
+    Target[] targets = { new Target(\"%N%\", \"src/main.fly\", \"\") }
 }
 "
     string t1 = str.replace(manTpl, "%N%", name)
     string t2 = str.replace(t1, "%V%", ver)
-    string t3 = str.replace(t2, "%F%", flyVersion())
-    fs.writeStr("Manifest.fly", str.replace(t3, "Q", q), 420)
+    fs.writeStr("Manifest.fly", str.replace(t2, "%F%", flyVersion()), 420)
 
     io.printLn(str.concat("Created Manifest.fly + src/main.fly for ", name))
     return 0
@@ -194,7 +183,7 @@ public int cmdTest(const string profile, const bool force) {
     // order rather than lexicographic; the order only affects the report.
     Driver walker = new Driver()
     string all = walker.collectFlySources(".")
-    string nl = fly.driver.nl()
+    string nl = "\n"
     string list = ""
     int wi = 0
     int wn = segCount(all)

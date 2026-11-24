@@ -52,10 +52,20 @@ public Map<string, bool> sourceIdentifiers(const string src) {
                 i = i + 1
             }
             i = i + 2
+        } elsif isTripleQuote(src, i) {
+            // raw literal: to the closing three double quotes, newlines included
+            i = i + 3
+            while i < n && isTripleQuote(src, i) == false {
+                i = i + 1
+            }
+            i = i + 3
         } elsif c == 34 || c == 39 {
-            // string or character literal (escapes are raw: it ends at the next quote)
+            // ordinary literal: to its closing quote; a backslash escapes the next byte
             i = i + 1
             while i < n && (str.byteAt(src, i) & 255) != c && (str.byteAt(src, i) & 255) != 10 {
+                if (str.byteAt(src, i) & 255) == 92 {
+                    i = i + 1
+                }
                 i = i + 1
             }
             i = i + 1
@@ -118,6 +128,14 @@ bool startsWord(const string src, const int at, const string w) {
         return true
     }
     return isIdentPart(str.byteAt(src, at + wl) & 255) == false
+}
+
+// isTripleQuote — does `src` hold three double quotes at `at` (a raw literal's delimiter)?
+bool isTripleQuote(const string src, const int at) {
+    if at + 3 > str.len(src) {
+        return false
+    }
+    return str.equals(str.substring(src, at, at + 3), "\"\"\"")
 }
 
 // listHasName — is `name` one of `names`?

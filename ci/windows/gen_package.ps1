@@ -12,8 +12,8 @@
 # The file is rewritten only when its content changes, so its timestamp - and
 # the incremental fingerprints - stay put across builds. Prints the version.
 # Mirrors ci/linux/gen_package.sh and the Builder (same bytes: LF line ends).
-# The fields must not hold a double quote or a backslash: the seed reads
-# literals raw.
+# The fields must not hold a double quote or a backslash: the field pattern
+# copies a value as written and does not read escapes.
 # -----------------------------------------------------------------------------
 $ErrorActionPreference = 'Stop'
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))

@@ -5,8 +5,6 @@ import fly.hash
 import fly.os.proc
 import fly.os.fs
 import fly.os.env
-import fly.mem
-import fly.llvm
 
 // ─────────────────────────────────────────────────────────────────────────────
 // subprocess helpers — NO SHELL.
@@ -102,35 +100,4 @@ public string sha256File(const string path) {
 // verifyChecksum — true if the file hashes to `expected` ("sha256:<hex>").
 public bool verifyChecksum(const string path, const string expected) {
     return hash.sha256Verify(path, expected)
-}
-// dq — a one-byte string holding a double quote (34); string literals keep escapes
-// raw, so a bare `"` cannot be produced from a literal.
-public string dq() {
-    pointer buf = mem.alloc(1)
-    byte q = 34
-    fly.llvm.strPoke(buf, 0, q)
-    string s = ""
-    fly.llvm.strMake(buf, 1, s)
-    return s
-}
-
-// tabStr — a one-byte string holding a tab (9); literals keep escapes raw, so
-// "\t" would be the two characters backslash and t.
-public string tabStr() {
-    pointer buf = mem.alloc(1)
-    byte t = 9
-    fly.llvm.strPoke(buf, 0, t)
-    string s = ""
-    fly.llvm.strMake(buf, 1, s)
-    return s
-}
-
-// nl — a one-byte string holding a newline (10); literals keep escapes raw.
-public string nl() {
-    pointer buf = mem.alloc(1)
-    byte n = 10
-    fly.llvm.strPoke(buf, 0, n)
-    string s = ""
-    fly.llvm.strMake(buf, 1, s)
-    return s
 }

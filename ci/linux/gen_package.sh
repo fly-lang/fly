@@ -13,8 +13,8 @@
 # The file is rewritten only when its content changes, so its timestamp - and
 # the incremental fingerprints - stay put across builds. Prints the version.
 # Mirrors ci/windows/gen_package.ps1 and the Builder (same bytes: LF line ends).
-# The fields must not hold a double quote or a backslash: the seed reads
-# literals raw.
+# The fields must not hold a double quote or a backslash: the field pattern
+# copies a value as written and does not read escapes.
 # -----------------------------------------------------------------------------
 set -euo pipefail
 cd "$(dirname "$0")/../.."

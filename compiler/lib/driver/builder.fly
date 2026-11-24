@@ -614,18 +614,18 @@ public class Builder {
     // line is non-empty and the shape is fixed. Ends with a newline, as
     // Fingerprint.compute expects.
     public string fpHeader(const string kind, const string name) {
-        string h = str.concat("fly-fp 1", fly.driver.nl())
+        string h = str.concat("fly-fp 1", "\n")
         h = str.concat(h, "compiler ")
         h = str.concat(h, fly.driver.fpCompilerId(this.getFlyBinary()))
-        h = str.concat(h, fly.driver.nl())
+        h = str.concat(h, "\n")
         string tr = this.targetTriple
         if str.isEmpty(tr) {
             tr = "-"
         }
         h = str.concat(h, str.concat("triple ", tr))
-        h = str.concat(h, fly.driver.nl())
+        h = str.concat(h, "\n")
         h = str.concat(h, str.concat("profile ", this.profileFlags()))
-        h = str.concat(h, fly.driver.nl())
+        h = str.concat(h, "\n")
         // trim only a NON-empty string: the pinned seed's std has an unguarded
         // first read in trim() that segfaults on an empty heap string (fixed
         // in-tree, but this code must also run compiled against the seed).
@@ -638,9 +638,9 @@ public class Builder {
             }
         }
         h = str.concat(h, str.concat("link ", lk))
-        h = str.concat(h, fly.driver.nl())
+        h = str.concat(h, "\n")
         h = str.concat(h, str.concat("kind ", str.concat(kind, str.concat(" ", name))))
-        h = str.concat(h, fly.driver.nl())
+        h = str.concat(h, "\n")
         // Lock.fly is cwd-relative: package commands run in the package root,
         // same contract as loadManifest. Missing lock → "none" (and a lock
         // appearing/disappearing flips the line → rebuild).
@@ -649,11 +649,11 @@ public class Builder {
             lock = "none"
         }
         h = str.concat(h, str.concat("lock ", lock))
-        h = str.concat(h, fly.driver.nl())
+        h = str.concat(h, "\n")
         // the package module every executable gets carries name and version
         h = str.concat(h, str.concat("package ", str.concat(this.manifest.getName(), str.concat(" ",
                 this.manifest.getVersion()))))
-        h = str.concat(h, fly.driver.nl())
+        h = str.concat(h, "\n")
         return h
     }
 
@@ -686,17 +686,6 @@ public class Builder {
         return l
     }
 
-    // backslash — a one-byte string holding a backslash (92): the seed reads
-    // literals raw, so code it compiles holds no backslash literal.
-    public string backslash() {
-        pointer buf = mem.alloc(1)
-        byte c = 92
-        fly.llvm.strPoke(buf, 0, c)
-        string r = ""
-        fly.llvm.strMake(buf, 1, r)
-        return r
-    }
-
     // packageModule — the `fly.meta.package` module an executable is built with:
     // the manifest's name, version and description as functions, so a program
     // reads its own manifest data (`import fly.meta.package`, then
@@ -704,8 +693,8 @@ public class Builder {
     // initializer is a known seed landmine. ci/*/gen_package writes the same text
     // for the compiler's own build.
     public string packageModule() {
-        string q = fly.driver.dq()
-        string nl = fly.driver.nl()
+        string q = "\""
+        string nl = "\n"
         string t = str.concat("namespace fly.meta.package", nl)
         t = str.concat(t, nl)
         t = str.concat(t, str.concat("// GENERATED from Manifest.fly - do not edit.", nl))
@@ -718,7 +707,7 @@ public class Builder {
     // packageFn — `public string <fn>() { return "<value>" }`, the value with its
     // quotes and backslashes escaped.
     public string packageFn(const string fn, const string value, const string q, const string nl) {
-        string bs = this.backslash()
+        string bs = "\\"
         string v = str.replace(value, bs, str.concat(bs, bs))
         v = str.replace(v, q, str.concat(bs, q))
         string t = str.concat("public string ", str.concat(fn, str.concat("() {", nl)))
@@ -755,7 +744,7 @@ public class Builder {
         // a named-form target: every root, and what else reaches the command line
         string head = this.fpHeader(kind, t.getName())
         head = str.concat(head, str.concat("target ", this.targetLine(t)))
-        head = str.concat(head, fly.driver.nl())
+        head = str.concat(head, "\n")
         List<string> roots = this.targetRoots(t)
         string all = ""
         Fingerprint fpr = new Fingerprint()

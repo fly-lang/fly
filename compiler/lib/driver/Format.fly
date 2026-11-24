@@ -252,27 +252,14 @@ public string lineIndent(const string src, const int off) {
     return str.substring(src, start, end)
 }
 
-// lineEnding — CRLF when the file uses it, else LF. Fly string literals keep
-// escapes raw (a backslash and an n are two bytes), so both are built.
+// lineEnding — CRLF when the file uses it, else LF.
 public string lineEnding(const string src) {
-    string lf = nl()
+    string lf = "\n"
     int at = str.indexOf(src, lf)
     if at > 0 && (str.byteAt(src, at - 1) & 255) == 13 {
-        return crlfStr()
+        return "\r\n"
     }
     return lf
-}
-
-// crlfStr — the two bytes CR LF.
-public string crlfStr() {
-    pointer buf = mem.alloc(2)
-    byte cr = 13
-    byte lf = 10
-    fly.llvm.strPoke(buf, 0, cr)
-    fly.llvm.strPoke(buf, 1, lf)
-    string s = ""
-    fly.llvm.strMake(buf, 2, s)
-    return s
 }
 
 // applyBreaks — insert `eol` + indent at every offset (any order in), each

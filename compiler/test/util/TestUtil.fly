@@ -8,8 +8,6 @@ import fly.compiler.codegen.*
 import fly.data.*
 import fly.assert
 import fly.os.fs
-import fly.mem
-import fly.llvm
 import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -87,15 +85,4 @@ public bool resolveHeaderSrc(const string src, const int tag) {
     SemaContext ctx = new SemaContext(diags)
     List<SemaModule> resolved = ctx.Resolve(modules, false)
     return diags.hasErrorOccurred()
-}
-
-// dquote — a one-character string containing a double quote (byte 34); string
-// literals keep escapes raw, so the quote byte is built at runtime.
-public string dquote() {
-    pointer buf = mem.alloc(1)
-    byte q = 34
-    fly.llvm.strPoke(buf, 0, q)
-    string s = ""
-    fly.llvm.strMake(buf, 1, s)
-    return s
 }

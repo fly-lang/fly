@@ -12,7 +12,7 @@ import fly.str
 // so a later compilation can `import` its namespace and link the archive. A 1:1
 // port of fly/compiler/Frontend/Frontend.cpp::GenerateHeader (+ typeStr / paramStr
 // / funcSignatureStr). Emitted per ENTRY module by Frontend.execute in --lib/--header
-// mode. Newlines are built via lineFeed() (Fly string literals keep escapes RAW).
+// mode.
 //
 // THE RULE, in three lines:
 //   1. a `.fly.h` carries NO bodies — free functions and methods alike are bare
@@ -245,7 +245,7 @@ public class HeaderGen {
     // would be silently first-wins, since nothing in the compiler reports one.
     public static string generate(const ASTModule m, const string outDir, const DiagnosticsEngine diags) {
         string stem = HeaderGen.stripFlySuffix(m.getName())
-        string lf = lineFeed()
+        string lf = "\n"
         string hpath = HeaderGen.headerPath(stem, outDir)
         string h = HeaderGen.emitPrelude(m, lf, true)
 
@@ -616,7 +616,7 @@ public class HeaderGen {
         if i <= 0 {
             return 0
         }
-        int nl = str.lastIndexOf(str.substring(src, 0, i), lineFeed())
+        int nl = str.lastIndexOf(str.substring(src, 0, i), "\n")
         return nl + 1
     }
 

@@ -31,7 +31,7 @@ string fpsTempDir(const string name) {
 
 // fpsHeader — a fixed fake header ending with a newline, as compute expects.
 string fpsHeader() {
-    return str.concat("hdr test", driver.nl())
+    return str.concat("hdr test", "\n")
 }
 
 // fpsCompute — one-shot compute with a fresh Fingerprint.
@@ -108,7 +108,7 @@ suite FingerprintSuite {
             string fpA = fpsCompute(dirA)
             string fpB = fpsCompute(dirB)
             string fpE = fpsCompute(dirE)
-            string wantE = str.concat(fpsHeader(), str.concat("files", driver.nl()))
+            string wantE = str.concat(fpsHeader(), str.concat("files", "\n"))
 
             fs.dirDeleteAll(dirA)
             fs.dirDeleteAll(dirB)

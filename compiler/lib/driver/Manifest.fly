@@ -629,10 +629,9 @@ public class Manifest {
     // serialize — the Manifest.fly source: a class extending fly.meta.Manifest, read
     // back by FlyManifestReader. Emits package scalars, authors/linkLibs (string[]),
     // dependencies/dev-dependencies (positional `new Dependency(...)`) and targets.
-    // Real newlines via fly.driver.nl(), quotes via dq().
     public string serialize() {
-        string q = fly.driver.dq()
-        string nl = fly.driver.nl()
+        string q = "\""
+        string nl = "\n"
         string s = str.concat("namespace pkg.manifest", nl)
         s = str.concat(s, str.concat("import fly.meta.*", nl))
         s = str.concat(s, nl)

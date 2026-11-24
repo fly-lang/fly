@@ -46,8 +46,7 @@ suite LexerEdgeSuite {
     }
 
     // Fly has no line-splicing: a backslash before a newline is never a line
-    // continuation. The literals below embed a real newline; \\ is two raw
-    // backslash bytes (string escapes are kept raw).
+    // continuation. The literals below embed a real newline; \\ is one backslash.
     void noSpliceTest() {
         case "line comment trailing backslash does not continue": {
             Lexer lx = newLexer("// c \\

@@ -139,8 +139,8 @@ public class Lockfile {
     // tag, checksum, <deps...>)` — the "<name> <version>" deps are trailing positional
     // args. Machine-generated: "do not edit".
     public string serialize() {
-        string q = fly.driver.dq()
-        string nl = fly.driver.nl()
+        string q = "\""
+        string nl = "\n"
         string s = str.concat("namespace pkg.lock", nl)
         s = str.concat(s, str.concat("import fly.meta.*", nl))
         s = str.concat(s, nl)

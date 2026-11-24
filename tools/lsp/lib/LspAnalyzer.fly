@@ -214,7 +214,7 @@ public class LspAnalyzer {
             return false
         }
         string src = fs.readStr(p)
-        string nl = lfStr()
+        string nl = "\n"
         int n = str.len(src)
         int pos = 0
         bool found = false
@@ -1153,7 +1153,7 @@ public class LspAnalyzer {
         if t.kind == 0 {
             return ""
         }
-        string nl = lfStr()
+        string nl = "\n"
         string open = str.concat("```fly", nl)
         string close = str.concat(nl, "```")
         if t.kind == 1 {

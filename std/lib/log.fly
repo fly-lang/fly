@@ -131,17 +131,6 @@ string filePathStr() {
     return res
 }
 
-// nl — a real newline string. Fly string escapes are RAW ("\n" is backslash+n),
-// so the byte is poked into a buffer; strMake takes ownership, no free.
-string nl() {
-    string res = ""
-    pointer buf = 0
-    fly.runtime.mem_alloc(1, buf)
-    fly.llvm.strPoke(buf, 0, 10)
-    fly.llvm.strMake(buf, 1, res)
-    return res
-}
-
 // indent — two spaces per call-depth level (fresh temp per step: a
 // self-reassigning concat corrupts the string).
 string indent() {
@@ -191,7 +180,7 @@ void emit(const int lvl, const string msg) {
     string full = str.concat(p3, msg)
     io.printErrLn(full)
     if LogState.hasFile == 1 {
-        string n = nl()
+        string n = "\n"
         string line = str.concat(full, n)
         string fp = filePathStr()
         fs.appendStr(fp, line, 420)

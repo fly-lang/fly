@@ -477,11 +477,10 @@ public class Parser {
     // followed by n t r 0, a backslash, a quote or an apostrophe; xHH (one byte);
     // u{H…} (a code point up to 10FFFF, not a surrogate, written as UTF-8). Any
     // other backslash sequence is an error: a raw literal (three double quotes)
-    // keeps backslashes as written. Up to 0.14 every literal was raw. No literal
-    // of this function contains a backslash (see Escapes.fly).
+    // keeps backslashes as written. Up to 0.14 every literal was raw.
     public string decodeEscapes(const string text) {
         int n = str.len(text)
-        string bs = byteString(92)
+        string bs = "\\"
         if str.indexOf(text, bs) < 0 {
             return text
         }

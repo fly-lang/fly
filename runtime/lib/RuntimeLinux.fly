@@ -1835,7 +1835,7 @@ private void wrLit(const int fd, const string s) {
     fly.runtime.free(p)
 }
 
-// Write a single newline to fd (Fly string literals keep escapes raw).
+// Write a single newline to fd.
 private void wrNl(const int fd) {
     pointer p = 0
     fly.runtime.malloc(1, p)

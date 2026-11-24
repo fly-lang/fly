@@ -1,22 +1,11 @@
 namespace fly.compiler.parser
 
 import fly.mem
-import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Escapes — helpers for decoding the escape sequences of string literals
-// (Parser.decodeEscapes). The compiler's own sources are compiled by the seed,
-// which reads every literal RAW, and by the self-host, which decodes escapes: no
-// literal here may contain a backslash or a double quote, so both read it alike.
-// The backslash is built from its byte instead (byteString(92)).
+// (Parser.decodeEscapes).
 // ─────────────────────────────────────────────────────────────────────────────
-
-// byteString — a one-byte string holding `b`.
-public string byteString(const int b) {
-    pointer p = mem.alloc(1)
-    mem.writeByte(p, 0, (byte)b)
-    return str.fromBytes(p, 1)
-}
 
 // hexDigit — the value of the hex digit byte `c` (0-9, a-f, A-F), or -1.
 public int hexDigit(const int c) {

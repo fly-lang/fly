@@ -155,24 +155,6 @@ foreach ($probe in Get-ChildItem 'ci/sema_probes/warn' -Directory -ErrorAction S
         Write-Host "  ok    warn/$name"
     }
 }
-# Seed-compiled sources: std/lib, std/test, runtime/lib and compiler/lib are
-# compiled by the seed (string literals RAW) as well as by the self-host (escapes
-# decoded, from 0.15). A literal holding a backslash, or a raw literal between
-# three double quotes, would mean one thing to each, and nothing else would
-# notice: the stage 3 fixpoint compares two self-host builds. Build such bytes
-# from their value instead (Escapes.byteString, mem.writeByte).
-$count++
-$seedLit = @(Get-ChildItem 'std/lib', 'std/test', 'runtime/lib', 'compiler/lib' -Recurse -Filter *.fly |
-    Select-String -Pattern '^[^/]*("[^"]*\|""")')
-if ($seedLit.Count -gt 0) {
-    Write-Host "  FAIL  seed-literals - a literal the seed reads differently:"
-    $seedLit | Select-Object -First 5 | ForEach-Object {
-        Write-Host "        $($_.Path):$($_.LineNumber): $($_.Line.Trim())"
-    }
-    $failed++
-} else {
-    Write-Host "  ok    seed-literals"
-}
 if ($failed -gt 0) { Write-Host "test_sema: $failed of $count probe(s) failed"; exit 1 }
 Write-Host "test_sema: all $count probes behave as specified"
 exit 0

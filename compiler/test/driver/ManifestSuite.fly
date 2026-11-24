@@ -22,19 +22,17 @@ import fly.assert
 // hooks), nameValid/versionValid, the Lockfile (FlyLockReader, find, isStale,
 // readLock) and the commands glue (manifestPath, loadManifest, save, cmdInit).
 //
-// Source strings need REAL double quotes; the self-host lexer keeps `\"` raw, so
-// quotes are built at runtime via fly.driver.dq(). qq() wraps a value in quotes;
-// nl() is a real newline. Free helpers (not `this.` methods — a suite method
+// qq() wraps a value in quotes; nlc() ends a line. Free helpers (not `this.` methods — a suite method
 // calling this.<method>() has no valid receiver). Filesystem cases work in a
 // scratch dir OUTSIDE the repo (a leftover .fly in the tree becomes part of the
 // source root of every discovery build) and restore cwd BEFORE asserting.
 // ─────────────────────────────────────────────────────────────────────────────
 
 string qq(const string v) {
-    return str.concat(driver.dq(), str.concat(v, driver.dq()))
+    return str.concat("\"", str.concat(v, "\""))
 }
 string nlc(const string s) {
-    return str.concat(s, driver.nl())
+    return str.concat(s, "\n")
 }
 
 // qarg — append `, "<v>"` to a call-argument chain being built.

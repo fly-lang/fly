@@ -268,7 +268,7 @@ public class GitFetcher {
             return ""
         }
 
-        string nl = fly.driver.nl()
+        string nl = "\n"
         string res = ""
         int n = str.len(raw)
         int pos = 0
@@ -282,7 +282,7 @@ public class GitFetcher {
             string line = str.substring(raw, pos, stop)
             // field 2 is whatever follows the first tab (git separates hash and ref
             // with a tab; a space-tolerant split would also swallow ref names).
-            int tab = str.indexOf(line, fly.driver.tabStr())
+            int tab = str.indexOf(line, "\t")
             if tab >= 0 {
                 string ref = str.substring(line, tab + 1, str.len(line))
                 if str.startsWith(ref, "refs/tags/") {

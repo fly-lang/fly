@@ -24,48 +24,7 @@ import fly.os.env
 // that a class or a Map<string,string> would bring across the .fly.h boundary.
 // A registry request is under a kilobyte and is read once, so the per-accessor
 // rescan costs nothing that matters.
-//
-// CRLF TRAP: Fly string literals keep escapes RAW, so "\r\n" is the FOUR
-// characters \, r, \, n — not a line terminator. Every terminator in this file
-// therefore comes from the byte-built crlf()/crlf2() helpers below. Bypassing
-// them produces a message that looks right in the source and is malformed on the
-// wire, which only shows up against a real HTTP client.
 // ─────────────────────────────────────────────────────────────────────────────
-
-// ── byte-built constants ─────────────────────────────────────────────────────
-
-// crlf — the two bytes 13, 10.
-private string crlf() {
-    string res = ""
-    pointer b = mem.alloc(2)
-    mem.writeByte(b, 0, 13)
-    mem.writeByte(b, 1, 10)
-    res = str.fromBytes(b, 2)
-    return res
-}
-
-// dq — a one-byte string holding a double quote (34). Needed by the multipart
-// builder, whose Content-Disposition values are quoted; a literal cannot produce
-// a bare `"` because escapes stay raw.
-private string dq() {
-    string res = ""
-    pointer b = mem.alloc(1)
-    mem.writeByte(b, 0, 34)
-    res = str.fromBytes(b, 1)
-    return res
-}
-
-// crlf2 — the header-block terminator, 13 10 13 10.
-private string crlf2() {
-    string res = ""
-    pointer b = mem.alloc(4)
-    mem.writeByte(b, 0, 13)
-    mem.writeByte(b, 1, 10)
-    mem.writeByte(b, 2, 13)
-    mem.writeByte(b, 3, 10)
-    res = str.fromBytes(b, 4)
-    return res
-}
 
 // ── scanning helpers ─────────────────────────────────────────────────────────
 
@@ -134,7 +93,7 @@ private int findByte(const string s, const int c, const int from, const int stop
 // lineEnd — index of the CRLF that ends the line starting at `from`; -1 when the
 // line is not terminated.
 private int lineEnd(const string raw, const int from) {
-    return findFrom(raw, crlf(), from)
+    return findFrom(raw, "\r\n", from)
 }
 
 // ── Request parsing ──────────────────────────────────────────────────────────
@@ -142,7 +101,7 @@ private int lineEnd(const string raw, const int from) {
 // headerEnd — index of the first byte AFTER the CRLFCRLF terminator, i.e. where
 // the body starts. -1 while the header block has not fully arrived.
 public int headerEnd(const string raw) {
-    int i = findFrom(raw, crlf2(), 0)
+    int i = findFrom(raw, "\r\n\r\n", 0)
     if i < 0 {
         return 0 - 1
     }
@@ -232,7 +191,7 @@ public string query(const string raw) {
 // Works for a response too (the status line is skipped exactly like a request
 // line), which is what respHeader delegates to.
 public string header(const string raw, const string name) {
-    int he = findFrom(raw, crlf2(), 0)
+    int he = findFrom(raw, "\r\n\r\n", 0)
     int limit = str.len(raw)
     if he >= 0 {
         limit = he
@@ -568,7 +527,7 @@ private string appendSegs(const string acc, const string extra) {
     if n == 0 {
         return s
     }
-    string nl = crlf()
+    string nl = "\r\n"
     int pos = 0
     bool go = true
     while go && pos <= n {
@@ -601,10 +560,7 @@ public string joinHeaders(const string a, const string b) {
     if str.isEmpty(b) {
         return a
     }
-    pointer p = mem.alloc(1)
-    mem.writeByte(p, 0, 10)
-    string lf = str.fromBytes(p, 1)
-    return str.concat(a, str.concat(lf, b))
+    return str.concat(a, str.concat("\n", b))
 }
 
 // responseWith — a complete HTTP/1.1 response with `Connection: close`: status
@@ -625,7 +581,7 @@ public string responseConn(const int status, const string contentType, const str
     if str.isEmpty(ct) {
         ct = "application/octet-stream"
     }
-    string nl = crlf()
+    string nl = "\r\n"
     string s = "HTTP/1.1 "
     s = str.concat(s, str.convert(status))
     s = str.concat(s, " ")
@@ -668,7 +624,7 @@ public string buildRequest(const string method, const string targetPath, const s
 // after the response.
 public string buildRequestConn(const string method, const string targetPath, const string host,
         const string extraHeaders, const string bodyStr, const bool keepAlive) {
-    string nl = crlf()
+    string nl = "\r\n"
     string s = method
     s = str.concat(s, " ")
     s = str.concat(s, targetPath)
@@ -1030,17 +986,17 @@ public void mpAddField(const pointer h, const string name, const string value) {
     if h == 0 {
         return
     }
-    string q = dq()
+    string q = "\""
     mpPut(h, "--")
     mpPut(h, mpBoundary(h))
-    mpPut(h, crlf())
+    mpPut(h, "\r\n")
     mpPut(h, "Content-Disposition: form-data; name=")
     mpPut(h, q)
     mpPut(h, name)
     mpPut(h, q)
-    mpPut(h, crlf2())
+    mpPut(h, "\r\n\r\n")
     mpPut(h, value)
-    mpPut(h, crlf())
+    mpPut(h, "\r\n")
 }
 
 // mpAddFile — a file part. `contentType` defaults to application/octet-stream
@@ -1054,10 +1010,10 @@ public void mpAddFile(const pointer h, const string name, const string filename,
     if str.isEmpty(ct) {
         ct = "application/octet-stream"
     }
-    string q = dq()
+    string q = "\""
     mpPut(h, "--")
     mpPut(h, mpBoundary(h))
-    mpPut(h, crlf())
+    mpPut(h, "\r\n")
     mpPut(h, "Content-Disposition: form-data; name=")
     mpPut(h, q)
     mpPut(h, name)
@@ -1066,12 +1022,12 @@ public void mpAddFile(const pointer h, const string name, const string filename,
     mpPut(h, q)
     mpPut(h, filename)
     mpPut(h, q)
-    mpPut(h, crlf())
+    mpPut(h, "\r\n")
     mpPut(h, "Content-Type: ")
     mpPut(h, ct)
-    mpPut(h, crlf2())
+    mpPut(h, "\r\n\r\n")
     mpPut(h, content)
-    mpPut(h, crlf())
+    mpPut(h, "\r\n")
 }
 
 // mpFinish — append the closing delimiter and return the body. The builder is
@@ -1085,7 +1041,7 @@ public string mpFinish(const pointer h) {
     mpPut(h, "--")
     mpPut(h, mpBoundary(h))
     mpPut(h, "--")
-    mpPut(h, crlf())
+    mpPut(h, "\r\n")
     pointer data = mem.readPtr(h, 0)
     int len = mem.readInt(h, 8)
     if len <= 0 {
@@ -1365,10 +1321,7 @@ private string secureViaClient(const string verb, const string url, const string
     // (see appendSegs), so translate before handing it over.
     string hdrs = ""
     if str.isEmpty(extraHeaders) == false {
-        pointer p = mem.alloc(1)
-        mem.writeByte(p, 0, 10)
-        string lf = str.fromBytes(p, 1)
-        hdrs = str.replace(extraHeaders, lf, crlf())
+        hdrs = str.replace(extraHeaders, "\n", "\r\n")
     }
     int st = httpsRequest(verb, host, port, urlPath(url), hdrs, bodyIn, tmp)
     statusOut = st

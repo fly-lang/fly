@@ -1,7 +1,6 @@
 namespace fly.lsp
 
 import fly.str
-import fly.mem
 import fly.json
 import fly.codec
 import fly.data.List
@@ -125,14 +124,6 @@ public pointer mkDiagnostic(const LspDiag d) {
     json.put(o, "source", json.newString("fly"))
     json.put(o, "message", json.newString(d.message))
     return o
-}
-
-// lfStr — a one-byte "\n" string; literals keep escapes raw in this dialect.
-public string lfStr() {
-    pointer p = mem.alloc(1)
-    mem.writeByte(p, 0, 10)
-    string s = str.fromBytes(p, 1)
-    return s
 }
 
 // isInternalName — a name the compiler made up, never one the user typed: the

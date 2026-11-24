@@ -1,0 +1,21 @@
+import fly.str
+import fly.math
+import fly.os.io
+
+// The unused-import scan skips literals as the lexer reads them: an escaped quote
+// does not end an ordinary literal, and a raw literal ends only at its closing
+// three quotes, newlines included. `fly.str` is used only after an escaped quote
+// on the same line, so it is not reported; `math` and `io` appear only inside
+// literals, so both imports are.
+void check(const string s, const int n) {
+    if n < 2 {
+        fail 1, s
+    }
+}
+
+void main() {
+    check("math \" io", str.len("ab"))
+    string raw = """one "quoted" line
+io.print"""
+    check(raw, 30)
+}

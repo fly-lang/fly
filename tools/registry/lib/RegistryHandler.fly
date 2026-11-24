@@ -97,12 +97,9 @@ public string urlDecode(const string s) {
 }
 
 // jsonStringArray — ["a","b",…]. json.escape returns the BODY of the string
-// (no surrounding quotes), so the quotes are added here; they are built from
-// bytes because string literals keep escapes raw in this dialect.
+// (no surrounding quotes), so the quotes are added here.
 public string jsonStringArray(const List<string> xs) {
-    pointer qp = mem.alloc(1)
-    mem.writeByte(qp, 0, 34)
-    string q = str.fromBytes(qp, 1)
+    string q = "\""
     string s = "["
     int i = 0
     while i < xs.size() {

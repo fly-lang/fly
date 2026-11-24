@@ -848,9 +848,7 @@ public long pipe(Reader pipe_r, Writer pipe_w) {
     return copy(pipe_r, pipe_w)
 }
 
-// writeNL writes a single newline byte (0x0A) to w. Fly string literals keep
-// escapes RAW (`"\n"` is the two chars backslash+n, NOT a newline), so the
-// terminator must be emitted as a real byte rather than a literal string.
+// writeNL writes a single newline byte (0x0A) to w.
 public void writeNL(Writer w) {
     pointer buf = 0
     fly.runtime.mem_alloc(1, buf)

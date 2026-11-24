@@ -52,12 +52,10 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
         return (int)this.levels.size()
     }
 
-    // jsonEscape — escape `\` then `"` so messages embed safely in JSON strings
-    // (the search/replacement patterns are built from real bytes, since `"\\"` /
-    // `"\""` string literals are stored RAW under this compiler).
+    // jsonEscape — escape `\` then `"` so messages embed safely in JSON strings.
     public string jsonEscape(const string s) {
-        string bs = backslashChar()
-        string q = quoteChar()
+        string bs = "\\"
+        string q = "\""
         string a = str.replace(s, bs, str.concat(bs, bs))
         string b = str.replace(a, q, str.concat(bs, q))
         return b
@@ -65,14 +63,14 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
 
     // jstr — a JSON `"key":"val"` pair (val quoted), with real `"` bytes.
     public string jstr(const string key, const string val) {
-        string q = quoteChar()
+        string q = "\""
         return str.concat(q, str.concat(key, str.concat(q,
               str.concat(":", str.concat(q, str.concat(val, q))))))
     }
 
     // jnum — a JSON `"key":val` pair (val unquoted, e.g. a number).
     public string jnum(const string key, const string val) {
-        string q = quoteChar()
+        string q = "\""
         return str.concat(q, str.concat(key, str.concat(q, str.concat(":", val))))
     }
 
@@ -111,16 +109,16 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
     public string toTextReport(const string inputs, const string output) {
         string res = ""
         if str.isEmpty(inputs) == false {
-            string l1 = str.concat("inputs: ", str.concat(inputs, lineFeed()))
+            string l1 = str.concat("inputs: ", str.concat(inputs, "\n"))
             string a1 = str.concat(res, l1)
             res = a1
         }
         if str.isEmpty(output) == false {
-            string l2 = str.concat("output: ", str.concat(output, lineFeed()))
+            string l2 = str.concat("output: ", str.concat(output, "\n"))
             string a2 = str.concat(res, l2)
             res = a2
         }
-        string sep = str.concat("---", lineFeed())
+        string sep = str.concat("---", "\n")
         string a3 = str.concat(res, sep)
         return str.concat(a3, this.toText())
     }
@@ -131,7 +129,7 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
     public string toJsonReport(const string inputs, const string output) {
         string p1 = this.jstr("inputs", this.jsonEscape(inputs))
         string p2 = this.jstr("output", this.jsonEscape(output))
-        string q = quoteChar()
+        string q = "\""
         string dk = str.concat(q, str.concat("diagnostics", str.concat(q, ":")))
         string body = str.concat(p1, str.concat(",", str.concat(p2,
                       str.concat(",", str.concat(dk, this.toJson())))))
@@ -149,7 +147,7 @@ public class LogDiagnosticPrinter : DiagnosticConsumer {
                          str.concat(":", str.concat(this.cols.get(i), ": ")))))
             string line = str.concat(this.levels.get(i),
                           str.concat(": ", str.concat(loc, this.messages.get(i))))
-            string acc = str.concat(res, str.concat(line, lineFeed()))
+            string acc = str.concat(res, str.concat(line, "\n"))
             res = acc
             i = i + 1
         }

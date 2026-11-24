@@ -2,7 +2,6 @@ namespace fly.compiler.frontend
 
 import fly.compiler.basic.*
 import fly.str
-import fly.mem
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TextDiagnostic — renders a Diagnostic as caret text, a reduced port of
@@ -18,40 +17,6 @@ import fly.mem
 // UTF-8 column mapping (carets assume 1 col == 1 byte), single ^ + ~ underline
 // across the identifier at the caret (the C++ uses CharSourceRanges).
 // ─────────────────────────────────────────────────────────────────────────────
-
-// lineFeed — a string holding a single LF byte (0x0A). Fly string literals keep
-// escapes RAW (`"\n"` is the two chars backslash+n, NOT a newline), and the std
-// `fly.str` is baked into the compiler binary so new helpers there don't link —
-// so the byte is built locally via the same intrinsics fly.os.io.writeNL uses.
-public string lineFeed() {
-    string res
-    pointer buf = mem.alloc(1)
-    mem.writeByte(buf, 0, 10)
-    res = str.fromBytes(buf, 1)
-    return res
-}
-
-// quoteChar — a string holding a single `"` byte (0x22). Same rationale as
-// lineFeed: a bare `"` can't appear in a Fly string literal (it terminates the
-// string) and `\"` is stored RAW as backslash+quote, so JSON structural quotes
-// must be built byte-wise.
-public string quoteChar() {
-    string res
-    pointer buf = mem.alloc(1)
-    mem.writeByte(buf, 0, 34)
-    res = str.fromBytes(buf, 1)
-    return res
-}
-
-// backslashChar — a string holding a single `\` byte (0x5C), built byte-wise for
-// the same reason as quoteChar (a literal `"\\"` is two raw chars, not one).
-public string backslashChar() {
-    string res
-    pointer buf = mem.alloc(1)
-    mem.writeByte(buf, 0, 92)
-    res = str.fromBytes(buf, 1)
-    return res
-}
 
 // diagLevelName — display name for a level ("error"/"warning"/…).
 public string diagLevelName(const DiagLevel level) {
@@ -128,7 +93,7 @@ public class TextDiagnostic {
         }
         string underline = str.concat(pad, str.concat("^", tilde))
 
-        string nl = lineFeed()
+        string nl = "\n"
         return str.concat(head, str.concat(nl,
               str.concat(srcLine, str.concat(nl, underline))))
     }

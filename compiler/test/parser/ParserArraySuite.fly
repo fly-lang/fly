@@ -4,7 +4,6 @@ import fly.compiler.basic.*
 import fly.compiler.ast.*
 import fly.compiler.parser.*
 import fly.data.*
-import fly.mem
 import fly.str
 import fly.assert
 
@@ -13,17 +12,6 @@ import fly.assert
 // downcast (base ASTNode returns null, ASTArrayValue overrides). Type/decl cases
 // are acceptance-only (`isSuccess`), mirroring the sibling parser suites. Mirrors
 // the reference ParserValueTest / ParserLocalVarTest coverage.
-
-// dq — a real double-quote char (the self-host lexer keeps `\"` raw, so string
-// literals inside a parsed source are built at runtime). Same trick as dquote().
-string dq() {
-    pointer buf = mem.alloc(1)
-    byte q = 34
-    fly.llvm.strPoke(buf, 0, q)
-    string s = ""
-    fly.llvm.strMake(buf, 1, s)
-    return s
-}
 
 suite ParserArraySuite {
 
@@ -83,7 +71,7 @@ suite ParserArraySuite {
             assert.assertEqI((int)a.getValues().size(), 2, 17)
         }
         case "string elements": {
-            string Q = dq()
+            string Q = "\""
             // build:  {"a", "b", ""}
             string src = str.concat("{", str.concat(Q, str.concat("a", Q)))
             src = str.concat(src, ", ")

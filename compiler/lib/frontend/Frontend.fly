@@ -167,7 +167,7 @@ public class Frontend {
 
     // statsJson — the --stats-file payload (fixed keys, numeric values).
     public string statsJson() {
-        string q = quoteChar()
+        string q = "\""
         string p1 = str.concat(q,
                 str.concat("input-files", str.concat(q, str.concat(":", str.convert(this.statInputFiles)))))
         string p2 = str.concat(q,

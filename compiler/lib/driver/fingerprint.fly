@@ -55,17 +55,6 @@ public int fpStrCompare(const string a, const string b) {
     return 0
 }
 
-// fpBackslash — a one-byte string holding "\" (92); literals keep escapes raw,
-// so a lone backslash cannot come from a literal. Same construction as dq()/nl().
-public string fpBackslash() {
-    pointer buf = mem.alloc(1)
-    byte b = 92
-    fly.llvm.strPoke(buf, 0, b)
-    string s = ""
-    fly.llvm.strMake(buf, 1, s)
-    return s
-}
-
 // fpCompilerId — "<version> <size> <mtimeSec>" identity of the compiler binary:
 // cheap (no hashing of a large executable) yet flips when the compiler is
 // rebuilt or FLYLANG_BIN points somewhere else. A non-existing path (bare "fly"
@@ -128,7 +117,7 @@ public class Fingerprint {
             this.hashOne(files.get(i))
             i = i + 1
         }
-        string filesHdr = str.concat("files", fly.driver.nl())
+        string filesHdr = str.concat("files", "\n")
         return str.concat(header, str.concat(filesHdr, this.lines))
     }
 
@@ -191,8 +180,8 @@ public class Fingerprint {
         string hash = fly.driver.sha256File(full)
         int rootLen = str.len(this.root)
         string rel = str.substring(full, rootLen + 1, str.len(full))
-        string relNorm = str.replace(rel, fpBackslash(), "/")
+        string relNorm = str.replace(rel, "\\", "/")
         string line = str.concat(relNorm, str.concat(" ", hash))
-        this.lines = str.concat(this.lines, str.concat(line, fly.driver.nl()))
+        this.lines = str.concat(this.lines, str.concat(line, "\n"))
     }
 }

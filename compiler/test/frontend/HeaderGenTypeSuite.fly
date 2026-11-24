@@ -40,7 +40,7 @@ string genPath(const string name, const string src) {
     string mpath = str.concat(dir, "/m.fly")
     // From 0.15 "\n" in a literal is already a newline, so this replace changes
     // nothing; it dates from when literals were raw.
-    fs.writeStr(mpath, str.replace(src, "\n", nl()), 420)
+    fs.writeStr(mpath, src, 420)
     Parser p = new Parser(fs.readStr(mpath))
     ASTModule m = p.parseModule(mpath)
     return HeaderGen.generate(m, dir, null)
@@ -56,7 +56,7 @@ string genInto(const string name, const string src) {
     fs.dirCreateAll(sdir, 493)
     fs.dirCreateAll(odir, 493)
     string mpath = str.concat(sdir, "/m.fly")
-    fs.writeStr(mpath, str.replace(src, "\n", nl()), 420)
+    fs.writeStr(mpath, src, 420)
     // Pre-clean the OUTPUT dir: these fixtures outlive a run, so an artifact left
     // by an older compiler would answer the "was this written?" cases instead of
     // this build. That is exactly how the `.fly` companion, gone from the
@@ -79,14 +79,6 @@ string genInto(const string name, const string src) {
 string genHeader(const string dir, const string src) {
     string pth = genPath(dir, src)
     return fs.readStr(pth)
-}
-
-// nl — one real newline byte (string literals keep escapes raw).
-string nl() {
-    pointer buf = fly.mem.alloc(1)
-    fly.mem.writeByte(buf, 0, 10)
-    string s = str.fromBytes(buf, 1)
-    return s
 }
 
 // ts — parse `src` as a type and render it.

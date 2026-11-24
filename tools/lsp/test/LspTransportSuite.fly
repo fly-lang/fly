@@ -4,7 +4,6 @@ import fly.lsp.resultJson
 import fly.lsp.errorJson
 import fly.lsp.notificationJson
 import fly.lsp.idNodeOf
-import fly.lsp.lfStr
 import fly.str
 import fly.mem
 import fly.json

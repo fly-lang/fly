@@ -7,7 +7,6 @@ import fly.lsp.LspLoc
 import fly.lsp.LspSignature
 import fly.lsp.LspTarget
 import fly.lsp.LspUse
-import fly.lsp.lfStr
 import fly.lsp.navModeFind
 import fly.lsp.navModeCollect
 import fly.lsp.navModeCallAt
@@ -92,9 +91,7 @@ void writeNavFixture() {
     s = str.concat(s, "    public int getX() { return this.x }\n")
     s = str.concat(s, "}\n")
     fs.dirCreateAll(navFixtureDir(), 493)
-    // The literal "\n" above is TWO characters in this dialect (escapes are
-    // raw), so every one is replaced with a real newline byte here.
-    fs.writeStr(navFixturePath(), str.replace(s, "\n", lsp.lfStr()), 420)
+    fs.writeStr(navFixturePath(), s, 420)
 }
 
 // rootFixtureDir — a two-directory project marked by a Manifest.fly at its root:
@@ -144,7 +141,7 @@ void writeEnumFixture() {
     s = str.concat(s, "    return Color.RED\n")
     s = str.concat(s, "}\n")
     fs.dirCreateAll(enumFixtureDir(), 493)
-    fs.writeStr(enumFixturePath(), str.replace(s, "\n", lsp.lfStr()), 420)
+    fs.writeStr(enumFixturePath(), s, 420)
 }
 
 // hdrFixtureDir — a miniature TOOLCHAIN: a lib/ holding a .fly.h declaration,
@@ -169,9 +166,9 @@ void writeHdrFixture() {
     fs.dirCreateAll("lsp_suite_fx_hdr/lib", 493)
     fs.dirCreateAll("lsp_suite_fx_hdr/app", 493)
     string h = "namespace fxhdr.greet\n\npublic string hello()\n"
-    fs.writeStr("lsp_suite_fx_hdr/lib/greet.fly.h", str.replace(h, "\n", lsp.lfStr()), 420)
+    fs.writeStr("lsp_suite_fx_hdr/lib/greet.fly.h", h, 420)
     string m = "namespace fxhdr.app\n\nimport fxhdr.greet\n\nvoid main() {\n    string s = greet.hello()\n}\n"
-    fs.writeStr("lsp_suite_fx_hdr/app/main.fly", str.replace(m, "\n", lsp.lfStr()), 420)
+    fs.writeStr("lsp_suite_fx_hdr/app/main.fly", m, 420)
 }
 
 void writeRootFixture() {
@@ -182,12 +179,12 @@ void writeRootFixture() {
     // (compiler/lib/driver/Manifest.fly). It is also parsed by the source scan,
     // so it must be valid Fly.
     string mf = "namespace fxroot.manifest\n\nclass Manifest : fly.meta.Manifest {\n}\n"
-    fs.writeStr("lsp_suite_fx_root/Manifest.fly", str.replace(mf, "\n", lsp.lfStr()), 420)
+    fs.writeStr("lsp_suite_fx_root/Manifest.fly", mf, 420)
     string u = "namespace fxroot.util\n\npublic int seven() {\n    return 7\n}\n"
-    fs.writeStr("lsp_suite_fx_root/lib/util.fly", str.replace(u, "\n", lsp.lfStr()), 420)
+    fs.writeStr("lsp_suite_fx_root/lib/util.fly", u, 420)
     string m = "namespace fxroot.app\n\nimport fxroot.util\n\nvoid main() {\n"
     m = str.concat(m, "    int x = util.seven()\n    if x == 7 {\n        return\n    }\n}\n")
-    fs.writeStr("lsp_suite_fx_root/app/main.fly", str.replace(m, "\n", lsp.lfStr()), 420)
+    fs.writeStr("lsp_suite_fx_root/app/main.fly", m, 420)
 }
 
 // compiled — an analyzer with the fixture already compiled, ready to query.
@@ -320,7 +317,7 @@ suite LspAnalyzerSuite {
             string dir = "lsp_suite_fx_broken"
             fs.dirCreateAll(dir, 493)
             string p = "lsp_suite_fx_broken/broken.fly"
-            string src = str.replace("void main() {\n    nosuchfn(1)\n}\n", "\n", lsp.lfStr())
+            string src = "void main() {\n    nosuchfn(1)\n}\n"
             fs.writeStr(p, src, 420)
             LspAnalyzer a = new LspAnalyzer()
             List<LspDiag> d = a.compileFile(p)
@@ -337,7 +334,7 @@ suite LspAnalyzerSuite {
             string dir = "lsp_suite_fx_parse"
             fs.dirCreateAll(dir, 493)
             string p = "lsp_suite_fx_parse/parse.fly"
-            fs.writeStr(p, str.replace("void main( {\n}\n", "\n", lsp.lfStr()), 420)
+            fs.writeStr(p, "void main( {\n}\n", 420)
             LspAnalyzer a = new LspAnalyzer()
             List<LspDiag> d = a.compileFile(p)
             assert.assertTrue(d.size() > 0, 206)
@@ -903,7 +900,7 @@ suite LspAnalyzerSuite {
             // coarse timestamp granularity could then make this test flaky.
             string broken = "namespace fxroot.util\n\npublic int eightyEight() {\n    return 88\n}\n"
             fs.writeStr("lsp_suite_fx_root/lib/util.fly",
-                        str.replace(broken, "\n", lsp.lfStr()), 420)
+                        broken, 420)
             List<LspDiag> after = a.compileFile("lsp_suite_fx_root/app/main.fly")
             assert.assertTrue(after.size() > 0, 1106)
             fs.dirDeleteAll(rootFixtureDir())

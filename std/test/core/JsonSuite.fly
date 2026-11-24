@@ -1,29 +1,11 @@
 import fly.json
 import fly.str
-import fly.mem
 import fly.assert
 
-// dq — a one-byte string holding a double quote (34). Fly string literals keep
-// escapes RAW, so a `"` cannot come from a literal; build it byte-wise. Same
-// trick as StrSuite's asciiChar.
-string dq() {
-    string res
-    pointer buf = mem.alloc(1)
-    mem.writeByte(buf, 0, 34)
-    res = str.fromBytes(buf, 1)
-    return res
-}
-
 // mkJson — turn a placeholder template into real JSON: every `|` becomes a double
-// quote and every `~` a backslash, so a case can spell a payload readably. The
-// suite is compiled by the seed (literals raw) and by the self-host (escapes
-// decoded), so no literal here may hold a real backslash: `~` stands for one.
+// quote and every `~` a backslash, so a case can spell a payload readably.
 string mkJson(const string tpl) {
-    string bs = ""
-    pointer buf = mem.alloc(1)
-    mem.writeByte(buf, 0, 92)
-    bs = str.fromBytes(buf, 1)
-    return str.replace(str.replace(tpl, "|", dq()), "~", bs)
+    return str.replace(str.replace(tpl, "|", "\""), "~", "\\")
 }
 
 // byteOf — the i-th byte of s as an int (byte widens to int by zero extension).

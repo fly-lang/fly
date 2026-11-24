@@ -2,7 +2,6 @@ namespace fly.compiler.codegen.test.array
 
 import fly.test.util.*
 import fly.str
-import fly.mem
 import fly.assert
 import fly.compiler.codegen.CodeGenArray
 
@@ -12,18 +11,6 @@ import fly.compiler.codegen.CodeGenArray
 // lowers to an index loop over the data buffer. Driven through cgIR (which runs
 // Parser → Sema → CodeGen and returns the emitted LLVM IR text); never drive
 // codegen from a suite method directly (SIGSEGV) — cgIR is a free function.
-
-// cgaDq — a real double-quote character. The self-host lexer keeps `\"` raw, so a
-// Fly source that must CONTAIN a string literal is assembled at runtime. Same
-// trick as ParserArraySuite.dq().
-string cgaDq() {
-    pointer buf = mem.alloc(1)
-    byte q = 34
-    fly.llvm.strPoke(buf, 0, q)
-    string s = ""
-    fly.llvm.strMake(buf, 1, s)
-    return s
-}
 
 suite CodeGenArraySuite {
 
@@ -226,10 +213,7 @@ suite CodeGenArraySuite {
     // case exists so a future "optimisation" cannot quietly remove it.
     void borrowedElementTest() {
         case "reading a string element clones it": {
-            // The source is assembled at runtime: the lexer keeps `\"` RAW, so a
-            // quote inside a Fly string literal has to be built (same reason
-            // ParserArraySuite has its dq() helper).
-            string Q = cgaDq()
+            string Q = "\""
             string lit = str.concat(Q, str.concat("ab", Q))
             string src = str.concat("void f() { string[] xs = {", lit)
             src = str.concat(src, "}  string s = xs[0] }")
@@ -239,7 +223,7 @@ suite CodeGenArraySuite {
         // Writing one does NOT clone: the array must not own the element's buffer,
         // or nothing would ever free it.
         case "writing a string element goes through the element address": {
-            string Q = cgaDq()
+            string Q = "\""
             string lit = str.concat(Q, str.concat("ab", Q))
             string lit2 = str.concat(Q, str.concat("cd", Q))
             string src = str.concat("void f() { string[] xs = {", lit)

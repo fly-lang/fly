@@ -3,19 +3,6 @@ import fly.mem
 import fly.assert
 import fly.data.List
 
-// asciiChar — a one-byte string for a given byte value. This suite is compiled by
-// the seed, which reads literals raw, and by the self-host, which decodes escapes
-// (from 0.15): no literal here may hold a backslash, so the whitespace bytes the
-// trim tests need, and the UTF-8 bytes of the character tests, are built byte-wise.
-// (The escapes themselves are tested in compiler/test/exec/ExecStringSuite.)
-string asciiChar(const int code) {
-    string res
-    pointer buf = mem.alloc(1)
-    mem.writeByte(buf, 0, (byte)code)
-    res = str.fromBytes(buf, 1)
-    return res
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // StrSuite — exhaustive coverage of fly.str (std/lib/str.fly): every export,
 // each driven through its edge cases (empty inputs, needle longer than the
@@ -46,15 +33,15 @@ suite StrSuite {
             assert.assertEqI(str.len("hello"), 5, 101)
             assert.assertEqI(str.len(""), 0, 102)
             assert.assertEqI(str.len(" "), 1, 103)
-            assert.assertEqI(str.len(asciiChar(9)), 1, 126)
+            assert.assertEqI(str.len("\t"), 1, 126)
         }
         case "three byte-built strings held at once stay distinct": {
             // Guards the trim cases below, which build their whitespace this way:
             // if the three results aliased, those tests would still pass by
             // accident (every byte is trimmable), so the bytes are checked here.
-            string tab = asciiChar(9)
-            string lf = asciiChar(10)
-            string cr = asciiChar(13)
+            string tab = "\t"
+            string lf = "\n"
+            string cr = "\r"
             byte b = str.byteAt(tab, 0)
             assert.assertEqI((int)b & 255, 9, 127)
             b = str.byteAt(lf, 0)
@@ -207,9 +194,9 @@ suite StrSuite {
             assert.assertStr(str.trim("hello"), "hello", 312)         // nothing to trim
             assert.assertEmpty(str.trim(""), 313)
             // trim recognises exactly four bytes: space, tab, LF, CR.
-            string tab = asciiChar(9)
-            string lf = asciiChar(10)
-            string cr = asciiChar(13)
+            string tab = "\t"
+            string lf = "\n"
+            string cr = "\r"
             string padded = str.concat(str.concat(tab, lf), str.concat(" hi ", str.concat(cr, lf)))
             assert.assertStr(str.trim(padded), "hi", 314)
             assert.assertStr(str.trim("  a"), "a", 315)               // left only
@@ -219,8 +206,8 @@ suite StrSuite {
         case "trim on all-whitespace collapses to empty": {
             assert.assertEmpty(str.trim(" "), 318)
             assert.assertEmpty(str.trim("     "), 319)
-            string ws = str.concat(str.concat(asciiChar(9), asciiChar(13)),
-                                   str.concat(asciiChar(10), " "))
+            string ws = str.concat(str.concat("\t", "\r"),
+                                   str.concat("\n", " "))
             assert.assertEmpty(str.trim(ws), 320)
             assert.assertEmpty(str.trimLeft(ws), 331)
             assert.assertEmpty(str.trimRight(ws), 332)
@@ -516,10 +503,10 @@ suite StrSuite {
     void charTest() {
         case "characters of 1, 2, 3 and 4 bytes": {
             // "Aé€😀": 41 | C3 A9 | E2 82 AC | F0 9F 98 80 — 10 bytes, 4 characters
-            string s = str.concat("A", str.concat(asciiChar(195), asciiChar(169)))
-            s = str.concat(s, str.concat(asciiChar(226), str.concat(asciiChar(130), asciiChar(172))))
-            string emoji = str.concat(asciiChar(240), asciiChar(159))
-            emoji = str.concat(emoji, str.concat(asciiChar(152), asciiChar(128)))
+            string s = str.concat("A", str.concat("\xc3", "\xa9"))
+            s = str.concat(s, str.concat("\xe2", str.concat("\x82", "\xac")))
+            string emoji = str.concat("\xf0", "\x9f")
+            emoji = str.concat(emoji, str.concat("\x98", "\x80"))
             s = str.concat(s, emoji)
             assert.assertEqI(str.len(s), 10, 901)
             assert.assertEqI(str.charCount(s), 4, 902)
@@ -538,16 +525,16 @@ suite StrSuite {
             assert.assertStr(cs.get(3), emoji, 914)
         }
         case "an invalid byte is one character, U+FFFD": {
-            string lone = asciiChar(128)                                    // stray continuation
+            string lone = "\x80"                                    // stray continuation
             assert.assertEqI(str.charCount(lone), 1, 921)
             assert.assertEqI(str.charCode(lone, 0), 65533, 922)
             assert.assertFalse(str.isUtf8(lone), 923)
-            string overlong = str.concat(asciiChar(192), asciiChar(128))    // C0 80
+            string overlong = str.concat("\xc0", "\x80")    // C0 80
             assert.assertEqI(str.charCount(overlong), 2, 924)
-            string surrogate = str.concat(asciiChar(237), str.concat(asciiChar(160), asciiChar(128)))
+            string surrogate = str.concat("\xed", str.concat("\xa0", "\x80"))
             assert.assertEqI(str.charCount(surrogate), 3, 925)
             assert.assertFalse(str.isUtf8(surrogate), 926)
-            string cut = str.concat(asciiChar(226), asciiChar(130))         // truncated
+            string cut = str.concat("\xe2", "\x82")         // truncated
             assert.assertEqI(str.charCount(cut), 2, 927)
         }
         case "fromCharCode encodes, and round-trips through charCode": {

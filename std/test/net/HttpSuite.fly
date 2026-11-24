@@ -7,18 +7,6 @@ import fly.os.env
 import fly.os.fs
 import fly.assert
 
-// crlfStr — the two bytes 13, 10. Fly literals keep escapes RAW, so a real CRLF
-// cannot be written inline; the whole point of the 4xx band is that http.fly
-// gets this right, so the suite must build it independently.
-string crlfStr() {
-    string res
-    pointer b = mem.alloc(2)
-    mem.writeByte(b, 0, 13)
-    mem.writeByte(b, 1, 10)
-    res = str.fromBytes(b, 2)
-    return res
-}
-
 // mkHttp — expand a readable one-line template into a real HTTP message:
 // '~' becomes a CRLF and '|' becomes a double quote. So
 // "GET / HTTP/1.1~Host: x~~body" is a complete request.
@@ -26,7 +14,7 @@ string mkHttp(const string tpl) {
     pointer q = mem.alloc(1)
     mem.writeByte(q, 0, 34)
     string dq = str.fromBytes(q, 1)
-    string s = str.replace(tpl, "~", crlfStr())
+    string s = str.replace(tpl, "~", "\r\n")
     return str.replace(s, "|", dq)
 }
 

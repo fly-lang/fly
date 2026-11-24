@@ -6,7 +6,6 @@ import fly.registry.jsonStringArray
 import fly.registry.strLess
 import fly.registry.dirNames
 import fly.str
-import fly.mem
 import fly.targz
 import fly.os.fs
 import fly.os.path
@@ -44,13 +43,9 @@ string gzipFixture() {
 
 // quoted / arr1 / arr2 / arr3 — expected JSON built from RAW BYTES, not from
 // jsonStringArray: an expectation computed by the code under test would agree
-// with it no matter how wrong both were. String literals keep escapes raw in
-// this dialect, so the quote byte (34) has to be assembled by hand.
+// with it no matter how wrong both were.
 string quoted(const string x) {
-    pointer p = mem.alloc(1)
-    mem.writeByte(p, 0, 34)
-    string q = str.fromBytes(p, 1)
-    return str.concat(q, str.concat(x, q))
+    return str.concat("\"", str.concat(x, "\""))
 }
 string arr1(const string a) {
     return str.concat("[", str.concat(quoted(a), "]"))

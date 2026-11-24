@@ -9,8 +9,6 @@ import fly.data.*
 import fly.assert
 import fly.os.fs
 import fly.str
-import fly.mem
-import fly.llvm
 import fly.test.util.*
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -20,9 +18,6 @@ import fly.test.util.*
 // port of fly/test/CodeGen/CodeGenStringTest.cpp (CGDefaultStringLocalVar /
 // CGDefaultStringLocalVarAssignValue — the literal cases).
 //
-// Fly keeps string escapes RAW (`"a\"b"` stays `a\"b`), so the inner program's
-// quote is built at runtime via fly.llvm.strPoke + strMake (`dquote`).
-//
 // DEFERRED (needs the string runtime / fly.llvm intrinsic lowering): CGString-
 // ConcatNonConst / CGStringConcatConst / CGStringReassignConcat.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -31,7 +26,7 @@ suite CodeGenStringSuite {
 
     void literalTest() {
         case "string literal → %string type + private byte global": {
-            string Q = dquote()
+            string Q = "\""
             string a = str.concat("void main() { string s = ", Q)
             string b = str.concat(a, "hello")
             string c = str.concat(b, Q)

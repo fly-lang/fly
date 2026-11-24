@@ -20,8 +20,7 @@ import fly.data.List
 // Driver.run (if BuilderSuite passes while `fly build` crashes, the fault is in
 // Driver.run, not the reader/Builder).
 //
-// Real quotes for the generated Manifest.fly come from fly.driver.dq() (the lexer
-// keeps `\"` raw). Free helpers, not `this.` methods (suite `this` is invalid).
+// Free helpers, not `this.` methods (suite `this` is invalid).
 // ─────────────────────────────────────────────────────────────────────────────
 
 // builderTmp — the OS temp dir (TMPDIR/TEMP, /tmp fallback) for scratch trees.
@@ -37,7 +36,7 @@ string builderTmp() {
 }
 
 string qb(const string v) {
-    return str.concat(driver.dq(), str.concat(v, driver.dq()))
+    return str.concat("\"", str.concat(v, "\""))
 }
 
 suite BuilderSuite {
@@ -127,25 +126,25 @@ suite BuilderSuite {
             // Manifest.fly with one bin target -> a trivial (import-free) source, so
             // it links against the auto-discovered runtime with no extra -L.
             string man = "namespace pkg.manifest"
-            man = str.concat(man, driver.nl())
+            man = str.concat(man, "\n")
             man = str.concat(man, "import fly.meta.*")
-            man = str.concat(man, driver.nl())
+            man = str.concat(man, "\n")
             man = str.concat(man, "class Manifest : fly.meta.Manifest {")
-            man = str.concat(man, driver.nl())
+            man = str.concat(man, "\n")
             man = str.concat(man, str.concat("  string name = ", qb("hello")))
-            man = str.concat(man, driver.nl())
+            man = str.concat(man, "\n")
             man = str.concat(man, str.concat("  string version = ", qb("0.1.0")))
-            man = str.concat(man, driver.nl())
+            man = str.concat(man, "\n")
             string tgt = str.concat("  Target[] targets = { new Target(", qb("hello"))
             tgt = str.concat(tgt, str.concat(", ", qb("src/main.fly")))
             tgt = str.concat(tgt, str.concat(", ", qb("")))
             tgt = str.concat(tgt, ") }")
             man = str.concat(man, tgt)
-            man = str.concat(man, driver.nl())
+            man = str.concat(man, "\n")
             man = str.concat(man, "}")
             fs.writeStr(str.concat(proj, "/Manifest.fly"), man, 420)
 
-            string src = str.concat("namespace app", driver.nl())
+            string src = str.concat("namespace app", "\n")
             src = str.concat(src, "void main() { }")
             fs.writeStr(str.concat(proj, "/src/main.fly"), src, 420)
 
@@ -211,25 +210,25 @@ suite BuilderSuite {
             fs.dirCreateAll(str.concat(proj, "/src"), 493)
 
             string man = "namespace pkg.manifest"
-            man = str.concat(man, driver.nl())
+            man = str.concat(man, "\n")
             man = str.concat(man, "import fly.meta.*")
-            man = str.concat(man, driver.nl())
+            man = str.concat(man, "\n")
             man = str.concat(man, "class Manifest : fly.meta.Manifest {")
-            man = str.concat(man, driver.nl())
+            man = str.concat(man, "\n")
             man = str.concat(man, str.concat("  string name = ", qb("hello")))
-            man = str.concat(man, driver.nl())
+            man = str.concat(man, "\n")
             man = str.concat(man, str.concat("  string version = ", qb("0.1.0")))
-            man = str.concat(man, driver.nl())
+            man = str.concat(man, "\n")
             string tgt = str.concat("  Target[] targets = { new Target(", qb("hello"))
             tgt = str.concat(tgt, str.concat(", ", qb("src/main.fly")))
             tgt = str.concat(tgt, str.concat(", ", qb("")))
             tgt = str.concat(tgt, ") }")
             man = str.concat(man, tgt)
-            man = str.concat(man, driver.nl())
+            man = str.concat(man, "\n")
             man = str.concat(man, "}")
             fs.writeStr(str.concat(proj, "/Manifest.fly"), man, 420)
 
-            string src = str.concat("namespace app", driver.nl())
+            string src = str.concat("namespace app", "\n")
             src = str.concat(src, "void main() { }")
             fs.writeStr(str.concat(proj, "/src/main.fly"), src, 420)
 
@@ -248,7 +247,7 @@ suite BuilderSuite {
             bool ok2 = b.buildTarget("hello")          // warm: takes the skip path
 
             // edit the source → fingerprint must flip → rebuild → fresh again
-            string src2 = str.concat("namespace app", driver.nl())
+            string src2 = str.concat("namespace app", "\n")
             src2 = str.concat(src2, "void main() { int x = 1 }")
             fs.writeStr("src/main.fly", src2, 420)
             string comp2 = b.computeFpFor(t)
@@ -287,17 +286,17 @@ suite BuilderSuite {
             string t = b.packageModule()
             assert.assertTrue(str.startsWith(t, "namespace fly.meta.package"), 501)
             assert.assertTrue(str.contains(t, "public string name() {"), 502)
-            assert.assertTrue(str.contains(t, str.concat("return ", str.concat(driver.dq(), str.concat("2.3.4", driver.dq())))), 503)
+            assert.assertTrue(str.contains(t, str.concat("return ", str.concat("\"", str.concat("2.3.4", "\"")))), 503)
             assert.assertTrue(str.contains(t, "public string description() {"), 504)
         }
         case "a quote or backslash in a manifest value is escaped": {
             Manifest m = new Manifest()
-            string q = driver.dq()
+            string q = "\""
             m.setName("x")
             m.setVersion("1.0.0")
             m.setDescription(str.concat("say ", str.concat(q, str.concat("hi", q))))
             Builder b = new Builder(m, "debug", false)
-            string bs = b.backslash()
+            string bs = "\\"
             assert.assertTrue(str.contains(b.packageModule(), str.concat(bs, q)), 505)
         }
         case "os filter, @out, artifact names and source roots": {

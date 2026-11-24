@@ -37,8 +37,8 @@ public class Formatter {
         this.ok = true
         // The lexer never sees a CR (the frontend reads sources in text mode), so
         // the layout works on LF text and a CRLF file gets its CRLFs back at the end.
-        string crlfEol = crlfStr()
-        string lfEol = nl()
+        string crlfEol = "\r\n"
+        string lfEol = "\n"
         bool crlf = str.equals(lineEnding(src), crlfEol)
         string cur = str.replace(src, crlfEol, lfEol)
         int pass = 0
@@ -265,7 +265,7 @@ public class Formatter {
         if offs.size() == 0 {
             return src
         }
-        return applyBreaks(src, offs, indents, nl())
+        return applyBreaks(src, offs, indents, "\n")
     }
 
     // byteIs — `s` has the byte `c` at `i` (false out of range).
