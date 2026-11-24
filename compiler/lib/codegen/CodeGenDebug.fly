@@ -4,6 +4,7 @@ import fly.compiler.sema.*
 import fly.compiler.ast.*
 import fly.compiler.basic.SourceLocation
 import fly.compiler.basic.SourceManager
+import fly.compiler.codegen.CodeGenClass
 import llvm.api.*
 import fly.data.List
 import fly.mem
@@ -33,6 +34,7 @@ public class CodeGenDebug {
     LLVM llvm
     pointer ctx
     pointer builder
+    pointer module             // for its data layout (field offsets of class structs)
     pointer db
     pointer cu
     pointer cuFile
@@ -51,6 +53,7 @@ public class CodeGenDebug {
         this.prefixMap = prefixMap
         this.ctx = ctx
         this.builder = builder
+        this.module = module
         this.scope = 0
         this.fileNames = new List<string>()
         this.fileRefs = new List<pointer>()
@@ -227,9 +230,25 @@ public class CodeGenDebug {
         pointer d = 0
         string n = t.getName()
         if cls != null {
+            // A class variable holds a pointer to the object. First a pointer to a
+            // forward declaration goes in the cache, so a field of the class's own
+            // type (a list node's `next`) refers to it instead of recursing; then
+            // the full struct with the fields replaces it. The debugger resolves
+            // the forward declaration by name to the struct.
             pointer fwd
             this.llvm.diCreateForwardDecl(this.db, n, this.cuFile, this.cuFile, fwd)
             this.llvm.diCreatePointerType(this.db, fwd, "", d)
+            this.typeNames.add(key)
+            this.typeRefs.add(d)
+            int slot = (int)this.typeRefs.size() - 1
+            pointer full = this.classStruct(cls)
+            if full != 0 {
+                pointer pd
+                this.llvm.diCreatePointerType(this.db, full, "", pd)
+                this.typeRefs.set(slot, pd)
+                d = pd
+            }
+            return d
         } elsif t.isBool() {
             d = this.basic("bool", 8, 2)                   // DW_ATE_boolean
         } elsif t.isInteger() {
@@ -273,6 +292,75 @@ public class CodeGenDebug {
             this.typeNames.add(key)
             this.typeRefs.add(d)
         }
+        return d
+    }
+
+    // classStruct — the DWARF struct of a class or struct object: every field
+    // (base fields first, the flat layout codegen uses) at the offset the data
+    // layout gives it; a class's vtable pointer at 0 is left undescribed. A field
+    // holding a struct is inline in the object, so it is described as that
+    // struct, not as a pointer. 0 when the layout is not known yet (no LLVM struct
+    // type, or an interface): the caller keeps the forward declaration.
+    public pointer classStruct(const SemaClassType cls) {
+        pointer sty = cls.getLlvmStructType()
+        if sty == 0 {
+            return 0
+        }
+        if cls.getClassKind() == SemaClassKind.INTERFACE {
+            return 0
+        }
+        pointer td
+        this.llvm.getModuleDataLayout(this.module, td)
+        if td == 0 {
+            return 0
+        }
+        int base = 1
+        if cls.getClassKind() == SemaClassKind.STRUCT {
+            base = 0
+        }
+        List<SemaClassAttribute> attrs = CodeGenClass.allAttributes(cls)
+        List<pointer> members = new List<pointer>()
+        int i = 0
+        while i < attrs.size() {
+            SemaClassAttribute a = attrs.get(i)
+            SemaType at = a.getType()
+            pointer mty = 0
+            if at != null {
+                SemaClassType acls = at.asClass()
+                mty = this.typeFor(at)
+                if acls != null {
+                    if acls.getClassKind() == SemaClassKind.STRUCT {
+                        mty = this.classStruct(acls)
+                    }
+                }
+            }
+            if mty != 0 {
+                pointer ety
+                this.llvm.structGetTypeAtIndex(sty, i + base, ety)
+                long off = 0
+                this.llvm.offsetOfElement(td, sty, i + base, off)
+                long sz = 0
+                this.llvm.abiSizeOfType(td, ety, sz)
+                pointer m
+                this.llvm.diCreateMemberType(this.db, this.cuFile, a.getName(), this.cuFile, sz * 8, 0, off * 8, mty, m)
+                members.add(m)
+            }
+            i = i + 1
+        }
+        long total = 0
+        this.llvm.abiSizeOfType(td, sty, total)
+        int count = (int)members.size()
+        pointer elems = 0
+        if count > 0 {
+            elems = mem.alloc((long)count * 8)
+            int k = 0
+            while k < count {
+                mem.writePtr(elems, (long)k * 8, members.get(k))
+                k = k + 1
+            }
+        }
+        pointer d
+        this.llvm.diCreateStructType(this.db, this.cuFile, cls.getName(), this.cuFile, total * 8, 64, elems, count, d)
         return d
     }
 

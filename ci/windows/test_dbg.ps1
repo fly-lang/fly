@@ -76,6 +76,25 @@ void main() {
     int x = 10
     int y = 32
     int r = add(x, y)
+    Box bx = new Box()
+    bx.v = r
+    int z = bx.v
+}
+
+struct Pt {
+    int x
+    int y
+}
+
+class Box {
+    public int v
+    public Pt p
+
+    public Box() {
+        this.v = 0
+        this.p.x = 3
+        this.p.y = 4
+    }
 }
 '@ | Set-Content "$OUT/dbg_probe.fly" -Encoding UTF8
 
@@ -87,7 +106,7 @@ if ($LASTEXITCODE -ne 0 -or -not (Test-Path "$OUT/dbg_probe.exe")) {
     Write-Host "  FAIL  probe compile ($FLY --debug-symbols)"; Get-Content "$OUT/compile.log" | Select-Object -Last 10; exit 1
 }
 
-$bp = & $DBG -b -o 'breakpoint set -f dbg_probe.fly -l 2' -o 'run' -o 'bt 2' -o 'frame variable a b' -o 'next' -o 'frame variable s' -o 'continue' `
+$bp = & $DBG -b -o 'breakpoint set -f dbg_probe.fly -l 2' -o 'run' -o 'bt 2' -o 'frame variable a b' -o 'next' -o 'frame variable s' -o 'breakpoint set -f dbg_probe.fly -l 12' -o 'continue' -o 'frame variable *bx' -o 'continue' `
              -- "$OUT/dbg_probe.exe" 2>&1 | Out-String
 if ($LASTEXITCODE -ne 0) { Write-Host "  FAIL  lldb batch run (exit $LASTEXITCODE)"; Write-Host $bp; exit 1 }
 # Each expectation is one thing the debug info must get right.
@@ -98,12 +117,13 @@ $expect = [ordered]@{
     '\(int\) a = 10[\s\S]*\(int\) b = 32'                = 'parameters have their values'
     'stop reason = step over[\s\S]*add\(.*\) at dbg_probe\.fly:3' = 'next steps to the following line'
     '\(int\) s = 42'                                      = 'the local holds a + b after the step'
+    '\(Box\) \*bx = \{[\s\S]*v = 42[\s\S]*p = \(x = 3, y = 4\)' = 'class fields, an inline struct among them'
     'exited with status = 0'                              = 'probe exited cleanly'
 }
 foreach ($re in $expect.Keys) {
     if ($bp -notmatch $re) { Write-Host "  FAIL  $($expect[$re]) (no match for /$re/)"; Write-Host $bp; exit 1 }
 }
-Write-Host '  ok    self-host DWARF: breakpoint at dbg_probe.fly:2, caller at :9, a=10 b=32, step to :3 with s=42, exit 0'
+Write-Host '  ok    self-host DWARF: breakpoint at dbg_probe.fly:2, caller at :9, a=10 b=32, step to :3 with s=42, Box fields v=42 p=(3,4), exit 0'
 
 # -- 3. lldb-dap presence -------------------------------------------------------
 $DAP = "$BIN/lldb-dap.exe"
