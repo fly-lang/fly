@@ -64,7 +64,10 @@ suite ExecErrorSuite {
             bool caught = error
             assert.assertTrue(caught, 301)
         }
-        case "block continues after a callee fail (no unwinding)": {
+        // 0.15.1: a failure is not ignorable — a callee fail stops the handle's
+        // block right after the call, exactly like a direct `fail` (it used to
+        // run on: the old "no unwinding" rule).
+        case "a callee fail skips the rest of the handle": {
             int seen = 0
             handle {
                 execErrBoom()
@@ -72,7 +75,7 @@ suite ExecErrorSuite {
             }
             bool caught = error
             assert.assertTrue(caught, 311)
-            assert.assertEqI(seen, 1, 312)
+            assert.assertEqI(seen, 0, 312)
         }
         case "handle consumes the error: next window is clean": {
             handle {

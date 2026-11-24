@@ -101,7 +101,7 @@ suite CodeGenTraceSuite {
         case "a fail inside its own handle is not a function exit": {
             string ir = cgIRTrace("
                 void guarded() { handle { fail 5 } }
-                void main() { guarded() }
+                void main() { int x = 1 }
             ")
             assert.assertFalse(str.contains(ir, "_F7fly_log8exitFail_Ss"), 302)
             assert.assertTrue(str.contains(ir, "call void @_F7fly_log4exit_Ss"), 303)

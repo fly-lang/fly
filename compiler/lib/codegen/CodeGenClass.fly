@@ -11,6 +11,7 @@ import fly.compiler.codegen.CodeGenType
 import fly.compiler.codegen.CodeGenIntrinsics
 import fly.compiler.codegen.CodeGenTrace
 import fly.compiler.codegen.CodeGenStmt
+import fly.compiler.codegen.CodeGenError
 import llvm.api.*
 import fly.data.List
 import fly.str
@@ -733,6 +734,7 @@ public class CodeGenClass {
             pointer cv
             cg.buildCallN(b, cty, cf, argAddrs, "", cv)
             CodeGenExprOps.freeArgTemps(cge, argTemps)
+            CodeGenError.propagate(cge)
         }
         // `new CLang("libm.so")` → register the -lm linker flag (bridge)
         if CodeGenBridge.isCLangClass(cls) {
@@ -921,6 +923,7 @@ public class CodeGenClass {
         pointer cv
         cg.buildCallN(b, fnTy, fnPtr, argAddrs, "", cv)
         CodeGenExprOps.freeArgTemps(cge, argTemps)
+        CodeGenError.propagate(cge)
         if hasOut {
             pointer oty2 = cge.lowerType(outVar.getType())
             pointer loaded
