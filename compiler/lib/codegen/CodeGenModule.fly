@@ -895,7 +895,12 @@ public class CodeGenModule {
                 List<SemaClassType> specs = cls.getSpecializationList()
                 int s = 0
                 while s < specs.size() {
-                    result.add(specs.get(s))
+                    // an unused class specialization has no resolved bodies and
+                    // no code (lazy generics, SemaClassType.needsCode)
+                    SemaClassType sp = specs.get(s)
+                    if sp.needsCode() {
+                        result.add(sp)
+                    }
                     s = s + 1
                 }
             } else {

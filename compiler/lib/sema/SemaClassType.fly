@@ -11,6 +11,7 @@ import fly.compiler.sema.SemaTypeParam
 import fly.compiler.sema.SemaModule
 import fly.compiler.sema.SemaVisibilityKind
 import fly.compiler.sema.SymbolTable
+import fly.compiler.sema.Registry
 import fly.compiler.ast.ASTClass
 import fly.compiler.ast.ASTClassKind
 import fly.compiler.ast.ASTModule
@@ -62,6 +63,13 @@ public class SemaClassType : SemaType {
     string mangledName
     pointer llvmStructType   // CodeGen back-pointer: the LLVM struct type (null until codegen'd)
     pointer llvmVTable       // CodeGen back-pointer: the LLVM vtable global (null until codegen'd)
+    // Lazy instantiation (0.15.1): a CLASS specialization gets its method bodies
+    // resolved and its code emitted only once something reachable USES it. A type
+    // that only appears in a signature (List<string> in a header) costs nothing.
+    bool usedFlag
+    List<SemaClassMethod> pendingBodies   // bodies waiting for the first use
+    List<SemaClassType> pendingDeps       // specializations its fields need, used along with it
+    Registry pendingReg                   // where the waiting bodies go
 
     public SemaClassType(const ASTClass classAst, const SemaModule module, const SymbolTable symbols) {
         super(SemaKind.TYPE_CLASS, classAst.getName())
@@ -87,6 +95,10 @@ public class SemaClassType : SemaType {
         this.mangledName = ""
         this.llvmStructType = 0
         this.llvmVTable = 0
+        this.usedFlag = false
+        this.pendingBodies = new List<SemaClassMethod>()
+        this.pendingDeps = new List<SemaClassType>()
+        this.pendingReg = null
         ASTClassKind ak = classAst.getClassKind()
         SemaClassKind sk = SemaClassKind.CLASS
         if ak == ASTClassKind.INTERFACE {
@@ -289,6 +301,66 @@ public class SemaClassType : SemaType {
     }
     public void setLlvmVTable(const pointer t) {
         this.llvmVTable = t
+    }
+
+    // isLazySpec — a specialization of a generic CLASS: built only when used.
+    // Struct specializations stay eager (a struct is laid out INLINE wherever it
+    // appears, so its layout is needed even without a use), and so do interfaces.
+    public bool isLazySpec() {
+        if this.genericTemplate == null {
+            return false
+        }
+        return this.classKind == SemaClassKind.CLASS
+    }
+    public bool isUsed() {
+        return this.usedFlag
+    }
+    // needsCode — does codegen emit this class? Everything but an unused lazy spec.
+    public bool needsCode() {
+        if this.isLazySpec() == false {
+            return true
+        }
+        return this.usedFlag
+    }
+    // waitsForUse — an unused lazy spec, whose bodies and deps are held back.
+    public bool waitsForUse() {
+        if this.isLazySpec() == false {
+            return false
+        }
+        return this.usedFlag == false
+    }
+    public void deferBody(const SemaClassMethod m, const Registry reg) {
+        this.pendingBodies.add(m)
+        this.pendingReg = reg
+    }
+    public void addPendingDep(const SemaClassType d) {
+        this.pendingDeps.add(d)
+    }
+    // markUsed — the first use: queue the waiting bodies for the body pass, and
+    // mark what the code of this class needs: its bases (the vtable holds their
+    // methods) and the specializations of its fields. Safe on any class.
+    public void markUsed() {
+        if this.usedFlag {
+            return
+        }
+        this.usedFlag = true
+        int i = 0
+        while i < this.pendingBodies.size() {
+            this.pendingReg.addBody(this.pendingBodies.get(i))
+            i = i + 1
+        }
+        this.pendingBodies = new List<SemaClassMethod>()
+        int b = 0
+        while b < this.baseClasses.size() {
+            this.baseClasses.get(b).markUsed()
+            b = b + 1
+        }
+        int d = 0
+        while d < this.pendingDeps.size() {
+            this.pendingDeps.get(d).markUsed()
+            d = d + 1
+        }
+        this.pendingDeps = new List<SemaClassType>()
     }
 
     // addAttribute / addMethod — append to Nodes and index by name. Overloaded

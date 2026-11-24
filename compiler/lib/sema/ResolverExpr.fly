@@ -524,6 +524,10 @@ public class ResolverExpr {
                         SemaClassAttribute sattr2 = stc.LookupAttribute(node.getName())
                         if sattr2 != null {
                             if sattr2.isStatic() {
+                                SemaClassType sowner = sattr2.getClass()
+                                if sowner != null {
+                                    sowner.markUsed()
+                                }
                                 SemaMember sm2 = SemaBuilder.CreateMemberVar(node, sattr2, null)
                                 sm2.setStaticAttr(sattr2)
                                 r.setCurrentExpr(sm2)
@@ -605,6 +609,11 @@ public class ResolverExpr {
                 r.setCurrentExpr(null)
                 return
             }
+        }
+        // reading a field needs the class's layout: a use (lazy generics)
+        SemaClassType fowner = attr.getClass()
+        if fowner != null {
+            fowner.markUsed()
         }
         SemaMember mem = SemaBuilder.CreateMemberVar(node, attr, pe)
         // A `const` field is written once, by a constructor of its own class;

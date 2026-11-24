@@ -37,6 +37,7 @@ public class Resolver : ASTVisitor {
 
     Registry reg
     bool testMode
+    bool inBodies          // Phase C: a type named here is a USE (lazy generics)
 
     SymbolTable currentScope
     SemaModule currentModule
@@ -108,6 +109,7 @@ public class Resolver : ASTVisitor {
     public Resolver(const Registry reg, const bool testMode) {
         this.reg = reg
         this.testMode = testMode
+        this.inBodies = false
         ResolverRun.last = ResolverRun.last + 1
         this.run = ResolverRun.last
         this.currentModuleIsHeader = false
@@ -181,6 +183,9 @@ public class Resolver : ASTVisitor {
     }
 
     // ── accessors for companions ────────────────────────────────────────────
+    public bool isInBodies() {
+        return this.inBodies
+    }
     public Registry getReg() {
         return this.reg
     }
@@ -510,6 +515,9 @@ public class Resolver : ASTVisitor {
             ci = ci + 1
         }
 
+        // A specialization first used in a body queues ITS bodies onto this same
+        // list (SemaClassType.markUsed), so the loop reaches them too.
+        this.inBodies = true
         List<SemaFunctionBase> bodies = this.reg.getBodies()
         int bi = 0
         while bi < bodies.size() {
@@ -517,6 +525,7 @@ public class Resolver : ASTVisitor {
             ResolverDecl.resolveBody(this, fb)
             bi = bi + 1
         }
+        this.inBodies = false
     }
 
     // ── top-level visits ────────────────────────────────────────────────────

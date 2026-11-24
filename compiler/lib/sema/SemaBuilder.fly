@@ -299,6 +299,16 @@ public class SemaBuilder {
     public static SemaCall CreateCall(const ASTCall ast, const SemaType type, const SemaFunctionBase function) {
         SemaCall call = new SemaCall(ast, type)
         call.setFunction(function)
+        // a call into a class (method, constructor) uses that class's code
+        if function != null {
+            SemaClassMethod m = function.asClassMethod()
+            if m != null {
+                SemaClassType mc = m.getClass()
+                if mc != null {
+                    mc.markUsed()
+                }
+            }
+        }
         return call
     }
 
