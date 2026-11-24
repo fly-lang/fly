@@ -14,6 +14,8 @@ import fly.lsp.navModeCallAt
 import fly.lsp.navModeCalls
 import fly.str
 import fly.os.fs
+import fly.os.env
+import fly.os.path
 import fly.data.List
 import fly.assert
 import fly.lsp
@@ -214,7 +216,46 @@ bool symNamed(const List<LspSym> xs, const string name, const int kind) {
     return false
 }
 
+// lspScratch — the suite's working directory: a fresh directory under the OS
+// temp dir, OUTSIDE the repository. The fixtures are written relative to the
+// working directory, and resolveRoot walks up from a file to the nearest
+// Manifest.fly: inside the repo it would find the repository's own (0.15.2) and
+// every fixture would belong to the Fly project.
+string lspScratch() {
+    string tmp = env.get("TMPDIR")
+    if str.isEmpty(tmp) {
+        tmp = env.get("TEMP")
+    }
+    if str.isEmpty(tmp) {
+        tmp = "/tmp"
+    }
+    return path.join(tmp, "fly_lsp_analyzer_suite")
+}
+
 suite LspAnalyzerSuite {
+
+    // setup / teardown — run the cases in the scratch directory (see lspScratch);
+    // the environment variable keeps the directory to come back to.
+    void setup() {
+        env.set("FLY_LSP_SUITE_HOME", env.cwdGet())
+        string d = lspScratch()
+        if fs.exists(d) {
+            fs.dirDeleteAll(d)
+        }
+        fs.dirCreateAll(d, 493)
+        env.cwdSet(d)
+    }
+
+    void teardown() {
+        string home = env.get("FLY_LSP_SUITE_HOME")
+        if str.isEmpty(home) == false {
+            env.cwdSet(home)
+        }
+        string d = lspScratch()
+        if fs.exists(d) {
+            fs.dirDeleteAll(d)
+        }
+    }
 
     // ── before any compile ───────────────────────────────────────────────────
     void beforeCompileTest() {
