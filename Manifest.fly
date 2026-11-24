@@ -5,10 +5,10 @@ import fly.meta.*
 // ─────────────────────────────────────────────────────────────────────────────
 // Manifest.fly — the package manifest of Fly itself: compiler, runtime, standard
 // library and tools. Since 0.15.2 it is the SINGLE source of truth for the
-// version: the build scripts read `version` from here and generate the module
-// that answers `fly --version` (ci/*/gen_package), and release.yml tags the
-// release with it. Bump the version here and ONLY here; keep the line's shape
-// (`string version = "x.y.z"`) stable, the scripts read it with a pattern.
+// version: `fly build` writes it into the `fly.meta.package` module that
+// answers `fly --version`, and release.yml tags the release with it. Bump the
+// version here and ONLY here; keep the line's shape (`string version = "x.y.z"`)
+// stable: release.yml and test_fly_build read it with a pattern.
 //
 // `flyVersion` is the toolchain that builds this tree: the pinned stage-0 seed
 // (ci/*/stage0 FLY_VERSION).

@@ -11,7 +11,7 @@ cd "$(dirname "$0")/../.."
 
 STAGE="${STAGE:-2}"
 EXE="build/stage$STAGE/bin/fly-registry"
-[ -x "$EXE" ] || { echo "error: '$EXE' not found - run build_registry.sh first."; exit 1; }
+[ -x "$EXE" ] || { echo "error: '$EXE' not found - run ci/linux/stage2.sh first."; exit 1; }
 EXE="$(cd "$(dirname "$EXE")" && pwd)/$(basename "$EXE")"
 
 FIX="std/test/fixtures/regpkg.tar.gz"

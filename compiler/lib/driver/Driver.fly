@@ -1390,8 +1390,8 @@ public class Driver {
     }
 
     // printVersion — the --version text. The version number lives in ONE place:
-    // the generated build/gen/Version.fly, from the root Manifest.fly (release.yml
-    // reads the version from Manifest.fly too).
+    // the root Manifest.fly, through the fly.meta.package module `fly build`
+    // generates (release.yml reads the version from Manifest.fly too).
     public void printVersion() {
         io.printLn(str.concat(str.concat("fly version ", flyVersion()), " (https://flylang.org)"))
     }

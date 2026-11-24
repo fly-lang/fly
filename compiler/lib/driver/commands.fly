@@ -49,7 +49,7 @@ public Manifest loadManifest(int errOut) {
 
 public int cmdVersion() {
     // Same single source of truth as `fly --version` (the root Manifest.fly, via the
-    // generated build/gen/Version.fly).
+    // fly.meta.package module `fly build` generates).
     io.printLn(str.concat("fly ", flyVersion()))
     return 0
 }

@@ -29,8 +29,6 @@ $PSNativeCommandUseErrorActionPreference = $false
 
 # Scripts live in ci\windows\; operate from the project root (two levels up).
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
-# the package module (build\gen\package.fly) the compiler sources need, from Manifest.fly
-& "$PSScriptRoot\gen_package.ps1" | Out-Null
 
 # The CodeGen/Target suites link the LLVM C API, so their test executables import
 # LLVM-C.dll. They run from $OUT, not next to the DLL, so put the LLVM bin dir on
@@ -70,6 +68,13 @@ $STAGE = if ($env:STAGE) { $env:STAGE } else { '2' }
 $STAGE_PREV = "stage$STAGE"
 $STAGE_FLY  = "build/$STAGE_PREV/bin/fly.exe"
 $FLY = if ($env:FLY) { $env:FLY } else { $STAGE_FLY }
+# The `fly.meta.package` module the compiler sources import (Version.fly), as
+# `fly build` wrote it for the stage's own compiler from Manifest.fly.
+$PKG = "build/$STAGE_PREV/.fly/gen/fly"
+if (-not (Test-Path "$PKG/package.fly" -PathType Leaf)) {
+    Write-Host "error: $PKG\package.fly missing - run ci\windows\$STAGE_PREV.ps1 first."
+    exit 1
+}
 
 # Both stages link the SAME fork LLVM, so a difference between the runs is never
 # the LLVM underneath. stage0.ps1 exports LIB through $GITHUB_ENV in CI; a local
@@ -140,9 +145,9 @@ $perSuite = ($env:FLY_TEST_PER_SUITE -eq '1')
 if (-not $perSuite) {
     $log = "$OUT/_oneshot.log"
     if ($SEL) {
-        & $FLY --suite=$SEL --src-dir compiler --src-dir build/gen -o test_all --out-dir $OUT -L $STD *> $log
+        & $FLY --suite=$SEL --src-dir compiler --src-dir $PKG -o test_all --out-dir $OUT -L $STD *> $log
     } else {
-        & $FLY --suite --src-dir compiler --src-dir build/gen -o test_all --out-dir $OUT -L $STD *> $log
+        & $FLY --suite --src-dir compiler --src-dir $PKG -o test_all --out-dir $OUT -L $STD *> $log
     }
     $code = $LASTEXITCODE
 
@@ -207,7 +212,7 @@ foreach ($suite in $selected) {
     # is discovered by name from the compiler/ tree (suite names repeat across
     # trees — ManifestSuite also exists in std/test — and compiler/ as the root
     # keeps the driver/compiler imports resolving from source).
-    & $FLY --suite=$name --src-dir compiler --src-dir build/gen -o "test_$name" --out-dir $OUT -L $STD *> $log
+    & $FLY --suite=$name --src-dir compiler --src-dir $PKG -o "test_$name" --out-dir $OUT -L $STD *> $log
     if ($LASTEXITCODE -eq 0) {
         Write-Host "  PASS          $name"
         $pass++

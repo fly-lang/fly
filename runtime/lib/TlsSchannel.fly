@@ -7,8 +7,8 @@ namespace fly.runtime
 // whole rationale; this file defines exactly the same seven symbols as that stub
 // and as runtime/lib/TlsOpenSSL.fly on Linux.
 //
-// ITS GENERATED HEADER IS DISCARDED by build_runtime: TlsStub's header is the
-// canonical declaration, because it is the one that exists on every platform.
+// TlsStub's header is the canonical declaration of the tls_* symbols, because
+// it is the one that exists on every platform.
 //
 // ── the layouts, which are where Schannel implementations go wrong ───────────
 // Everything below is built byte by byte, so the offsets are load-bearing. On

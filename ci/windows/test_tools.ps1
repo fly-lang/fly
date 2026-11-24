@@ -18,8 +18,6 @@
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
-# the package module (build\gen\package.fly) the compiler sources need, from Manifest.fly
-& "$PSScriptRoot\gen_package.ps1" | Out-Null
 
 $SEL = if ($args.Count -gt 0 -and $args[0]) { $args[0] } elseif ($env:FLY_TEST_SUITE) { $env:FLY_TEST_SUITE } else { '' }
 
@@ -27,6 +25,12 @@ $STAGE = if ($env:STAGE) { $env:STAGE } else { '2' }
 $FLY = if ($env:FLY) { $env:FLY } else { "build/stage$STAGE/bin/fly.exe" }
 if (-not (Test-Path $FLY -PathType Leaf)) { Write-Host "error: compiler '$FLY' not found."; exit 1 }
 $FLY = (Resolve-Path $FLY).Path
+# The `fly.meta.package` module the compiler sources import (Version.fly), as
+# `fly build` wrote it for the stage's own compiler from Manifest.fly.
+$PKG = "build/stage$STAGE/.fly/gen/fly"
+if (-not (Test-Path "$PKG/package.fly" -PathType Leaf)) {
+    Write-Host "error: $PKG\package.fly missing - run ci\windows\stage$STAGE.ps1 first."; exit 1
+}
 
 # The analyzer's import closure reaches CodeGen, so the suite executables import
 # LLVM-C.dll; they run from $OUT, not next to it.
@@ -51,7 +55,7 @@ foreach ($s in $SUITES) {
     if ($SEL -and $s.Name -ne $SEL) { continue }
     $log = "$OUT/tools_$($s.Name).log"
     if ($s.Compiler) {
-        & $FLY --suite=$($s.Name) --src-dir $($s.Root) --src-dir compiler/lib --src-dir build/gen `
+        & $FLY --suite=$($s.Name) --src-dir $($s.Root) --src-dir compiler/lib --src-dir $PKG `
                -o "test_$($s.Name)" --out-dir $OUT -L $STD *> $log
     } else {
         & $FLY --suite=$($s.Name) --src-dir $($s.Root) `

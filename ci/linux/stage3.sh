@@ -47,8 +47,8 @@ for need in "$FLY2" "$OBJ2"; do
 done
 PROFILE=dist; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && PROFILE=dist-debug
 
-# build_compiler DIR — the compiler target, built by the stage-2 fly into DIR.
-build_compiler() {
+# compile_fly DIR — the compiler target, built by the stage-2 fly into DIR.
+compile_fly() {
     local dir="$1"
     rm -rf "$dir"
     mkdir -p "$dir"
@@ -66,7 +66,7 @@ size() { wc -c < "$1" | tr -d ' '; }
 
 echo "stage3: compiling the compiler with the stage2 fly (fixpoint check, profile $PROFILE) ..."
 start=$SECONDS
-build_compiler build/stage3
+compile_fly build/stage3
 echo "stage3: built in $((SECONDS - start))s"
 OBJ3=build/stage3/bin/fly.o
 h2="$(sha "$OBJ2")"; h3="$(sha "$OBJ3")"
@@ -78,7 +78,7 @@ if [ "$h2" = "$h3" ]; then
 fi
 
 echo "stage3: objects differ — building once more to classify ..."
-build_compiler build/stage3_repeat
+compile_fly build/stage3_repeat
 OBJ3B=build/stage3_repeat/bin/fly.o
 h3b="$(sha "$OBJ3B")"
 echo "  stage3' fly.o $h3b  ($(size "$OBJ3B") bytes)"

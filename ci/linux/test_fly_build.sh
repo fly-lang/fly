@@ -27,7 +27,9 @@ OUT=build/test/fly_build
 rm -rf "$OUT"
 mkdir -p "$OUT"
 
-VERSION="$(bash ci/linux/gen_package.sh)"
+# The version Manifest.fly declares (`string version = "x.y.z"`, its single source).
+VERSION="$(sed -n 's/^[[:space:]]*string[[:space:]]\{1,\}version[[:space:]]*=[[:space:]]*"\([0-9]*\.[0-9]*\.[0-9]*\)".*/\1/p' Manifest.fly | head -1)"
+[ -n "$VERSION" ] || { echo '  FAIL  Manifest.fly has no `string version = "x.y.z"` line'; exit 1; }
 
 # -- the layout of the release ----------------------------------------------------
 R="build/stage$STAGE"

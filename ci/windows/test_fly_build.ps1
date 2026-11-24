@@ -23,7 +23,10 @@ $OUT = 'build/test/fly_build'
 Remove-Item $OUT -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $OUT | Out-Null
 
-$version = & "$PSScriptRoot\gen_package.ps1"
+# The version Manifest.fly declares (`string version = "x.y.z"`, its single source).
+$m = Select-String -Path 'Manifest.fly' -Pattern '^\s*string\s+version\s*=\s*"([0-9]+\.[0-9]+\.[0-9]+)"' | Select-Object -First 1
+if (-not $m) { Write-Host '  FAIL  Manifest.fly has no `string version = "x.y.z"` line'; exit 1 }
+$version = $m.Matches[0].Groups[1].Value
 
 # -- the layout of the release ----------------------------------------------------
 $R = "build/stage$STAGE"

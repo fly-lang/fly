@@ -13,8 +13,8 @@
 # by the stage-1 fly, plus the LLVM pieces stage 0 fetched (libLLVM, ld.lld,
 # lldb, compiler-rt builtins, llvm.fly.h), laid out as the release: bin/ and
 # lib/, the executables finding lib/ through $ORIGIN/../lib. Up to 0.15 the
-# stage ran build_runtime, build_std, build_compiler, link_fly, build_lsp and
-# build_registry; the Manifest now says what they said.
+# stage ran one hand-written script per artifact; the Manifest now says what
+# they said.
 #
 # A failed stage-2 build is FATAL: there is no fallback to the stage-1
 # artifacts. build/stage2 is what the release packages verbatim.

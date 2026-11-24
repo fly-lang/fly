@@ -107,10 +107,9 @@ public class FileWriter : Writer {
 // field reads survive the boundary intact, and so does INTERFACE dispatch (the
 // Reader.read/close pair, the same path FileReader relies on); it is specifically
 // the direct non-virtual method call that breaks. This is the "classes with
-// interface bases across the header boundary" fragility that ci/*/build_std
-// already warns about, and it is why the shipped std must stay the stage-1
-// (reference-ABI) build. The wrappers below keep every such call inside the
-// archive, so the API is usable today.
+// interface bases across the header boundary" fragility, and it is why the
+// shipped std must stay the stage-1 (reference-ABI) build. The wrappers below
+// keep every such call inside the archive, so the API is usable today.
 public class BufReader : Reader {
     // Raw pointer to the internal read-ahead buffer.
     pointer buf_ptr

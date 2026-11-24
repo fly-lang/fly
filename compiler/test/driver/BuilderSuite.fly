@@ -110,8 +110,8 @@ suite BuilderSuite {
 
             // The scratch project lives OUTSIDE the repo (OS temp dir): a leftover
             // in the repo root would be picked up by the directory CLI's discovery
-            // (--src-dir . in build_compiler) and abort the monolithic stage1 build
-            // with "multiple main()".
+            // (the compiler target's srcDirs) and abort the stage-1 build with
+            // "multiple main()".
             string tmp = env.get("TMPDIR")
             if str.isEmpty(tmp) {
                 tmp = env.get("TEMP")

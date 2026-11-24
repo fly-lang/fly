@@ -690,8 +690,7 @@ public class Builder {
     // the manifest's name, version and description as functions, so a program
     // reads its own manifest data (`import fly.meta.package`, then
     // `package.version()`). Functions, not static strings: a static string
-    // initializer is a known seed landmine. ci/*/gen_package writes the same text
-    // for the compiler's own build.
+    // initializer is a known seed landmine.
     public string packageModule() {
         string q = "\""
         string nl = "\n"

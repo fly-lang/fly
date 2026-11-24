@@ -14,8 +14,8 @@
 #           into build/stage2/ (the self-hosting fixpoint check).
 #
 # `fly build` (0.16): up to 0.15 this stage drove the seed with one hand-written
-# `fly --lib` / `fly -c` per artifact (build_runtime, build_std, build_compiler)
-# and linked fly in link_bin.sh. Now the Manifest describes the artifacts and
+# `fly --lib` / `fly -c` per artifact and linked fly by hand (those scripts are
+# gone since 0.16). Now the Manifest describes the artifacts and
 # the seed's own Builder compiles and links them, the same way any Fly project
 # is built. Profile `stage1` (`stage1-debug` with FLY_DEBUG_SYMBOLS=1), output
 # target/<profile>; see the profiles in Manifest.fly.
@@ -26,7 +26,7 @@
 # std), and every target finds there the headers of the ones before it —
 # the runtime's for TLS and std, the std headers for the compiler. `fly build`
 # writes a library as one object under the archive's name; it is wrapped in a
-# real archive here, as build_runtime.sh / build_std.sh do.
+# real archive here.
 #
 # The seed (0.15.2) knows neither `dir` nor `rpaths` and writes every target
 # flat into target/<profile>, but expands `@out/lib` — where the targets find
@@ -41,7 +41,8 @@
 # FLY_STAGE1_TESTS=0 skips the test steps (fast local builds; CI sets it and
 # runs the same three suites from its own "Test stage 1" step). The tools
 # (fly-lsp, fly-registry) are built at stage 2, by the fly that ships.
-# FLY_BUNDLE_LLVM=1 is honoured by link_fly.sh (bundle only, FLY_LINKED=1).
+# FLY_BUNDLE_LLVM=1 adds the LLVM bundle (libLLVM, the linker, the debugger):
+# the Manifest's copy targets, run by the stage-1 fly.
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -63,7 +64,7 @@ fi
 
 [ -x build/stage0/bin/fly ] || { echo "error: stage0 compiler missing — run ci/linux/stage0.sh first." >&2; exit 1; }
 [ -f build/stage0/lib/llvm.fly.h ] || { echo "error: build/stage0/lib/llvm.fly.h missing — run stage0.sh first." >&2; exit 1; }
-rm -rf "$BIN" "$LIB" "$T"
+rm -rf "$BIN" "$LIB" "$T" build/stage1/.fly
 mkdir -p "$BIN" "$LIB" "$TLIB"
 FLY0="$BIN/fly0"
 ln -f build/stage0/bin/fly "$FLY0" 2>/dev/null || cp -f build/stage0/bin/fly "$FLY0"
@@ -136,7 +137,29 @@ install_headers
 fly_build "$FLY0" fly
 [ -x "$T/fly" ] || { echo "error: $T/fly was not linked." >&2; exit 1; }
 cp -f "$T/fly" "$BIN/fly"
-FLY_LINKED=1 ./ci/linux/link_fly.sh
+# The `fly.meta.package` module the seed's Builder wrote for the compiler, where
+# stage 2 keeps its own (build/stage2/.fly/gen/fly): test_compiler and test_tools
+# compile the compiler sources with the stage's copy.
+PKG=build/stage1/.fly/gen/fly
+mkdir -p "$PKG"
+cp -f "$T/.fly/gen/fly/package.fly" "$PKG/package.fly"
+
+# ── the LLVM pieces, by the stage-1 fly (the Manifest's copy targets) ─────────
+# Into build/stage1 as stage 2 lays them out; the seed knows no copy targets.
+# The stage-1 fly carries no RUNPATH: it finds libLLVM through the loader path
+# stage0.sh exports. Always the compiler-rt builtins (Linux; libSystem has them
+# on macOS), linked into every program fly produces; with FLY_BUNDLE_LLVM=1 also
+# libLLVM, the linker and the debugger.
+llvm_copy() {
+    echo "stage1: fly build --profile $PROFILE --target $1 --out-dir build/stage1 (fly)"
+    "$BIN/fly" build --profile "$PROFILE" --target "$1" --out-dir build/stage1 \
+        || { echo "error: fly build --target $1 failed" >&2; exit 1; }
+}
+is_macos || llvm_copy llvm-linux-builtins
+if [ "${FLY_BUNDLE_LLVM:-0}" = "1" ]; then
+    llvm_copy "llvm-$OSKEY-bin"
+    llvm_copy "llvm-$OSKEY-lib"
+fi
 
 # ── the std again, built by the stage-1 fly (which honours `dir`) ─────────────
 fly_build "$BIN/fly" std --force

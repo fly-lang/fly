@@ -43,7 +43,6 @@ $script:GNU_llvmBin  = Join-Path $script:GNU_buildDir 'llvm\bin'
 $script:GNU_sysroot     = Join-Path $script:GNU_buildDir 'mingw'
 $script:GNU_sysrootLib  = Join-Path $script:GNU_sysroot 'lib'
 $script:GNU_builtinsDir = Join-Path $script:GNU_sysroot 'builtins'
-$script:GNU_lldLink     = Join-Path $script:GNU_llvmBin 'lld-link.exe'
 $script:GNU_ldLld       = Join-Path $script:GNU_llvmBin 'ld.lld.exe'
 $script:GNU_builtinsLib = Join-Path $script:GNU_builtinsDir 'libclang_rt.builtins-x86_64.a'
 
@@ -58,22 +57,4 @@ function Assert-LdLld {
 # True when the sysroot is already staged (used to skip the fetch, CI-cache style).
 function Test-MingwSysroot {
     return (Test-Path (Join-Path $script:GNU_sysrootLib 'crt2.o')) -and (Test-Path $script:GNU_builtinsLib)
-}
-
-# The mingw link inputs, in the order lld expects: startup objects, the program
-# and libraries go in between (added by the caller), then the terminators. This
-# returns @{ Pre = @(...); Post = @(...); LibDirs = @(...) } so callers can splice
-# their own objects/libs in the middle. Mirrors the proven scratchpad link line.
-function Get-MingwLinkParts {
-    $L = $script:GNU_sysrootLib
-    return @{
-        LibDirs = @("-L$L", "-L$script:GNU_builtinsDir")
-        Pre     = @((Join-Path $L 'crt2.o'), (Join-Path $L 'crtbegin.o'))
-        # -lmingw32 brackets the builtins archive; the Win32 import libs follow.
-        Post    = @(
-            '-lmingw32', $script:GNU_builtinsLib, '-lmoldname', '-lmingwex', '-lmsvcrt',
-            '-ladvapi32', '-lshell32', '-luser32', '-lkernel32', '-lntdll', '-lws2_32', '-lwinhttp', '-lsynchronization', '-lmingw32',
-            (Join-Path $L 'crtend.o')
-        )
-    }
 }

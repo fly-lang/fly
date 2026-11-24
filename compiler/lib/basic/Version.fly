@@ -6,9 +6,9 @@ import fly.meta.package
 // Version — the compiler's version, as the root Manifest.fly declares it. Since
 // 0.15.2 the version lives ONLY in Manifest.fly (`string version`): the build
 // writes it into the `fly.meta.package` module, the same module `fly build`
-// gives every executable it builds (package.name/version/description). Today
-// ci/*/gen_package writes it into build/gen/package.fly; once the tree is built
-// with `fly build` (release/0.16.X) the Builder does. Consumed by:
+// gives every executable it builds (package.name/version/description), under
+// <out>/.fly/gen/<target>/package.fly; the stage scripts hand the compiler's copy
+// to the suites that compile the compiler sources. Consumed by:
 //   - Driver.printVersion()  (the `fly --version` output)
 //   - `fly new` (the flyVersion of a new project) and the build fingerprints
 //   - .github/workflows/release.yml reads the same Manifest.fly line.

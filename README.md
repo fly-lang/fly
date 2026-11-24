@@ -83,8 +83,8 @@ Fly builds itself in three stages:
 | Stage | What happens |
 |---|---|
 | 0 | downloads the pinned seed (Fly 0.15.2) and LLVM into `build/` |
-| 1 | the seed compiles runtime, std and compiler from this tree and links the first `fly`; the suites then run under it |
-| 2 | that `fly` recompiles the runtime and the compiler, builds the tools and runs every guard; `build/stage2` is what a release ships |
+| 1 | the seed runs `fly build` on this tree's `Manifest.fly`, one target at a time (runtime, std, compiler), and links the first `fly`; the suites then run under it |
+| 2 | that `fly` runs `fly build --profile dist --out-dir build/stage2`: runtime, std, compiler, tools and the LLVM pieces, then every guard; `build/stage2` is what a release ships |
 
 The seed version is pinned in `ci/linux/stage0.sh` and `ci/windows/stage0.ps1`.
 
@@ -93,7 +93,7 @@ The seed version is pinned in `ci/linux/stage0.sh` and `ci/windows/stage0.ps1`.
 Requires `gcc` and `libc6-dev` (for the C start-up objects), `ar` and `objcopy`.
 
 ```bash
-git clone --branch release/0.15.X https://github.com/fly-lang/fly.git
+git clone --branch release/0.16.X https://github.com/fly-lang/fly.git
 cd fly
 . ./ci/linux/stage0.sh        # sourced: it exports PATH and the library paths
 ./ci/linux/stage1.sh
@@ -112,7 +112,7 @@ that programs link against. The same POSIX scripts as Linux are used; Homebrew i
 not needed.
 
 ```bash
-git clone --branch release/0.15.X https://github.com/fly-lang/fly.git
+git clone --branch release/0.16.X https://github.com/fly-lang/fly.git
 cd fly
 . ./ci/linux/stage0.sh
 ./ci/linux/stage1.sh
@@ -126,7 +126,7 @@ No Visual Studio is needed, to build Fly or to use it: programs link against a b
 llvm-mingw / UCRT sysroot.
 
 ```powershell
-git clone --branch release/0.15.X --config core.autocrlf=false https://github.com/fly-lang/fly.git
+git clone --branch release/0.16.X --config core.autocrlf=false https://github.com/fly-lang/fly.git
 cd fly
 . .\ci\windows\stage0.ps1
 .\ci\windows\stage1.ps1
@@ -142,7 +142,7 @@ The result is `build/stage2/bin/fly` (`fly.exe` on Windows).
 | `FLY_BUNDLE_LLVM=1` | make each stage self-contained: LLVM, the linker and `lldb` next to `fly` (what CI and releases use) |
 | `FLY_STAGE1_TESTS=0` | skip the stage 1 suites for a faster local build |
 | `FLY_DEBUG_SYMBOLS=1` | DWARF in the stage 1 build |
-| `STAGE=1` / `STAGE=2` | select the stage for a single `ci/*/build_*` or `ci/*/test_*` script |
+| `STAGE=1` / `STAGE=2` | select the stage for a single `ci/*/test_*` script (one target alone: `fly build --target <name>`) |
 
 ### Run the tests
 

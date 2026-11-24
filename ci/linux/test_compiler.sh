@@ -16,8 +16,6 @@
 set -uo pipefail
 # Scripts live in ci/linux/; operate from the project root (two levels up).
 cd "$(dirname "$0")/../.."
-# the package module (build/gen/package.fly) the compiler sources need, from Manifest.fly
-bash ci/linux/gen_package.sh > /dev/null
 . ci/linux/platform.sh
 
 # Scratch for per-suite test binaries/logs; under build/ but separate from
@@ -54,6 +52,10 @@ STAGE="${STAGE:-2}"
 STAGE_PREV="stage$STAGE"
 STAGE_FLY="build/$STAGE_PREV/bin/fly"
 FLY="${FLY:-$STAGE_FLY}"
+# The `fly.meta.package` module the compiler sources import (Version.fly), as
+# `fly build` wrote it for the stage's own compiler from Manifest.fly.
+PKG="build/$STAGE_PREV/.fly/gen/fly"
+[ -f "$PKG/package.fly" ] || { echo "error: $PKG/package.fly missing — run ci/linux/$STAGE_PREV.sh first." >&2; exit 1; }
 
 # Both stages link the SAME fork LLVM, so a difference between the runs is never
 # the LLVM underneath. stage0.sh exports LIBRARY_PATH through $GITHUB_ENV in CI; a
@@ -123,9 +125,9 @@ fi
 if [ "${FLY_TEST_PER_SUITE:-}" != "1" ]; then
     log="$OUT/_oneshot.log"
     if [ -n "$SEL" ]; then
-        "$FLY" --suite="$SEL" --src-dir compiler --src-dir build/gen -o test_all --out-dir "$OUT" -L "$STD" >"$log" 2>&1
+        "$FLY" --suite="$SEL" --src-dir compiler --src-dir "$PKG" -o test_all --out-dir "$OUT" -L "$STD" >"$log" 2>&1
     else
-        "$FLY" --suite --src-dir compiler --src-dir build/gen -o test_all --out-dir "$OUT" -L "$STD" >"$log" 2>&1
+        "$FLY" --suite --src-dir compiler --src-dir "$PKG" -o test_all --out-dir "$OUT" -L "$STD" >"$log" 2>&1
     fi
     code=$?
 
@@ -188,7 +190,7 @@ for suite in $selected; do
     # discovered by name from the compiler/ tree (suite names repeat across
     # trees — ManifestSuite also exists in std/test — and compiler/ as the root
     # keeps the driver/compiler imports resolving from source).
-    if "$FLY" --suite="$name" --src-dir compiler --src-dir build/gen -o "test_$name" --out-dir "$OUT" -L "$STD" >"$log" 2>&1; then
+    if "$FLY" --suite="$name" --src-dir compiler --src-dir "$PKG" -o "test_$name" --out-dir "$OUT" -L "$STD" >"$log" 2>&1; then
         echo "  PASS          $name"
         pass=$((pass + 1))
     else

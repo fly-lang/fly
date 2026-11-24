@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
 # test_dbg.sh - smoke-test the bundled debugger (lldb, shipped under its
-# original LLVM name next to fly by link_fly.sh when FLY_BUNDLE_LLVM=1).
+# original LLVM name next to fly when FLY_BUNDLE_LLVM=1: the llvm-*-bin copy target).
 # Mirror of ci/windows/test_dbg.ps1.
 #
 # Three checks, cheap and deterministic (no Python — the bundled lldb is built
@@ -22,7 +22,7 @@
 #     incomplete. This is what CI runs.
 #   * plain dev build - the debugger stage0 provisions into build/llvm/bin
 #     (RUNPATH $ORIGIN/../lib finds liblldb in build/llvm/lib), the very files
-#     link_fly.sh would bundle. This used to SKIP, which meant a dev build never
+#     the bundle copies. This used to SKIP, which meant a dev build never
 #     exercised the DWARF round-trip at all. Only the
 #     shipped LAYOUT is left untested here, and only CI can test it.
 # Skips (exit 0) only when neither exists (stage0 was never run).

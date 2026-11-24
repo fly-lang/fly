@@ -6,9 +6,8 @@ namespace fly.runtime
 // never has its member extracted. See runtime/lib/TlsStub.fly for the whole
 // rationale; this file defines exactly the same seven symbols.
 //
-// ITS GENERATED HEADER IS DISCARDED by build_runtime: the canonical tls_*
-// declarations come from TlsStub, which exists on every platform. Emitting both
-// would declare the same functions twice in namespace fly.runtime.
+// The canonical tls_* declarations are TlsStub's header, the one that exists on
+// every platform.
 //
 // Every OpenSSL type here is an OPAQUE POINTER, so 1.1 vs 3.x is not an ABI
 // concern. The floor is OpenSSL 1.1.0 (2016): OPENSSL_init_ssl and SSL_set1_host

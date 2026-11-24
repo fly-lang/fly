@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 # test_dbg.ps1 - smoke-test the bundled debugger (lldb.exe, shipped under its
-# original LLVM name next to fly.exe by link_fly.ps1 when FLY_BUNDLE_LLVM=1).
+# original LLVM name next to fly.exe when FLY_BUNDLE_LLVM=1: the copy target llvm-windows).
 #
 # Three checks, all cheap and deterministic (no Python scripting needed — the
 # bundled lldb is built self-contained, scripting OFF; batch mode drives the
@@ -21,7 +21,7 @@
 #     FLY_BUNDLE_LLVM=1 a missing lldb.exe is a FAILURE: the artifact would be
 #     incomplete. This is what CI runs.
 #   * plain dev build - the debugger stage0 provisions into build\llvm\bin, the
-#     very files link_fly.ps1 would bundle. This used to SKIP, which meant a dev
+#     very files the bundle copies. This used to SKIP, which meant a dev
 #     build never exercised the DWARF round-trip at all.
 #     Only the shipped LAYOUT is left untested here, and only CI can test it.
 # Skips (exit 0) only when neither exists (stage0 was never run).
@@ -32,7 +32,6 @@ Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
 . "$PSScriptRoot\gnu_common.ps1"
 
 $STAGE = if ($env:STAGE) { $env:STAGE } else { '2' }
-$env:STAGE = $STAGE                          # link_bin.ps1 derives its lib dir from it
 # $BIN is the directory holding the debugger under test - lldb.exe AND
 # lldb-dap.exe (check 3) - so the two always come from the same layout.
 $BIN = "build/stage$STAGE/bin"

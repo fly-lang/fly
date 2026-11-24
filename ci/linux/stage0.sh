@@ -183,7 +183,7 @@ if [ ! -f "$RT_BUILTINS" ]; then
 fi
 
 # No system LLVM, and no `sudo`: the self-host ToolChain finds the compiler-rt
-# builtins next to its own binary (link_fly.sh copies them into
+# builtins next to its own binary (stage 1 and 2 copy them into
 # build/stage<N>/lib/clang/…, the layout the release ships) or in build/llvm.
 # This used to `sudo ln -s build/llvm /usr/lib/llvm-20` so the ToolChain's
 # system-path probe would hit — which also hid that a release without the

@@ -12,8 +12,7 @@
 # lldb, the mingw sysroot, llvm.fly.h), laid out as the release: bin\ and lib\.
 # The profile is `dist-debug` when FLY_DEBUG_SYMBOLS=1 (CI on push: DWARF, so a
 # crash symbolizes), `dist` otherwise (the release). Up to 0.15 the stage ran
-# build_runtime, build_std, build_compiler, link_fly, build_lsp and
-# build_registry; the Manifest now says what they said.
+# one hand-written script per artifact; the Manifest now says what they said.
 #
 # --keep-objects leaves each executable's object next to it; they are moved to
 # build\stage2\obj (outside what the release packages): stage 3 compiles the

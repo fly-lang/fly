@@ -9,7 +9,7 @@ cd "$(dirname "$0")/../.."
 
 STAGE="${STAGE:-2}"
 EXE="build/stage$STAGE/bin/fly-lsp"
-[ -x "$EXE" ] || { echo "error: '$EXE' not found - run build_lsp.sh first."; exit 1; }
+[ -x "$EXE" ] || { echo "error: '$EXE' not found - run ci/linux/stage2.sh first."; exit 1; }
 
 D="build/stage$STAGE/lsp_test"
 mkdir -p "$D"

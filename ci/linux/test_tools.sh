@@ -11,14 +11,16 @@
 # -----------------------------------------------------------------------------
 set -u
 cd "$(dirname "$0")/../.."
-# the package module (build/gen/package.fly) the compiler sources need, from Manifest.fly
-bash ci/linux/gen_package.sh > /dev/null
 
 SEL="${1:-${FLY_TEST_SUITE:-}}"
 STAGE="${STAGE:-2}"
 FLY="${FLY:-build/stage$STAGE/bin/fly}"
 [ -x "$FLY" ] || { echo "error: compiler '$FLY' not found."; exit 1; }
 FLY="$(cd "$(dirname "$FLY")" && pwd)/$(basename "$FLY")"
+# The `fly.meta.package` module the compiler sources import (Version.fly), as
+# `fly build` wrote it for the stage's own compiler from Manifest.fly.
+PKG="build/stage$STAGE/.fly/gen/fly"
+[ -f "$PKG/package.fly" ] || { echo "error: $PKG/package.fly missing — run ci/linux/stage$STAGE.sh first."; exit 1; }
 
 OUT="build/test"
 STD="std/lib"
@@ -37,7 +39,7 @@ for entry in $SUITES; do
     [ -n "$SEL" ] && [ "$SEL" != "$name" ] && continue
     log="$OUT/tools_$name.log"
     if [ "$needsc" = "1" ]; then
-        "$FLY" --suite="$name" --src-dir "$root" --src-dir compiler/lib --src-dir build/gen \
+        "$FLY" --suite="$name" --src-dir "$root" --src-dir compiler/lib --src-dir "$PKG" \
                -o "test_$name" --out-dir "$OUT" -L "$STD" > "$log" 2>&1
     else
         "$FLY" --suite="$name" --src-dir "$root" \

@@ -15,15 +15,11 @@ case "$(uname -s)" in
         HOST_PLATFORM="macos-arm64"
         DYLIB_EXT="dylib"
         LOADER_PATH_VAR="DYLD_LIBRARY_PATH"   # the dynamic loader's search path
-        RUNTIME_SRC="RuntimeMacos.fly"
-        EXE_RPATH='@loader_path/../lib'        # Mach-O spelling of $ORIGIN/../lib
         ;;
     *)
         HOST_PLATFORM="linux-x86_64"
         DYLIB_EXT="so"
         LOADER_PATH_VAR="LD_LIBRARY_PATH"
-        RUNTIME_SRC="RuntimeLinux.fly"
-        EXE_RPATH='$ORIGIN/../lib'
         ;;
 esac
 
@@ -36,13 +32,6 @@ sha256_of() {
     else
         shasum -a 256 "$1" | cut -d' ' -f1
     fi
-}
-
-# space_generic_closers IN OUT — rewrite `>>` as `> >` so nested generic closers
-# re-lex as two tokens. perl, not `sed ':a;…;ta'`: BSD sed rejects a label that
-# is not on a line of its own.
-space_generic_closers() {
-    perl -pe '1 while s/>>/> >/' "$1" > "$2"
 }
 
 # prepend_loader_path DIR — put DIR first on the dynamic loader's search path

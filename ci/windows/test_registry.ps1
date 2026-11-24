@@ -24,7 +24,7 @@ Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
 
 $STAGE = if ($env:STAGE) { $env:STAGE } else { '2' }
 $EXE = "build/stage$STAGE/bin/fly-registry.exe"
-if (-not (Test-Path $EXE)) { Write-Host "error: '$EXE' not found - run build_registry.ps1 first."; exit 1 }
+if (-not (Test-Path $EXE)) { Write-Host "error: '$EXE' not found - run ci/windows/stage2.ps1 first."; exit 1 }
 $EXE = (Resolve-Path $EXE).Path
 
 $FIX = 'std/test/fixtures/regpkg.tar.gz'

@@ -42,8 +42,8 @@ jobs:
         shell: bash
         run: |
           # The root Manifest.fly is the single source of the version (0.15.2):
-          # the same pattern ci/linux/gen_package.sh reads it with.
-          VERSION=$(bash ci/linux/gen_package.sh)
+          # its `string version = "x.y.z"` line, the pattern test_fly_build reads too.
+          VERSION=$(sed -n 's/^[[:space:]]*string[[:space:]]\{1,\}version[[:space:]]*=[[:space:]]*"\([0-9]*\.[0-9]*\.[0-9]*\)".*/\1/p' Manifest.fly | head -1)
           [ -n "$VERSION" ] || { echo "ERROR: no version input and Manifest.fly has no 'string version = \"x.y.z\"' line"; exit 1; }
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Resolved version: $VERSION"

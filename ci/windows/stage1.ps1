@@ -14,8 +14,8 @@
 #           into build\stage2 (the self-hosting fixpoint check).
 #
 # `fly build` (0.16): up to 0.15 this stage drove the seed with one hand-written
-# `fly --lib` / `fly -c` per artifact (build_runtime, build_std, build_compiler)
-# and linked fly.exe in link_bin.ps1. Now the Manifest describes the artifacts
+# `fly --lib` / `fly -c` per artifact and linked fly.exe by hand (those scripts
+# are gone since 0.16). Now the Manifest describes the artifacts
 # and the seed's own Builder compiles and links them, the same way any Fly
 # project is built. Profile `stage1` (`stage1-debug` with FLY_DEBUG_SYMBOLS=1),
 # output target\<profile>; see the profiles in Manifest.fly.
@@ -39,7 +39,8 @@
 # FLY_STAGE1_TESTS=0 skips the test steps (fast local builds; CI sets it and
 # runs the same three suites from its own "Test stage 1" step). The tools
 # (fly-lsp, fly-registry) are built at stage 2, by the fly that ships.
-# FLY_BUNDLE_LLVM=1 is honoured by link_fly.ps1 (bundle only, FLY_LINKED=1).
+# FLY_BUNDLE_LLVM=1 adds the LLVM bundle next to fly.exe: the Manifest's copy
+# target llvm-windows, run by the stage-1 fly (the seed knows no copy targets).
 # -----------------------------------------------------------------------------
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
@@ -60,7 +61,7 @@ if (-not (Test-Path 'build/stage0/bin/fly.exe' -PathType Leaf)) {
 if (-not (Test-Path 'build/stage0/lib/llvm.fly.h')) {
     Write-Host "error: build\stage0\lib\llvm.fly.h missing - run stage0.ps1 first."; exit 1
 }
-Remove-Item $BIN, $LIB, $T -Recurse -Force -ErrorAction SilentlyContinue
+Remove-Item $BIN, $LIB, $T, 'build/stage1/.fly' -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $BIN, $LIB, $TLIB | Out-Null
 $FLY0 = "$BIN/fly0.exe"
 try { New-Item -ItemType HardLink -Path $FLY0 -Target (Resolve-Path 'build/stage0/bin/fly.exe').Path -ErrorAction Stop | Out-Null }
@@ -128,9 +129,23 @@ Install-Headers
 Invoke-FlyBuild $FLY0 'fly'
 if (-not (Test-Path "$T/fly.exe")) { Write-Host "error: $T\fly.exe was not linked."; exit 1 }
 Copy-Item "$T/fly.exe" "$BIN/fly.exe" -Force
-$env:FLY_LINKED = '1'
-try { & '.\ci\windows\link_fly.ps1' } finally { Remove-Item Env:FLY_LINKED -ErrorAction SilentlyContinue }
-if ($LASTEXITCODE -ne 0) { Write-Host "error: link_fly.ps1 failed (exit $LASTEXITCODE)"; exit 1 }
+# The `fly.meta.package` module the seed's Builder wrote for the compiler, where
+# stage 2 keeps its own (build\stage2\.fly\gen\fly): test_compiler and test_tools
+# compile the compiler sources with the stage's copy.
+$PKG = 'build/stage1/.fly/gen/fly'
+New-Item -ItemType Directory -Force $PKG | Out-Null
+Copy-Item "$T/.fly/gen/fly/package.fly" "$PKG/package.fly" -Force
+
+# -- the LLVM bundle (FLY_BUNDLE_LLVM=1), by the stage-1 fly --------------------------
+# The Manifest's copy target llvm-windows: LLVM-C.dll, ld.lld.exe, the debugger and
+# the mingw sysroot into build\stage1\bin, as stage 2 lays them out. The seed knows
+# no copy targets; the stage-1 fly runs here on the LLVM-C.dll that stage 0 put on
+# PATH (build\llvm\bin).
+if ($env:FLY_BUNDLE_LLVM -eq '1') {
+    Write-Host "stage1: fly build --profile $FLY_PROFILE --target llvm-windows --out-dir build\stage1 (fly.exe)"
+    & "$BIN/fly.exe" build --profile $FLY_PROFILE --target llvm-windows --out-dir build/stage1
+    if ($LASTEXITCODE -ne 0) { Write-Host "error: fly build --target llvm-windows failed (exit $LASTEXITCODE)"; exit 1 }
+}
 
 # -- the std again, built by the stage-1 fly (which honours `dir`) --------------------
 Invoke-FlyBuild "$BIN/fly.exe" 'std' -Force
