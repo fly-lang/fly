@@ -1,13 +1,12 @@
 # -----------------------------------------------------------------------------
-# test_fly_build.ps1 - `fly build` builds Fly itself (0.15.2, plan "level 2"),
-# as a self-contained toolchain (0.16: `dir`, `copy`, `rpaths`).
+# test_fly_build.ps1 - the toolchain `fly build` built is one of its own.
 #
-# The stage's fly runs `fly build --profile dist` on the repository: the root
-# Manifest.fly describes runtime, TLS archives, std, compiler, tools and the
-# LLVM pieces a release ships, and everything must come out in target\dist laid
-# out as a release - bin\ and lib\. Then, with nothing on PATH but the system
-# directory (no build\llvm\bin, no option pointing into build\):
-#   1. the fly it built starts and reports the version Manifest.fly declares;
+# From 0.16 stage 2 IS `fly build --profile dist --out-dir build\stage2` on the
+# root Manifest.fly (runtime, TLS archives, std, compiler, tools and the LLVM
+# pieces a release ships), so build\stage<N> must be a complete release laid
+# out as bin\ and lib\. Then, with nothing on PATH but the system directory (no
+# build\llvm\bin, no option pointing into build\):
+#   1. the stage's fly starts and reports the version Manifest.fly declares;
 #   2. that fly compiles and runs a program with what lies next to it alone:
 #      the std and runtime in lib\, the linker and the mingw sysroot in bin\;
 #   3. a scratch project built with `fly build` reads its own manifest through
@@ -26,35 +25,30 @@ New-Item -ItemType Directory -Force $OUT | Out-Null
 
 $version = & "$PSScriptRoot\gen_package.ps1"
 
-# -- the toolchain, built by fly build -----------------------------------------
-Remove-Item 'target/dist' -Recurse -Force -ErrorAction SilentlyContinue
-& $FLY build --profile dist *> "$OUT/build.log"
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "  FAIL  fly build --profile dist (exit $LASTEXITCODE)"; Get-Content "$OUT/build.log" | Select-Object -Last 20; exit 1
-}
+# -- the layout of the release ----------------------------------------------------
+$R = "build/stage$STAGE"
 $want = @('bin/fly.exe', 'bin/fly-lsp.exe', 'bin/fly-registry.exe', 'bin/LLVM-C.dll', 'bin/ld.lld.exe', 'bin/lldb.exe',
           'bin/lldb-dap.exe', 'bin/mingw/lib/crt2.o', 'lib/fly_std_lib.lib', 'lib/fly_runtime_lib.lib',
           'lib/fly_tls_stub.lib', 'lib/fly_tls_lib.lib', 'lib/llvm.fly.h', 'lib/str.fly.h')
 foreach ($a in $want) {
-    if (-not (Test-Path "target/dist/$a")) { Write-Host "  FAIL  target\dist\$a missing"; exit 1 }
+    if (-not (Test-Path "$R/$a")) { Write-Host "  FAIL  $R/$a missing"; exit 1 }
 }
-Write-Host '  ok    fly build --profile dist laid out bin\ (fly, tools, LLVM, mingw) and lib\ (archives, headers)'
+Write-Host "  ok    $R holds bin\ (fly, tools, LLVM, mingw) and lib\ (archives, headers)"
 
 # Invoke-Bare COMMAND - run a command in a fresh pwsh whose PATH is the system
 # directory only, so nothing is found through build\llvm\bin; returns its output
 # with the exit code on the last line.
-$DIST = (Resolve-Path 'target/dist/bin/fly.exe').Path
 function Invoke-Bare([string]$cmd) {
     $script = "`$env:PATH = '$env:SystemRoot\System32'; $cmd; `"rc=`$LASTEXITCODE`""
     return (pwsh -NoProfile -Command $script 2>&1 | Out-String)
 }
 
 # -- 1. it starts on its own and reports its version -------------------------------
-$v = Invoke-Bare "& '$DIST' --version"
+$v = Invoke-Bare "& '$FLY' --version"
 if ($v -notmatch [regex]::Escape("fly version $version ")) {
-    Write-Host "  FAIL  target\dist\bin\fly.exe --version with a bare PATH: $v (want $version)"; exit 1
+    Write-Host "  FAIL  $R/bin/fly.exe --version with a bare PATH: $v (want $version)"; exit 1
 }
-Write-Host "  ok    the built fly starts with a bare PATH and reports $version (Manifest.fly)"
+Write-Host "  ok    the stage's fly starts with a bare PATH and reports $version (Manifest.fly)"
 
 # -- 2. it compiles and runs a program with what lies next to it --------------------
 $P = (New-Item -ItemType Directory -Force "$OUT/hello").FullName
@@ -66,11 +60,11 @@ void main() {
     io.printLn(str.concat("hello ", str.convertD(0.25)))
 }
 '@ | Set-Content "$P/main.fly" -Encoding UTF8
-$c = Invoke-Bare "& '$DIST' --src-dir '$P' -o hello --out-dir '$P'"
-if ($c -notmatch 'rc=0') { Write-Host '  FAIL  the built fly compiling a program with no options:'; Write-Host $c; exit 1 }
+$c = Invoke-Bare "& '$FLY' --src-dir '$P' -o hello --out-dir '$P'"
+if ($c -notmatch 'rc=0') { Write-Host "  FAIL  the stage's fly compiling a program with no options:"; Write-Host $c; exit 1 }
 $run = Invoke-Bare "& '$P/hello.exe'"
-if ($run -notmatch '(?m)^hello 0\.25\s*$') { Write-Host "  FAIL  program built by the built fly printed: $run"; exit 1 }
-Write-Host '  ok    the built fly compiles and runs a program with no options: std, runtime, linker, sysroot of its own'
+if ($run -notmatch '(?m)^hello 0\.25\s*$') { Write-Host "  FAIL  program built by the stage's fly printed: $run"; exit 1 }
+Write-Host "  ok    the stage's fly compiles and runs a program with no options: std, runtime, linker, sysroot of its own"
 
 # -- 3. a project reads its own manifest (fly.meta.package) -------------------------
 $J = (New-Item -ItemType Directory -Force "$OUT/proj").FullName

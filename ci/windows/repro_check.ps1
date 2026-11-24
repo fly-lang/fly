@@ -28,16 +28,12 @@ if (-not (Test-Path 'build/stage2/bin/fly.exe' -PathType Leaf)) {
 $ref = 'build/stage2_ref'
 Remove-Item $ref -Recurse -Force -ErrorAction SilentlyContinue
 Move-Item 'build/stage2' $ref
-New-Item -ItemType Directory -Force build/stage2/lib | Out-Null
 
+# The same build as stage2.ps1 (build_stage2.ps1: one `fly build`).
 Write-Host "repro: rebuilding stage 2 from scratch ..."
-foreach ($step in 'build_runtime', 'build_std', 'build_compiler', 'link_fly', 'build_lsp', 'build_registry') {
-    try {
-        & ".\ci\windows\$step.ps1" *> "build/repro_$step.log"
-    } catch {
-        Write-Host "error: repro $step.ps1 failed: $_ (see build\repro_$step.log)"; exit 1
-    }
-    if ($LASTEXITCODE -ne 0) { Write-Host "error: repro $step.ps1 failed (exit $LASTEXITCODE, see build\repro_$step.log)"; exit 1 }
+& "$PSScriptRoot\build_stage2.ps1" *> 'build/repro_build_stage2.log'
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "error: repro build_stage2.ps1 failed (exit $LASTEXITCODE, see build\repro_build_stage2.log)"; exit 1
 }
 
 # Every file of either tree, by path relative to the stage dir.

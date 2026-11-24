@@ -3,7 +3,7 @@
 # stage3.sh — fixpoint check of the staged bootstrap (see the stage map in
 # stage1.sh; Windows mirror: ci/windows/stage3.ps1). CI runs it on every build.
 #
-#   stage1  built by the SEED (C++ reference)          → self-host #1
+#   stage1  built by the SEED (the previous release)   → self-host #1
 #   stage2  built by stage1 (self-host #1)             → the SHIPPED compiler
 #   stage3  built by stage2 (the shipped compiler)     → THIS SCRIPT
 #
@@ -12,87 +12,83 @@
 # as the compiler that built it, the two outputs are byte-identical — the
 # canonical bootstrap fixpoint (GCC: `cmp stage2 stage3`). A difference means
 # the self-host's codegen depends on WHICH compiler built it: a latent codegen
-# bug the suites — which only ever run one compiler — cannot see.
+# bug that the suites — which only ever run one compiler — cannot see.
 #
-# What is compared: the merged driver+compiler OBJECT (build/stage<N>/driver/
-# Driver.o), the output of `fly -c` before the link — the compiler's own
-# deterministic product, free of linker-chosen layout.
+# From 0.16 stage 3 is the same `fly build` as stage 2 (build_stage2.sh), for
+# the compiler target only, run by the stage-2 fly into build/stage3:
 #
-# stage3 does NOT touch build/stage2 (that is what ships): everything goes to
-# build/stage3. It needs a finished stage 2 (stage2.sh) and costs one more
-# compile of the compiler - seconds. It runs as its own CI step after stage 2,
-# blocking, on every push and release (it used to be release-only, and the
-# first release found a seed defect every push had carried: ASTBuilder.CreateParam).
+#   build/stage2/bin/fly build --profile dist[-debug] --out-dir build/stage3 --target fly --keep-objects
 #
-# On a mismatch it recompiles ONCE MORE with the same stage2 compiler to tell
-# apart the two causes: stage3 != stage3' means the compiler is not
-# deterministic (no verdict — fix that first); stage3 == stage3' != stage2 means
-# a genuine fixpoint failure.
+# build/stage3/lib starts as a copy of build/stage2/lib, so the compiler links
+# and reads headers exactly as at stage 2. What is compared: the compiler's
+# OBJECT, bin/fly.o (stage 2 keeps its own in build/stage2/obj), the output of
+# the compile before the link — the compiler's own product; the linked exe adds
+# what the linker records (on Mach-O the path of that object). The profile's
+# prefix map writes the package root, the compiling fly's lib/ and the output
+# directory the same way at both stages, so the two can be compared at all.
+#
+# stage3 does NOT touch build/stage2 (that is what ships). On a mismatch it
+# builds ONCE MORE with the same stage2 compiler to tell apart the two causes:
+# stage3a != stage3b means the compiler is not deterministic (no verdict — fix
+# that first), stage3a == stage3b != stage2 means a genuine fixpoint failure.
 #
 # Exit codes: 0 fixpoint holds, 1 fixpoint broken or stage3 failed to build,
 #             2 compiler non-deterministic (no verdict).
-# FLY_DEBUG_SYMBOLS must match the value stage2 was built with.
+# FLY_DEBUG_SYMBOLS must be the same as when stage2 was built.
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-# the package module (build/gen/package.fly) the compiler sources need, from Manifest.fly
-bash ci/linux/gen_package.sh > /dev/null
 . ci/linux/platform.sh
 
 FLY2=build/stage2/bin/fly
-OBJ2=build/stage2/driver/Driver.o
+OBJ2=build/stage2/obj/fly.o
 for need in "$FLY2" "$OBJ2"; do
     [ -f "$need" ] || { echo "error: '$need' missing — run ci/linux/stage2.sh first." >&2; exit 1; }
 done
-DBG=""; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && DBG="--debug-symbols"
-# Same mapping as build_compiler.sh: the stage2 fly reads its headers from
-# build/stage2/lib, the one that built stage 2 from build/stage1/lib — both
-# become "lib" in the DWARF and in trap messages, or the objects would differ by
-# that path alone. Passed with or without debug symbols.
-MAP="--debug-prefix-map=$(cd build/stage2/lib && pwd)=lib"
+PROFILE=dist; [ "${FLY_DEBUG_SYMBOLS:-0}" = "1" ] && PROFILE=dist-debug
 
-# Compile the compiler with the STAGE-2 fly into $1; print the object path.
-# Same invocation as build_compiler.sh STAGE=2 (self-host: -c, no link).
-build_driver() {
+# build_compiler DIR — the compiler target, built by the stage-2 fly into DIR.
+build_compiler() {
     local dir="$1"
-    rm -rf "$dir"; mkdir -p "$dir"
-    "$FLY2" --src-dir compiler --src-dir build/gen $DBG $MAP -c -o Driver --out-dir "$dir" > "$dir/emit.log" 2>&1 || true
-    if [ ! -f "$dir/Driver" ]; then
-        echo "error: stage3 driver object not emitted; see $dir/emit.log:" >&2
-        grep -m5 -E 'error:|broken|abort' "$dir/emit.log" | sed 's/^/      /' >&2 || true
+    rm -rf "$dir"
+    mkdir -p "$dir"
+    cp -R build/stage2/lib "$dir/lib"
+    "$FLY2" build --profile "$PROFILE" --out-dir "$dir" --target fly --keep-objects > "$dir/build.log" 2>&1 || true
+    if [ ! -f "$dir/bin/fly.o" ]; then
+        echo "error: stage3 compiler not built; see $dir/build.log:" >&2
+        grep -m5 -E 'error|broken|abort' "$dir/build.log" | sed 's/^/      /' >&2 || true
         exit 1
     fi
-    mv -f "$dir/Driver" "$dir/Driver.o"
 }
+
 sha() { sha256_of "$1"; }
 size() { wc -c < "$1" | tr -d ' '; }
 
-echo "stage3: compiling driver + compiler with the stage2 fly (fixpoint check) ...${DBG:+ (+debug-symbols)}"
+echo "stage3: compiling the compiler with the stage2 fly (fixpoint check, profile $PROFILE) ..."
 start=$SECONDS
-build_driver build/stage3/driver
+build_compiler build/stage3
 echo "stage3: built in $((SECONDS - start))s"
-OBJ3=build/stage3/driver/Driver.o
-
+OBJ3=build/stage3/bin/fly.o
 h2="$(sha "$OBJ2")"; h3="$(sha "$OBJ3")"
-echo "  stage2 Driver.o  $h2  ($(size "$OBJ2") bytes)"
-echo "  stage3 Driver.o  $h3  ($(size "$OBJ3") bytes)"
+echo "  stage2 fly.o  $h2  ($(size "$OBJ2") bytes)"
+echo "  stage3 fly.o  $h3  ($(size "$OBJ3") bytes)"
 if [ "$h2" = "$h3" ]; then
     echo "stage3: OK — fixpoint holds (stage2 == stage3, byte-identical object)."
     exit 0
 fi
 
-echo "stage3: objects differ — recompiling once more to classify ..."
-build_driver build/stage3/driver_repeat
-OBJ3B=build/stage3/driver_repeat/Driver.o
+echo "stage3: objects differ — building once more to classify ..."
+build_compiler build/stage3_repeat
+OBJ3B=build/stage3_repeat/bin/fly.o
 h3b="$(sha "$OBJ3B")"
-echo "  stage3' Driver.o $h3b  ($(size "$OBJ3B") bytes)"
+echo "  stage3' fly.o $h3b  ($(size "$OBJ3B") bytes)"
 if [ "$h3" != "$h3b" ]; then
     echo "stage3: INCONCLUSIVE — the stage2 compiler is not deterministic (two runs on the same input differ)."
-    echo "        make it deterministic first; compare build/stage3/driver and build/stage3/driver_repeat."
+    echo "        make it deterministic first; compare build/stage3/bin/fly.o and build/stage3_repeat/bin/fly.o."
     exit 2
 fi
 echo "stage3: FAILED — the fixpoint is broken: the stage2 compiler generates different code than the"
 echo "        stage1 compiler that built it, from the same sources."
 echo "        $(cmp "$OBJ2" "$OBJ3" 2>&1 | head -1) (sizes $(size "$OBJ2") vs $(size "$OBJ3"))."
-echo "        inspect: nm / objdump -d on build/stage2/driver/Driver.o vs build/stage3/driver/Driver.o"
+echo "        inspect: nm / objdump -d on build/stage2/obj/fly.o vs build/stage3/bin/fly.o"
 exit 1

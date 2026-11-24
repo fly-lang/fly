@@ -9,6 +9,8 @@ import fly.os.proc
 import fly.data.List
 import fly.mem
 import fly.llvm
+import fly.compiler.basic.segCount
+import fly.compiler.basic.segAt
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Builder — invoke the fly compiler to build a manifest's targets. Port of
@@ -29,6 +31,8 @@ public class Builder {
     string targetTriple
     string flyBinary
     bool force
+    string outRoot          // --out-dir: the output directory instead of target/<profile>
+    bool keepObjects        // --keep-objects: executables keep their object (--keep-object)
 
     public Builder(const Manifest m, const string prof, const bool testMode) {
         this.manifest = m
@@ -37,6 +41,8 @@ public class Builder {
         this.targetTriple = ""
         this.flyBinary = ""
         this.force = false
+        this.outRoot = ""
+        this.keepObjects = false
     }
 
     public void setTargetTriple(const string t) {
@@ -45,6 +51,14 @@ public class Builder {
 
     public void setForce(const bool f) {
         this.force = f
+    }
+
+    public void setOutRoot(const string d) {
+        this.outRoot = d
+    }
+
+    public void setKeepObjects(const bool k) {
+        this.keepObjects = k
     }
 
     // getFlyBinary — resolve lazily (a constructor cannot call a method here).
@@ -78,6 +92,9 @@ public class Builder {
     // outDir — ABSOLUTE target/<profile>[/<triple>] or target/test. Absolute so
     // the `cd out_dir` in invokeFly does not break relative source/output paths.
     public string outDir() {
+        if str.isEmpty(this.outRoot) == false {
+            return path.absolute(this.outRoot)
+        }
         string rel = "target"
         if this.isTest {
             rel = path.join(rel, "test")
@@ -165,8 +182,11 @@ public class Builder {
         if bp.getWarningsAsErrors() {
             proc.argsAdd(h, "--warnings-as-errors")
         }
-        if str.isEmpty(bp.getDebugPrefixMap()) == false {
-            proc.argsAdd(h, str.concat("--debug-prefix-map=", this.expandOut(bp.getDebugPrefixMap())))
+        List<string> pairs = this.prefixMapPairs(bp.getDebugPrefixMap())
+        int pk = 0
+        while pk < pairs.size() {
+            proc.argsAdd(h, str.concat("--debug-prefix-map=", pairs.get(pk)))
+            pk = pk + 1
         }
         // [link].libs → --link-lib=<name>
         int i = 0
@@ -219,6 +239,9 @@ public class Builder {
                 pi = pi + 1
             }
         }
+        if this.keepObjects && (t == null || t.isBin()) {
+            proc.argsAdd(h, "--keep-object")
+        }
         proc.argsAdd(h, "-o")
         proc.argsAdd(h, output)
         if str.isEmpty(outDirArg) == false {
@@ -256,9 +279,38 @@ public class Builder {
         return str.equals(t.getOs(), this.hostOs()) == false
     }
 
-    // expandOut — `@out` in a flag, -L dir or prefix map is the output directory.
+    // prefixMapPairs — a profile's debugPrefixMap as --debug-prefix-map values:
+    // several OLD=NEW pairs may be given, ";"-separated, each with its
+    // placeholders expanded. (segCount and segAt read the ";a;b;" form, hence
+    // the bracketing ";"; empty pairs are dropped.)
+    public List<string> prefixMapPairs(const string m) {
+        List<string> res = new List<string>()
+        string pm = str.concat(";", str.concat(m, ";"))
+        int n = segCount(pm)
+        int i = 0
+        while i < n {
+            string pair = segAt(pm, i)
+            if str.isEmpty(pair) == false {
+                res.add(this.expandOut(pair))
+            }
+            i = i + 1
+        }
+        return res
+    }
+
+    // expandOut — the placeholders of a flag, -L dir, copy, rpath or prefix map:
+    // `@out` is the output directory, `@root` the package root (the directory
+    // fly build runs in), `@fly` the installation of the fly that compiles (the
+    // directory above its bin/, whose lib/ it reads headers from).
     public string expandOut(const string s) {
-        return str.replace(s, "@out", this.outDir())
+        string r = str.replace(s, "@out", this.outDir())
+        if str.contains(r, "@root") {
+            r = str.replace(r, "@root", env.cwdGet())
+        }
+        if str.contains(r, "@fly") {
+            r = str.replace(r, "@fly", path.dirname(path.dirname(path.absolute(this.getFlyBinary()))))
+        }
+        return r
     }
 
     // projectPath — a manifest path made absolute (`@out` expanded first).

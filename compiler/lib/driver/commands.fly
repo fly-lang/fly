@@ -109,8 +109,11 @@ class Manifest : fly.meta.Manifest {
 }
 
 // cmdBuild — read the manifest, build all targets (or one with `targetKey`).
-// `force` bypasses the incremental fingerprint cache (see Builder).
-public int cmdBuild(const string profile, const string targetKey, const bool force) {
+// `force` bypasses the incremental fingerprint cache (see Builder); `outDir`
+// (--out-dir) replaces target/<profile> as the output directory; `keepObjects`
+// (--keep-objects) keeps every executable's object next to it.
+public int cmdBuild(const string profile, const string targetKey, const bool force, const string outDir,
+        const bool keepObjects) {
     int e = 0
     Manifest m = loadManifest(e)
     if e != 0 {
@@ -123,6 +126,8 @@ public int cmdBuild(const string profile, const string targetKey, const bool for
     }
     Builder b = new Builder(m, prof, false)
     b.setForce(force)
+    b.setOutRoot(outDir)
+    b.setKeepObjects(keepObjects)
     bool ok = false
     if str.isEmpty(targetKey) {
         ok = b.buildAll()

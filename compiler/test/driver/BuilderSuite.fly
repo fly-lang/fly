@@ -430,5 +430,16 @@ suite BuilderSuite {
             assert.assertTrue(str.contains(l, "dir=bin"), 558)
             assert.assertTrue(str.contains(l, "rpaths=$ORIGIN/../lib"), 559)
         }
+        case "a prefix map of several pairs, placeholders expanded": {
+            Manifest m = new Manifest()
+            Builder b = new Builder(m, "debug", false)
+            b.setOutRoot("fly_out_probe")
+            List<string> pairs = b.prefixMapPairs("@root=.;@out=out")
+            assert.assertEqI((int)pairs.size(), 2, 561)
+            assert.assertStr(pairs.get(0), str.concat(env.cwdGet(), "=."), 562)
+            assert.assertStr(pairs.get(1), str.concat(b.outDir(), "=out"), 563)
+            assert.assertEqI((int)b.prefixMapPairs("").size(), 0, 564)
+            assert.assertStr(b.outDir(), path.absolute("fly_out_probe"), 565)
+        }
     }
 }

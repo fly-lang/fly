@@ -3,76 +3,53 @@
 # the fly built by stage1 (build\stage1\bin\fly.exe) produces the SHIPPED
 # artifacts into build\stage2 - what CI uploads and the release packages.
 #
-#   runtime   re-seeded from stage1 (the Windows Fly-member rebuild is gated on
-#             RuntimeWindows.fly running cleanly on Windows - see build_runtime.ps1)
-#   std       recompiled by the stage1 fly.exe - the std that ships
-#   compiler  recompiled FROM SOURCE by the stage1 fly.exe, merged with the
-#   + driver  driver into one object (monolithic - see build_compiler.ps1) and
-#             linked into build\stage2\bin.
+# From 0.16 the whole stage is one `fly build` on the root Manifest.fly:
 #
-# A failed stage-2 rebuild is FATAL, exactly as in ci/linux/stage2.sh. This
-# script used to warn and copy the stage1 artifacts into build\stage2 instead,
-# from the time the Windows self-host link was still being brought up. That
-# fallback meant a release could ship a compiler built by the SEED - not the
-# self-host - with nothing but a line in the log to say so. build\stage2 is what
-# the release packages verbatim: it must be the stage-2 build or not exist.
+#   build\stage1\bin\fly.exe build --profile dist[-debug] --out-dir build\stage2 --keep-objects
+#
+# runtime, TLS archives, std, compiler, fly-lsp and fly-registry, all compiled
+# by the stage-1 fly, plus the LLVM pieces stage 0 fetched (LLVM-C, ld.lld,
+# lldb, the mingw sysroot, llvm.fly.h), laid out as the release: bin\ and lib\.
+# The profile is `dist-debug` when FLY_DEBUG_SYMBOLS=1 (CI on push: DWARF, so a
+# crash symbolizes), `dist` otherwise (the release). Up to 0.15 the stage ran
+# build_runtime, build_std, build_compiler, link_fly, build_lsp and
+# build_registry; the Manifest now says what they said.
+#
+# --keep-objects leaves each executable's object next to it; they are moved to
+# build\stage2\obj (outside what the release packages): stage 3 compiles the
+# compiler again with the stage-2 fly and compares its object with obj\fly.o.
+#
+# The build itself is build_stage2.ps1, shared with repro_check.ps1.
+#
+# A failed stage-2 build is FATAL, exactly as in ci/linux/stage2.sh: there is
+# no fallback to the stage-1 artifacts. build\stage2 is what the release
+# packages verbatim: it must be the stage-2 build or not exist.
 # -----------------------------------------------------------------------------
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $false
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..\..'))
 $env:STAGE = '2'
 
-if (-not (Test-Path 'build/stage1/bin/fly.exe' -PathType Leaf)) {
-    Write-Host "error: stage1 fly missing - run ci\windows\stage1.ps1 first."; exit 1
-}
+& "$PSScriptRoot\build_stage2.ps1"
+if ($LASTEXITCODE -ne 0) { Write-Host "error: build_stage2.ps1 failed (exit $LASTEXITCODE)"; exit 1 }
 
-New-Item -ItemType Directory -Force build/stage2/lib | Out-Null
-
-# The self-host rebuild. Any failure stops the stage: no fallback to stage1.
-# try/catch because $ErrorActionPreference = 'Stop' turns a cmdlet error inside
-# a step into a terminating exception rather than an exit code.
-# build_std: the std that ships, built by the stage-1 fly like every other
-# stage-2 artifact (it used to be the seed's stage-1 build, copied over).
-foreach ($step in 'build_runtime', 'build_std', 'build_compiler', 'link_fly') {
-    try {
-        & ".\ci\windows\$step.ps1"
-    } catch {
-        Write-Host "error: $step.ps1 failed: $_"; exit 1
-    }
-    if ($LASTEXITCODE -ne 0) { Write-Host "error: $step.ps1 failed (exit $LASTEXITCODE)"; exit 1 }
-}
-# The stage is only meaningful if it produced ITS OWN compiler.
-if (-not (Test-Path 'build/stage2/bin/fly.exe' -PathType Leaf)) {
-    Write-Host "error: stage2 rebuild reported success but build\stage2\bin\fly.exe is missing."; exit 1
-}
-
-# ── the tools: built and tested with the compiler that just finished ─────────
+# -- the guards: properties of the artifact no suite can see ---------------------
 #
-# fly-lsp and fly-registry are PRODUCTS of the toolchain, not part of the
-# bootstrap: nothing downstream compiles against them, and --entry is a
-# self-host option the pinned seed rejects outright. They belong HERE rather
-# than in stage1 because the compiler that builds them should be the one that
-# ships — stage2's fly.exe, built by stage1's self-host, i.e. the self-hosting
-# fixpoint. A tool built at stage1 would carry the seed-built compiler's
-# codegen, which is not what a user gets.
-#
-# They are part of the stage, not an opt-in extra: build\stage2\bin is what the
-# release packages verbatim, so a tool that is not built here does not ship, and
-# a tool failure here is a real failure of the artifact.
-# test_dbg: the debugger is PROVISIONED (bundled by link_fly.ps1 from the fork
-# LLVM), not compiled — but it ships from build\stage2\bin like the tools, so
-# it is verified here with them.
-# test_abi: the shipped pair is a SELF-HOST compiler over a SEED-built std, so
-# the two compilers' calling conventions must match. Belongs here for the same
-# reason as the leak guard: it is a property of the artifact, not of a stage's
-# sources, and no suite can see it (a suite compiles both sides with one compiler).
+# The tools are PRODUCTS of the toolchain and ship from build\stage2\bin; a tool
+# failure here is a real failure of the artifact.
+# test_dbg: the debugger is PROVISIONED (copied by the Manifest's copy targets
+# from the fork LLVM), not compiled - but it ships from build\stage2\bin like
+# the tools, so it is verified here with them.
+# test_abi: the calling conventions of the compiler that ships must match the
+# seed's (a library and a program compiled by different releases link together).
 # test_sema: the compiler must still REJECT what the language forbids. No suite
 # can see a check that went missing - suites only compile valid programs.
-# test_fly_build: `fly build --profile dist` builds the whole toolchain from the root
-# Manifest.fly and what it builds works (0.15.2: what release/0.16.X bootstraps with).
 # test_traps: a run-time error (a null reference) must stop the program with its
 # diagnostic. No suite can see a trap that went missing - suites run valid programs.
-foreach ($step in 'build_lsp', 'test_lsp', 'build_registry', 'test_registry', 'test_tools', 'test_abi', 'test_sema', 'test_traps', 'test_leaks', 'test_dbg', 'test_fly_build') {
+# test_fly_build: build\stage2 is a toolchain of its own (bare PATH, no option),
+# and a project built with `fly build` reads its own manifest.
+foreach ($step in 'test_lsp', 'test_registry', 'test_tools', 'test_abi', 'test_sema', 'test_traps', 'test_leaks',
+                  'test_dbg', 'test_fly_build') {
     & ".\ci\windows\$step.ps1"
     if ($LASTEXITCODE -ne 0) { Write-Host "error: $step.ps1 failed (exit $LASTEXITCODE)"; exit 1 }
 }

@@ -115,11 +115,15 @@ public class Driver {
     // repo-sized walk overflows the stack; see collectFlySources).
     string discFiles
     string discPending
+    // --keep-object: a linked build leaves its object (<output>.o) next to the
+    // output instead of deleting it (the stage 3 fixpoint compares objects).
+    bool keepObject
 
     public Driver() {
         this.discStem = ""
         this.discFiles = ";"
         this.discPending = ";"
+        this.keepObject = false
     }
 
     public int run(const fly.os.env.StringArray args) {
@@ -426,6 +430,8 @@ public class Driver {
                 isStatic = true
             } elsif str.equals(a, "-pie") || str.equals(a, "--pie") {
                 isPie = true
+            } elsif str.equals(a, "--keep-object") {
+                this.keepObject = true
             } elsif str.equals(a, "--no-output") {
                 noOutput = true
             } elsif str.equals(a, "--test") {
@@ -1139,7 +1145,7 @@ public class Driver {
             li = li + 1
         }
         bool ok = tc.BuildOutput(inFiles, ci.getFrontendOptions())
-        if fs.exists(objFile) {
+        if fs.exists(objFile) && this.keepObject == false {
             fs.del(objFile)
         }
         if ok {
@@ -1350,6 +1356,7 @@ public class Driver {
         io.printErrLn("  --entry <file>       the source file declaring main(), instead of discovering it (builds a second executable from a tree that already has one)")
         io.printErrLn("  --tls                link the real TLS backend (needs libssl); without it fly.net.tls.tlsAvailable() is false")
         io.printErrLn("  --link-lib <name>    link native library (-lname)")
+        io.printErrLn("  --keep-object        keep the object of a linked build (<output>.o) next to it")
         io.printErrLn("  --rpath <dir>        run-time library search path of the executable (ELF, Mach-O);")
         io.printErrLn("                       $ORIGIN is the executable's directory (@loader_path on macOS)")
         io.printErrLn("  -static / -pie       link mode flags (ELF/Linux targets; ignored by the Windows linker)")
@@ -1502,7 +1509,8 @@ public class Driver {
             res = fly.driver.cmdInit(this.flagValue(args, n, "--name"), this.flagValue(args, n, "--version"))
         } elsif str.equals(cmd, "build") {
             res = fly.driver.cmdBuild(this.profileOf(args, n), this.flagValue(args, n, "--target"),
-                    this.hasFlag(args, n, "--force"))
+                    this.hasFlag(args, n, "--force"), this.flagValue(args, n, "--out-dir"),
+                    this.hasFlag(args, n, "--keep-objects"))
         } elsif str.equals(cmd, "run") {
             res = fly.driver.cmdRun(this.profileOf(args, n), this.flagValue(args, n, "--bin"),
                     this.hasFlag(args, n, "--force"))

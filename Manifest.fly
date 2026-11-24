@@ -23,30 +23,41 @@ class Manifest : fly.meta.Manifest {
     string homepage = "https://flylang.org"
     string repository = "https://github.com/fly-lang/fly"
 
-    // `fly build --profile dist` builds the whole toolchain into target/dist, laid
-    // out as a release: bin/ (fly, fly-lsp, fly-registry, the linker, the
-    // debugger and, on Windows, the mingw sysroot) and lib/ (runtime, TLS and std
-    // archives with their headers, the LLVM shared libraries). In order: runtime
-    // (one per OS) and the TLS archives, the standard library, the compiler, the
-    // tools, then the LLVM pieces stage 0 fetched into build/ (copy targets). A
-    // library lands in lib/ with its headers, where the targets after it find it
-    // (`@out/lib`). The executables find lib/ at run time through `$ORIGIN/../lib`
-    // (Linux and macOS; Windows looks next to the executable). It is what the
-    // build scripts do today (ci/*/build_*, link_fly).
+    // `fly build --profile dist` builds the whole toolchain, laid out as a
+    // release: bin/ (fly, fly-lsp, fly-registry, the linker, the debugger and, on
+    // Windows, the mingw sysroot) and lib/ (runtime, TLS and std archives with
+    // their headers, the LLVM shared libraries). In order: runtime (one per OS)
+    // and the TLS archives, the standard library, the compiler, the tools, then
+    // the LLVM pieces stage 0 fetched into build/ (copy targets). A library lands
+    // in lib/ with its headers, where the targets after it find it (`@out/lib`).
+    // The executables find lib/ at run time through `$ORIGIN/../lib` (Linux and
+    // macOS; Windows looks next to the executable).
+    //
+    // Stage 2 (ci/*/stage2) is `fly build --profile dist --out-dir build/stage2`
+    // run by the stage-1 fly (`dist-debug` when CI embeds DWARF), and stage 3 the
+    // compiler again, by the stage-2 fly: the prefix map writes the package root,
+    // the compiling fly's lib/ and the output directory the same way whichever fly
+    // builds where, so the two objects can be compared byte for byte - and a
+    // release carries no path of the machine that built it.
     //
     // Stage 1 (ci/*/stage1) builds the same targets with the seed, one at a
     // time, through the `stage1` profile (`stage1-debug` when CI embeds DWARF):
     // no --warnings-as-errors, since the seed's warnings are not the tree's
-    // contract, and its own output directory, so stage 2's `fly build --profile
-    // dist` never finds the seed's artifacts up to date. The seed (0.15.2) knows
-    // neither `dir` nor `rpaths` and writes everything flat: stage 1 lays it out.
+    // contract, and its own output directory. The seed (0.15.2) knows neither
+    // `dir` nor `rpaths` and writes everything flat: stage 1 lays it out.
     Profile[] profiles = {
-        { name = "dist", optLevel = 0, debugInfo = false, warningsAsErrors = true },
+        { name = "dist", optLevel = 0, debugInfo = false, warningsAsErrors = true,
+          debugPrefixMap = "@root=.;@fly/lib=lib;@out=out" },
+        { name = "dist-debug", optLevel = 0, debugInfo = true, warningsAsErrors = true,
+          debugPrefixMap = "@root=.;@fly/lib=lib;@out=out" },
         { name = "stage1", optLevel = 0, debugInfo = false, warningsAsErrors = false },
         { name = "stage1-debug", optLevel = 0, debugInfo = true, warningsAsErrors = false }
     }
 
     Target[] targets = {
+        // The LLVM C API declarations, first: lib/ holds every header before the
+        // compiler is compiled (stage 3 rebuilds it over a complete lib/).
+        { name = "llvm-header", dir = "lib", copy = { "build/stage0/lib/llvm.fly.h" } },
         { name = "runtime-linux", os = "linux", lib = "static", artifact = "fly_runtime_lib", dir = "lib",
           files = { "runtime/lib/RuntimeLinux.fly" } },
         { name = "runtime-macos", os = "macos", lib = "static", artifact = "fly_runtime_lib", dir = "lib",
@@ -74,7 +85,6 @@ class Manifest : fly.meta.Manifest {
 
         // The LLVM pieces a release ships, from build/ (stage 0). A `*` pattern
         // may match nothing (an optional file); a plain path must exist.
-        { name = "llvm-header", dir = "lib", copy = { "build/stage0/lib/llvm.fly.h" } },
         { name = "llvm-windows", os = "windows", dir = "bin",
           copy = { "build/llvm/bin/LLVM-C.dll", "build/llvm/bin/ld.lld.exe", "build/llvm/bin/lldb.exe",
                    "build/llvm/bin/liblldb.dll", "build/llvm/bin/lldb-dap.exe", "build/llvm/bin/lldb-argdumper.exe",

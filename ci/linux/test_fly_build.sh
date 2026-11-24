@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
 # -----------------------------------------------------------------------------
-# test_fly_build.sh - `fly build` builds Fly itself (0.15.2, plan "level 2"),
-# as a self-contained toolchain (0.16: `dir`, `copy`, `rpaths`).
+# test_fly_build.sh - the toolchain `fly build` built is one of its own.
 # Linux/macOS mirror of ci/windows/test_fly_build.ps1.
 #
-# The stage's fly runs `fly build --profile dist` on the repository: the root
-# Manifest.fly describes runtime, TLS archives, std, compiler, tools and the
-# LLVM pieces a release ships, and everything must come out in target/dist laid
-# out as a release - bin/ and lib/. Then, in a bare environment (PATH=/usr/bin:
-# /bin, no LD_LIBRARY_PATH / DYLD_LIBRARY_PATH / LIBRARY_PATH, no option
-# pointing into build/):
-#   1. the fly it built starts - libLLVM is found through its RUNPATH
+# From 0.16 stage 2 IS `fly build --profile dist --out-dir build/stage2` on the
+# root Manifest.fly (runtime, TLS archives, std, compiler, tools and the LLVM
+# pieces a release ships), so build/stage<N> must be a complete release laid
+# out as bin/ and lib/. Then, in a bare environment (PATH=/usr/bin:/bin, no
+# LD_LIBRARY_PATH / DYLD_LIBRARY_PATH / LIBRARY_PATH, no option pointing into
+# build/):
+#   1. the stage's fly starts - libLLVM is found through its RUNPATH
 #      ($ORIGIN/../lib) alone - and reports the version Manifest.fly declares;
 #   2. that fly compiles and runs a program with what lies next to it alone:
 #      the std, runtime and compiler-rt builtins in lib/, the linker in bin/;
@@ -30,13 +29,8 @@ mkdir -p "$OUT"
 
 VERSION="$(bash ci/linux/gen_package.sh)"
 
-# -- the toolchain, built by fly build -----------------------------------------
-rm -rf target/dist
-if ! "$FLY" build --profile dist > "$OUT/build.log" 2>&1; then
-    echo "  FAIL  fly build --profile dist"
-    tail -20 "$OUT/build.log"
-    exit 1
-fi
+# -- the layout of the release ----------------------------------------------------
+R="build/stage$STAGE"
 WANT="bin/fly bin/fly-lsp bin/fly-registry bin/lldb bin/lldb-dap lib/fly_std_lib.a lib/fly_runtime_lib.a"
 WANT="$WANT lib/fly_tls_stub.a lib/fly_tls_lib.a lib/llvm.fly.h lib/str.fly.h"
 if is_macos; then
@@ -45,23 +39,22 @@ else
     WANT="$WANT bin/ld.lld lib/libLLVM.so.20.1 lib/clang/20/lib/x86_64-unknown-linux-gnu/libclang_rt.builtins.a"
 fi
 for a in $WANT; do
-    [ -f "target/dist/$a" ] || { echo "  FAIL  target/dist/$a missing"; exit 1; }
+    [ -f "$R/$a" ] || { echo "  FAIL  $R/$a missing"; exit 1; }
 done
-echo "  ok    fly build --profile dist laid out bin/ (fly, tools, linker, debugger) and lib/ (archives, headers, LLVM)"
+echo "  ok    $R holds bin/ (fly, tools, linker, debugger) and lib/ (archives, headers, LLVM)"
 
-DIST="$(pwd)/target/dist/bin/fly"
 # bare COMMAND... — run it with nothing found through build/ or a loader path.
 bare() {
     env -u LD_LIBRARY_PATH -u DYLD_LIBRARY_PATH -u LIBRARY_PATH PATH=/usr/bin:/bin "$@"
 }
 
 # -- 1. it starts on its own and reports its version -------------------------------
-v="$(bare "$DIST" --version 2>&1 || true)"
+v="$(bare "$FLY" --version 2>&1 || true)"
 case "$v" in
     "fly version $VERSION "*) ;;
-    *) echo "  FAIL  target/dist/bin/fly --version in a bare environment: $v (want $VERSION)"; exit 1 ;;
+    *) echo "  FAIL  $R/bin/fly --version in a bare environment: $v (want $VERSION)"; exit 1 ;;
 esac
-echo "  ok    the built fly starts in a bare environment (RUNPATH) and reports $VERSION (Manifest.fly)"
+echo "  ok    the stage's fly starts in a bare environment (RUNPATH) and reports $VERSION (Manifest.fly)"
 
 # -- 2. it compiles and runs a program with what lies next to it --------------------
 P="$(cd "$OUT" && pwd)/hello"
@@ -74,14 +67,14 @@ void main() {
     io.printLn(str.concat("hello ", str.convertD(0.25)))
 }
 EOF
-if ! bare "$DIST" --src-dir "$P" -o hello --out-dir "$P" > "$P/compile.log" 2>&1; then
-    echo "  FAIL  the built fly compiling a program with no options"
+if ! bare "$FLY" --src-dir "$P" -o hello --out-dir "$P" > "$P/compile.log" 2>&1; then
+    echo "  FAIL  the stage's fly compiling a program with no options"
     tail -10 "$P/compile.log"
     exit 1
 fi
 run="$(bare "$P/hello" 2>&1 || true)"
-[ "$run" = "hello 0.25" ] || { echo "  FAIL  program built by the built fly printed: $run"; exit 1; }
-echo "  ok    the built fly compiles and runs a program with no options: std, runtime, linker of its own"
+[ "$run" = "hello 0.25" ] || { echo "  FAIL  program built by the stage's fly printed: $run"; exit 1; }
+echo "  ok    the stage's fly compiles and runs a program with no options: std, runtime, linker of its own"
 
 # -- 3. a project reads its own manifest (fly.meta.package) -------------------------
 J="$(cd "$OUT" && pwd)/proj"

@@ -24,7 +24,7 @@
 # the hardlink build/stage1/bin/fly0, so its <exe>/../lib is build/stage1/lib
 # (never the seed's own lib, whose std headers would clash with the in-tree
 # std), and every target finds there the headers of the ones before it —
-# runtime.fly.h for TLS and std, the std headers for the compiler. `fly build`
+# the runtime's for TLS and std, the std headers for the compiler. `fly build`
 # writes a library as one object under the archive's name; it is wrapped in a
 # real archive here, as build_runtime.sh / build_std.sh do.
 #
@@ -60,7 +60,6 @@ if is_macos; then
 else
     OSKEY=linux
 fi
-RUNTIME_HDR="${RUNTIME_SRC%.fly}.fly.h"
 
 [ -x build/stage0/bin/fly ] || { echo "error: stage0 compiler missing — run ci/linux/stage0.sh first." >&2; exit 1; }
 [ -f build/stage0/lib/llvm.fly.h ] || { echo "error: build/stage0/lib/llvm.fly.h missing — run stage0.sh first." >&2; exit 1; }
@@ -102,47 +101,38 @@ install_archive() {
     cp -f "$LIB/$1" "$TLIB/$1"
 }
 
-# install_header SRC DST — a generated header into build/stage1/lib (and the
-# mirror), with nested generic closers spaced (`>>` → `> >`) as
-# build_runtime.sh does.
-install_header() {
-    [ -f "$SRC/$1" ] || { echo "error: $SRC/$1 was not generated." >&2; exit 1; }
-    space_generic_closers "$SRC/$1" "$LIB/$2"
-    cp -f "$LIB/$2" "$TLIB/$2"
-}
-
-# install_std_headers — every std header the std target generated (not the
-# runtime, TLS and LLVM ones, installed under their own names).
-install_std_headers() {
+# install_headers — every header the targets built so far generated, under the
+# name `fly build` gives it (RuntimeLinux.fly.h, TlsStub.fly.h, ...): stage 2
+# lays out the same names, so the lib/ the stage-2 build reads headers from (this
+# one) and the one it writes hold the same files — which the stage-3 fixpoint
+# needs (a header present in both is read from the same place at both stages).
+install_headers() {
     local n=0 h b
     for h in "$SRC"/*.fly.h; do
         [ -e "$h" ] || continue
         b="$(basename "$h")"
-        case "$b" in
-            Runtime[A-Z]*|Tls[A-Z]*|runtime.fly.h|llvm.fly.h) continue ;;
-        esac
         cp -f "$h" "$LIB/$b"
         [ "$SRC" = "$TLIB" ] || cp -f "$h" "$TLIB/$b"
         n=$((n + 1))
     done
-    [ "$n" -gt 0 ] || { echo "error: no std headers in $SRC." >&2; exit 1; }
-    echo "stage1: std -> $LIB (fly_std_lib.a + $n headers)"
+    [ "$n" -gt 0 ] || { echo "error: no headers in $SRC." >&2; exit 1; }
+    echo "stage1: headers -> $LIB ($n)"
 }
 
 # ── runtime and TLS archives, built by the seed ───────────────────────────────
 fly_build "$FLY0" "runtime-$OSKEY"
 install_archive fly_runtime_lib.a
-install_header "$RUNTIME_HDR" runtime.fly.h
+install_headers
 fly_build "$FLY0" tls-stub
 install_archive fly_tls_stub.a
-install_header TlsStub.fly.h TlsStub.fly.h
 fly_build "$FLY0" "tls-openssl-$OSKEY"
 install_archive fly_tls_lib.a
+install_headers
 
 # ── std and the compiler, built by the seed ───────────────────────────────────
 fly_build "$FLY0" std
 install_archive fly_std_lib.a
-install_std_headers
+install_headers
 fly_build "$FLY0" fly
 [ -x "$T/fly" ] || { echo "error: $T/fly was not linked." >&2; exit 1; }
 cp -f "$T/fly" "$BIN/fly"
@@ -152,7 +142,7 @@ FLY_LINKED=1 ./ci/linux/link_fly.sh
 fly_build "$BIN/fly" std --force
 SRC="$TLIB"
 install_archive fly_std_lib.a
-install_std_headers
+install_headers
 
 # ── the stage-1 suites, bottom-up (runtime → std → compiler) ──────────────────
 # No FLY override: at STAGE=1 the test scripts default to build/stage1/bin/fly.

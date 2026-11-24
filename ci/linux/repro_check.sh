@@ -27,15 +27,12 @@ fi
 ref=build/stage2_ref
 rm -rf "$ref"
 mv build/stage2 "$ref"
-mkdir -p build/stage2/lib
-
+# The same build as stage2.sh (build_stage2.sh: one `fly build`).
 echo "repro: rebuilding stage 2 from scratch ..."
-for step in build_runtime build_std build_compiler link_fly build_lsp build_registry; do
-    if ! "./ci/linux/$step.sh" > "build/repro_$step.log" 2>&1; then
-        echo "error: repro $step.sh failed (see build/repro_$step.log)"
-        exit 1
-    fi
-done
+if ! ./ci/linux/build_stage2.sh > build/repro_build_stage2.log 2>&1; then
+    echo "error: repro build_stage2.sh failed (see build/repro_build_stage2.log)"
+    exit 1
+fi
 
 # path<TAB>sha256 for every file of bin/ and lib/, sorted by path
 tree() {

@@ -24,7 +24,7 @@
 # the hardlink build\stage1\bin\fly0.exe, so its <exe>\..\lib is build\stage1\lib
 # (never the seed's own lib, whose std headers would clash with the in-tree
 # std), and every target finds there the headers of the ones before it -
-# runtime.fly.h for TLS and std, the std headers for the compiler.
+# the runtime's for TLS and std, the std headers for the compiler.
 #
 # The seed (0.15.2) knows neither `dir` nor `rpaths` and writes every target
 # flat into target\<profile>, but expands `@out/lib` - where the targets find
@@ -96,46 +96,35 @@ function Install-Artifact([string]$name) {
     Install-File "$script:SRC/$name" $name
 }
 
-# Install-Header SRC DST - a generated header into build\stage1\lib (and the
-# mirror), with nested generic closers spaced (`>>` -> `> >`) as
-# build_runtime.ps1 does.
-function Install-Header([string]$src, [string]$dst) {
-    if (-not (Test-Path "$script:SRC/$src")) { Write-Host "error: $script:SRC\$src was not generated."; exit 1 }
-    $c = Get-Content "$script:SRC/$src" -Raw
-    while ($c -match '>>') { $c = $c -replace '>>', '> >' }
-    Set-Content "$LIB/$dst" $c -NoNewline
-    Set-Content "$TLIB/$dst" $c -NoNewline
-}
-
-# Install-StdHeaders - every std header the std target generated (not the
-# runtime, TLS and LLVM ones, installed under their own names).
-function Install-StdHeaders {
+# Install-Headers - every header the targets built so far generated, under the
+# name `fly build` gives it (RuntimeWindows.fly.h, TlsStub.fly.h, ...): stage 2
+# lays out the same names, so the lib\ the stage-2 build reads headers from (this
+# one) and the one it writes hold the same files - which the stage-3 fixpoint
+# needs (a header present in both is read from the same place at both stages).
+function Install-Headers {
     $n = 0
-    $skip = @('runtime.fly.h', 'llvm.fly.h')
-    Get-ChildItem "$script:SRC/*.fly.h" |
-        Where-Object { ($_.Name -cnotmatch '^(Runtime|Tls)[A-Z]') -and ($skip -notcontains $_.Name) } |
-        ForEach-Object {
-            Install-File $_.FullName $_.Name
-            $n++
-        }
-    if ($n -eq 0) { Write-Host "error: no std headers in $script:SRC."; exit 1 }
-    Write-Host "stage1: std -> $LIB (fly_std_lib.lib + $n headers)"
+    Get-ChildItem "$script:SRC/*.fly.h" | ForEach-Object {
+        Install-File $_.FullName $_.Name
+        $n++
+    }
+    if ($n -eq 0) { Write-Host "error: no headers in $script:SRC."; exit 1 }
+    Write-Host "stage1: headers -> $LIB ($n)"
 }
 
 # -- runtime and TLS archives, built by the seed ---------------------------------
 Invoke-FlyBuild $FLY0 'runtime-windows'
 Install-Artifact 'fly_runtime_lib.lib'
-Install-Header 'RuntimeWindows.fly.h' 'runtime.fly.h'
+Install-Headers
 Invoke-FlyBuild $FLY0 'tls-stub'
 Install-Artifact 'fly_tls_stub.lib'
-Install-Header 'TlsStub.fly.h' 'TlsStub.fly.h'
 Invoke-FlyBuild $FLY0 'tls-schannel'
 Install-Artifact 'fly_tls_lib.lib'
+Install-Headers
 
 # -- std and the compiler, built by the seed ---------------------------------------
 Invoke-FlyBuild $FLY0 'std'
 Install-Artifact 'fly_std_lib.lib'
-Install-StdHeaders
+Install-Headers
 Invoke-FlyBuild $FLY0 'fly'
 if (-not (Test-Path "$T/fly.exe")) { Write-Host "error: $T\fly.exe was not linked."; exit 1 }
 Copy-Item "$T/fly.exe" "$BIN/fly.exe" -Force
@@ -147,7 +136,7 @@ if ($LASTEXITCODE -ne 0) { Write-Host "error: link_fly.ps1 failed (exit $LASTEXI
 Invoke-FlyBuild "$BIN/fly.exe" 'std' -Force
 $script:SRC = $TLIB
 Install-Artifact 'fly_std_lib.lib'
-Install-StdHeaders
+Install-Headers
 
 # -- the stage-1 suites, bottom-up (runtime -> std -> compiler) ---------------------
 # No $env:FLY override: at STAGE=1 the test scripts default to
