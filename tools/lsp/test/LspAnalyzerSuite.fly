@@ -554,6 +554,40 @@ suite LspAnalyzerSuite {
             assert.assertTrue(sawSquare, 918)
             fs.dirDeleteAll(navFixtureDir())
         }
+        case "a raw string over several lines keeps the names after it in place": {
+            // A """...""" literal (0.15) may span lines. The tokens are names only,
+            // so the literal yields none; what must hold is that every name AFTER
+            // it still reports its own line and column, not one shifted by the
+            // newlines inside the literal.
+            string q = str.repeat("\"", 3)
+            string s = "void main() {\n"
+            s = str.concat(s, str.concat("    string t = ", str.concat(q, "a\n")))
+            s = str.concat(s, "b\n")
+            s = str.concat(s, str.concat("c", str.concat(q, "\n")))
+            s = str.concat(s, "    int k = 1\n")
+            s = str.concat(s, "    int m = k\n")
+            s = str.concat(s, "}\n")
+            fs.dirCreateAll("lsp_suite_fx_raw", 493)
+            fs.writeStr("lsp_suite_fx_raw/raw.fly", s, 420)
+            LspAnalyzer a = new LspAnalyzer()
+            List<LspDiag> d = a.compileFile("lsp_suite_fx_raw/raw.fly")
+            List<LspSym> toks = a.semanticTokens()
+            bool sawK = false
+            int j = 0
+            while j < toks.size() {
+                LspSym t = toks.get(j)
+                assert.assertTrue(t.line != 3 && t.line != 4, 919)
+                if str.equals(t.name, "k") {
+                    if t.line == 6 {
+                        sawK = true
+                        assert.assertEqI(t.col, 13, 920)
+                    }
+                }
+                j = j + 1
+            }
+            assert.assertTrue(sawK, 921)
+            fs.dirDeleteAll("lsp_suite_fx_raw")
+        }
         case "workspace symbols match by substring and answer everything on empty": {
             LspAnalyzer a = compiled()
             assert.assertTrue(symNamed(a.workspaceSymbols("square"), "square", 0 - 1), 912)
