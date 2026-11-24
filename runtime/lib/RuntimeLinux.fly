@@ -44,6 +44,9 @@ public void setenv(const pointer name, const pointer val, const int overwrite, i
 public void unsetenv(const pointer name, int out) {}
 public void uname(const pointer buf, int out) {}
 public void exit(const int code) {}
+// crash report (crash_init)
+public void sigaction(const int sig, const pointer act, const pointer old, int out) {}
+public void sigaltstack(const pointer ss, const pointer old, int out) {}
 public void strlen(const pointer s, ulong out) {}
 // process / threads
 public void fork(int out) {}
@@ -1902,6 +1905,100 @@ private void wrFail(const int code, const pointer msg) {
 }
 
 // Print "error <code>[: <msg>]" to stderr — unhandled error reaching main().
+// ── Crash report (0.16) ─────────────────────────────────────────────────────
+// A fault the language does not check — an access through a raw pointer that
+// points nowhere, a stack overflow — used to end the program with only the
+// operating system's code. The compiler-generated main now calls crash_init
+// with a handler it generates (Fly has no function values yet) and two pieces
+// of its own static storage: `scratch`, a 256-byte buffer, and the address of
+// main's frame. On a fault the handler calls crash_report, which prints one line
+// to stderr and returns: the system then goes on as before (the same exit code,
+// a core file or a crash dump, a debugger stopping first). Nothing on this path
+// allocates: the fault may well have happened inside the allocator.
+
+// crWrite — a string literal to stderr, with no allocation.
+private void crWrite(const string s) {
+    pointer p = 0
+    fly.llvm.strGetPtr(s, p)
+    int n = 0
+    fly.llvm.strSize(s, n)
+    long w = 0
+    fly.runtime.io_write(2, p, (ulong)n, w)
+}
+
+// crHexLine — "0x" + the 16 hex digits of v + a newline, built in buf (at
+// least 19 bytes), to stderr.
+private void crHexLine(const long v, const pointer buf) {
+    string digits = "0123456789abcdef"
+    pointer dp = 0
+    fly.llvm.strGetPtr(digits, dp)
+    fly.llvm.ptrPokeByte(buf, 0, 48)
+    fly.llvm.ptrPokeByte(buf, 1, 120)
+    int i = 0
+    while i < 16 {
+        long shift = (long)(60 - i * 4)
+        long nib = (v >> shift) & 15
+        int ni = 0
+        fly.llvm.longToInt(nib, ni)
+        byte c = 0
+        fly.llvm.ptrByteAt(dp, ni, c)
+        fly.llvm.ptrPokeByte(buf, 2 + i, c)
+        i = i + 1
+    }
+    fly.llvm.ptrPokeByte(buf, 18, 10)
+    long w = 0
+    fly.runtime.io_write(2, buf, 19, w)
+}
+
+// crNl — a newline to stderr, from buf.
+private void crNl(const pointer buf) {
+    fly.llvm.ptrPokeByte(buf, 0, 10)
+    long w = 0
+    fly.runtime.io_write(2, buf, 1, w)
+}
+
+// crash_init — install `handler` (void(int, siginfo_t*, void*)) for SIGSEGV and
+// SIGBUS, on an alternate stack so a stack overflow can still be reported.
+// glibc x86_64 struct sigaction (152 bytes): sa_handler at 0, sa_mask (128
+// bytes) at 8, sa_flags at 136, sa_restorer at 144 (glibc fills it). stack_t (at
+// scratch+160): ss_sp at 0, ss_flags at 8, ss_size at 16. SA_SIGINFO (4) |
+// SA_ONSTACK (0x08000000) | SA_RESETHAND (0x80000000): the default action is back
+// in place when the handler returns, so the fault then ends the process as it
+// always did.
+public void crash_init(const pointer handler, const pointer scratch) {
+    pointer alt = 0
+    fly.runtime.malloc(65536, alt)
+    pointer ss = scratch + 160
+    fly.llvm.ptrPokeLong(ss, 0, (long)alt)
+    fly.llvm.ptrPokeInt(ss, 8, 0)
+    fly.llvm.ptrPokeLong(ss, 16, 65536)
+    int r = 0
+    fly.runtime.sigaltstack(ss, 0, r)
+    fly.llvm.ptrPokeLong(scratch, 0, (long)handler)
+    fly.llvm.ptrPokeInt(scratch, 136, -2013265916)      // SA_SIGINFO | SA_ONSTACK | SA_RESETHAND
+    fly.runtime.sigaction(11, scratch, 0, r)            // SIGSEGV
+    fly.runtime.sigaction(7, scratch, 0, r)             // SIGBUS
+}
+
+// crash_report — the generated handler's body (`sig` is the signal, `info`
+// its siginfo_t, `stackRef` an address in main's frame).
+public void crash_report(const int sig, const pointer info, const pointer stackRef, const pointer scratch) {
+    long addr = 0
+    fly.llvm.ptrReadLong(info, 16, addr)
+    long top = (long)stackRef
+    bool onStack = false
+    if addr <= top {
+        onStack = top - addr < 67108864
+    }
+    if onStack {
+        crWrite("fatal error: stack overflow")
+        crNl(scratch)
+        return
+    }
+    crWrite("fatal error: invalid memory access at address ")
+    crHexLine(addr, scratch)
+}
+
 public void err_print(const int code, const pointer msg) {
     wrLit(2, "error ")
     wrDec(2, code)

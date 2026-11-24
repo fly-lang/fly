@@ -1,0 +1,9 @@
+import fly.mem
+
+void main() {
+    pointer p = 0
+    int v = mem.readInt(p, 0)
+    if v == 0 {
+        return
+    }
+}

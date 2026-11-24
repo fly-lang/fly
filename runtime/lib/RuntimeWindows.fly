@@ -38,6 +38,9 @@ public void WriteFile(const pointer h, const pointer buf, const int n, const poi
         int out) {}
 // process / thread
 public void ExitProcess(const int code) {}
+// crash report (crash_init)
+public void SetUnhandledExceptionFilter(const pointer filter, pointer out) {}
+public void SetThreadStackGuarantee(const pointer size, int out) {}
 public void CreateThread(const pointer attrs, const ulong stack, const pointer start, const pointer param,
         const int flags, const pointer threadId, pointer out) {}
 public void CloseHandle(const pointer h, int out) {}
@@ -2555,6 +2558,94 @@ private void wrFail(const int code, const pointer msg) {
 }
 
 // Print "error <code>[: <msg>]" to stderr — unhandled error reaching main().
+// ── Crash report (0.16) ─────────────────────────────────────────────────────
+// A fault the language does not check — an access through a raw pointer that
+// points nowhere, a stack overflow — used to end the program with only the
+// operating system's code. The compiler-generated main now calls crash_init
+// with a handler it generates (Fly has no function values yet) and two pieces
+// of its own static storage: `scratch`, a 256-byte buffer, and the address of
+// main's frame. On a fault the handler calls crash_report, which prints one line
+// to stderr and returns: the system then goes on as before (the same exit code,
+// a core file or a crash dump, a debugger stopping first). Nothing on this path
+// allocates: the fault may well have happened inside the allocator.
+
+// crWrite — a string literal to stderr, with no allocation.
+private void crWrite(const string s) {
+    pointer p = 0
+    fly.llvm.strGetPtr(s, p)
+    int n = 0
+    fly.llvm.strSize(s, n)
+    long w = 0
+    fly.runtime.io_write(2, p, (ulong)n, w)
+}
+
+// crHexLine — "0x" + the 16 hex digits of v + a newline, built in buf (at
+// least 19 bytes), to stderr.
+private void crHexLine(const long v, const pointer buf) {
+    string digits = "0123456789abcdef"
+    pointer dp = 0
+    fly.llvm.strGetPtr(digits, dp)
+    fly.llvm.ptrPokeByte(buf, 0, 48)
+    fly.llvm.ptrPokeByte(buf, 1, 120)
+    int i = 0
+    while i < 16 {
+        long shift = (long)(60 - i * 4)
+        long nib = (v >> shift) & 15
+        int ni = 0
+        fly.llvm.longToInt(nib, ni)
+        byte c = 0
+        fly.llvm.ptrByteAt(dp, ni, c)
+        fly.llvm.ptrPokeByte(buf, 2 + i, c)
+        i = i + 1
+    }
+    fly.llvm.ptrPokeByte(buf, 18, 10)
+    long w = 0
+    fly.runtime.io_write(2, buf, 19, w)
+}
+
+// crNl — a newline to stderr, from buf.
+private void crNl(const pointer buf) {
+    fly.llvm.ptrPokeByte(buf, 0, 10)
+    long w = 0
+    fly.runtime.io_write(2, buf, 1, w)
+}
+
+// crash_init — install `handler` (a LONG WINAPI unhandled-exception filter) and
+// reserve 64 KB of the main thread's stack for it, so a stack overflow can still
+// be reported (SetThreadStackGuarantee takes the size through a ULONG pointer:
+// scratch). The filter returns EXCEPTION_CONTINUE_SEARCH: Windows then ends the
+// process as it always did (same exit code, a crash dump where one is set up).
+public void crash_init(const pointer handler, const pointer scratch) {
+    fly.llvm.ptrPokeInt(scratch, 0, 65536)
+    int ok = 0
+    fly.runtime.SetThreadStackGuarantee(scratch, ok)
+    pointer prev = 0
+    fly.runtime.SetUnhandledExceptionFilter(handler, prev)
+}
+
+// crash_report — the generated filter's body (`info` is its EXCEPTION_POINTERS*;
+// `sig` and `stackRef` serve the POSIX backends). EXCEPTION_RECORD: code at 0,
+// ExceptionInformation at 32 — for an access violation [1] is the address.
+public void crash_report(const int sig, const pointer info, const pointer stackRef, const pointer scratch) {
+    long recL = 0
+    fly.llvm.ptrReadLong(info, 0, recL)
+    pointer rec = recL
+    int code = 0
+    fly.llvm.ptrReadInt(rec, 0, code)
+    if code == -1073741571 {                            // 0xC00000FD STATUS_STACK_OVERFLOW
+        crWrite("fatal error: stack overflow")
+        crNl(scratch)
+    } elsif code == -1073741819 {                       // 0xC0000005 STATUS_ACCESS_VIOLATION
+        long addr = 0
+        fly.llvm.ptrReadLong(rec, 40, addr)
+        crWrite("fatal error: invalid memory access at address ")
+        crHexLine(addr, scratch)
+    } else {
+        crWrite("fatal error: unhandled exception ")
+        crHexLine((long)code & 4294967295, scratch)
+    }
+}
+
 public void err_print(const int code, const pointer msg) {
     wrLit(2, "error ")
     wrDec(2, code)

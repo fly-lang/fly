@@ -7,6 +7,7 @@ import fly.compiler.codegen.CodeGenLLVM
 import fly.compiler.codegen.CodeGenTrace
 import llvm.api.*
 import fly.data.List
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenError — `fail` / `handle` lowering over the shared `%error` struct
@@ -100,10 +101,14 @@ public class CodeGenError {
     // takes — jump to the enclosing handle's safe block, or return. The array
     // bounds check needs this: there is no SemaFailStmt to carry the code.
     //
+    // `message` (may be empty) goes into the error's str field, as a constant
+    // NUL-terminated string: an uncaught failure then prints
+    // "error <code>: <message>", like a fail with a string operand.
+    //
     // Unlike emitFail it does NOT park the builder in a dead block: the caller is
     // mid-expression and goes on emitting into the in-range block it created, so
     // parking here would strand that block.
-    public static void failWithCode(const CodeGenExpr cge, const int code) {
+    public static void failWithCode(const CodeGenExpr cge, const int code, const string message) {
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         CodeGenModule cgm = cge.getCgm()
@@ -116,6 +121,11 @@ public class CodeGenError {
         pointer cp
         llvm.buildStructGEP2(b, errTy, errPtr, 0, "ecode", cp)
         llvm.buildStore(b, cv, cp)
+        if str.isEmpty(message) == false {
+            pointer sp
+            llvm.buildStructGEP2(b, errTy, errPtr, 1, "estr", sp)
+            llvm.buildStore(b, cgm.cstr(message), sp)
+        }
 
         pointer safe = cge.getHandleSafe()
         if safe != 0 {

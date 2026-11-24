@@ -4,6 +4,7 @@ import fly.test.util.*
 import fly.str
 import fly.mem
 import fly.assert
+import fly.compiler.codegen.CodeGenArray
 
 // Array codegen — the `%array = { ptr, i64 }` fat pointer. A literal mallocs the
 // data buffer, stores each element by GEP, and assembles the {data,len} struct
@@ -115,6 +116,14 @@ suite CodeGenArraySuite {
         case "the failure carries the dedicated code": {
             string ir = cgIR("void f() { int[] k = {5}  int x = k[9] }")
             assert.assertTrue(str.contains(ir, "2989"), 60)
+        }
+        // ... and says what happened (0.16): "error 2989: index out of range at
+        // <file>:<line>:<col>" when uncaught (ci/trap_probes/index_oob runs it).
+        case "the failure carries its message": {
+            string ir = cgIR("void f() { int[] k = {5}  int x = k[9] }")
+            assert.assertTrue(str.contains(ir, "index out of range"), 99)
+            assert.assertStr(CodeGenArray.oobMessage(""), "index out of range", 100)
+            assert.assertStr(CodeGenArray.oobMessage("a.fly:1:2"), "index out of range at a.fly:1:2", 101)
         }
     }
 

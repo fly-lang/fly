@@ -1,0 +1,3 @@
+crash
+fatal error: invalid memory access at address 0x0000000000000000
+

@@ -51,7 +51,14 @@ for probe in ci/trap_probes/*/; do
 
     "$dir/$name" > "$dir/run.log" 2>&1
     rc=$?
-    if [ "$rc" != "$want_code" ]; then
+    # "crash": any non-zero exit (the system's own, e.g. 139 for SIGSEGV); a
+    # number is compared as the shell sees it, its low 8 bits (2989 -> 173).
+    if [ "$want_code" = "crash" ]; then
+        code_ok=0; [ "$rc" != 0 ] && code_ok=1
+    else
+        code_ok=0; [ "$rc" = "$((want_code % 256))" ] && code_ok=1
+    fi
+    if [ "$code_ok" != 1 ]; then
         echo "  FAIL  $name - exit $rc, expected $want_code"
         head -n 3 "$dir/run.log" | sed 's/^/        /'
         failed=$((failed + 1))

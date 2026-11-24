@@ -55,11 +55,13 @@ public class CodeGenModule {
     CodeGenOptions codeGenOpts    // linker flags sink (CLang bridge); null in unit tests
     CodeGenDebug dbg              // DWARF line tables (--debug-symbols); null otherwise
     bool machO                    // the target emits Mach-O (set by configureTarget)
+    bool windowsTarget            // the target is Windows (set by configureTarget)
     string name
 
     public CodeGenModule(const string name) {
         this.dbg = null
         this.machO = false
+        this.windowsTarget = false
         this.name = name
         this.itableFn = 0
         this.itableFnTy = 0
@@ -628,6 +630,7 @@ public class CodeGenModule {
         // (each `case` swaps in its own fresh handler; see visit(SemaCaseStmt)).
         pointer errSlot
         llvm.buildAlloca(this.builder, this.errorTy, "suite_err", errSlot)
+        this.emitCrashInit(errSlot)
         pointer codePtr
         llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 0, "ecode", codePtr)
         pointer zero
@@ -968,6 +971,7 @@ public class CodeGenModule {
         // %error err = { 0, null, null } — zero ALL three fields (reference parity)
         pointer errSlot
         llvm.buildAlloca(this.builder, this.errorTy, "err", errSlot)
+        this.emitCrashInit(errSlot)
         pointer codePtr
         llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 0, "ecode", codePtr)
         pointer zero
@@ -2000,6 +2004,124 @@ public class CodeGenModule {
         return fn
     }
 
+    // emitCrashInit — (0.16) before the program runs, install the crash report: a
+    // fault the language does not check (a raw pointer that points nowhere, a
+    // stack overflow) prints "fatal error: ..." instead of ending silently. Fly
+    // has no function values, so the handler is generated here
+    // (crashHandlerFn) and handed to the runtime's crash_init with a 256-byte
+    // static scratch buffer; `frame` (an alloca of main) is kept in a static
+    // slot so the handler can tell a stack overflow from any other fault.
+    public void emitCrashInit(const pointer frame) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer ptrTy = this.types.ptrType()
+        pointer i8t
+        llvm.int8TypeInContext(this.ctx, i8t)
+        pointer bufTy
+        llvm.arrayType(i8t, 256, bufTy)
+        pointer scratch
+        llvm.addGlobal(this.module, bufTy, "__fly_crash_scratch", scratch)
+        pointer zeroBuf
+        llvm.constNull(bufTy, zeroBuf)
+        llvm.setInitializer(scratch, zeroBuf)
+        llvm.setLinkage(scratch, 8)
+        pointer frameRef
+        llvm.addGlobal(this.module, ptrTy, "__fly_crash_frame", frameRef)
+        pointer nullP
+        llvm.constPointerNull(ptrTy, nullP)
+        llvm.setInitializer(frameRef, nullP)
+        llvm.setLinkage(frameRef, 8)
+        llvm.buildStore(this.builder, frame, frameRef)
+        pointer handler = this.crashHandlerFn(scratch, frameRef)
+        List<pointer> tys = new List<pointer>()
+        tys.add(ptrTy)
+        tys.add(ptrTy)
+        List<pointer> args = new List<pointer>()
+        args.add(handler)
+        args.add(scratch)
+        this.callVoidRt("crash_init", tys, args)
+    }
+
+    // crashHandlerFn — the handler crash_init installs, internal to the program's
+    // module: on Windows a LONG WINAPI unhandled-exception filter, `i32 (ptr
+    // EXCEPTION_POINTERS*)`, returning EXCEPTION_CONTINUE_SEARCH (0); elsewhere a
+    // SA_SIGINFO handler, `void (i32 sig, ptr siginfo, ptr ucontext)`. Both call
+    // the runtime's crash_report(sig, info, frame, scratch) and return, so the
+    // system then ends the process as before.
+    public pointer crashHandlerFn(const pointer scratch, const pointer frameRef) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer b = this.builder
+        pointer ptrTy = this.types.ptrType()
+        pointer voidTy
+        llvm.voidTypeInContext(this.ctx, voidTy)
+        pointer i32Ty
+        llvm.int32TypeInContext(this.ctx, i32Ty)
+        List<pointer> ps = new List<pointer>()
+        pointer fty
+        if this.windowsTarget {
+            ps.add(ptrTy)
+            this.cg.functionTypeN(i32Ty, ps, false, fty)
+        } else {
+            ps.add(i32Ty)
+            ps.add(ptrTy)
+            ps.add(ptrTy)
+            this.cg.functionTypeN(voidTy, ps, false, fty)
+        }
+        pointer fn
+        llvm.addFunction(this.module, "__fly_crash_handler", fty, fn)
+        llvm.setLinkage(fn, 8)
+
+        // built away from main's block, then back to it; no subprogram, so main's
+        // debug location must not follow (as for @__fly_null_trap)
+        pointer savedLoc = 0
+        if this.dbg != null {
+            savedLoc = this.dbg.suspend()
+        }
+        pointer callerBB
+        llvm.getInsertBlock(b, callerBB)
+        pointer entryBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "entry", entryBB)
+        llvm.positionBuilderAtEnd(b, entryBB)
+
+        pointer sig
+        pointer info
+        if this.windowsTarget {
+            llvm.constInt(i32Ty, 0, true, sig)
+            llvm.getParam(fn, 0, info)
+        } else {
+            llvm.getParam(fn, 0, sig)
+            llvm.getParam(fn, 1, info)
+        }
+        pointer frame
+        llvm.buildLoad2(b, ptrTy, frameRef, "frame", frame)
+        List<pointer> tys = new List<pointer>()
+        tys.add(i32Ty)
+        tys.add(ptrTy)
+        tys.add(ptrTy)
+        tys.add(ptrTy)
+        List<pointer> args = new List<pointer>()
+        args.add(sig)
+        args.add(info)
+        args.add(frame)
+        args.add(scratch)
+        this.callVoidRt("crash_report", tys, args)
+        pointer r
+        if this.windowsTarget {
+            pointer zero
+            llvm.constInt(i32Ty, 0, true, zero)
+            llvm.buildRet(b, zero, r)
+        } else {
+            llvm.buildRetVoid(b, r)
+        }
+
+        if callerBB != 0 {
+            llvm.positionBuilderAtEnd(b, callerBB)
+        }
+        if this.dbg != null {
+            this.dbg.resume(savedLoc)
+        }
+        return fn
+    }
+
     public pointer emitItableLookup(const pointer vt, const long ifaceId) {
         LLVM llvm = this.cg.getLLVM()
         pointer fn = this.itableLookupFn()
@@ -2358,6 +2480,7 @@ public class CodeGenModule {
         LLVM llvm = this.cg.getLLVM()
         llvm.setTarget(this.module, ti.getTripleStr())
         this.machO = tripleParse(ti.getTripleStr()).isOSBinFormatMachO()
+        this.windowsTarget = tripleParse(ti.getTripleStr()).isOSWindows()
         llvm.setDataLayout(this.module, ti.getDataLayout())
         // Make pointer lowering follow this target's pointer width.
         this.types.setTargetInfo(ti)

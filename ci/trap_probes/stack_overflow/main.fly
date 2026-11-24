@@ -1,0 +1,10 @@
+int down(int n) {
+    return down(n + 1) + 1
+}
+
+void main() {
+    int r = down(0)
+    if r == 0 {
+        return
+    }
+}

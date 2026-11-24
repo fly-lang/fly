@@ -8,6 +8,7 @@ import fly.compiler.codegen.CodeGenClass
 import fly.compiler.codegen.CodeGenError
 import llvm.api.*
 import fly.data.List
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenArray — lowering for native arrays. Representation (mirrors the C++
@@ -507,9 +508,19 @@ public class CodeGenArray {
 
     // oobCode — the dedicated failure code for an out-of-range subscript, 0x0BAD.
     // It behaves like any other `fail`: it propagates, sets main's exit status,
-    // and can be caught with `handle`.
+    // and can be caught with `handle`. Its message says where:
+    // "index out of range at <file>:<line>:<col>" (oobMessage).
     public static int oobCode() {
         return 2989
+    }
+
+    // oobMessage — the message of an out-of-range subscript at `where` (the
+    // statement's "<file>:<line>:<col>", or "" when it has no location).
+    public static string oobMessage(const string where) {
+        if str.isEmpty(where) {
+            return "index out of range"
+        }
+        return str.concat("index out of range at ", where)
     }
 
     // elementPtr — the ADDRESS of `base[index]`, bounds-checked.
@@ -564,7 +575,7 @@ public class CodeGenArray {
         cge.setTerminated(true)
 
         cge.position(failBB)
-        CodeGenError.failWithCode(cge, CodeGenArray.oobCode())
+        CodeGenError.failWithCode(cge, CodeGenArray.oobCode(), CodeGenArray.oobMessage(cge.stmtWhere()))
 
         cge.position(okBB)
         List<pointer> gidx = new List<pointer>()

@@ -10,10 +10,11 @@
 #
 # Each probe under ci/trap_probes\<name>\ is one trap in miniature:
 #   main.fly     the program;
-#   expect.txt   line 1 the exit code it must end with; line 2 a fragment of the
-#                message it must print; line 3 the position (file:line:col) that
-#                must follow. A probe that must run normally expects 0 and empty
-#                lines.
+#   expect.txt   line 1 the exit code it must end with (`crash`: any non-zero
+#                code, the system's own - a fault the language does not check,
+#                reported by the crash handler); line 2 a fragment of the message
+#                it must print; line 3 the position (file:line:col) that must
+#                follow. A probe that must run normally expects 0 and empty lines.
 #
 # STAGE selects the compiler under test (default 2, the one that ships).
 # -----------------------------------------------------------------------------
@@ -41,7 +42,8 @@ foreach ($probe in Get-ChildItem 'ci/trap_probes' -Directory | Sort-Object Name)
     $name = $probe.Name
     $count++
     $lines = @(Get-Content (Join-Path $probe.FullName 'expect.txt'))
-    $wantCode = [int]$lines[0]
+    $wantCrash = ($lines[0].Trim() -eq 'crash')
+    $wantCode = if ($wantCrash) { 0 } else { [int]$lines[0] }
     $wantMsg = if ($lines.Count -gt 1) { $lines[1] } else { '' }
     $wantPos = if ($lines.Count -gt 2) { $lines[2] } else { '' }
 
@@ -61,7 +63,7 @@ foreach ($probe in Get-ChildItem 'ci/trap_probes' -Directory | Sort-Object Name)
     $rc = $LASTEXITCODE
     $text = Get-Content "$dir/run.log" -Raw
     if ($null -eq $text) { $text = '' }
-    if ($rc -ne $wantCode) {
+    if (($wantCrash -and $rc -eq 0) -or (-not $wantCrash -and $rc -ne $wantCode)) {
         Write-Host "  FAIL  $name - exit $rc, expected $wantCode"
         Get-Content "$dir/run.log" | Select-Object -First 3 | ForEach-Object { Write-Host "        $_" }
         $failed++

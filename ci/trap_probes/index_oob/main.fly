@@ -1,0 +1,11 @@
+int pick(int[] k, int i) {
+    return k[i]
+}
+
+void main() {
+    int[] k = {5, 6, 7}
+    int v = pick(k, 3)
+    if v == 0 {
+        return
+    }
+}
