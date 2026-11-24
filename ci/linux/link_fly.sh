@@ -19,7 +19,14 @@ CDIR=build/stage1/compiler
 OBJ="build/stage$STAGE/driver/Driver.o"
 mkdir -p "$OUT" "$LIB"
 
-[ -f "$OBJ" ] || { echo "error: $OBJ missing — run build_compiler.sh first." >&2; exit 1; }
+# FLY_LINKED=1: $OUT/fly is already there, linked by `fly build` (stage1.sh since
+# 0.16); only the bundle below is left to do. Such a fly carries no RUNPATH: it
+# finds libLLVM through the loader path stage0.sh exports.
+if [ "${FLY_LINKED:-0}" = "1" ]; then
+    [ -x "$OUT/fly" ] || { echo "error: FLY_LINKED=1 but $OUT/fly is missing." >&2; exit 1; }
+else
+    [ -f "$OBJ" ] || { echo "error: $OBJ missing — run build_compiler.sh first." >&2; exit 1; }
+fi
 # MONOLITHIC: the compiler is inside $OBJ (compiled from source by build_compiler),
 # NOT a separate fly_compiler_lib.a archive — avoids the linker COMDAT-dedup of the
 # compiler's generic instantiations that caused the `fly build` UAF crash.
@@ -54,8 +61,10 @@ if is_macos; then
     else
         RPATH="$(cd "$FORK_LLVM/lib" && pwd)"
     fi
-    echo "stage$STAGE: linking $OUT/fly ..."
-    FLY_LINK_RPATH="$RPATH" ci/linux/link_bin.sh "$OBJ" "$OUT/fly" --with-llvm
+    if [ "${FLY_LINKED:-0}" != "1" ]; then
+        echo "stage$STAGE: linking $OUT/fly ..."
+        FLY_LINK_RPATH="$RPATH" ci/linux/link_bin.sh "$OBJ" "$OUT/fly" --with-llvm
+    fi
     echo "stage$STAGE: fly -> $OUT/fly (libs from $LIB)"
     exit 0
 fi
@@ -109,9 +118,11 @@ RT_SRC="$FORK_LLVM/$RT_REL/libclang_rt.builtins.a"
 mkdir -p "build/stage$STAGE/$RT_REL"
 cp -f "$RT_SRC" "build/stage$STAGE/$RT_REL/libclang_rt.builtins.a"
 
-echo "stage$STAGE: linking $OUT/fly ..."
-# The link itself lives in link_bin.sh, shared with build_lsp.sh; RPATH is
-# passed through because only this script knows about the LLVM bundling mode.
-FLY_LINK_RPATH="$RPATH" ci/linux/link_bin.sh "$OBJ" "$OUT/fly" --with-llvm
+if [ "${FLY_LINKED:-0}" != "1" ]; then
+    echo "stage$STAGE: linking $OUT/fly ..."
+    # The link itself lives in link_bin.sh, shared with build_lsp.sh; RPATH is
+    # passed through because only this script knows about the LLVM bundling mode.
+    FLY_LINK_RPATH="$RPATH" ci/linux/link_bin.sh "$OBJ" "$OUT/fly" --with-llvm
+fi
 
 echo "stage$STAGE: fly -> $OUT/fly (libs from $LIB)"

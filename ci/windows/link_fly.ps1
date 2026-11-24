@@ -27,22 +27,31 @@ function Assert-LastExit($what) {
     if ($LASTEXITCODE -ne 0) { throw "$what failed (exit $LASTEXITCODE)" }
 }
 
-$OBJ = "$D/Driver.o"
-if (-not (Test-Path $OBJ)) {
-    Write-Host "error: $D\Driver.o missing - run build_compiler.ps1 first."; exit 1
-}
 if (-not (Test-Path "$LIB/fly_std_lib.lib") -or -not (Test-Path "$LIB/fly_runtime_lib.lib")) {
     Write-Host "error: std/runtime missing in $LIB - run build_runtime.ps1 + build_std.ps1 first."; exit 1
 }
 
-# -- Link fly.exe: ld.lld -m i386pep with the mingw CRT startup objects + import
-#    libs (from build\mingw); LLVM-C.lib supplies the LLVM C-API. No MSVC needed.
-#    ld.lld keeps .debug_* sections by default, so FLY_DEBUG_SYMBOLS needs no
-#    extra link flag (the objects carry DWARF iff they were built with it).
-#    The link itself lives in link_bin.ps1, shared with build_lsp.ps1.
-Write-Host "stage${STAGE}: linking fly.exe (ld.lld, mingw/UCRT) ..."
-& "$PSScriptRoot\link_bin.ps1" -Obj $OBJ -Out "$OUT/fly.exe" -WithLLVM
-Assert-LastExit 'driver link'
+# FLY_LINKED=1: fly.exe is already in $OUT, linked by `fly build` (stage1.ps1
+# since 0.16); only the bundle below is left to do.
+if ($env:FLY_LINKED -eq '1') {
+    if (-not (Test-Path "$OUT/fly.exe")) {
+        Write-Host "error: FLY_LINKED=1 but $OUT\fly.exe is missing."; exit 1
+    }
+} else {
+    $OBJ = "$D/Driver.o"
+    if (-not (Test-Path $OBJ)) {
+        Write-Host "error: $D\Driver.o missing - run build_compiler.ps1 first."; exit 1
+    }
+    # -- Link fly.exe: ld.lld -m i386pep with the mingw CRT startup objects +
+    #    import libs (from build\mingw); LLVM-C.lib supplies the LLVM C-API. No
+    #    MSVC needed. ld.lld keeps .debug_* sections by default, so
+    #    FLY_DEBUG_SYMBOLS needs no extra link flag (the objects carry DWARF iff
+    #    they were built with it). The link itself lives in link_bin.ps1, shared
+    #    with build_lsp.ps1.
+    Write-Host "stage${STAGE}: linking fly.exe (ld.lld, mingw/UCRT) ..."
+    & "$PSScriptRoot\link_bin.ps1" -Obj $OBJ -Out "$OUT/fly.exe" -WithLLVM
+    Assert-LastExit 'driver link'
+}
 
 # -- Bundle (FLY_BUNDLE_LLVM=1): LLVM-C.dll (loaded at runtime) + ld.lld.exe (the
 #    linker fly forks to link USER programs in mingw mode) + the debugger — lldb.exe

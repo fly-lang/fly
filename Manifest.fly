@@ -30,8 +30,16 @@ class Manifest : fly.meta.Manifest {
     // targets after it find it (`@out`). It is what the build scripts do today
     // (ci/*/build_*); release/0.16.X bootstraps with it. The compiler and fly-lsp
     // link the LLVM C API from the LLVM stage0 fetches (build/llvm/lib).
+    //
+    // Stage 1 (ci/*/stage1) builds the same targets with the seed, one at a
+    // time, through the `stage1` profile (`stage1-debug` when CI embeds DWARF):
+    // no --warnings-as-errors, since the seed's warnings are not the tree's
+    // contract, and its own output directory, so stage 2's `fly build --profile
+    // dist` never finds the seed's artifacts up to date.
     Profile[] profiles = {
-        { name = "dist", optLevel = 0, debugInfo = false, warningsAsErrors = true }
+        { name = "dist", optLevel = 0, debugInfo = false, warningsAsErrors = true },
+        { name = "stage1", optLevel = 0, debugInfo = false, warningsAsErrors = false },
+        { name = "stage1-debug", optLevel = 0, debugInfo = true, warningsAsErrors = false }
     }
 
     Target[] targets = {
