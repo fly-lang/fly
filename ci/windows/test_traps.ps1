@@ -13,7 +13,8 @@
 #   expect.txt   line 1 the exit code it must end with (`crash`: any non-zero
 #                code, the system's own - a fault the language does not check,
 #                reported by the crash handler); line 2 a fragment of the message
-#                it must print; line 3 the position (file:line:col) that must
+#                it must print (`=text`: one output line must be exactly `text`);
+#                line 3 the position (file:line:col) that must
 #                follow. A probe that must run normally expects 0 and empty lines.
 #
 # STAGE selects the compiler under test (default 2, the one that ships).
@@ -67,7 +68,11 @@ foreach ($probe in Get-ChildItem 'ci/trap_probes' -Directory | Sort-Object Name)
         Write-Host "  FAIL  $name - exit $rc, expected $wantCode"
         Get-Content "$dir/run.log" | Select-Object -First 3 | ForEach-Object { Write-Host "        $_" }
         $failed++
-    } elseif ($wantMsg -and -not $text.Contains($wantMsg)) {
+    } elseif ($wantMsg.StartsWith('=') -and -not (($text -split "`r?`n") -ccontains $wantMsg.Substring(1))) {
+        Write-Host "  FAIL  $name - no output line is exactly: $($wantMsg.Substring(1))"
+        Get-Content "$dir/run.log" | Select-Object -First 3 | ForEach-Object { Write-Host "        $_" }
+        $failed++
+    } elseif ($wantMsg -and -not $wantMsg.StartsWith('=') -and -not $text.Contains($wantMsg)) {
         Write-Host "  FAIL  $name - message missing: $wantMsg"
         Get-Content "$dir/run.log" | Select-Object -First 3 | ForEach-Object { Write-Host "        $_" }
         $failed++

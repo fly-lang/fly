@@ -1,0 +1,20 @@
+// A handled failure must not leave its message behind: the later, unrelated
+// failure used to report the handled one's text, "error 1: b: y"
+// (fly-lang/fly#237).
+import fly.str
+
+void f(const int code, const string what) {
+    fail code, str.concat(what, ": x")
+}
+
+void h(const int code, const string what) {
+    string m = str.concat(what, ": y")
+    fail code, m
+}
+
+void main() {
+    handle {
+        h(2, "b")
+    }
+    f(1, "a")
+}

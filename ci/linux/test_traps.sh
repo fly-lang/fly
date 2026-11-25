@@ -12,9 +12,9 @@
 # Each probe under ci/trap_probes/<name>/ is one trap in miniature:
 #   main.fly     the program;
 #   expect.txt   line 1 the exit code it must end with; line 2 a fragment of the
-#                message it must print; line 3 the position (file:line:col) that
-#                must follow. A probe that must run normally expects 0 and empty
-#                lines.
+#                message it must print (`=text`: one output line must be exactly
+#                `text`); line 3 the position (file:line:col) that must follow.
+#                A probe that must run normally expects 0 and empty lines.
 #
 # STAGE selects the compiler under test (default 2, the one that ships).
 # ─────────────────────────────────────────────────────────────────────────────
@@ -62,7 +62,11 @@ for probe in ci/trap_probes/*/; do
         echo "  FAIL  $name - exit $rc, expected $want_code"
         head -n 3 "$dir/run.log" | sed 's/^/        /'
         failed=$((failed + 1))
-    elif [ -n "$want_msg" ] && ! grep -qF -- "$want_msg" "$dir/run.log"; then
+    elif [ -n "$want_msg" ] && [ "${want_msg#=}" != "$want_msg" ] && ! tr -d '\r' < "$dir/run.log" | grep -qxF -- "${want_msg#=}"; then
+        echo "  FAIL  $name - no output line is exactly: ${want_msg#=}"
+        head -n 3 "$dir/run.log" | sed 's/^/        /'
+        failed=$((failed + 1))
+    elif [ -n "$want_msg" ] && [ "${want_msg#=}" = "$want_msg" ] && ! grep -qF -- "$want_msg" "$dir/run.log"; then
         echo "  FAIL  $name - message missing: $want_msg"
         head -n 3 "$dir/run.log" | sed 's/^/        /'
         failed=$((failed + 1))

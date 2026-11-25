@@ -1,0 +1,15 @@
+// A failure with no message after a handled one with a message: the report
+// must be "error 3" alone, not the handled failure's text (fly-lang/fly#237).
+import fly.str
+
+void h(const int code, const string what) {
+    string m = str.concat(what, ": y")
+    fail code, m
+}
+
+void main() {
+    handle {
+        h(2, "b")
+    }
+    fail 3
+}

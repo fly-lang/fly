@@ -521,9 +521,14 @@ public class CodeGenModule {
         return p
     }
 
-    // zeroErrSlot — reset an %error slot to { 0, null, null }.
+    // zeroErrSlot — consume a failure: free the message the slot owns (a heap copy
+    // every fail makes; free(null) when there is none), then reset the slot to
+    // { 0, null, null }. The object is not the slot's: it is only dropped.
     public void zeroErrSlot(const pointer errSlot) {
         LLVM llvm = this.cg.getLLVM()
+        pointer oldMsg
+        llvm.buildLoad2(this.builder, this.types.ptrType(), this.errField(errSlot, 1, "ezm"), "ezmsg", oldMsg)
+        this.freeHandle(oldMsg)
         pointer i32
         llvm.int32TypeInContext(this.ctx, i32)
         pointer zero

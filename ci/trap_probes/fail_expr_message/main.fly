@@ -1,0 +1,12 @@
+// A fail message built by an expression (a call result): the check after the
+// call used to see the code already written and leave before the message was
+// stored, so main printed "error 1" alone (fly-lang/fly#237).
+import fly.str
+
+void f(const int code, const string what) {
+    fail code, str.concat(what, ": x")
+}
+
+void main() {
+    f(1, "a")
+}

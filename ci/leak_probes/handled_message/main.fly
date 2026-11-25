@@ -1,0 +1,35 @@
+// A failure's message belongs to the error: the temporary passed to `fail`
+// moves into it, and the handle that consumes the failure frees it — once
+// (a double free would crash). Before fly-lang/fly#237 every handled failure
+// leaked its message (and the temporary it was copied from).
+import fly.str
+
+void f(const int i) {
+    fail i + 1, str.concat("failure message number ", "abcdefghijklmnopqrstuvwxyz")
+}
+
+void g(const int i) {
+    string m = str.concat("local message ", "abcdefghijklmnopqrstuvwxyz")
+    fail i + 1, m
+}
+
+int pick(int[] k, const int i) {
+    return k[i]
+}
+
+void main() {
+    int[] k = {1, 2, 3}
+    int i = 0
+    while i < 1000000 {
+        handle {
+            f(i)
+        }
+        handle {
+            g(i)
+        }
+        handle {
+            int v = pick(k, 3)
+        }
+        i = i + 1
+    }
+}
