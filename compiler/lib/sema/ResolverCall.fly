@@ -209,6 +209,7 @@ public class ResolverCall {
             // static: method in the class scope, NO receiver attached — codegen
             // recognizes the receiver-less method call and passes a null `this`.
             Symbol ssym = ResolverCall.lookupMethodInHierarchy(r.getReg(), staticCls, node.getName(), argTypes)
+            checkCallAccess(r, node, ssym)
             sema = ResolverCall.makeCall(node, ssym)
         } elsif nsPath != null {
             sema = ResolverCall.resolveNamespaceCall(r, node, nsPath, argTypes)
@@ -320,6 +321,7 @@ public class ResolverCall {
         } else {
             sym = ResolverCall.lookupMethodInHierarchy(reg, base, node.getName(), argTypes)
         }
+        checkCallAccess(r, node, sym)
         SemaCall sc = ResolverCall.makeCall(node, sym)
         if sc == null {
             return null
@@ -376,6 +378,7 @@ public class ResolverCall {
                         SemaClassType qcls = tt.asClass()
                         if qcls != null {
                             sym = ResolverCall.lookupMethodInHierarchy(reg, qcls, node.getName(), argTypes)
+                            checkCallAccess(r, node, sym)
                         }
                     }
                 }
@@ -775,28 +778,11 @@ public class ResolverCall {
         }
         Registry reg = r.getReg()
         Symbol sym = ResolverCall.lookupMethodInHierarchy(reg, cls, node.getName(), argTypes)
-        // A PRIVATE method is callable only from its own class, like a private
-        // field. The call is still built after the diagnostic, so the caller
-        // does not pile a misleading "no function matches" on top of it.
-        if sym != null {
-            SemaNode pref = sym.getRef()
-            SemaFunctionBase pfn = pref.asFunctionBase()
-            if pfn != null {
-                SemaClassMethod pm = pfn.asClassMethod()
-                if pm != null {
-                    if pm.getVisibility() == SemaVisibilityKind.PRIVATE {
-                        SemaClassType pown = pm.getClass()
-                        if classMayAccess(r, pown) == false {
-                            string pon = "?"
-                            if pown != null {
-                                pon = pown.getName()
-                            }
-                            r.diagStr2(node.getLoc(), DiagID.err_sema_symbol_not_accessible, node.getName(), pon)
-                        }
-                    }
-                }
-            }
-        }
+        // A PRIVATE method is callable only from its own class, a PROTECTED one
+        // from that class and its subclasses, like a field. The call is still
+        // built after the diagnostic, so the caller does not pile a misleading
+        // "no function matches" on top of it.
+        checkCallAccess(r, node, sym)
         return ResolverCall.makeCall(node, sym)
     }
 
@@ -915,6 +901,9 @@ public class ResolverCall {
         if csym == null {
             return null
         }
+        // A private or protected constructor: `new` is allowed only where the
+        // constructor itself may be called.
+        checkCallAccess(r, node, csym)
         SemaNode ref = csym.getRef()
         SemaFunctionBase ctor = ref.asFunctionBase()
         if ctor == null {

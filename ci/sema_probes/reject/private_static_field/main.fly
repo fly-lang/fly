@@ -1,0 +1,11 @@
+class A {
+    private static int count
+
+    public A() {
+    }
+}
+
+void main() {
+    int x = A.count
+    x = x + 1
+}

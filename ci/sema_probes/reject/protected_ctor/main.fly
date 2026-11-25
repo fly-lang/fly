@@ -1,0 +1,12 @@
+class Base {
+    int v
+
+    protected Base() {
+        this.v = 1
+    }
+}
+
+void main() {
+    Base b = new Base()
+    delete b
+}

@@ -1,0 +1,1 @@
+The v0.15.2 seed parses `protected` and ignores it: every access compiles, and the modifier is accepted anywhere. From 0.16 a protected member is reachable only from its class and the classes derived from it (err_sema_symbol_protected), and `protected` is written only on class methods and attributes (err_sema_protected_placement).

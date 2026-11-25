@@ -1,0 +1,20 @@
+class Base {
+    private int v
+
+    public Base() {
+        this.v = 1
+    }
+}
+
+class Derived : Base {
+
+    public Derived() {
+    }
+
+    public int peek() {
+        return super.v
+    }
+}
+
+void main() {
+}

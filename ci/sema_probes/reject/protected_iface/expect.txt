@@ -1,0 +1,1 @@
+'protected' cannot be written on a member of an interface

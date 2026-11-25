@@ -1,0 +1,14 @@
+class A {
+
+    public A() {
+    }
+
+    private static int secret() {
+        return 1
+    }
+}
+
+void main() {
+    int x = A.secret()
+    x = x + 1
+}

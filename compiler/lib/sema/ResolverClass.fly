@@ -27,6 +27,7 @@ public class ResolverClass {
         SemaModule mod = r.getCurrentModule()
         SymbolTable clsScope = r.getCurrentScope()
         SemaClassType cls = SemaBuilder.CreateClass(mod, clsScope, node)
+        checkProtectedPlacement(r, node.getModifiers(), "a type")
         cls.setFromHeader(r.isCurrentModuleHeader())
 
         // Register generic type parameters (e.g. T in Wrapper<T>) as CLASS symbols in
@@ -462,6 +463,20 @@ public class ResolverClass {
         return true
     }
 
+    // checkMemberPlacement — `protected` on a member of an interface, a struct or
+    // a suite: none of them has subclasses to open the member to.
+    public static void checkMemberPlacement(const Resolver r, const SemaClassType cls,
+            const List<ASTModifier> mods) {
+        SemaClassKind k = cls.getClassKind()
+        if k == SemaClassKind.INTERFACE {
+            checkProtectedPlacement(r, mods, "a member of an interface")
+        } elsif k == SemaClassKind.STRUCT {
+            checkProtectedPlacement(r, mods, "a member of a struct")
+        } elsif k == SemaClassKind.SUITE {
+            checkProtectedPlacement(r, mods, "a member of a suite")
+        }
+    }
+
     // attribute — visit(ASTAttribute): resolve the field type + optional initializer
     // and register the field on the class and in the class scope.
     public static void attribute(const Resolver r, const ASTAttribute node) {
@@ -470,6 +485,7 @@ public class ResolverClass {
         at.accept(r)
         SemaType t = r.getCurrentType()
         SemaClassAttribute attr = SemaBuilder.CreateClassAttribute(cls, node, t)
+        ResolverClass.checkMemberPlacement(r, cls, node.getModifiers())
         cls.addAttribute(attr)
         ResolverClass.noteFieldSpec(cls, t)
         // An OWNING field (the parser saw `this.f = new unique ...` or an owner
@@ -523,6 +539,7 @@ public class ResolverClass {
         r.enterScope()
         SymbolTable mscope = r.getCurrentScope()
         SemaClassMethod meth = SemaBuilder.CreateClassMethod(cls, node, mscope)
+        ResolverClass.checkMemberPlacement(r, cls, node.getModifiers())
         ASTBlockStmt body = node.getBody()
         // No body means ABSTRACT in ordinary source — but inside a preloaded
         // header it means DECLARED ELSEWHERE: the definition lives in the
@@ -704,6 +721,7 @@ public class ResolverClass {
         SemaModule mod = r.getCurrentModule()
         SymbolTable enScope = r.getCurrentScope()
         SemaEnumType en = SemaBuilder.CreateEnum(mod, enScope, node)
+        checkProtectedPlacement(r, node.getModifiers(), "an enum")
         r.setCurrentEnum(en)
 
         List<ASTNode> nodes = node.getNodes()

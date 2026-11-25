@@ -474,6 +474,11 @@ public class ResolverExpr {
                                 r.setCurrentExpr(null)
                                 return
                             }
+                            if checkMemberAccess(r, node.getLoc(), node.getName(), sattr.getVisibility(),
+                                    sattr.getClass()) == false {
+                                r.setCurrentExpr(null)
+                                return
+                            }
                             Registry sreg = r.getReg()
                             Symbol tsym = sreg.LookupName("this", r.getCurrentScope())
                             SemaExpr thisE = null
@@ -524,6 +529,11 @@ public class ResolverExpr {
                         SemaClassAttribute sattr2 = stc.LookupAttribute(node.getName())
                         if sattr2 != null {
                             if sattr2.isStatic() {
+                                if checkMemberAccess(r, node.getLoc(), node.getName(), sattr2.getVisibility(),
+                                        sattr2.getClass()) == false {
+                                    r.setCurrentExpr(null)
+                                    return
+                                }
                                 SemaClassType sowner = sattr2.getClass()
                                 if sowner != null {
                                     sowner.markUsed()
@@ -597,22 +607,11 @@ public class ResolverExpr {
             r.setCurrentExpr(null)
             return
         }
-        // A PRIVATE field is reachable only from the class that declares it
-        // (the reference rule: CurrentClass != &Attr->getClass()). The declaring
-        // class is compared by identity first and by name second: a generic
-        // specialization resolves its methods against its OWN attribute copies,
-        // but a field inherited into one may still name the template.
-        if attr.getVisibility() == SemaVisibilityKind.PRIVATE {
-            SemaClassType owner = attr.getClass()
-            if classMayAccess(r, owner) == false {
-                string on = "?"
-                if owner != null {
-                    on = owner.getName()
-                }
-                r.diagStr2(node.getLoc(), DiagID.err_sema_symbol_not_accessible, node.getName(), on)
-                r.setCurrentExpr(null)
-                return
-            }
+        // A PRIVATE field is reachable only from the class that declares it, a
+        // PROTECTED one from that class and its subclasses (checkMemberAccess).
+        if checkMemberAccess(r, node.getLoc(), node.getName(), attr.getVisibility(), attr.getClass()) == false {
+            r.setCurrentExpr(null)
+            return
         }
         // reading a field needs the class's layout: a use (lazy generics)
         SemaClassType fowner = attr.getClass()
@@ -1050,6 +1049,110 @@ public bool classMayAccess(const Resolver r, const SemaClassType owner) {
         return true
     }
     return str.equals(here.getName(), owner.getName())
+}
+
+// classMayAccessProtected — may the code being resolved touch a PROTECTED
+// member of `owner`? From `owner` itself and from every class derived from it,
+// directly or not. The rule looks only at WHERE the code is, never at the
+// receiver: a method of a subclass reaches the member through `this`, `super`,
+// another instance of the subclass or a plain `owner` alike.
+public bool classMayAccessProtected(const Resolver r, const SemaClassType owner) {
+    if owner == null {
+        return false
+    }
+    SemaClassType here = r.getCurrentClass()
+    if here == null {
+        return false
+    }
+    return derivesFrom(here, owner, 0)
+}
+
+// derivesFrom — `cls` is `owner` or one of its descendants, compared like
+// classMayAccess (identity, then name). `depth` stops a malformed cyclic
+// hierarchy, which Sema reports elsewhere, from recursing forever.
+public bool derivesFrom(const SemaClassType cls, const SemaClassType owner, const int depth) {
+    if cls == null {
+        return false
+    }
+    if cls == owner {
+        return true
+    }
+    if str.equals(cls.getName(), owner.getName()) {
+        return true
+    }
+    if depth > 64 {
+        return false
+    }
+    List<SemaClassType> bases = cls.getBaseClasses()
+    int i = 0
+    while i < bases.size() {
+        if derivesFrom(bases.get(i), owner, depth + 1) {
+            return true
+        }
+        i = i + 1
+    }
+    return false
+}
+
+// checkMemberAccess — report a member of `owner` the code being resolved may
+// not reach: a PRIVATE one outside `owner`, a PROTECTED one outside `owner` and
+// its subclasses. Every member path calls it (instance, static and `super`
+// fields and calls, `new`), so a member is guarded however it is named.
+// Returns false after the diagnostic.
+public bool checkMemberAccess(const Resolver r, const SourceLocation loc, const string name,
+        const SemaVisibilityKind vis, const SemaClassType owner) {
+    string on = "?"
+    if owner != null {
+        on = owner.getName()
+    }
+    if vis == SemaVisibilityKind.PRIVATE {
+        if classMayAccess(r, owner) == false {
+            r.diagStr2(loc, DiagID.err_sema_symbol_not_accessible, name, on)
+            return false
+        }
+    } elsif vis == SemaVisibilityKind.PROTECTED {
+        if classMayAccessProtected(r, owner) == false {
+            r.diagStr2(loc, DiagID.err_sema_symbol_protected, name, on)
+            return false
+        }
+    }
+    return true
+}
+
+// checkCallAccess — checkMemberAccess for the method a call resolved to
+// (nothing to check when it is a free function or did not resolve).
+public void checkCallAccess(const Resolver r, const ASTCall node, const Symbol sym) {
+    if sym == null {
+        return
+    }
+    SemaNode ref = sym.getRef()
+    if ref == null {
+        return
+    }
+    SemaFunctionBase fn = ref.asFunctionBase()
+    if fn == null {
+        return
+    }
+    SemaClassMethod m = fn.asClassMethod()
+    if m == null {
+        return
+    }
+    bool _ok = checkMemberAccess(r, node.getLoc(), node.getName(), m.getVisibility(), m.getClass())
+}
+
+// checkProtectedPlacement — `protected` is written only on the methods
+// (constructors included) and attributes of a class: anywhere else (a function,
+// a variable or parameter, a type, a member of an interface, struct or suite)
+// there is no subclass for it to open the member to. `what` names the place.
+public void checkProtectedPlacement(const Resolver r, const List<ASTModifier> mods, const string what) {
+    int i = 0
+    while i < mods.size() {
+        ASTModifier m = mods.get(i)
+        if m.getModifierKind() == ASTModifierKind.MOD_PROTECTED {
+            r.diagStr(m.getLoc(), DiagID.err_sema_protected_placement, what)
+        }
+        i = i + 1
+    }
 }
 
 // isSignedInt — an integer type with a sign (odd rank: short, int, long).

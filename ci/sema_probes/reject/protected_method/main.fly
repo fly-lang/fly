@@ -1,0 +1,21 @@
+class Base {
+    protected int v
+
+    public Base() {
+        this.v = 1
+    }
+
+    protected int get() {
+        return this.v
+    }
+
+    protected static int make() {
+        return 7
+    }
+}
+
+void main() {
+    Base b = new Base()
+    int x = b.get()
+    b.v = x
+}

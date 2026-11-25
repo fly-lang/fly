@@ -1,0 +1,6 @@
+interface Shape {
+    protected int area()
+}
+
+void main() {
+}

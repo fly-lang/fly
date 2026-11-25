@@ -1,0 +1,86 @@
+import fly.os.io
+import fly.str
+
+// protected opens a member to its class and to every class derived from it,
+// judged by WHERE the code is: through this, super, another instance of the
+// subclass or a plain Base, from a direct or an indirect subclass, static
+// members and constructors included.
+
+class Base {
+    protected int v
+    protected static int seed
+
+    protected Base(const int v) {
+        this.v = v
+    }
+
+    protected int get() {
+        return this.v
+    }
+
+    protected static int make() {
+        return 7
+    }
+
+    public int own(const Base o) {
+        return o.v + o.get()
+    }
+}
+
+class Mid : Base {
+
+    public Mid(const int v) {
+        super(v)
+    }
+
+    public int viaThis() {
+        return this.v + this.get()
+    }
+
+    public int viaSuper() {
+        return super.v + super.get()
+    }
+
+    public int viaOther(const Mid o) {
+        return o.v + o.get()
+    }
+
+    public int viaBase(const Base o) {
+        return o.v + o.get()
+    }
+
+    public int statics() {
+        Base.seed = 3
+        return Base.seed + Base.make()
+    }
+
+    public int fresh() {
+        Base b = new unique Base(5)
+        return b.get()
+    }
+}
+
+class Leaf : Mid {
+
+    public Leaf(const int v) {
+        super(v)
+    }
+
+    public int deep() {
+        this.v = this.v + 1
+        return this.get()
+    }
+}
+
+void main() {
+    Mid m = new unique Mid(2)
+    Mid o = new unique Mid(10)
+    Leaf l = new unique Leaf(4)
+    int total = m.viaThis() + m.viaSuper() + m.viaOther(o) + m.viaBase(l) + m.statics() + m.fresh()
+    total = total + l.deep() + m.own(o)
+    // 4 + 4 + 20 + 8 + 10 + 5 + 5 + 20
+    if total != 76 {
+        fail 1, "protected access misbehaved"
+    }
+    io.printLn(str.convert(total))
+}

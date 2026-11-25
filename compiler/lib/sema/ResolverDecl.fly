@@ -20,6 +20,7 @@ public class ResolverDecl {
         SemaModule mod = r.getCurrentModule()
         SymbolTable fnScope = r.getCurrentScope()
         SemaFunction fn = SemaBuilder.CreateFunction(mod, fnScope, node)
+        checkProtectedPlacement(r, node.getModifiers(), "a function")
         fn.setFromHeader(r.isCurrentModuleHeader())
         fn.setNamespaceName(r.currentNsFlat())   // for mangling → matches fly_std_lib.a
         r.exitScope()
@@ -333,6 +334,7 @@ public class ResolverDecl {
         at.accept(r)
         SemaType t = r.getCurrentType()
         SemaParam sp = SemaBuilder.CreateParam(node, t)
+        checkProtectedPlacement(r, node.getModifiers(), "a parameter")
         r.setCurrentParam(sp)
         r.setCurrentVar(sp)
         Symbol sym = new Symbol(node.getName(), SymbolKind.PARAM, sp)
@@ -347,6 +349,7 @@ public class ResolverDecl {
         at.accept(r)
         SemaType t = r.getCurrentType()
         SemaLocalVar lv = SemaBuilder.CreateLocalVar(node, t)
+        checkProtectedPlacement(r, node.getModifiers(), "a local variable")
         r.setCurrentLocalVar(lv)
         r.setCurrentVar(lv)
     }

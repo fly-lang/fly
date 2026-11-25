@@ -73,7 +73,9 @@ foreach ($probe in Get-ChildItem 'ci/sema_probes/reject' -Directory | Sort-Objec
 # exactly the moment a seed re-cut changed the language. From 0.16 the seed is
 # the 0.15.2 self-host release; a probe carries a seed-accepts.txt only for a
 # check added on this line (member_of_array: a member of a non-object;
-# generic_new_no_args: `new` on a generic class without type arguments).
+# generic_new_no_args: `new` on a generic class without type arguments;
+# protected_* and private_static*/private_super: protected and private on every
+# member path).
 $SEED = 'build/stage0/bin/fly.exe'
 $SEEDLIB = 'build/stage1/lib'
 if ((Test-Path $SEED -PathType Leaf) -and (Test-Path $SEEDLIB)) {
