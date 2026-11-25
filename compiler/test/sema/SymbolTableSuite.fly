@@ -13,20 +13,20 @@ suite SymbolTableSuite {
     void symbolTest() {
         case "Symbol accessors + isVarKind": {
             SemaNode r = new SemaNode(SemaKind.VALUE)
-            Symbol s = new Symbol("x", SymbolKind.LOCAL_VAR, r)
+            Symbol s = new unique Symbol("x", SymbolKind.LOCAL_VAR, r)
             assert.assertStr(s.getName(), "x", 1)
             assert.assertTrue(s.getKind() == SymbolKind.LOCAL_VAR, 2)
             assert.assertTrue(s.isVarKind(), 3)
             assert.assertTrue(s.getRef() == r, 4)
 
-            Symbol fn = new Symbol("f", SymbolKind.FUNCTION, r)
+            Symbol fn = new unique Symbol("f", SymbolKind.FUNCTION, r)
             assert.assertTrue(fn.isVarKind() == false, 5)
         }
     }
 
     void insertLookupTest() {
         case "insert + lookup in scope": {
-            SymbolTable t = new SymbolTable(null)
+            SymbolTable t = new unique SymbolTable(null)
             SemaNode r = new SemaNode(SemaKind.VALUE)
             bool ok = t.insert(new Symbol("x", SymbolKind.LOCAL_VAR, r))
             assert.assertTrue(ok, 10)
@@ -37,7 +37,7 @@ suite SymbolTableSuite {
             assert.assertTrue(miss == null, 13)
         }
         case "duplicate non-function rejected; functions append": {
-            SymbolTable t = new SymbolTable(null)
+            SymbolTable t = new unique SymbolTable(null)
             SemaNode r = new SemaNode(SemaKind.VALUE)
             bool ok1 = t.insert(new Symbol("v", SymbolKind.VAR, r))
             bool ok2 = t.insert(new Symbol("v", SymbolKind.VAR, r))

@@ -16,7 +16,7 @@ suite ASTEnumArgStmtSuite {
             ASTEnum e = new ASTEnum(loc, "Color", mods, bases)
             assert.assertStr(e.getName(), "Color", 1)
             assert.assertTrue(e.getKind() == ASTKind.ENUM, 2)
-            ASTEnumEntry en = new ASTEnumEntry(loc, e, "GREEN")
+            ASTEnumEntry en = new unique ASTEnumEntry(loc, e, "GREEN")
             en.setIndex(2)
             assert.assertStr(en.getName(), "GREEN", 3)
             assert.assertTrue(en.getIndex() == 2, 4)
@@ -34,7 +34,7 @@ suite ASTEnumArgStmtSuite {
         case "ASTArg extends ASTBase, holds expr + index + str()": {
             SourceLocation loc = slGetFileLoc(0)
             ASTNode expr = new ASTIdentifier(loc, "x")
-            ASTArg a = new ASTArg(loc, expr, 1)
+            ASTArg a = new unique ASTArg(loc, expr, 1)
             assert.assertTrue(a.getKind() == ASTKind.ARG, 10)
             assert.assertTrue(a.getIndex() == 1, 11)
             assert.assertTrue(a.getExpr() != null, 12)
@@ -45,7 +45,7 @@ suite ASTEnumArgStmtSuite {
     void stmtTest() {
         case "ASTCaseStmt: value + body": {
             SourceLocation loc = slGetFileLoc(0)
-            ASTCaseStmt c = new ASTCaseStmt(loc)
+            ASTCaseStmt c = new unique ASTCaseStmt(loc)
             ASTExpr value = new ASTIdentifier(loc, "x")
             ASTBlockStmt body = new ASTBlockStmt(loc)
             c.setExpr(value)
@@ -56,7 +56,7 @@ suite ASTEnumArgStmtSuite {
         }
         case "ASTTestStmt: block body": {
             SourceLocation loc = slGetFileLoc(0)
-            ASTTestStmt t = new ASTTestStmt(loc)
+            ASTTestStmt t = new unique ASTTestStmt(loc)
             ASTBlockStmt body = new ASTBlockStmt(loc)
             t.setBody(body)
             assert.assertTrue(t.getStmtKind() == ASTStmtKind.STMT_TEST, 17)
@@ -64,7 +64,7 @@ suite ASTEnumArgStmtSuite {
         }
         case "ASTRuleStmt: guard + body": {
             SourceLocation loc = slGetFileLoc(0)
-            ASTRuleStmt r = new ASTRuleStmt(loc, ASTStmtKind.STMT_RULE)
+            ASTRuleStmt r = new unique ASTRuleStmt(loc, ASTStmtKind.STMT_RULE)
             ASTExpr guard = new ASTIdentifier(loc, "g")
             ASTBlockStmt body = new ASTBlockStmt(loc)
             r.setExpr(guard)

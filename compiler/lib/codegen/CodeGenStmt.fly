@@ -671,7 +671,7 @@ public class CodeGenStmt {
 
         // pre-create every case block and register the labels
         SemaExpr selE = node.getExpr()
-        List<pointer> caseBBs = new List<pointer>()
+        List<pointer> caseBBs = new unique List<pointer>()
         int pi = 0
         while pi < n {
             SemaRuleStmt pr = cases.get(pi)

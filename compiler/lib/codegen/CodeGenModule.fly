@@ -666,7 +666,7 @@ public class CodeGenModule {
             List<SemaClassMethod> ms = sut.getMethodList()
             SemaClassMethod setupM = null
             SemaClassMethod teardownM = null
-            List<SemaClassMethod> testMs = new List<SemaClassMethod>()
+            List<SemaClassMethod> testMs = new unique List<SemaClassMethod>()
             // --test <Method>: run only the named test-method. Matches the bare
             // name or the name+"Test" form, so `--test foo` selects `fooTest`
             // (reference EmitSuite's TestFilter check). Empty = every *Test method.
@@ -1192,7 +1192,6 @@ public class CodeGenModule {
         }
 
         CodeGenExpr cge = new CodeGenExpr(this)
-        cge.bindOutSlot(params)
         // NRVO needs the return slot itself: the argument carrying the caller's
         // storage, so a local bound to it writes into the returned object.
         int ri = 0
@@ -1257,7 +1256,7 @@ public class CodeGenModule {
     // is the sole provider (Windows), the weak def is simply used.
     public void emitRuntimeCABIWrapper(const SemaFunctionBase fn) {
         LLVM llvm = this.cg.getLLVM()
-        CodeGenExpr cge = new CodeGenExpr(this)
+        CodeGenExpr cge = new unique CodeGenExpr(this)
         List<SemaParam> params = fn.getParams()
 
         // C signature: const params by value; first non-const → return type.

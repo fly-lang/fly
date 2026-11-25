@@ -172,7 +172,7 @@ suite ASTAcceptSuite {
             SourceLocation loc = slGetFileLoc(0)
             List<ASTModifier> mods = new List<ASTModifier>()
             List<ASTParam> params = new List<ASTParam>()
-            ASTFunction f = new ASTFunction(loc, mods, "f", params, ASTFunctionKind.F_FUNCTION)
+            ASTFunction f = new unique ASTFunction(loc, mods, "f", params, ASTFunctionKind.F_FUNCTION)
             AcceptProbe p = new AcceptProbe()
             f.accept(p)
             assert.assertStr(p.getLast(), "function", 1)
@@ -181,21 +181,21 @@ suite ASTAcceptSuite {
             SourceLocation loc = slGetFileLoc(0)
             List<ASTModifier> mods = new List<ASTModifier>()
             List<ASTParam> params = new List<ASTParam>()
-            ASTMethod m = new ASTMethod(loc, mods, "m", params)
+            ASTMethod m = new unique ASTMethod(loc, mods, "m", params)
             AcceptProbe p = new AcceptProbe()
             m.accept(p)
             assert.assertStr(p.getLast(), "method", 2)
         }
         case "ASTRuleStmt dispatches to rule": {
             SourceLocation loc = slGetFileLoc(0)
-            ASTRuleStmt r = new ASTRuleStmt(loc, ASTStmtKind.STMT_RULE)
+            ASTRuleStmt r = new unique ASTRuleStmt(loc, ASTStmtKind.STMT_RULE)
             AcceptProbe p = new AcceptProbe()
             r.accept(p)
             assert.assertStr(p.getLast(), "rule", 3)
         }
         case "ASTIfStmt dispatches to if (not rule)": {
             SourceLocation loc = slGetFileLoc(0)
-            ASTIfStmt i = new ASTIfStmt(loc)
+            ASTIfStmt i = new unique ASTIfStmt(loc)
             AcceptProbe p = new AcceptProbe()
             i.accept(p)
             assert.assertStr(p.getLast(), "if", 4)
@@ -215,6 +215,7 @@ suite ASTAcceptSuite {
             AcceptProbe p = new AcceptProbe()
             n.accept(p)
             assert.assertStr(p.getLast(), "if", 20)
+            delete i
         }
         case "ASTStmt-typed ASTExprStmt dispatches to exprStmt": {
             SourceLocation loc = slGetFileLoc(0)
@@ -223,6 +224,7 @@ suite ASTAcceptSuite {
             AcceptProbe p = new AcceptProbe()
             s.accept(p)
             assert.assertStr(p.getLast(), "exprStmt", 21)
+            delete es
         }
         case "ASTExpr-typed ASTBinary dispatches to binary": {
             SourceLocation loc = slGetFileLoc(0)
@@ -233,6 +235,7 @@ suite ASTAcceptSuite {
             AcceptProbe p = new AcceptProbe()
             e.accept(p)
             assert.assertStr(p.getLast(), "binary", 22)
+            delete b
         }
         case "ASTType-typed ASTBuiltinType dispatches to builtinType": {
             SourceLocation loc = slGetFileLoc(0)
@@ -241,6 +244,7 @@ suite ASTAcceptSuite {
             AcceptProbe p = new AcceptProbe()
             bt.accept(p)
             assert.assertStr(p.getLast(), "builtinType", 23)
+            delete t
         }
     }
 
@@ -248,14 +252,14 @@ suite ASTAcceptSuite {
     void leafDispatchTest() {
         case "module": {
             SourceLocation loc = slGetFileLoc(0)
-            ASTModule mod = new ASTModule(loc, "m")
+            ASTModule mod = new unique ASTModule(loc, "m")
             AcceptProbe p = new AcceptProbe()
             mod.accept(p)
             assert.assertStr(p.getLast(), "module", 10)
         }
         case "builtin type": {
             SourceLocation loc = slGetFileLoc(0)
-            ASTBuiltinType t = new ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_INT)
+            ASTBuiltinType t = new unique ASTBuiltinType(loc, ASTBuiltinTypeKind.TYPE_INT)
             AcceptProbe p = new AcceptProbe()
             t.accept(p)
             assert.assertStr(p.getLast(), "builtinType", 11)
@@ -264,21 +268,21 @@ suite ASTAcceptSuite {
             SourceLocation loc = slGetFileLoc(0)
             ASTNumberValue l = new ASTNumberValue(loc, "1")
             ASTNumberValue r = new ASTNumberValue(loc, "2")
-            ASTBinary b = new ASTBinary(ASTBinaryKind.OP_BINARY_ARITH_ADD, loc, l, r)
+            ASTBinary b = new unique ASTBinary(ASTBinaryKind.OP_BINARY_ARITH_ADD, loc, l, r)
             AcceptProbe p = new AcceptProbe()
             b.accept(p)
             assert.assertStr(p.getLast(), "binary", 12)
         }
         case "number value": {
             SourceLocation loc = slGetFileLoc(0)
-            ASTNumberValue n = new ASTNumberValue(loc, "42")
+            ASTNumberValue n = new unique ASTNumberValue(loc, "42")
             AcceptProbe p = new AcceptProbe()
             n.accept(p)
             assert.assertStr(p.getLast(), "number", 13)
         }
         case "block stmt": {
             SourceLocation loc = slGetFileLoc(0)
-            ASTBlockStmt blk = new ASTBlockStmt(loc)
+            ASTBlockStmt blk = new unique ASTBlockStmt(loc)
             AcceptProbe p = new AcceptProbe()
             blk.accept(p)
             assert.assertStr(p.getLast(), "block", 14)
@@ -287,7 +291,7 @@ suite ASTAcceptSuite {
             SourceLocation loc = slGetFileLoc(0)
             List<ASTModifier> mods = new List<ASTModifier>()
             List<ASTType> bases = new List<ASTType>()
-            ASTClass c = new ASTClass(ASTClassKind.CLASS, mods, loc, "C", bases)
+            ASTClass c = new unique ASTClass(ASTClassKind.CLASS, mods, loc, "C", bases)
             AcceptProbe p = new AcceptProbe()
             c.accept(p)
             assert.assertStr(p.getLast(), "class", 15)

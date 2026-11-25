@@ -165,7 +165,7 @@ public class Lockfile {
 
     // pkgNew — new LockedPackage(name, version, source, rev, tag, checksum, dep...).
     public string pkgNew(const LockedPackage p, const string q) {
-        List<string> args = new List<string>()
+        List<string> args = new unique List<string>()
         args.add(p.getName())
         args.add(p.getVersion())
         args.add(p.getSource())
@@ -209,7 +209,7 @@ public class FlyLockReader {
     public FlyLockReader() { }
 
     public Lockfile read(const string src, int errOut) {
-        Parser p = new Parser(src)
+        Parser p = new unique Parser(src)
         ASTModule mod = p.parseModule("Lock")
         if p.isSuccess() == false {
             errOut = 210
@@ -343,7 +343,7 @@ public Lockfile readLock(const string path, int errOut) {
     }
     string src = fs.readStr(path)
     int e = 0
-    FlyLockReader r = new FlyLockReader()
+    FlyLockReader r = new unique FlyLockReader()
     Lockfile parsed = r.read(src, e)
     errOut = 0
     return parsed

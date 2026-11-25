@@ -37,7 +37,7 @@ suite DiagnosticEngineSuite {
             DiagnosticOptions opts = new DiagnosticOptions()
             StoringDiagnosticConsumer sink = new StoringDiagnosticConsumer()
             SourceManager sm = newSourceManager("t", "func bad here")
-            DiagnosticsEngine eng = new DiagnosticsEngine(opts, sink, sm)
+            DiagnosticsEngine eng = new unique DiagnosticsEngine(opts, sink, sm)
             assert.assertFalse(eng.hasErrorOccurred(), 20)
             // offset 5 is the 'b' of "bad": line 1, column 6
             SourceLocation loc = slGetFileLoc(5)
@@ -60,7 +60,7 @@ suite DiagnosticEngineSuite {
             opts.setIgnoreWarnings(true)
             StoringDiagnosticConsumer sink = new StoringDiagnosticConsumer()
             SourceManager sm = newSourceManager("t", "x")
-            DiagnosticsEngine eng = new DiagnosticsEngine(opts, sink, sm)
+            DiagnosticsEngine eng = new unique DiagnosticsEngine(opts, sink, sm)
             // errors are still reported regardless of ignoreWarnings
             DiagnosticBuilder db = eng.report(slGetFileLoc(0), DiagID.err_parser_syntax_error)
             db.emit()
@@ -75,7 +75,7 @@ suite DiagnosticEngineSuite {
             StoringDiagnosticConsumer sink = new StoringDiagnosticConsumer()
             SourceManager sm = newSourceManager("t", "abc")
             DiagnosticsEngine eng = new DiagnosticsEngine(opts, sink, sm)
-            PartialDiagnostic pd = new PartialDiagnostic(DiagID.err_parser_invalid_id, slGetFileLoc(0))
+            PartialDiagnostic pd = new unique PartialDiagnostic(DiagID.err_parser_invalid_id, slGetFileLoc(0))
             pd.addStr("int")
             pd.emitWith(eng)
             assert.assertEqI(eng.getNumErrors(), 1, 40)

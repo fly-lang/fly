@@ -10,41 +10,41 @@ suite SemaTypeSuite {
 
     void builtinTest() {
         case "bool / void / string / error / complex predicates": {
-            SemaBoolType b = new SemaBoolType()
+            SemaBoolType b = new unique SemaBoolType()
             assert.assertTrue(b.isBool(), 1)
             assert.assertTrue(b.isNumber() == false, 2)
             assert.assertStr(b.getName(), "bool", 3)
             assert.assertTrue(b.getKind() == SemaKind.TYPE_BOOL, 4)
 
-            SemaVoidType v = new SemaVoidType()
+            SemaVoidType v = new unique SemaVoidType()
             assert.assertTrue(v.isVoid(), 5)
-            SemaStringType st = new SemaStringType()
+            SemaStringType st = new unique SemaStringType()
             assert.assertTrue(st.isString(), 6)
-            SemaErrorType e = new SemaErrorType()
+            SemaErrorType e = new unique SemaErrorType()
             assert.assertTrue(e.isError(), 7)
-            SemaComplexType c = new SemaComplexType()
+            SemaComplexType c = new unique SemaComplexType()
             assert.assertTrue(c.isComplex(), 8)
         }
     }
 
     void intTest() {
         case "int kinds: rank, signedness, predicates": {
-            SemaIntType i = new SemaIntType(SemaIntTypeKind.TYPE_INT, "int")
+            SemaIntType i = new unique SemaIntType(SemaIntTypeKind.TYPE_INT, "int")
             assert.assertTrue(i.isInteger(), 10)
             assert.assertTrue(i.isNumber(), 11)
             assert.assertEqI(i.getRank(), 31, 12)
             assert.assertTrue(i.isSigned(), 13)
             assert.assertTrue(i.getIntKind() == SemaIntTypeKind.TYPE_INT, 14)
 
-            SemaIntType u = new SemaIntType(SemaIntTypeKind.TYPE_UINT, "uint")
+            SemaIntType u = new unique SemaIntType(SemaIntTypeKind.TYPE_UINT, "uint")
             assert.assertEqI(u.getRank(), 32, 15)
             assert.assertTrue(u.isUnsigned(), 16)
 
-            SemaIntType by = new SemaIntType(SemaIntTypeKind.TYPE_BYTE, "byte")
+            SemaIntType by = new unique SemaIntType(SemaIntTypeKind.TYPE_BYTE, "byte")
             assert.assertEqI(by.getRank(), 8, 17)
             assert.assertTrue(by.isUnsigned(), 18)
 
-            SemaIntType lo = new SemaIntType(SemaIntTypeKind.TYPE_LONG, "long")
+            SemaIntType lo = new unique SemaIntType(SemaIntTypeKind.TYPE_LONG, "long")
             assert.assertEqI(lo.getRank(), 63, 19)
             assert.assertTrue(lo.isSigned(), 20)
         }
@@ -52,11 +52,11 @@ suite SemaTypeSuite {
 
     void floatTest() {
         case "float kinds: rank outranks ints": {
-            SemaFloatType f = new SemaFloatType(SemaFloatTypeKind.TYPE_FLOAT, "float")
+            SemaFloatType f = new unique SemaFloatType(SemaFloatTypeKind.TYPE_FLOAT, "float")
             assert.assertTrue(f.isFloat(), 30)
             assert.assertTrue(f.isNumber(), 31)
             assert.assertEqI(f.getRank(), 320, 32)
-            SemaFloatType d = new SemaFloatType(SemaFloatTypeKind.TYPE_DOUBLE, "double")
+            SemaFloatType d = new unique SemaFloatType(SemaFloatTypeKind.TYPE_DOUBLE, "double")
             assert.assertEqI(d.getRank(), 640, 33)
             assert.assertTrue(d.getFloatKind() == SemaFloatTypeKind.TYPE_DOUBLE, 34)
         }
@@ -64,7 +64,7 @@ suite SemaTypeSuite {
 
     void equalsTest() {
         case "name-based type identity": {
-            SemaIntType i1 = new SemaIntType(SemaIntTypeKind.TYPE_INT, "int")
+            SemaIntType i1 = new unique SemaIntType(SemaIntTypeKind.TYPE_INT, "int")
             SemaIntType i2 = new SemaIntType(SemaIntTypeKind.TYPE_INT, "int")
             SemaIntType lo = new SemaIntType(SemaIntTypeKind.TYPE_LONG, "long")
             assert.assertTrue(i1.isEquals(i2), 40)
@@ -76,13 +76,13 @@ suite SemaTypeSuite {
     void arrayAndParamTest() {
         case "array element type + type param bound": {
             SemaIntType elem = new SemaIntType(SemaIntTypeKind.TYPE_INT, "int")
-            SemaArrayType arr = new SemaArrayType(elem, 8)
+            SemaArrayType arr = new unique SemaArrayType(elem, 8)
             assert.assertTrue(arr.isArray(), 50)
             assert.assertEqI((int)arr.getSize(), 8, 51)
             SemaType et = arr.getElementType()
             assert.assertTrue(et.isInteger(), 52)
 
-            SemaTypeParam tp = new SemaTypeParam("T")
+            SemaTypeParam tp = new unique SemaTypeParam("T")
             assert.assertTrue(tp.getKind() == SemaKind.TYPE_PARAM, 53)
             assert.assertStr(tp.getName(), "T", 54)
             assert.assertTrue(tp.isClass() == false, 55)

@@ -14,7 +14,7 @@ suite FrontendStatsSuite {
 
     void statsTest() {
         case "counters start at zero and statsJson has the fixed keys": {
-            Frontend fe = new Frontend(null)
+            Frontend fe = new unique Frontend(null)
             assert.assertEqI(fe.getStatInputFiles(), 0, 1)
             assert.assertEqI(fe.getStatDepModules(), 0, 2)
             assert.assertEqI(fe.getStatHeaderModules(), 0, 3)
@@ -33,7 +33,7 @@ suite FrontendStatsSuite {
             assert.assertTrue(str.contains(js, k4), 10)
         }
         case "inputsJoined joins the input list with spaces": {
-            Frontend fe = new Frontend(null)
+            Frontend fe = new unique Frontend(null)
             FrontendOptions fo = new FrontendOptions("prog")
             assert.assertStr(fe.inputsJoined(fo), "", 20)
             fo.addInputFile("a.fly")

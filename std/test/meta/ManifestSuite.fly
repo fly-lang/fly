@@ -55,7 +55,7 @@ suite ManifestSuite {
     // ── the leaf record classes ──────────────────────────────────────────────
     void leafTest() {
         case "Dependency covers all three source kinds": {
-            Dependency reg = new Dependency()
+            Dependency reg = new unique Dependency()
             reg.name = "serde"
             reg.version = "^1.2.0"
             reg.registry = "crates"
@@ -65,7 +65,7 @@ suite ManifestSuite {
             assert.assertEmpty(reg.git, 104)             // unset fields stay empty
             assert.assertEmpty(reg.path, 105)
 
-            Dependency git = new Dependency()
+            Dependency git = new unique Dependency()
             git.name = "flyjson"
             git.git = "https://example.invalid/flyjson.git"
             git.tag = "v0.3.1"
@@ -74,14 +74,14 @@ suite ManifestSuite {
             assert.assertEmpty(git.branch, 108)
             assert.assertEmpty(git.rev, 109)
 
-            Dependency local = new Dependency()
+            Dependency local = new unique Dependency()
             local.name = "sibling"
             local.path = "../sibling"
             assert.assertStr(local.path, "../sibling", 110)
             assert.assertEmpty(local.version, 111)
         }
         case "Target distinguishes a binary from a library": {
-            Target bin = new Target()
+            Target bin = new unique Target()
             bin.name = "fly"
             bin.path = "src/main.fly"
             bin.lib = ""                                 // "" == executable
@@ -89,14 +89,14 @@ suite ManifestSuite {
             assert.assertStr(bin.path, "src/main.fly", 113)
             assert.assertEmpty(bin.lib, 114)
 
-            Target lib = new Target()
+            Target lib = new unique Target()
             lib.name = "flycore"
             lib.path = "src/lib.fly"
             lib.lib = "static"
             assert.assertStr(lib.lib, "static", 115)
         }
         case "Profile mixes an int with several bools": {
-            Profile p = new Profile()
+            Profile p = new unique Profile()
             p.name = "release"
             p.optLevel = 3
             p.debugInfo = false
@@ -111,39 +111,39 @@ suite ManifestSuite {
             assert.assertTrue(p.strip, 121)
         }
         case "a defaulted Profile": {
-            Profile p = new Profile()
+            Profile p = new unique Profile()
             assert.assertEmpty(p.name, 122)
             assert.assertEqI(p.optLevel, 0, 123)
             assert.assertFalse(p.debugInfo, 124)
             assert.assertFalse(p.lto, 125)
         }
         case "Registry": {
-            Registry r = new Registry()
+            Registry r = new unique Registry()
             r.name = "default"
             r.url = "https://registry.invalid/index"
             assert.assertStr(r.name, "default", 126)
             assert.assertStr(r.url, "https://registry.invalid/index", 127)
         }
         case "Hooks": {
-            Hooks h = new Hooks()
+            Hooks h = new unique Hooks()
             h.preBuild = "echo before"
             h.postBuild = "echo after"
             assert.assertStr(h.preBuild, "echo before", 128)
             assert.assertStr(h.postBuild, "echo after", 129)
-            Hooks empty = new Hooks()
+            Hooks empty = new unique Hooks()
             assert.assertEmpty(empty.preBuild, 130)
             assert.assertEmpty(empty.postBuild, 131)
         }
         case "fields are writable more than once": {
-            Target t = new Target()
+            Target t = new unique Target()
             t.name = "first"
             t.name = "second"
             assert.assertStr(t.name, "second", 132)
             assert.assertStrNe(t.name, "first", 133)
         }
         case "two records are independent": {
-            Dependency a = new Dependency()
-            Dependency b = new Dependency()
+            Dependency a = new unique Dependency()
+            Dependency b = new unique Dependency()
             a.name = "one"
             b.name = "two"
             assert.assertStr(a.name, "one", 134)
@@ -154,7 +154,7 @@ suite ManifestSuite {
     // ── array-typed fields ───────────────────────────────────────────────────
     void arrayTest() {
         case "a string[] field takes an array literal and iterates in order": {
-            Workspace w = new Workspace()
+            Workspace w = new unique Workspace()
             w.members = {"core", "cli", "tests"}
             assert.assertStr(joinAll(w.members), "core|cli|tests|", 201)
         }
@@ -163,7 +163,7 @@ suite ManifestSuite {
             // type, so it goes through a declared local rather than straight into
             // the field.
             string[] none = {}
-            Workspace w = new Workspace()
+            Workspace w = new unique Workspace()
             w.members = none
             int n = 0
             for m in w.members {
@@ -173,12 +173,12 @@ suite ManifestSuite {
             assert.assertEmpty(joinAll(w.members), 203)
         }
         case "a single-element string[]": {
-            Workspace w = new Workspace()
+            Workspace w = new unique Workspace()
             w.members = {"only"}
             assert.assertStr(joinAll(w.members), "only|", 204)
         }
         case "TestConfig mixes a string[] with bools": {
-            TestConfig t = new TestConfig()
+            TestConfig t = new unique TestConfig()
             t.suites = {"std/test/*Suite.fly", "compiler/test/*Suite.fly"}
             t.parallel = false
             t.failFast = true
@@ -188,10 +188,10 @@ suite ManifestSuite {
             assert.assertTrue(t.failFast, 207)
         }
         case "an object-array field holds live handles": {
-            Manifest m = new Manifest()
-            Target a = new Target()
+            Manifest m = new unique Manifest()
+            Target a = new unique Target()
             a.name = "fly"
-            Target b = new Target()
+            Target b = new unique Target()
             b.name = "flyp"
             m.targets = {a, b}
             string names = ""
@@ -210,11 +210,11 @@ suite ManifestSuite {
             assert.assertStr(after, "flyc|flyp|", 209)
         }
         case "a Dependency[] field": {
-            Manifest m = new Manifest()
-            Dependency d0 = new Dependency()
+            Manifest m = new unique Manifest()
+            Dependency d0 = new unique Dependency()
             d0.name = "alpha"
             d0.version = "1.0.0"
-            Dependency d1 = new Dependency()
+            Dependency d1 = new unique Dependency()
             d1.name = "beta"
             d1.version = "2.0.0"
             m.dependencies = {d0, d1}
@@ -229,10 +229,10 @@ suite ManifestSuite {
             assert.assertStr(seen, "alpha@1.0.0|beta@2.0.0|", 211)
         }
         case "dependencies and devDependencies are separate slots": {
-            Manifest m = new Manifest()
-            Dependency runtime = new Dependency()
+            Manifest m = new unique Manifest()
+            Dependency runtime = new unique Dependency()
             runtime.name = "runtime-dep"
-            Dependency dev = new Dependency()
+            Dependency dev = new unique Dependency()
             dev.name = "dev-dep"
             m.dependencies = {runtime}
             m.devDependencies = {dev}
@@ -248,15 +248,15 @@ suite ManifestSuite {
             assert.assertStr(b, "dev-dep", 213)
         }
         case "a Profile[] and a Registry[] on the same manifest": {
-            Manifest m = new Manifest()
-            Profile dbg = new Profile()
+            Manifest m = new unique Manifest()
+            Profile dbg = new unique Profile()
             dbg.name = "debug"
             dbg.optLevel = 0
-            Profile rel = new Profile()
+            Profile rel = new unique Profile()
             rel.name = "release"
             rel.optLevel = 3
             m.profiles = {dbg, rel}
-            Registry r = new Registry()
+            Registry r = new unique Registry()
             r.name = "default"
             m.repositories = {r}
             int levels = 0
@@ -275,7 +275,7 @@ suite ManifestSuite {
     // ── nested single-object fields ──────────────────────────────────────────
     void nestedTest() {
         case "the test / workspace / hooks slots hold live objects": {
-            Manifest m = new Manifest()
+            Manifest m = new unique Manifest()
             TestConfig t = new TestConfig()
             t.parallel = true
             t.failFast = false
@@ -294,7 +294,7 @@ suite ManifestSuite {
             assert.assertStr(m.hooks.preBuild, "prep", 304)
         }
         case "a nested object is a handle, not a copy": {
-            Manifest m = new Manifest()
+            Manifest m = new unique Manifest()
             Hooks h = new Hooks()
             h.preBuild = "before"
             m.hooks = h
@@ -302,7 +302,7 @@ suite ManifestSuite {
             assert.assertStr(m.hooks.preBuild, "changed", 305)
         }
         case "writing through the manifest's own reference": {
-            Manifest m = new Manifest()
+            Manifest m = new unique Manifest()
             TestConfig t = new TestConfig()
             m.tst = t
             m.tst.parallel = true
@@ -313,7 +313,7 @@ suite ManifestSuite {
     // ── a fully populated Manifest ───────────────────────────────────────────
     void fullManifestTest() {
         case "every [package] field round-trips": {
-            Manifest m = new Manifest()
+            Manifest m = new unique Manifest()
             m.name = "fly"
             m.version = "0.14.3"
             m.description = "The Fly programming language"
@@ -334,29 +334,29 @@ suite ManifestSuite {
             assert.assertStr(joinAll(m.authors), "Marco|Contributors|", 409)
         }
         case "a manifest with every sub-section filled in": {
-            Manifest m = new Manifest()
+            Manifest m = new unique Manifest()
             m.name = "demo"
             m.version = "1.0.0"
 
-            Target t = new Target()
+            Target t = new unique Target()
             t.name = "demo"
             t.path = "src/main.fly"
             t.lib = ""
             m.targets = {t}
 
-            Dependency d = new Dependency()
+            Dependency d = new unique Dependency()
             d.name = "flyjson"
             d.version = "^0.3"
             m.dependencies = {d}
 
-            Profile p = new Profile()
+            Profile p = new unique Profile()
             p.name = "debug"
             p.optLevel = 0
             p.debugInfo = true
             p.assertions = true
             m.profiles = {p}
 
-            Registry r = new Registry()
+            Registry r = new unique Registry()
             r.name = "default"
             r.url = "https://registry.invalid"
             m.repositories = {r}
@@ -392,15 +392,15 @@ suite ManifestSuite {
             assert.assertFalse(m.tst.parallel, 421)
         }
         case "an empty manifest has empty strings throughout": {
-            Manifest m = new Manifest()
+            Manifest m = new unique Manifest()
             assert.assertEmpty(m.name, 422)
             assert.assertEmpty(m.version, 423)
             assert.assertEmpty(m.description, 424)
             assert.assertEmpty(m.flyVersion, 425)
         }
         case "two manifests are independent": {
-            Manifest a = new Manifest()
-            Manifest b = new Manifest()
+            Manifest a = new unique Manifest()
+            Manifest b = new unique Manifest()
             a.name = "one"
             b.name = "two"
             assert.assertStr(a.name, "one", 426)
@@ -411,7 +411,7 @@ suite ManifestSuite {
     // ── the lockfile schema ──────────────────────────────────────────────────
     void lockfileTest() {
         case "LockedPackage fields": {
-            LockedPackage p = new LockedPackage()
+            LockedPackage p = new unique LockedPackage()
             p.name = "flyjson"
             p.version = "0.3.1"
             p.source = "registry+default"
@@ -428,7 +428,7 @@ suite ManifestSuite {
             assert.assertStr(joinAll(p.dependencies), "alpha 1.0.0|beta 2.0.0|", 507)
         }
         case "a git-sourced LockedPackage": {
-            LockedPackage p = new LockedPackage()
+            LockedPackage p = new unique LockedPackage()
             p.name = "sibling"
             p.source = "git+https://example.invalid/sibling.git"
             p.rev = "0123456789abcdef"
@@ -436,13 +436,13 @@ suite ManifestSuite {
             assert.assertEmpty(p.tag, 509)
         }
         case "a Lockfile holding several packages": {
-            Lockfile lf = new Lockfile()
+            Lockfile lf = new unique Lockfile()
             lf.flyVersion = "0.14.3"
             lf.checksum = "sha256-manifest"
-            LockedPackage a = new LockedPackage()
+            LockedPackage a = new unique LockedPackage()
             a.name = "alpha"
             a.version = "1.0.0"
-            LockedPackage b = new LockedPackage()
+            LockedPackage b = new unique LockedPackage()
             b.name = "beta"
             b.version = "2.0.0"
             lf.packages = {a, b}
@@ -459,7 +459,7 @@ suite ManifestSuite {
             assert.assertStr(seen, "alpha@1.0.0|beta@2.0.0|", 513)
         }
         case "an empty Lockfile": {
-            Lockfile lf = new Lockfile()
+            Lockfile lf = new unique Lockfile()
             assert.assertEmpty(lf.flyVersion, 514)
             assert.assertEmpty(lf.checksum, 515)
         }

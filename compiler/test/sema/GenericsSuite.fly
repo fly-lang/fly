@@ -16,7 +16,7 @@ suite GenericsSuite {
 
     void monomorphizeTest() {
         case "generic class instantiates with T bound to a concrete type": {
-            Parser p = new Parser("
+            Parser p = new unique Parser("
                 public class Wrapper<T> { T value
                     public T get() { return this.value }
                 }
@@ -28,7 +28,7 @@ suite GenericsSuite {
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
             DiagnosticsEngine diags = p.getDiags()
-            SemaContext ctx = new SemaContext(diags)
+            SemaContext ctx = new unique SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
             assert.assertFalse(diags.hasErrorOccurred(), 99)
 

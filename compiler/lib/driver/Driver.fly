@@ -23,7 +23,7 @@ import fly.str
 // ─────────────────────────────────────────────────────────────────────────────
 void main() {
     fly.os.env.StringArray args = env.argsGet()
-    Driver d = new Driver()
+    Driver d = new unique Driver()
     int code = d.run(args)
     env.exit(code)
 }
@@ -779,7 +779,7 @@ public class Driver {
         // `…/broken.fly`), which no editor could resolve. The multi-input path
         // already parses each module under its full path (Frontend.executeImpl).
         ci.createSourceManager(input, src)
-        Frontend fe = new Frontend(ci)
+        Frontend fe = new unique Frontend(ci)
 
         // Library mode (--lib): compile every input into ONE merged object (written to
         // the -o path) AND emit a `.fly.h` per public module. The archive itself
@@ -1133,7 +1133,7 @@ public class Driver {
     public int linkExecutable(const CompilerInstance ci, const string objFile, const string libInputs) {
         TargetOptions topts = ci.getTargetOptions()
         Triple tr = tripleParse(topts.getTriple())
-        ToolChain tc = new ToolChain(null, tr, ci.getCodeGenOptions())
+        ToolChain tc = new unique ToolChain(null, tr, ci.getCodeGenOptions())
         // Link inputs = the emitted object, followed by any .a/.lib positionals the user
         // passed (e.g. the compiler archive when building the driver). BuildOutput links
         // every .a/.lib input it finds in this ";"-delimited list.

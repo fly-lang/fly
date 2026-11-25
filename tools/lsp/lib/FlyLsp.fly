@@ -10,6 +10,6 @@ import fly.lsp.LspServer
 void main() {
     io.setBinaryMode(0)
     io.setBinaryMode(1)
-    LspServer server = new LspServer()
+    LspServer server = new unique LspServer()
     server.run()
 }

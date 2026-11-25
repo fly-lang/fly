@@ -142,13 +142,13 @@ suite RegistryHandlerSuite {
     // ── RegResponse ──────────────────────────────────────────────────────────
     void responseTest() {
         case "the fields survive construction": {
-            RegResponse r = new RegResponse(201, "text/plain", "published")
+            RegResponse r = new unique RegResponse(201, "text/plain", "published")
             assert.assertEqI(r.status, 201, 401)
             assert.assertStr(r.contentType, "text/plain", 402)
             assert.assertStr(r.body, "published", 403)
         }
         case "toHttp writes a well-formed response with the right length": {
-            RegResponse r = new RegResponse(200, "application/json", "[]")
+            RegResponse r = new unique RegResponse(200, "application/json", "[]")
             string http = r.toHttp()
             assert.assertTrue(str.startsWith(http, "HTTP/1.1 200"), 404)
             assert.assertTrue(str.contains(http, "Content-Type: application/json"), 405)
@@ -158,7 +158,7 @@ suite RegistryHandlerSuite {
             assert.assertTrue(str.endsWith(http, "[]"), 408)
         }
         case "an empty body still declares a length": {
-            RegResponse r = new RegResponse(404, "text/plain", "")
+            RegResponse r = new unique RegResponse(404, "text/plain", "")
             assert.assertTrue(str.contains(r.toHttp(), "Content-Length: 0"), 409)
         }
     }
@@ -168,14 +168,14 @@ suite RegistryHandlerSuite {
         case "the storage directory is created by the constructor": {
             string d = str.concat("reg_suite_ctor", "")
             fs.dirDeleteAll(d)
-            RegistryHandler h = new RegistryHandler(d, "")
+            RegistryHandler h = new unique RegistryHandler(d, "")
             assert.assertTrue(path.isDir(d), 501)
             assert.assertStr(h.getStorage(), d, 502)
             fs.dirDeleteAll(d)
         }
         case "the layout helpers agree with the documented paths": {
             string d = freshStorage("layout")
-            RegistryHandler h = new RegistryHandler(d, "")
+            RegistryHandler h = new unique RegistryHandler(d, "")
             assert.assertStr(h.pkgDir("p"), path.join(d, "p"), 503)
             assert.assertStr(h.tarballPath("p", "1.0.0"),
                 path.join(path.join(d, "p"), "1.0.0.tar.gz"), 504)
@@ -185,9 +185,9 @@ suite RegistryHandlerSuite {
         }
         case "requiresAuth follows the token, and auth gates POST only": {
             string d = freshStorage("auth")
-            RegistryHandler open = new RegistryHandler(d, "")
+            RegistryHandler open = new unique RegistryHandler(d, "")
             assert.assertFalse(open.requiresAuth(), 506)
-            RegistryHandler locked = new RegistryHandler(d, "tok")
+            RegistryHandler locked = new unique RegistryHandler(d, "tok")
             assert.assertTrue(locked.requiresAuth(), 507)
 
             string tgz = gzipFixture()
@@ -246,7 +246,7 @@ suite RegistryHandlerSuite {
     void routingTest() {
         case "unknown paths and methods are refused, not mis-served": {
             string d = freshStorage("routing")
-            RegistryHandler h = new RegistryHandler(d, "")
+            RegistryHandler h = new unique RegistryHandler(d, "")
             assert.assertEqI(h.route("GET", "/", "", "", "").status, 404, 701)
             assert.assertEqI(h.route("GET", "/v2/p", "", "", "").status, 404, 702)
             assert.assertEqI(h.route("GET", "/v1/p/1.0.0/bogus", "", "", "").status, 404, 703)
@@ -258,7 +258,7 @@ suite RegistryHandlerSuite {
             // The encoded form is what a real attacker sends; urlDecode runs
             // BEFORE validation, which is the order that makes this safe.
             string d = freshStorage("traversal")
-            RegistryHandler h = new RegistryHandler(d, "")
+            RegistryHandler h = new unique RegistryHandler(d, "")
             assert.assertEqI(h.route("GET", "/v1/..%2f..%2fetc", "", "", "").status, 400, 706)
             assert.assertEqI(h.route("GET", "/v1/..", "", "", "").status, 400, 707)
             assert.assertEqI(h.route("GET", "/v1/p/..%2f..%2fetc", "", "", "").status, 400, 708)
@@ -267,7 +267,7 @@ suite RegistryHandlerSuite {
         }
         case "listing an unknown package is 404, not an empty array": {
             string d = freshStorage("unknown")
-            RegistryHandler h = new RegistryHandler(d, "")
+            RegistryHandler h = new unique RegistryHandler(d, "")
             RegResponse r = h.route("GET", "/v1/nope", "", "", "")
             assert.assertEqI(r.status, 404, 710)
             assert.assertEqI(h.route("GET", "/v1/nope/1.0.0", "", "", "").status, 404, 711)
@@ -280,7 +280,7 @@ suite RegistryHandlerSuite {
     void publishTest() {
         case "publishing stores the tarball and extracts Manifest.fly": {
             string d = freshStorage("publish")
-            RegistryHandler h = new RegistryHandler(d, "")
+            RegistryHandler h = new unique RegistryHandler(d, "")
             string tgz = gzipFixture()
             assert.assertTrue(str.len(tgz) > 0, 801)
 
@@ -302,7 +302,7 @@ suite RegistryHandlerSuite {
         }
         case "a bad publish is refused and leaves nothing behind": {
             string d = freshStorage("badpublish")
-            RegistryHandler h = new RegistryHandler(d, "")
+            RegistryHandler h = new unique RegistryHandler(d, "")
             // Missing version: POST /v1/{name} has no version segment.
             assert.assertEqI(h.route("POST", "/v1/p", "", "", "x").status, 400, 808)
             // Empty body.
@@ -318,7 +318,7 @@ suite RegistryHandlerSuite {
             // shells out to tar and never validates, so a half-uploaded package
             // is stored and then served to every client as if it were good.
             string d = freshStorage("truncated")
-            RegistryHandler h = new RegistryHandler(d, "")
+            RegistryHandler h = new unique RegistryHandler(d, "")
             string tgz = gzipFixture()
             string half = str.substring(tgz, 0, str.len(tgz) / 2)
             assert.assertTrue(targz.isGzip(half), 812)   // still LOOKS like gzip
@@ -329,7 +329,7 @@ suite RegistryHandlerSuite {
         }
         case "republishing the same version overwrites it": {
             string d = freshStorage("republish")
-            RegistryHandler h = new RegistryHandler(d, "")
+            RegistryHandler h = new unique RegistryHandler(d, "")
             string tgz = gzipFixture()
             assert.assertEqI(h.route("POST", "/v1/p/1.0.0", "", "", tgz).status, 201, 815)
             assert.assertEqI(h.route("POST", "/v1/p/1.0.0", "", "", tgz).status, 201, 816)
@@ -345,7 +345,7 @@ suite RegistryHandlerSuite {
     void readEndpointsTest() {
         case "versions are listed sorted, and only .tar.gz counts": {
             string d = freshStorage("list")
-            RegistryHandler h = new RegistryHandler(d, "")
+            RegistryHandler h = new unique RegistryHandler(d, "")
             string tgz = gzipFixture()
             h.route("POST", "/v1/p/1.0.2", "", "", tgz)
             h.route("POST", "/v1/p/1.0.1", "", "", tgz)
@@ -362,7 +362,7 @@ suite RegistryHandlerSuite {
         }
         case "metadata is served, and re-extracted if it was deleted": {
             string d = freshStorage("meta")
-            RegistryHandler h = new RegistryHandler(d, "")
+            RegistryHandler h = new unique RegistryHandler(d, "")
             h.route("POST", "/v1/mypkg/1.0.0", "", "", gzipFixture())
             RegResponse r = h.route("GET", "/v1/mypkg/1.0.0", "", "", "")
             assert.assertEqI(r.status, 200, 904)
@@ -378,7 +378,7 @@ suite RegistryHandlerSuite {
         }
         case "download returns the stored bytes exactly": {
             string d = freshStorage("download")
-            RegistryHandler h = new RegistryHandler(d, "")
+            RegistryHandler h = new unique RegistryHandler(d, "")
             string tgz = gzipFixture()
             h.route("POST", "/v1/mypkg/1.0.0", "", "", tgz)
             RegResponse r = h.route("GET", "/v1/mypkg/1.0.0/download", "", "", "")
@@ -394,7 +394,7 @@ suite RegistryHandlerSuite {
         }
         case "search matches substrings, and an empty query lists everything": {
             string d = freshStorage("search")
-            RegistryHandler h = new RegistryHandler(d, "")
+            RegistryHandler h = new unique RegistryHandler(d, "")
             string tgz = gzipFixture()
             h.route("POST", "/v1/alpha/1.0.0", "", "", tgz)
             h.route("POST", "/v1/beta/1.0.0", "", "", tgz)
@@ -414,7 +414,7 @@ suite RegistryHandlerSuite {
         }
         case "search on an empty registry is an empty array, not an error": {
             string d = freshStorage("search_empty")
-            RegistryHandler h = new RegistryHandler(d, "")
+            RegistryHandler h = new unique RegistryHandler(d, "")
             RegResponse r = h.route("GET", "/v1/search", "q=x", "", "")
             assert.assertEqI(r.status, 200, 919)
             assert.assertStr(r.body, "[]", 920)

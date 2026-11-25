@@ -41,7 +41,7 @@ string genPath(const string name, const string src) {
     // From 0.15 "\n" in a literal is already a newline, so this replace changes
     // nothing; it dates from when literals were raw.
     fs.writeStr(mpath, src, 420)
-    Parser p = new Parser(fs.readStr(mpath))
+    Parser p = new unique Parser(fs.readStr(mpath))
     ASTModule m = p.parseModule(mpath)
     return HeaderGen.generate(m, dir, null)
 }
@@ -69,7 +69,7 @@ string genInto(const string name, const string src) {
     if fs.exists(staleH) {
         fs.del(staleH)
     }
-    Parser p = new Parser(fs.readStr(mpath))
+    Parser p = new unique Parser(fs.readStr(mpath))
     ASTModule m = p.parseModule(mpath)
     string written = HeaderGen.generate(m, odir, null)
     return odir
@@ -83,7 +83,7 @@ string genHeader(const string dir, const string src) {
 
 // ts — parse `src` as a type and render it.
 string ts(const string src) {
-    Parser p = new Parser(src)
+    Parser p = new unique Parser(src)
     ASTType t = p.parseType()
     return HeaderGen.typeStr(t)
 }

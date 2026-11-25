@@ -9,7 +9,7 @@ import fly.str
 suite ParserModuleSuite {
     void moduleTest() {
         case "namespace and imports": {
-            Parser p = new Parser("namespace foo.bar  import a.b  import c.*  void m() { }")
+            Parser p = new unique Parser("namespace foo.bar  import a.b  import c.*  void m() { }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
             ASTNameSpace ns = m.getNameSpace()
@@ -21,7 +21,7 @@ suite ParserModuleSuite {
             assert.assertEqI((int)nodes.size(), 3, 4)
         }
         case "module name preserved": {
-            Parser p = new Parser("void m() { }")
+            Parser p = new unique Parser("void m() { }")
             ASTModule m = p.parseModule("mymod")
             assert.assertTrue(str.equals(m.getName(), "mymod"), 5)
         }

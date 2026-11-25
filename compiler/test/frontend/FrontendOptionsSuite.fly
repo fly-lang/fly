@@ -11,7 +11,7 @@ suite FrontendOptionsSuite {
 
     void defaultsTest() {
         case "constructor defaults": {
-            FrontendOptions fo = new FrontendOptions("out.exe")
+            FrontendOptions fo = new unique FrontendOptions("out.exe")
             assert.assertStr(fo.getOutputFile(), "out.exe", 1)
             assert.assertFalse(fo.getCreateLibrary(), 2)
             assert.assertFalse(fo.getCreateShared(), 3)
@@ -31,7 +31,7 @@ suite FrontendOptionsSuite {
 
     void settersTest() {
         case "flag + backend-action setters": {
-            FrontendOptions fo = new FrontendOptions("a.ll")
+            FrontendOptions fo = new unique FrontendOptions("a.ll")
             fo.setCreateLibrary(true)
             fo.setCreateShared(true)
             fo.setVerbose(true)
@@ -44,7 +44,7 @@ suite FrontendOptionsSuite {
             assert.assertEqI(fo.getBackendAction(), 0, 24)
         }
         case "new string/flag fields": {
-            FrontendOptions fo = new FrontendOptions("a")
+            FrontendOptions fo = new unique FrontendOptions("a")
             fo.setOutputFile("libfoo.a", true)
             assert.assertStr(fo.getOutputFile(), "libfoo.a", 30)
             assert.assertTrue(fo.isOutputLib(), 31)
@@ -64,7 +64,7 @@ suite FrontendOptionsSuite {
             assert.assertStr(fo.getStatsFile(), "stats.txt", 38)
         }
         case "log-file / log-format fields (--log-file, --log-format)": {
-            FrontendOptions fo = new FrontendOptions("a")
+            FrontendOptions fo = new unique FrontendOptions("a")
             assert.assertStr(fo.getLogFile(), "", 60)
             assert.assertStr(fo.getLogFormat(), "txt", 61)   // default format
             fo.setLogFile("diag.log")
@@ -76,7 +76,7 @@ suite FrontendOptionsSuite {
 
     void inputsTest() {
         case "input-file list (;-delimited) round-trips": {
-            FrontendOptions fo = new FrontendOptions("prog")
+            FrontendOptions fo = new unique FrontendOptions("prog")
             fo.addInputFile("libfoo.a")
             fo.addInputFile("bar.o")
             assert.assertEqI(fo.inputCount(), 2, 40)
@@ -84,7 +84,7 @@ suite FrontendOptionsSuite {
             assert.assertStr(fo.inputAt(1), "bar.o", 42)
         }
         case "libDirs / srcDirs lists round-trip": {
-            FrontendOptions fo = new FrontendOptions("prog")
+            FrontendOptions fo = new unique FrontendOptions("prog")
             fo.addLibDir("/a")
             fo.addLibDir("/b")
             fo.addSrcDir("/src")

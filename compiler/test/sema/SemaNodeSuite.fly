@@ -28,12 +28,12 @@ suite SemaNodeSuite {
 
     void nodeTest() {
         case "SemaNode construct + accessors": {
-            SemaNode n = new SemaNode(SemaKind.TYPE_CLASS)
+            SemaNode n = new unique SemaNode(SemaKind.TYPE_CLASS)
             assert.assertTrue(n.getKind() == SemaKind.TYPE_CLASS, 20)
             assert.assertStr(n.str(), "TYPE_CLASS", 21)
         }
         case "SemaNode str tracks kind": {
-            SemaNode m = new SemaNode(SemaKind.CALL)
+            SemaNode m = new unique SemaNode(SemaKind.CALL)
             assert.assertStr(m.str(), "CALL", 22)
             assert.assertTrue(m.getKind() == SemaKind.CALL, 23)
         }

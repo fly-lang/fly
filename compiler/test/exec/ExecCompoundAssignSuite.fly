@@ -75,7 +75,7 @@ suite ExecCompoundAssignSuite {
 
     void fieldAndChainTest() {
         case "compound on a class field": {
-            ExecCompBox box = new ExecCompBox(10)
+            ExecCompBox box = new unique ExecCompBox(10)
             box.v += 5
             box.v *= 2
             assert.assertEqI(box.read(), 30, 401)

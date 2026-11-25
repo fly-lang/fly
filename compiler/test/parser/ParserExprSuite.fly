@@ -10,18 +10,18 @@ import fly.assert
 suite ParserExprSuite {
     void precedenceTest() {
         case "add/mul": {
-            Parser p = new Parser("1 + 2 * 3")
+            Parser p = new unique Parser("1 + 2 * 3")
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 1)
             assert.assertTrue(e != null, 2)
         }
         case "bitwise and shift": {
-            Parser p = new Parser("a & b | c ^ d << 2 >> 1")
+            Parser p = new unique Parser("a & b | c ^ d << 2 >> 1")
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 3)
         }
         case "bare value": {
-            Parser p = new Parser("42")
+            Parser p = new unique Parser("42")
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 4)
             assert.assertTrue(e != null, 5)

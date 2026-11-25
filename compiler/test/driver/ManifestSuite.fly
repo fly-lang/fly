@@ -146,7 +146,7 @@ suite ManifestSuite {
     void scalarsTest() {
         case "reads every [package] scalar": {
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest m = mr.read(fullManifestSrc(), e)
             assert.assertEqI(e, 0, 1)
             assert.assertStr(m.getName(), "myapp", 2)
@@ -163,7 +163,7 @@ suite ManifestSuite {
     void stringArrayTest() {
         case "reads authors and linkLibs string arrays": {
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest m = mr.read(fullManifestSrc(), e)
             assert.assertEqI(m.authorCount(), 2, 11)
             assert.assertStr(m.authorAt(0), "alice", 12)
@@ -177,7 +177,7 @@ suite ManifestSuite {
     void targetTest() {
         case "reads targets object array (bin + lib)": {
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest m = mr.read(fullManifestSrc(), e)
             assert.assertEqI(m.targetCount(), 2, 21)
             Target t0 = m.targetAt(0)
@@ -194,7 +194,7 @@ suite ManifestSuite {
     void dependencyTest() {
         case "reads dependencies object array": {
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest m = mr.read(fullManifestSrc(), e)
             assert.assertEqI(m.depCount(), 1, 31)
             DepEntry d0 = m.depAt(0)
@@ -217,13 +217,13 @@ suite ManifestSuite {
             src = str.concat(src, nlc(str.concat("  string name = ", qq("z"))))
             src = str.concat(src, "}")
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest m = mr.read(src, e)
             assert.assertEqI(e, 211, 41)
         }
         case "parse error → 210": {
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest m = mr.read("namespace x  class C : Manifest { @@@ }", e)
             assert.assertEqI(e, 210, 42)
         }
@@ -247,7 +247,7 @@ suite ManifestSuite {
             s = str.concat(s, "}")
 
             int e = 0
-            FlyLockReader lr = new FlyLockReader()
+            FlyLockReader lr = new unique FlyLockReader()
             Lockfile lf = lr.read(s, e)
             assert.assertEqI(e, 0, 51)
             assert.assertEqI(lf.packageCount(), 1, 52)
@@ -294,7 +294,7 @@ suite ManifestSuite {
     void depKindsTest() {
         case "minimal + registry-alias deps": {
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest m = mr.read(depKindsSrc(), e)
             assert.assertEqI(e, 0, 63)
             assert.assertEqI(m.depCount(), 8, 64)
@@ -316,7 +316,7 @@ suite ManifestSuite {
         }
         case "git deps: tag, branch, rev + tag>branch precedence": {
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest m = mr.read(depKindsSrc(), e)
             DepEntry d2 = m.depAt(2)
             GitDep g2 = d2.getDep()
@@ -339,7 +339,7 @@ suite ManifestSuite {
         }
         case "path deps win over git": {
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest m = mr.read(depKindsSrc(), e)
             DepEntry d6 = m.depAt(6)
             GitDep g6 = d6.getDep()
@@ -363,7 +363,7 @@ suite ManifestSuite {
             s = str.concat(s, fld("Dependency[] devDependencies", str.concat("{ ", str.concat(d2, " }"))))
             s = str.concat(s, "}")
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest m = mr.read(s, e)
             assert.assertEqI(e, 0, 90)
             assert.assertEqI(m.depCount(), 1, 91)
@@ -383,7 +383,7 @@ suite ManifestSuite {
             s = str.concat(s, nlc(str.concat("  string name = ", qq("plain"))))
             s = str.concat(s, "}")
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest m = mr.read(s, e)
             assert.assertEqI(e, 0, 96)
             assert.assertStr(m.getName(), "plain", 97)
@@ -395,7 +395,7 @@ suite ManifestSuite {
             s = str.concat(s, nlc(str.concat("  string name = ", qq("second"))))
             s = str.concat(s, "}")
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest m = mr.read(s, e)
             assert.assertEqI(e, 0, 98)
             assert.assertStr(m.getName(), "second", 99)
@@ -408,7 +408,7 @@ suite ManifestSuite {
             s = str.concat(s, fld("string version", qq("3.2.1")))
             s = str.concat(s, "}")
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest m = mr.read(s, e)
             assert.assertEqI(e, 0, 100)
             assert.assertStr(m.getName(), "", 101)
@@ -427,7 +427,7 @@ suite ManifestSuite {
             s = str.concat(s, fld("Dependency[] dependencies", str.concat("{ ", str.concat(qq("junk2"), " }"))))
             s = str.concat(s, "}")
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest m = mr.read(s, e)
             assert.assertEqI(e, 0, 105)
             assert.assertEqI(m.targetCount(), 1, 106)
@@ -439,7 +439,7 @@ suite ManifestSuite {
 
     void serializeRoundTripTest() {
         case "serialize → read back preserves every field": {
-            Manifest src = new Manifest()
+            Manifest src = new unique Manifest()
             src.setName("rt")
             src.setVersion("2.0.0")
             src.setDescription("round trip")
@@ -477,7 +477,7 @@ suite ManifestSuite {
 
             string ser = src.serialize()
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest back = mr.read(ser, e)
             assert.assertEqI(e, 0, 110)
             assert.assertStr(back.getName(), "rt", 111)
@@ -536,7 +536,7 @@ suite ManifestSuite {
 
     void modelDepsTest() {
         case "hasDep / getDep by name": {
-            Manifest m = new Manifest()
+            Manifest m = new unique Manifest()
             GitDep ga = new GitDep()
             ga.setRegistry("", "aa", "^1")
             m.addDep("aa", ga)
@@ -551,7 +551,7 @@ suite ManifestSuite {
             assert.assertTrue(miss == null, 153)
         }
         case "removeDep drops deps AND devDeps": {
-            Manifest m = new Manifest()
+            Manifest m = new unique Manifest()
             GitDep g1 = new GitDep()
             m.addDep("aa", g1)
             GitDep g2 = new GitDep()
@@ -578,7 +578,7 @@ suite ManifestSuite {
 
     void reposProfilesTest() {
         case "repo aliases (add/at/get)": {
-            Manifest m = new Manifest()
+            Manifest m = new unique Manifest()
             assert.assertEqI(m.repoCount(), 0, 165)
             m.addRepo("origin", "https://r1")
             m.addRepo("alt", "https://r2")
@@ -590,7 +590,7 @@ suite ManifestSuite {
             assert.assertStr(m.getRepo("nope"), "", 170)
         }
         case "profiles (add/has/get/at)": {
-            Manifest m = new Manifest()
+            Manifest m = new unique Manifest()
             assert.assertEqI(m.profileCount(), 0, 171)
             BuildProfile bp = new BuildProfile()
             bp.setOptLevel(2)
@@ -628,7 +628,7 @@ suite ManifestSuite {
 
     void testConfigTest() {
         case "TestConfig suites + flags": {
-            Manifest m = new Manifest()
+            Manifest m = new unique Manifest()
             TestConfig tc = m.getTest()
             assert.assertEqI(tc.suiteCount(), 0, 190)
             assert.assertFalse(tc.getParallel(), 191)
@@ -647,7 +647,7 @@ suite ManifestSuite {
 
     void workspaceHooksTest() {
         case "workspace members flip isWorkspaceRoot": {
-            Manifest m = new Manifest()
+            Manifest m = new unique Manifest()
             assert.assertFalse(m.isWorkspaceRoot(), 197)
             assert.assertEqI(m.memberCount(), 0, 198)
             m.addMember("pkgs/a")
@@ -658,21 +658,21 @@ suite ManifestSuite {
             assert.assertStr(m.memberAt(1), "pkgs/b", 202)
         }
         case "build hooks": {
-            Manifest m = new Manifest()
+            Manifest m = new unique Manifest()
             assert.assertStr(m.getPreBuild(), "", 203)
             m.setHooks("pre.sh", "post.sh")
             assert.assertStr(m.getPreBuild(), "pre.sh", 204)
             assert.assertStr(m.getPostBuild(), "post.sh", 205)
         }
         case "Target accessors + bin/lib flags": {
-            Target t = new Target("k", "n", "src/p.fly", "static")
+            Target t = new unique Target("k", "n", "src/p.fly", "static")
             assert.assertStr(t.getKey(), "k", 206)
             assert.assertStr(t.getName(), "n", 207)
             assert.assertStr(t.getPath(), "src/p.fly", 208)
             assert.assertStr(t.getLib(), "static", 209)
             assert.assertTrue(t.isLib(), 212)
             assert.assertFalse(t.isBin(), 213)
-            Target tb = new Target("b", "b", "m.fly", "")
+            Target tb = new unique Target("b", "b", "m.fly", "")
             assert.assertTrue(tb.isBin(), 214)
             assert.assertFalse(tb.isLib(), 215)
         }
@@ -729,7 +729,7 @@ suite ManifestSuite {
             s = str.concat(s, nlc(str.concat("  LockedPackage[] packages = ", arr)))
             s = str.concat(s, "}")
             int e = 0
-            FlyLockReader lr = new FlyLockReader()
+            FlyLockReader lr = new unique FlyLockReader()
             Lockfile lf = lr.read(s, e)
             assert.assertEqI(e, 0, 233)
             assert.assertEqI(lf.getFormatVersion(), 1, 234)
@@ -745,7 +745,7 @@ suite ManifestSuite {
             assert.assertStr(a.depAt(1), "y ^2", 243)
         }
         case "find locates a package by name": {
-            Lockfile lf = new Lockfile()
+            Lockfile lf = new unique Lockfile()
             LockedPackage p = new LockedPackage()
             p.setName("alpha")
             p.setVersion("1.0.0")
@@ -762,7 +762,7 @@ suite ManifestSuite {
 
     void lockRoundTripTest() {
         case "serialize → read back preserves packages + deps": {
-            Lockfile src = new Lockfile()
+            Lockfile src = new unique Lockfile()
             src.setFlyVersion("0.14.5")
             src.setTomlChecksum("sha256:manifest")
             LockedPackage p = new LockedPackage()
@@ -777,7 +777,7 @@ suite ManifestSuite {
             src.addPackage(p)
             string ser = src.serialize()
             int e = 0
-            FlyLockReader lr = new FlyLockReader()
+            FlyLockReader lr = new unique FlyLockReader()
             Lockfile back = lr.read(ser, e)
             assert.assertEqI(e, 0, 246)
             assert.assertStr(back.getTomlChecksum(), "sha256:manifest", 247)
@@ -801,7 +801,7 @@ suite ManifestSuite {
             string fp = path.join(tmpBase(), "man_suite_stale.txt")
             fs.writeStr(fp, "manifest body", 420)
             string h = driver.sha256File(fp)
-            Lockfile lf = new Lockfile()
+            Lockfile lf = new unique Lockfile()
             bool s1 = lf.isStale(fp)
             lf.setTomlChecksum(h)
             bool s2 = lf.isStale(fp)
@@ -825,7 +825,7 @@ suite ManifestSuite {
             int e1 = 0
             Lockfile missing = driver.readLock(fp, e1)
             int cMissing = missing.packageCount()
-            Lockfile src = new Lockfile()
+            Lockfile src = new unique Lockfile()
             src.setFlyVersion("0.14.5")
             src.setTomlChecksum("sha256:m")
             LockedPackage p = new LockedPackage()
@@ -860,7 +860,7 @@ suite ManifestSuite {
             string p0 = driver.manifestPath()
             int e0 = 0
             Manifest none = driver.loadManifest(e0)
-            Manifest w = new Manifest()
+            Manifest w = new unique Manifest()
             w.setName("pathapp")
             w.setVersion("0.2.0")
             w.save()
@@ -886,7 +886,7 @@ suite ManifestSuite {
             fs.dirDeleteAll(proj)
             fs.dirCreateAll(proj, 493)
             env.cwdSet(proj)
-            Manifest w = new Manifest()
+            Manifest w = new unique Manifest()
             w.setName("lcapp")
             w.setVersion("0.3.0")
             string src = w.serialize()
@@ -970,7 +970,7 @@ suite ManifestSuite {
             s = str.concat(s, nlc("    }"))
             s = str.concat(s, "}")
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest m = mr.read(s, e)
             assert.assertEqI(e, 0, 1001)
             assert.assertEqI(m.targetCount(), 2, 1002)
@@ -999,7 +999,7 @@ suite ManifestSuite {
             s = str.concat(s, nlc("    }"))
             s = str.concat(s, "}")
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest m = mr.read(s, e)
             assert.assertEqI(e, 0, 1021)
             assert.assertTrue(m.hasProfile("dist"), 1022)
@@ -1013,7 +1013,7 @@ suite ManifestSuite {
             assert.assertStr(r.getDebugPrefixMap(), "@out=lib", 1028)
         }
         case "serialize writes named targets and profiles back": {
-            Manifest m = new Manifest()
+            Manifest m = new unique Manifest()
             m.setName("p")
             m.setVersion("1.0.0")
             Target t = new Target("tool", "tool", "", "")
@@ -1027,7 +1027,7 @@ suite ManifestSuite {
             p.setWarningsAsErrors(true)
             m.addProfile("dist", p)
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest b = mr.read(m.serialize(), e)
             assert.assertEqI(e, 0, 1031)
             assert.assertEqI(b.targetCount(), 2, 1032)
@@ -1046,7 +1046,7 @@ suite ManifestSuite {
             // the repository root (as the CI scripts do).
             if fs.exists("Manifest.fly") {
                 int e = 0
-                FlyManifestReader mr = new FlyManifestReader()
+                FlyManifestReader mr = new unique FlyManifestReader()
                 Manifest m = mr.read(fs.readStr("Manifest.fly"), e)
                 assert.assertEqI(e, 0, 1041)
                 assert.assertStr(m.getName(), "fly", 1042)
@@ -1074,7 +1074,7 @@ suite ManifestSuite {
             s = str.concat(s, nlc("    }"))
             s = str.concat(s, "}")
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest m = mr.read(s, e)
             assert.assertEqI(e, 0, 1051)
             assert.assertEqI(m.targetCount(), 2, 1052)
@@ -1088,7 +1088,7 @@ suite ManifestSuite {
             assert.assertStr(l.getCopy().get(1), "build/mingw", 1058)
         }
         case "serialize writes dir, copy and rpaths back": {
-            Manifest m = new Manifest()
+            Manifest m = new unique Manifest()
             m.setName("p")
             m.setVersion("1.0.0")
             Target t = new Target("tool", "tool", "", "")
@@ -1100,7 +1100,7 @@ suite ManifestSuite {
             c.getCopy().add("build/llvm/bin/ld.lld")
             m.addTarget(c)
             int e = 0
-            FlyManifestReader mr = new FlyManifestReader()
+            FlyManifestReader mr = new unique FlyManifestReader()
             Manifest b = mr.read(m.serialize(), e)
             assert.assertEqI(e, 0, 1061)
             assert.assertEqI(b.targetCount(), 2, 1062)

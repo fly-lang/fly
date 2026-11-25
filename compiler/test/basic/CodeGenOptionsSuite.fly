@@ -10,7 +10,7 @@ suite CodeGenOptionsSuite {
 
     void defaultsTest() {
         case "defaults": {
-            CodeGenOptions o = new CodeGenOptions()
+            CodeGenOptions o = new unique CodeGenOptions()
             assert.assertFalse(o.isStatic, 1)
             assert.assertFalse(o.isShared, 2)
             assert.assertFalse(o.debugSymbols, 3)
@@ -28,7 +28,7 @@ suite CodeGenOptionsSuite {
 
     void noBuiltinTest() {
         case "registration": {
-            CodeGenOptions o = new CodeGenOptions()
+            CodeGenOptions o = new unique CodeGenOptions()
             assert.assertFalse(o.isNoBuiltinFunc("memset"), 7)
             o.addNoBuiltinFunc("memset")
             o.addNoBuiltinFunc("memcpy")
@@ -42,7 +42,7 @@ suite CodeGenOptionsSuite {
 
     void stringFieldsTest() {
         case "string + scalar setters round-trip": {
-            CodeGenOptions o = new CodeGenOptions()
+            CodeGenOptions o = new unique CodeGenOptions()
             o.setRelocationModel("pic")
             o.setCodeModel("large")
             o.setThreadModel("single")
@@ -70,7 +70,7 @@ suite CodeGenOptionsSuite {
 
     void listFieldsTest() {
         case "; -delimited list fields round-trip (count via fly.str.count)": {
-            CodeGenOptions o = new CodeGenOptions()
+            CodeGenOptions o = new unique CodeGenOptions()
             o.addDependentLibrary("m")
             o.addDependentLibrary("pthread")
             // ";m;pthread;" → 3 ';' → 2 segments

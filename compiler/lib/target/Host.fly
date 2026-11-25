@@ -15,7 +15,7 @@ import fly.str
 // hostTripleStr — the host's default target triple (e.g. "x86_64-pc-linux-gnu").
 // Empty if detection fails (caller falls back to a known default).
 public string hostTripleStr() {
-    LLVM llvm = new LLVM()
+    LLVM llvm = new unique LLVM()
     pointer tp = 0
     llvm.getDefaultTargetTriple(tp)
     pointer p = tp

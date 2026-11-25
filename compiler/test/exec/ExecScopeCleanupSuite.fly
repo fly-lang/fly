@@ -200,7 +200,7 @@ suite ExecScopeCleanupSuite {
             assert.assertEqI(1, 1, 431)
         }
         case "method returning a string": {
-            ExecScBox b = new ExecScBox(7)
+            ExecScBox b = new unique ExecScBox(7)
             assert.assertStr(b.label(), "box7", 441)
             string l = b.label()
             assert.assertStr(l, "box7", 442)

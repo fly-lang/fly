@@ -14,7 +14,7 @@ suite ParserErrorSuite {
 
     void ternaryTest() {
         case "ternary missing ':'": {
-            Parser p = new Parser("int m() { return a ? b }")
+            Parser p = new unique Parser("int m() { return a ? b }")
             ASTModule mod = p.parseModule("t")
             assert.assertFalse(p.isSuccess(), 1)
             StoringDiagnosticConsumer sink = p.getSink()
@@ -24,7 +24,7 @@ suite ParserErrorSuite {
 
     void failTest() {
         case "fail with too many expressions": {
-            Parser p = new Parser("void m() { fail 1, 2, 3, 4 }")
+            Parser p = new unique Parser("void m() { fail 1, 2, 3, 4 }")
             ASTModule mod = p.parseModule("t")
             assert.assertFalse(p.isSuccess(), 10)
             StoringDiagnosticConsumer sink = p.getSink()
@@ -34,7 +34,7 @@ suite ParserErrorSuite {
 
     void classNameTest() {
         case "class without a name": {
-            Parser p = new Parser("class { int x }")
+            Parser p = new unique Parser("class { int x }")
             ASTModule mod = p.parseModule("t")
             assert.assertFalse(p.isSuccess(), 20)
             DiagnosticsEngine de = p.getDiags()
@@ -44,7 +44,7 @@ suite ParserErrorSuite {
 
     void namespaceTest() {
         case "two namespaces": {
-            Parser p = new Parser("namespace a  namespace b  void m() { }")
+            Parser p = new unique Parser("namespace a  namespace b  void m() { }")
             ASTModule mod = p.parseModule("t")
             assert.assertFalse(p.isSuccess(), 30)
             StoringDiagnosticConsumer sink = p.getSink()
@@ -54,39 +54,39 @@ suite ParserErrorSuite {
 
     void parenWrappedCondTest() {
         case "if with a fully-parenthesized condition is rejected": {
-            Parser p = new Parser("int m() { if (x > 0) { return 1 } return 0 }")
+            Parser p = new unique Parser("int m() { if (x > 0) { return 1 } return 0 }")
             ASTModule mod = p.parseModule("t")
             assert.assertFalse(p.isSuccess(), 50)
             StoringDiagnosticConsumer sink = p.getSink()
             assert.assertTrue(str.contains(sink.getMessage(0), "paren-less"), 51)
         }
         case "paren-less if condition is accepted": {
-            Parser p = new Parser("int m() { if x > 0 { return 1 } return 0 }")
+            Parser p = new unique Parser("int m() { if x > 0 { return 1 } return 0 }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 52)
         }
         case "a sub-expression paren in an if condition is allowed": {
-            Parser p = new Parser("int m() { if (a + b) > c { return 1 } return 0 }")
+            Parser p = new unique Parser("int m() { if (a + b) > c { return 1 } return 0 }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 53)
         }
         case "a builtin cast at the start of an if condition is allowed": {
-            Parser p = new Parser("int m() { if (int)a == 0 { return 1 } return 0 }")
+            Parser p = new unique Parser("int m() { if (int)a == 0 { return 1 } return 0 }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 54)
         }
         case "while with a wrapped condition is rejected": {
-            Parser p = new Parser("int m() { while (x) { } return 0 }")
+            Parser p = new unique Parser("int m() { while (x) { } return 0 }")
             ASTModule mod = p.parseModule("t")
             assert.assertFalse(p.isSuccess(), 55)
         }
         case "switch with a wrapped discriminant is rejected": {
-            Parser p = new Parser("int m() { switch (x) { } return 0 }")
+            Parser p = new unique Parser("int m() { switch (x) { } return 0 }")
             ASTModule mod = p.parseModule("t")
             assert.assertFalse(p.isSuccess(), 56)
         }
         case "for with a wrapped header is rejected": {
-            Parser p = new Parser("int m() { for (int i = 0; i < 3; i++) { } return 0 }")
+            Parser p = new unique Parser("int m() { for (int i = 0; i < 3; i++) { } return 0 }")
             ASTModule mod = p.parseModule("t")
             assert.assertFalse(p.isSuccess(), 57)
         }
@@ -94,14 +94,14 @@ suite ParserErrorSuite {
 
     void errorDeclTest() {
         case "declaring an 'error'-typed variable is rejected (no named handle)": {
-            Parser p = new Parser("void m() { error e2 handle { } }")
+            Parser p = new unique Parser("void m() { error e2 handle { } }")
             ASTModule mod = p.parseModule("t")
             assert.assertFalse(p.isSuccess(), 60)
             StoringDiagnosticConsumer sink = p.getSink()
             assert.assertTrue(str.contains(sink.getMessage(0), "not a declarable type"), 61)
         }
         case "a bare handle block is accepted": {
-            Parser p = new Parser("void m() { handle { } if error { } }")
+            Parser p = new unique Parser("void m() { handle { } if error { } }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 62)
         }
@@ -109,7 +109,8 @@ suite ParserErrorSuite {
 
     void cleanControlTest() {
         case "a valid program reports nothing": {
-            Parser p = new Parser("namespace demo  import a.b  int add(const int a, const int b) { return a + b }")
+            Parser p = new unique Parser(
+                    "namespace demo  import a.b  int add(const int a, const int b) { return a + b }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 40)
             StoringDiagnosticConsumer sink = p.getSink()

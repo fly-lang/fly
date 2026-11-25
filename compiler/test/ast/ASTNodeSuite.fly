@@ -12,7 +12,7 @@ suite ASTNodeSuite {
         case "ASTUnary holds op + operand": {
             SourceLocation loc = slGetFileLoc(0)
             ASTExpr operand = new ASTIdentifier(loc, "x")
-            ASTUnary u = new ASTUnary(loc, ASTUnaryKind.OP_UNARY_NOT_LOG, operand)
+            ASTUnary u = new unique ASTUnary(loc, ASTUnaryKind.OP_UNARY_NOT_LOG, operand)
             assert.assertTrue(u.getOpKind() == ASTUnaryKind.OP_UNARY_NOT_LOG, 1)
             assert.assertTrue(u.getExprKind() == ASTExprKind.EXPR_UNARY, 2)
             assert.assertTrue(u.getExpr() != null, 3)
@@ -22,7 +22,7 @@ suite ASTNodeSuite {
     void valueTest() {
         case "ASTBoolValue": {
             SourceLocation loc = slGetFileLoc(0)
-            ASTBoolValue b = new ASTBoolValue(loc, true)
+            ASTBoolValue b = new unique ASTBoolValue(loc, true)
             assert.assertTrue(b.getValue(), 4)
             assert.assertTrue(b.isBool(), 5)
             assert.assertTrue(b.getValueKind() == ASTValueKind.VAL_BOOL, 6)
@@ -33,7 +33,7 @@ suite ASTNodeSuite {
     void moduleTest() {
         case "ASTModule name + empty nodes": {
             SourceLocation loc = slGetFileLoc(0)
-            ASTModule m = new ASTModule(loc, "demo.fly")
+            ASTModule m = new unique ASTModule(loc, "demo.fly")
             assert.assertStr(m.getName(), "demo.fly", 8)
             assert.assertTrue(m.getKind() == ASTKind.MODULE, 9)
             List<ASTNode> nodes = m.getNodes()
@@ -53,7 +53,7 @@ suite ASTNodeSuite {
             params.add(p1)
             params.add(p2)
             List<ASTModifier> fmods = new List<ASTModifier>()
-            ASTFunction fn = new ASTFunction(loc, fmods, "add", params, ASTFunctionKind.F_FUNCTION)
+            ASTFunction fn = new unique ASTFunction(loc, fmods, "add", params, ASTFunctionKind.F_FUNCTION)
             assert.assertStr(fn.getName(), "add", 11)
             List<ASTParam> ps = fn.getParams()
             assert.assertEqI((int)ps.size(), 2, 12)

@@ -112,12 +112,12 @@ suite OsIoSuite {
     // ── cross-namespace class instantiation (the isExternal CodeGen fix) ─────
     void handleTest() {
         case "FileWriter is constructible from another namespace": {
-            FileWriter fw = new FileWriter()
+            FileWriter fw = new unique FileWriter()
             fw.fd = 42
             assert.assertEqI(fw.fd, 42, 201)
         }
         case "FileReader is constructible from another namespace": {
-            FileReader fr = new FileReader()
+            FileReader fr = new unique FileReader()
             fr.fd = 7
             assert.assertEqI(fr.fd, 7, 202)
         }
@@ -127,8 +127,8 @@ suite OsIoSuite {
             assert.assertEqI(f.fd, 99, 203)
         }
         case "handles are independent instances": {
-            FileWriter a = new FileWriter()
-            FileWriter b = new FileWriter()
+            FileWriter a = new unique FileWriter()
+            FileWriter b = new unique FileWriter()
             a.fd = 1
             b.fd = 2
             assert.assertEqI(a.fd, 1, 204)
@@ -143,7 +143,7 @@ suite OsIoSuite {
             // coercion, so the fix is isolated.
             string p = "fly_io_direct.txt"
             File file = fs.create(p)
-            FileWriter fw = new FileWriter()
+            FileWriter fw = new unique FileWriter()
             fw.fd = file.fd
             string data = "hello_fw"
             Buf buf = bufOf(data)
@@ -160,7 +160,7 @@ suite OsIoSuite {
             // second bufOf() overwrote the first result's storage.
             string p = "fly_io_direct2.txt"
             File file = fs.create(p)
-            FileWriter fw = new FileWriter()
+            FileWriter fw = new unique FileWriter()
             fw.fd = file.fd
             string a = "abc"
             string b = "defgh"

@@ -258,7 +258,7 @@ suite LspTransportSuite {
             // Constructing binds fd 0/1 but reads and writes nothing, so a suite
             // can do it safely. Actually READING would consume the harness's own
             // stdin, which is why readMessage is covered end to end instead.
-            LspTransport t = new LspTransport()
+            LspTransport t = new unique LspTransport()
             assert.assertTrue(t != null, 501)
         }
     }

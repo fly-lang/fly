@@ -76,7 +76,7 @@ suite GenericsSuite {
     // ── Wrapper<T> over the integral types ───────────────────────────────────
     void integralTest() {
         case "int": {
-            Wrapper<int> w = new Wrapper<int>(42)
+            Wrapper<int> w = new unique Wrapper<int>(42)
             assert.assertEqI(w.get(), 42, 101)
             w.set(100)
             assert.assertEqI(w.get(), 100, 102)
@@ -84,13 +84,13 @@ suite GenericsSuite {
             assert.assertEqI(w.get(), 0 - 7, 103)
         }
         case "bool": {
-            Wrapper<bool> w = new Wrapper<bool>(true)
+            Wrapper<bool> w = new unique Wrapper<bool>(true)
             assert.assertTrue(w.get(), 104)
             w.set(false)
             assert.assertFalse(w.get(), 105)
         }
         case "long": {
-            Wrapper<long> w = new Wrapper<long>(9999)
+            Wrapper<long> w = new unique Wrapper<long>(9999)
             assert.assertEqL(w.get(), 9999, 106)
             w.set(1234567890)
             assert.assertEqL(w.get(), 1234567890, 107)
@@ -98,31 +98,31 @@ suite GenericsSuite {
             assert.assertEqL(w.get(), 0 - 9000000000, 108)
         }
         case "byte": {
-            Wrapper<byte> w = new Wrapper<byte>(7)
+            Wrapper<byte> w = new unique Wrapper<byte>(7)
             assert.assertEqI((int)w.get() & 255, 7, 109)
             w.set(200)
             assert.assertEqI((int)w.get() & 255, 200, 110)
         }
         case "short": {
-            Wrapper<short> w = new Wrapper<short>(1234)
+            Wrapper<short> w = new unique Wrapper<short>(1234)
             assert.assertEqI((int)w.get(), 1234, 111)
             w.set((short)(0 - 1234))
             assert.assertEqI((int)w.get(), 0 - 1234, 112)
         }
         case "ulong": {
-            Wrapper<ulong> w = new Wrapper<ulong>(9000000000)
+            Wrapper<ulong> w = new unique Wrapper<ulong>(9000000000)
             assert.assertEqL((long)w.get(), 9000000000, 113)
         }
         case "pointer": {
-            Wrapper<pointer> w = new Wrapper<pointer>(4096)
+            Wrapper<pointer> w = new unique Wrapper<pointer>(4096)
             assert.assertEqP(w.get(), 4096, 114)
             w.set(0)
             assert.assertNull(w.get(), 115)
         }
         case "instantiations at different types are independent": {
-            Wrapper<int> wi = new Wrapper<int>(1)
-            Wrapper<long> wl = new Wrapper<long>(2)
-            Wrapper<bool> wb = new Wrapper<bool>(true)
+            Wrapper<int> wi = new unique Wrapper<int>(1)
+            Wrapper<long> wl = new unique Wrapper<long>(2)
+            Wrapper<bool> wb = new unique Wrapper<bool>(true)
             wi.set(10)
             assert.assertEqI(wi.get(), 10, 116)
             assert.assertEqL(wl.get(), 2, 117)
@@ -133,7 +133,7 @@ suite GenericsSuite {
     // ── Wrapper<double> ──────────────────────────────────────────────────────
     void floatingTest() {
         case "double": {
-            Wrapper<double> w = new Wrapper<double>(3.5)
+            Wrapper<double> w = new unique Wrapper<double>(3.5)
             assert.assertApprox(w.get(), 3.5, 201)
             w.set(2.25)
             assert.assertApprox(w.get(), 2.25, 202)
@@ -147,14 +147,14 @@ suite GenericsSuite {
     // ── Wrapper<string>: an OWNED value through monomorphization ─────────────
     void stringTest() {
         case "a literal payload": {
-            Wrapper<string> w = new Wrapper<string>("hello")
+            Wrapper<string> w = new unique Wrapper<string>("hello")
             assert.assertStr(w.get(), "hello", 301)
             w.set("world")
             assert.assertStr(w.get(), "world", 302)
         }
         case "each get() clones — reading twice is safe": {
             string built = str.concat("foo", "bar")
-            Wrapper<string> w = new Wrapper<string>(built)
+            Wrapper<string> w = new unique Wrapper<string>(built)
             string a = w.get()
             string b = w.get()
             assert.assertStr(a, b, 303)
@@ -162,20 +162,20 @@ suite GenericsSuite {
             assert.assertStr(built, "foobar", 305)     // the source is intact
         }
         case "a read-out copy is stable across a later set()": {
-            Wrapper<string> w = new Wrapper<string>("first")
+            Wrapper<string> w = new unique Wrapper<string>("first")
             string held = w.get()
             w.set("second")
             assert.assertStr(held, "first", 306)
             assert.assertStr(w.get(), "second", 307)
         }
         case "the empty string": {
-            Wrapper<string> w = new Wrapper<string>("")
+            Wrapper<string> w = new unique Wrapper<string>("")
             assert.assertEmpty(w.get(), 308)
             w.set("x")
             assert.assertStr(w.get(), "x", 309)
         }
         case "many set/get cycles do not leak or alias": {
-            Wrapper<string> w = new Wrapper<string>("seed")
+            Wrapper<string> w = new unique Wrapper<string>("seed")
             int i = 0
             while i < 50 {
                 w.set(str.concat("v", str.convert(i)))
@@ -189,14 +189,14 @@ suite GenericsSuite {
     void classArgumentTest() {
         case "the wrapped handle refers to the same object": {
             Point pt = new Point(3, 4)
-            Wrapper<Point> w = new Wrapper<Point>(pt)
+            Wrapper<Point> w = new unique Wrapper<Point>(pt)
             Point got = w.get()
             assert.assertEqI(got.x, 3, 401)
             assert.assertEqI(got.y, 4, 402)
         }
         case "mutations through the original are visible": {
             Point pt = new Point(3, 4)
-            Wrapper<Point> w = new Wrapper<Point>(pt)
+            Wrapper<Point> w = new unique Wrapper<Point>(pt)
             pt.x = 30
             // Hoisted: the reference cannot type `w.get().x` as an argument
             // (chained call member access).
@@ -205,14 +205,14 @@ suite GenericsSuite {
         }
         case "mutations through the wrapper are visible outside": {
             Point pt = new Point(3, 4)
-            Wrapper<Point> w = new Wrapper<Point>(pt)
+            Wrapper<Point> w = new unique Wrapper<Point>(pt)
             w.get().y = 40
             assert.assertEqI(pt.y, 40, 404)
         }
         case "set swaps the referenced object": {
             Point a = new Point(1, 1)
             Point b = new Point(2, 2)
-            Wrapper<Point> w = new Wrapper<Point>(a)
+            Wrapper<Point> w = new unique Wrapper<Point>(a)
             // Hoisted: chained call member access as an argument is untyped on
             // the reference (see above).
             Point before = w.get()
@@ -270,27 +270,27 @@ suite GenericsSuite {
     // ── Pair<A,B>: two independent type parameters ───────────────────────────
     void pairTest() {
         case "int and string": {
-            Pair<int, string> p = new Pair<int, string>(7, "hi")
+            Pair<int, string> p = new unique Pair<int, string>(7, "hi")
             assert.assertEqI(p.first(), 7, 601)
             assert.assertStr(p.second(), "hi", 602)
         }
         case "string and int, the mirror combination": {
-            Pair<string, int> p = new Pair<string, int>("key", 9)
+            Pair<string, int> p = new unique Pair<string, int>("key", 9)
             assert.assertStr(p.first(), "key", 603)
             assert.assertEqI(p.second(), 9, 604)
         }
         case "long and double": {
-            Pair<long, double> p = new Pair<long, double>(42, 3.5)
+            Pair<long, double> p = new unique Pair<long, double>(42, 3.5)
             assert.assertEqL(p.first(), 42, 605)
             assert.assertApprox(p.second(), 3.5, 606)
         }
         case "both parameters at the same type": {
-            Pair<int, int> p = new Pair<int, int>(1, 2)
+            Pair<int, int> p = new unique Pair<int, int>(1, 2)
             assert.assertEqI(p.first(), 1, 607)
             assert.assertEqI(p.second(), 2, 608)
         }
         case "setters touch only their own slot": {
-            Pair<int, string> p = new Pair<int, string>(7, "hi")
+            Pair<int, string> p = new unique Pair<int, string>(7, "hi")
             p.setFirst(70)
             assert.assertEqI(p.first(), 70, 609)
             assert.assertStr(p.second(), "hi", 610)
@@ -300,7 +300,7 @@ suite GenericsSuite {
         }
         case "a class handle as a type parameter": {
             Point pt = new Point(5, 6)
-            Pair<Point, int> p = new Pair<Point, int>(pt, 1)
+            Pair<Point, int> p = new unique Pair<Point, int>(pt, 1)
             // Hoisted: chained call member access as an argument is untyped on
             // the reference (see above).
             Point f1 = p.first()
@@ -314,15 +314,15 @@ suite GenericsSuite {
     // ── shared specializations and nesting ───────────────────────────────────
     void specializationTest() {
         case "two instances of the same specialization are independent": {
-            Wrapper<int> a = new Wrapper<int>(1)
-            Wrapper<int> b = new Wrapper<int>(2)
+            Wrapper<int> a = new unique Wrapper<int>(1)
+            Wrapper<int> b = new unique Wrapper<int>(2)
             a.set(10)
             assert.assertEqI(a.get(), 10, 701)
             assert.assertEqI(b.get(), 2, 702)
         }
         case "the same Pair specialization used twice": {
-            Pair<int, string> a = new Pair<int, string>(1, "a")
-            Pair<int, string> b = new Pair<int, string>(2, "b")
+            Pair<int, string> a = new unique Pair<int, string>(1, "a")
+            Pair<int, string> b = new unique Pair<int, string>(2, "b")
             a.setFirst(11)
             assert.assertEqI(a.first(), 11, 703)
             assert.assertEqI(b.first(), 2, 704)
@@ -331,14 +331,14 @@ suite GenericsSuite {
         }
         case "a generic nested inside a generic": {
             Wrapper<int> inner = new Wrapper<int>(5)
-            Wrapper<Wrapper<int> > outer = new Wrapper<Wrapper<int> >(inner)
+            Wrapper<Wrapper<int> > outer = new unique Wrapper<Wrapper<int> >(inner)
             assert.assertEqI(outer.get().get(), 5, 707)
             inner.set(6)
             assert.assertEqI(outer.get().get(), 6, 708)
         }
         case "a Pair holding a Wrapper": {
             Wrapper<int> w = new Wrapper<int>(3)
-            Pair<Wrapper<int>, string> p = new Pair<Wrapper<int>, string>(w, "tag")
+            Pair<Wrapper<int>, string> p = new unique Pair<Wrapper<int>, string>(w, "tag")
             assert.assertEqI(p.first().get(), 3, 709)
             assert.assertStr(p.second(), "tag", 710)
             w.set(4)
@@ -348,7 +348,7 @@ suite GenericsSuite {
             int bad = 0 - 1
             int i = 0
             while i < 50 {
-                Wrapper<int> w = new Wrapper<int>(i)
+                Wrapper<int> w = new unique Wrapper<int>(i)
                 if w.get() != i {
                     bad = i
                 }

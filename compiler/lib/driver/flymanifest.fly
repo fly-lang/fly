@@ -29,7 +29,7 @@ public class FlyManifestReader {
     // read — parse `src` (a Manifest.fly) and extract it into a Manifest. errOut:
     // 0 = ok, 210 = parse error, 211 = no class extends fly.meta.Manifest.
     public Manifest read(const string src, int errOut) {
-        Parser p = new Parser(src)
+        Parser p = new unique Parser(src)
         ASTModule mod = p.parseModule("Manifest")
         if p.isSuccess() == false {
             errOut = 210

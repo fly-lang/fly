@@ -20,7 +20,7 @@ import fly.str
 
 // cgIRTarget — compile `src` for `triple` and return the emitted LLVM IR text.
 public string cgIRTarget(const string src, const string triple) {
-    Parser p = new Parser(src)
+    Parser p = new unique Parser(src)
     ASTModule m = p.parseModule("t")
     assert.assertTrue(p.isSuccess(), 90)
     List<ASTModule> mods = new List<ASTModule>()
@@ -32,12 +32,12 @@ public string cgIRTarget(const string src, const string triple) {
     // the failure saw an empty string; a failing function now simply hands back
     // nothing, and every caller here asserts success first.
     DiagnosticsEngine diags = p.getDiags()
-    SemaContext ctx = new SemaContext(diags)
+    SemaContext ctx = new unique SemaContext(diags)
     List<SemaModule> mres = ctx.Resolve(mods, false)
     if diags.hasErrorOccurred() {
         fail 92, "cgIRTarget: source did not resolve"
     }
-    CodeGenModule cgm = new CodeGenModule("t")
+    CodeGenModule cgm = new unique CodeGenModule("t")
     TargetInfo ti = targetInfoCreate(new TargetOptions(triple))
     cgm.configureTarget(ti)              // sets pointer width for pointer
     cgm.generate(ctx.getReg())

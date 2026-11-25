@@ -8,20 +8,20 @@ import fly.assert
 suite ParserPostfixSuite {
     void memberTest() {
         case "a.b.c": {
-            Parser p = new Parser("a.b.c")
+            Parser p = new unique Parser("a.b.c")
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 1)
             assert.assertTrue(e != null, 2)
         }
         case "method chain": {
-            Parser p = new Parser("obj.a.b().c(1)")
+            Parser p = new unique Parser("obj.a.b().c(1)")
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 3)
         }
     }
     void newTest() {
         case "new Foo(1, 2)": {
-            Parser p = new Parser("new Foo(1, 2)")
+            Parser p = new unique Parser("new Foo(1, 2)")
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 4)
             assert.assertTrue(e != null, 5)

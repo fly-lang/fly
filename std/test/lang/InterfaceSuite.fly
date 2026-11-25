@@ -102,15 +102,15 @@ suite InterfaceSuite {
     // ── calls on the concrete type ───────────────────────────────────────────
     void directTest() {
         case "the implementer's own method": {
-            Box b = new Box(10)
-            Tri t = new Tri(20)
+            Box b = new unique Box(10)
+            Tri t = new unique Tri(20)
             assert.assertEqI(b.sides(), 4, 101)
             assert.assertEqI(t.sides(), 3, 102)
         }
         case "the base class method reached via super": {
-            Box b = new Box(10)
+            Box b = new unique Box(10)
             assert.assertEqI(b.getId(), 10, 103)
-            Tri t = new Tri(20)
+            Tri t = new unique Tri(20)
             assert.assertEqI(t.getId(), 20, 104)
         }
     }
@@ -124,15 +124,17 @@ suite InterfaceSuite {
             Shape st = t
             assert.assertEqI(sb.sides(), 4, 201)
             assert.assertEqI(st.sides(), 3, 202)
+            delete t
+            delete b
         }
         case "reassigning the interface variable switches implementations": {
-            Shape s = new Box(1)
+            Shape s = new unique Box(1)
             assert.assertEqI(s.sides(), 4, 203)
-            s = new Tri(2)
+            s = new unique Tri(2)
             assert.assertEqI(s.sides(), 3, 204)
         }
         case "repeated dispatch is stable": {
-            Shape s = new Tri(1)
+            Shape s = new unique Tri(1)
             int bad = 0 - 1
             int i = 0
             while i < 50 {
@@ -179,7 +181,7 @@ suite InterfaceSuite {
     // ── a class implementing two interfaces ──────────────────────────────────
     void multipleInterfaceTest() {
         case "both interface methods dispatch correctly": {
-            Tagged t = new Tagged(5)
+            Tagged t = new unique Tagged(5)
             assert.assertEqI(t.sides(), 6, 401)
             assert.assertEqI(t.tag(), 99, 402)
             assert.assertEqI(t.getId(), 5, 403)         // and the base class method
@@ -190,6 +192,7 @@ suite InterfaceSuite {
             Named n = t
             assert.assertEqI(s.sides(), 6, 404)
             assert.assertEqI(n.tag(), 99, 405)
+            delete t
         }
         case "through parameters of each interface type": {
             Tagged t = new Tagged(5)
@@ -201,7 +204,7 @@ suite InterfaceSuite {
     // ── implementations reached through class inheritance ────────────────────
     void inheritedTest() {
         case "a derived class inherits its base's implementation": {
-            Derived d = new Derived(7)
+            Derived d = new unique Derived(7)
             assert.assertEqI(d.sides(), 4, 501)
             assert.assertEqI(d.getId(), 7, 502)
         }
@@ -219,7 +222,7 @@ suite InterfaceSuite {
             assert.assertEqI(viaConst(o), 8, 507)
         }
         case "the base is unaffected by the derived override": {
-            Box b = new Box(1)
+            Box b = new unique Box(1)
             assert.assertEqI(b.sides(), 4, 508)
         }
     }

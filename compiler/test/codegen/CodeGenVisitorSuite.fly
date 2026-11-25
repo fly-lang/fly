@@ -81,12 +81,12 @@ suite CodeGenVisitorSuite {
 
     void dispatchTest() {
         case "accept(SemaVisitor) reaches decl + int value": {
-            Parser p = new Parser("int f() { int x = 5  return x }")
+            Parser p = new unique Parser("int f() { int x = 5  return x }")
             ASTModule m = p.parseModule("t")
             List<ASTModule> mods = new List<ASTModule>()
             mods.add(m)
             DiagnosticsEngine diags = p.getDiags()
-            SemaContext ctx = new SemaContext(diags)
+            SemaContext ctx = new unique SemaContext(diags)
             List<SemaModule> res = ctx.Resolve(mods, false)
             assert.assertFalse(diags.hasErrorOccurred(), 99)
             Registry reg = ctx.getReg()

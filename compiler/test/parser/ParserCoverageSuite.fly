@@ -10,12 +10,12 @@ suite ParserCoverageSuite {
 
     void loopTest() {
         case "C-style for": {
-            Parser p = new Parser("void m() { for int i = 0; i < 10; i = i + 1 { x = i } }")
+            Parser p = new unique Parser("void m() { for int i = 0; i < 10; i = i + 1 { x = i } }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
         }
         case "for-in": {
-            Parser p = new Parser("void m() { for it in coll { use(it) } }")
+            Parser p = new unique Parser("void m() { for it in coll { use(it) } }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 2)
         }
@@ -23,7 +23,7 @@ suite ParserCoverageSuite {
 
     void switchTest() {
         case "switch with case + default": {
-            Parser p = new Parser("void m() { switch x { case 1: a = 1 break  default: a = 0 } }")
+            Parser p = new unique Parser("void m() { switch x { case 1: a = 1 break  default: a = 0 } }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 10)
         }
@@ -31,22 +31,22 @@ suite ParserCoverageSuite {
 
     void errStmtTest() {
         case "fail with code + msg": {
-            Parser p = new Parser("void m() { fail 400, msg }")
+            Parser p = new unique Parser("void m() { fail 400, msg }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 20)
         }
         case "fail bare": {
-            Parser p = new Parser("void m() { fail }")
+            Parser p = new unique Parser("void m() { fail }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 21)
         }
         case "handle block": {
-            Parser p = new Parser("void m() { handle { risky() } }")
+            Parser p = new unique Parser("void m() { handle { risky() } }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 22)
         }
         case "test block": {
-            Parser p = new Parser("void m() { test { check() } }")
+            Parser p = new unique Parser("void m() { test { check() } }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 23)
         }
@@ -54,7 +54,7 @@ suite ParserCoverageSuite {
 
     void ternaryTest() {
         case "ternary in assignment": {
-            Parser p = new Parser("int m() { return a > b ? a : b }")
+            Parser p = new unique Parser("int m() { return a > b ? a : b }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 30)
         }
@@ -62,12 +62,12 @@ suite ParserCoverageSuite {
 
     void castTest() {
         case "C-style builtin cast": {
-            Parser p = new Parser("int m() { byte b = (byte)5  return (int)b }")
+            Parser p = new unique Parser("int m() { byte b = (byte)5  return (int)b }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 40)
         }
         case "parenthesized expr still works (not a cast)": {
-            Parser p = new Parser("int m() { return (a + b) * c }")
+            Parser p = new unique Parser("int m() { return (a + b) * c }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 41)
         }
@@ -75,12 +75,12 @@ suite ParserCoverageSuite {
 
     void postfixTest() {
         case "postfix ++ in for-post": {
-            Parser p = new Parser("void m() { for int i = 0; i < 3; i++ { x = i } }")
+            Parser p = new unique Parser("void m() { for int i = 0; i < 3; i++ { x = i } }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 50)
         }
         case "postfix -- as statement": {
-            Parser p = new Parser("void m() { n-- }")
+            Parser p = new unique Parser("void m() { n-- }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 51)
         }
@@ -88,19 +88,19 @@ suite ParserCoverageSuite {
 
     void genericDeclTest() {
         case "generic class declaration": {
-            Parser p = new Parser("public class Box<T> { T v }")
+            Parser p = new unique Parser("public class Box<T> { T v }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 60)
             List<ASTNode> nodes = mod.getNodes()
             assert.assertEqI((int)nodes.size(), 1, 61)
         }
         case "generic class with bound + two params": {
-            Parser p = new Parser("class Pair<A, B> { A a  B b }")
+            Parser p = new unique Parser("class Pair<A, B> { A a  B b }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 62)
         }
         case "generic function": {
-            Parser p = new Parser("T id<T>(T v) { return v }")
+            Parser p = new unique Parser("T id<T>(T v) { return v }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 63)
         }

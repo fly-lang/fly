@@ -449,7 +449,7 @@ public class ParserExpr {
             p.reportErr(DiagID.err_parser_new_instance)
         }
         // optional generic type args: new Wrapper<int>(...)
-        List<ASTType> targs = new List<ASTType>()
+        List<ASTType> targs = new unique List<ASTType>()
         if p.curIsPunct("<") {
             p.bump()
             bool go = true

@@ -254,7 +254,7 @@ public class RegistryFetcher {
         }
         string src = fs.readStr(mpath)
         int e = 0
-        FlyManifestReader r = new FlyManifestReader()
+        FlyManifestReader r = new unique FlyManifestReader()
         Manifest m = r.read(src, e)
         errOut = e
         return m

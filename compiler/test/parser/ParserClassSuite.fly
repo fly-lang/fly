@@ -8,19 +8,19 @@ import fly.assert
 suite ParserClassSuite {
     void classTest() {
         case "class Box": {
-            Parser p = new Parser("class Box { int v  public int get() { return v } }")
+            Parser p = new unique Parser("class Box { int v  public int get() { return v } }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
             List<ASTNode> nodes = m.getNodes()
             assert.assertEqI((int)nodes.size(), 1, 2)
         }
         case "class with base + ctor": {
-            Parser p = new Parser("public class Box : Base { int n  public Box(const int v) { this.n = v }  public int get() { return this.n } }")
+            Parser p = new unique Parser("public class Box : Base { int n  public Box(const int v) { this.n = v }  public int get() { return this.n } }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 3)
         }
         case "multiple bases": {
-            Parser p = new Parser("class C : A, B { int x }")
+            Parser p = new unique Parser("class C : A, B { int x }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 4)
         }

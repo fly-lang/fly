@@ -8,18 +8,18 @@ import fly.assert
 suite ParserUnarySuite {
     void unaryTest() {
         case "logical not": {
-            Parser p = new Parser("!a")
+            Parser p = new unique Parser("!a")
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 1)
             assert.assertTrue(e != null, 2)
         }
         case "pre-increment": {
-            Parser p = new Parser("++i")
+            Parser p = new unique Parser("++i")
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 3)
         }
         case "not of comparison": {
-            Parser p = new Parser("!(a == b)")
+            Parser p = new unique Parser("!(a == b)")
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 4)
         }

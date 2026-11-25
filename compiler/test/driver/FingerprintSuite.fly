@@ -36,7 +36,7 @@ string fpsHeader() {
 
 // fpsCompute — one-shot compute with a fresh Fingerprint.
 string fpsCompute(const string dir) {
-    Fingerprint f = new Fingerprint()
+    Fingerprint f = new unique Fingerprint()
     return f.compute(dir, fpsHeader())
 }
 

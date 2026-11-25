@@ -14,7 +14,7 @@ suite SemaStmtSuite {
         case "block content + isEmpty": {
             SourceLocation loc = slGetFileLoc(0)
             ASTBlockStmt ab = new ASTBlockStmt(loc)
-            SemaBlockStmt blk = new SemaBlockStmt(ab)
+            SemaBlockStmt blk = new unique SemaBlockStmt(ab)
             assert.assertTrue(blk.isEmpty(), 1)
             assert.assertTrue(blk.getKind() == SemaKind.STMT_BLOCK, 2)
             ASTReturnStmt ar = new ASTReturnStmt(loc)
@@ -30,10 +30,10 @@ suite SemaStmtSuite {
         case "break / continue / delete kinds": {
             SourceLocation loc = slGetFileLoc(0)
             ASTBreakStmt abr = new ASTBreakStmt(loc)
-            SemaBreakStmt sbr = new SemaBreakStmt(abr)
+            SemaBreakStmt sbr = new unique SemaBreakStmt(abr)
             assert.assertTrue(sbr.getKind() == SemaKind.STMT_BREAK, 10)
             ASTContinueStmt ac = new ASTContinueStmt(loc)
-            SemaContinueStmt sc = new SemaContinueStmt(ac)
+            SemaContinueStmt sc = new unique SemaContinueStmt(ac)
             assert.assertTrue(sc.getKind() == SemaKind.STMT_CONTINUE, 11)
         }
     }
@@ -47,7 +47,7 @@ suite SemaStmtSuite {
             ASTBlockStmt athen = new ASTBlockStmt(loc)
             SemaBlockStmt thenB = new SemaBlockStmt(athen)
             ASTIfStmt aif = new ASTIfStmt(loc)
-            SemaIfStmt sif = new SemaIfStmt(aif, cond, thenB)
+            SemaIfStmt sif = new unique SemaIfStmt(aif, cond, thenB)
             assert.assertTrue(sif.getKind() == SemaKind.STMT_IF, 20)
 
             ASTBoolValue abv2 = new ASTBoolValue(loc, false)
@@ -67,7 +67,7 @@ suite SemaStmtSuite {
         case "loop init/cond/body/post": {
             SourceLocation loc = slGetFileLoc(0)
             ASTLoopStmt al = new ASTLoopStmt(loc)
-            SemaLoopStmt sl = new SemaLoopStmt(al, false)
+            SemaLoopStmt sl = new unique SemaLoopStmt(al, false)
             assert.assertTrue(sl.hasVerifyConditionAtEnd() == false, 30)
             assert.assertTrue(sl.getKind() == SemaKind.STMT_LOOP, 31)
             List<SemaStmt> ini = sl.getInit()

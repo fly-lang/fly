@@ -301,7 +301,7 @@ public class LspAnalyzer {
         Time t0 = time.monotonic()
 
         // 1) parse
-        Parser p = new Parser(src)
+        Parser p = new unique Parser(src)
         ASTModule m = p.parseModule(file)
         if tm {
             this.phase("1-parse-entry", t0)
@@ -361,7 +361,7 @@ public class LspAnalyzer {
         CompilerInstance ci = new CompilerInstance(diags, fo, cgo, topts)
         ci.createFileManager()
         ci.createSourceManager(file, src)
-        Frontend fe = new Frontend(ci)
+        Frontend fe = new unique Frontend(ci)
         fe.setModuleCache(this.modCache)
 
         // The open file's own namespace must not also be loaded from a header —
@@ -394,7 +394,7 @@ public class LspAnalyzer {
         this.navValid = false
         if depsOk {
             Time t3 = time.monotonic()
-            SemaContext ctx = new SemaContext(diags)
+            SemaContext ctx = new unique SemaContext(diags)
             List<SemaModule> res = ctx.Resolve(mods, false)
             if tm {
                 this.phase("4-sema-resolve", t3)
@@ -457,7 +457,7 @@ public class LspAnalyzer {
 
         // 1) find the name at the position, walking every function/method body
         //    of the open file's AST; remember which body scored the hit.
-        LspNavVisitor v = new LspNavVisitor(this.navSm)
+        LspNavVisitor v = new unique LspNavVisitor(this.navSm)
         v.mode = navModeFind()
         v.targetLine = line
         v.targetCol = col
@@ -1083,7 +1083,7 @@ public class LspAnalyzer {
                 }
                 pi = pi + 1
             }
-            LspNavVisitor v = new LspNavVisitor(this.navSm)
+            LspNavVisitor v = new unique LspNavVisitor(this.navSm)
             v.mode = navModeCollect()
             v.wantName = t.name
             v.visit(fn)
@@ -1428,7 +1428,7 @@ public class LspAnalyzer {
         if this.navValid == false {
             return result
         }
-        LspNavVisitor v = new LspNavVisitor(this.navSm)
+        LspNavVisitor v = new unique LspNavVisitor(this.navSm)
         v.mode = navModeCollect()
         v.wantName = name
         List<ASTNode> nodes = this.navAst.getNodes()
@@ -1468,7 +1468,7 @@ public class LspAnalyzer {
         if fn == null {
             return sig
         }
-        LspNavVisitor v = new LspNavVisitor(this.navSm)
+        LspNavVisitor v = new unique LspNavVisitor(this.navSm)
         v.mode = navModeCallAt()
         v.targetLine = line
         v.targetCol = col
@@ -1727,7 +1727,7 @@ public class LspAnalyzer {
 
     void hintsOfFn(const ASTFunction fn, const int startLine, const int endLine,
                    List<LspSym> result) {
-        LspNavVisitor v = new LspNavVisitor(this.navSm)
+        LspNavVisitor v = new unique LspNavVisitor(this.navSm)
         v.mode = navModeCalls()
         v.visit(fn)
         SymbolTable scope = this.scopeOfAstFn(fn)
@@ -1894,7 +1894,7 @@ public class LspAnalyzer {
     }
 
     void tokensOfFn(const ASTFunction fn, List<LspSym> result) {
-        LspNavVisitor v = new LspNavVisitor(this.navSm)
+        LspNavVisitor v = new unique LspNavVisitor(this.navSm)
         v.mode = navModeCollect()
         v.wantName = ""
         v.visit(fn)

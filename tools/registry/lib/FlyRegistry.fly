@@ -158,7 +158,7 @@ void main() {
         token = env.get("FLY_REGISTRY_TOKEN")
     }
 
-    RegistryHandler handler = new RegistryHandler(storage, token)
+    RegistryHandler handler = new unique RegistryHandler(storage, token)
 
     string auth = "disabled"
     if handler.requiresAuth() {

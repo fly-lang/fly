@@ -38,18 +38,18 @@ suite ListSuite {
     // ── construction + element access ────────────────────────────────────────
     void accessTest() {
         case "fresh list is empty": {
-            List<long> l = new List<long>()
+            List<long> l = new unique List<long>()
             assert.assertEqI((int)l.size(), 0, 101)
             l.free()
         }
         case "free on a never-used list is a no-op": {
             // items == 0 → free() must not call mem_free on a null buffer.
-            List<long> l = new List<long>()
+            List<long> l = new unique List<long>()
             l.free()
             assert.assertEqI((int)l.size(), 0, 102)
         }
         case "get in range": {
-            List<long> l = new List<long>()
+            List<long> l = new unique List<long>()
             l.add(10)
             l.add(20)
             l.add(30)
@@ -60,7 +60,7 @@ suite ListSuite {
             l.free()
         }
         case "get out of bounds yields default T": {
-            List<long> l = new List<long>()
+            List<long> l = new unique List<long>()
             l.add(10)
             assert.assertEqL(l.get(1), 0, 107)        // exactly at len
             assert.assertEqL(l.get(99), 0, 108)       // far past len
@@ -71,7 +71,7 @@ suite ListSuite {
         case "get out of bounds on an empty list": {
             // len == 0 and items == 0: the `idx < len` guard must reject before
             // any load from the null buffer.
-            List<long> l = new List<long>()
+            List<long> l = new unique List<long>()
             assert.assertEqL(l.get(0), 0, 110)
             l.free()
         }
@@ -80,7 +80,7 @@ suite ListSuite {
     // ── set / remove, including the no-op guards ─────────────────────────────
     void mutateTest() {
         case "set in range": {
-            List<long> l = new List<long>()
+            List<long> l = new unique List<long>()
             l.add(10)
             l.add(20)
             l.set(0, 11)
@@ -91,7 +91,7 @@ suite ListSuite {
             l.free()
         }
         case "set out of range is a no-op": {
-            List<long> l = new List<long>()
+            List<long> l = new unique List<long>()
             l.add(10)
             l.set(1, 99)                               // idx == len
             l.set(500, 99)                             // far past len
@@ -100,7 +100,7 @@ suite ListSuite {
             l.free()
         }
         case "remove first shifts the tail": {
-            List<long> l = new List<long>()
+            List<long> l = new unique List<long>()
             l.add(10)
             l.add(20)
             l.add(30)
@@ -111,7 +111,7 @@ suite ListSuite {
             l.free()
         }
         case "remove middle shifts the tail": {
-            List<long> l = new List<long>()
+            List<long> l = new unique List<long>()
             l.add(10)
             l.add(20)
             l.add(30)
@@ -123,7 +123,7 @@ suite ListSuite {
         }
         case "remove last skips the memmove": {
             // rest == 0 → the shift block is not entered.
-            List<long> l = new List<long>()
+            List<long> l = new unique List<long>()
             l.add(10)
             l.add(20)
             l.remove(1)
@@ -133,7 +133,7 @@ suite ListSuite {
             l.free()
         }
         case "remove out of range is a no-op": {
-            List<long> l = new List<long>()
+            List<long> l = new unique List<long>()
             l.add(10)
             l.remove(1)                                // idx == len
             l.remove(400)
@@ -142,7 +142,7 @@ suite ListSuite {
             l.free()
         }
         case "remove down to empty, then reuse": {
-            List<long> l = new List<long>()
+            List<long> l = new unique List<long>()
             l.add(1)
             l.add(2)
             l.remove(0)
@@ -160,7 +160,7 @@ suite ListSuite {
         case "grow across two doublings": {
             // cap goes 0 → 8 (mem_alloc) → 16 → 32 → 64 (mem_realloc), so both
             // allocation branches run and the realloc must preserve the prefix.
-            List<long> l = new List<long>()
+            List<long> l = new unique List<long>()
             long i = 0
             while i < 40 {
                 l.add(i * 3)
@@ -174,7 +174,7 @@ suite ListSuite {
             l.free()
         }
         case "every grown element is intact": {
-            List<int> l = new List<int>()
+            List<int> l = new unique List<int>()
             int i = 0
             while i < 100 {
                 l.add(i)
@@ -193,7 +193,7 @@ suite ListSuite {
             l.free()
         }
         case "remove after growth keeps order": {
-            List<int> l = new List<int>()
+            List<int> l = new unique List<int>()
             int i = 0
             while i < 20 {
                 l.add(i)
@@ -210,7 +210,7 @@ suite ListSuite {
     // ── clear: frees elements, keeps the buffer ──────────────────────────────
     void clearTest() {
         case "clear then reuse the buffer": {
-            List<long> l = new List<long>()
+            List<long> l = new unique List<long>()
             l.add(1)
             l.add(2)
             l.add(3)
@@ -223,7 +223,7 @@ suite ListSuite {
             l.free()
         }
         case "clear on an empty list": {
-            List<long> l = new List<long>()
+            List<long> l = new unique List<long>()
             l.clear()
             assert.assertEqI((int)l.size(), 0, 405)
             l.clear()
@@ -231,7 +231,7 @@ suite ListSuite {
             l.free()
         }
         case "clear frees string elements": {
-            List<string> ls = new List<string>()
+            List<string> ls = new unique List<string>()
             ls.add("alpha")
             ls.add("beta")
             ls.clear()
@@ -245,7 +245,7 @@ suite ListSuite {
     // ── ownership: List<string> clones in, clones out, frees on removal ──────
     void stringOwnershipTest() {
         case "add clones, source stays intact": {
-            List<string> ls = new List<string>()
+            List<string> ls = new unique List<string>()
             string built = str.concat("foo", "bar")
             ls.add(built)                              // deep clone into the slot
             ls.add("baz")                              // literal → heap copy
@@ -256,7 +256,7 @@ suite ListSuite {
             ls.free()
         }
         case "get returns a fresh clone each time": {
-            List<string> ls = new List<string>()
+            List<string> ls = new unique List<string>()
             ls.add("shared")
             string a = ls.get(0)
             string b = ls.get(0)
@@ -267,7 +267,7 @@ suite ListSuite {
             assert.assertStr(b, "shared", 508)
         }
         case "set frees the old element": {
-            List<string> ls = new List<string>()
+            List<string> ls = new unique List<string>()
             ls.add("old")
             ls.set(0, "new")
             assert.assertStr(ls.get(0), "new", 509)
@@ -275,7 +275,7 @@ suite ListSuite {
             ls.free()
         }
         case "remove frees the element and shifts": {
-            List<string> ls = new List<string>()
+            List<string> ls = new unique List<string>()
             ls.add("one")
             ls.add("two")
             ls.add("three")
@@ -289,14 +289,14 @@ suite ListSuite {
             ls.free()
         }
         case "out-of-range get yields the empty string": {
-            List<string> ls = new List<string>()
+            List<string> ls = new unique List<string>()
             ls.add("only")
             assert.assertEmpty(ls.get(1), 516)
             assert.assertEmpty(ls.get(77), 517)
             ls.free()
         }
         case "string list grows across reallocs": {
-            List<string> ls = new List<string>()
+            List<string> ls = new unique List<string>()
             int i = 0
             while i < 20 {
                 ls.add(str.concat("item", str.convert(i)))
@@ -312,7 +312,7 @@ suite ListSuite {
     // ── other element kinds: trivial copies and borrowed class handles ───────
     void elementKindTest() {
         case "List<int> trivial copy": {
-            List<int> li = new List<int>()
+            List<int> li = new unique List<int>()
             int src = 7
             li.add(src)
             src = 8                                    // copy, not a reference
@@ -320,7 +320,7 @@ suite ListSuite {
             li.free()
         }
         case "List<bool>": {
-            List<bool> lb = new List<bool>()
+            List<bool> lb = new unique List<bool>()
             lb.add(true)
             lb.add(false)
             assert.assertTrue(lb.get(0), 602)
@@ -329,7 +329,7 @@ suite ListSuite {
             lb.free()
         }
         case "List<double>": {
-            List<double> ld = new List<double>()
+            List<double> ld = new unique List<double>()
             ld.add(1.5)
             ld.add(0.0 - 2.25)
             assert.assertApprox(ld.get(0), 1.5, 605)
@@ -338,7 +338,7 @@ suite ListSuite {
             ld.free()
         }
         case "class handles are borrowed, not cloned": {
-            List<Cell> lc = new List<Cell>()
+            List<Cell> lc = new unique List<Cell>()
             Cell c = new Cell(1)
             lc.add(c)
             c.v = 99                                   // visible through the list
@@ -355,7 +355,7 @@ suite ListSuite {
         case "free twice, then use the list again": {
             // free() released the buffer but kept pointing at it: a second free
             // was a double free and add() wrote into freed memory
-            List<string> l = new List<string>()
+            List<string> l = new unique List<string>()
             l.add("a")
             l.add("b")
             l.free()

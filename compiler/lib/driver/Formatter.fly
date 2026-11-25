@@ -79,7 +79,7 @@ public class Formatter {
 
     // layoutPass — one pass of statement placement (see format).
     public string layoutPass(const string src) {
-        Parser p = new Parser(src)
+        Parser p = new unique Parser(src)
         p.setRecordBlocks(true)
         p.parseModule("<fmt>")
         if p.isSuccess() == false {
@@ -153,7 +153,7 @@ public class Formatter {
     // Offsets come from the parsed blocks, so nothing inside a string literal moves.
     // One edit per seam and pass; format repeats the pass until nothing changes.
     public string tidyPass(const string src) {
-        Parser p = new Parser(src)
+        Parser p = new unique Parser(src)
         p.setRecordBlocks(true)
         p.parseModule("<fmt>")
         if p.isSuccess() == false {
@@ -240,7 +240,7 @@ public class Formatter {
     // several lines are left as they are, and so is anything that is not a parameter
     // list (a long call or string stays: breaking those is a judgement call).
     public string wrapPass(const string src) {
-        Parser p = new Parser(src)
+        Parser p = new unique Parser(src)
         p.setRecordBlocks(true)
         p.parseModule("<fmt>")
         if p.isSuccess() == false {
@@ -299,7 +299,7 @@ public class Formatter {
     // as the hidden return slot (see Formatter), so a class type may not end the list.
     public string applyEdits(const List<int> starts, const List<int> ends, const List<string> texts, const string src) {
         int n = (int)starts.size()
-        List<bool> done = new List<bool>()
+        List<bool> done = new unique List<bool>()
         int k = 0
         while k < n {
             done.add(false)

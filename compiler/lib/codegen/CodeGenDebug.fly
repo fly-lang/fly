@@ -319,7 +319,7 @@ public class CodeGenDebug {
             base = 0
         }
         List<SemaClassAttribute> attrs = CodeGenClass.allAttributes(cls)
-        List<pointer> members = new List<pointer>()
+        List<pointer> members = new unique List<pointer>()
         int i = 0
         while i < attrs.size() {
             SemaClassAttribute a = attrs.get(i)

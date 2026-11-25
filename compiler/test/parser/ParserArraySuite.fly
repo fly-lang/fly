@@ -17,7 +17,7 @@ suite ParserArraySuite {
 
     void literalTest() {
         case "empty {}": {
-            Parser p = new Parser("{}")
+            Parser p = new unique Parser("{}")
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 1)
             ASTArrayValue a = e.asArrayValue()
@@ -25,7 +25,7 @@ suite ParserArraySuite {
             assert.assertEqI((int)a.getValues().size(), 0, 3)
         }
         case "int elements {1,2,3}": {
-            Parser p = new Parser("{1, 2, 3}")
+            Parser p = new unique Parser("{1, 2, 3}")
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 4)
             ASTArrayValue a = e.asArrayValue()
@@ -33,14 +33,14 @@ suite ParserArraySuite {
             assert.assertEqI((int)a.getValues().size(), 3, 6)
         }
         case "bool elements {true,false}": {
-            Parser p = new Parser("{true, false}")
+            Parser p = new unique Parser("{true, false}")
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 7)
             ASTArrayValue a = e.asArrayValue()
             assert.assertEqI((int)a.getValues().size(), 2, 8)
         }
         case "trailing comma {1,2,}": {
-            Parser p = new Parser("{1, 2,}")
+            Parser p = new unique Parser("{1, 2,}")
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 9)
             ASTArrayValue a = e.asArrayValue()
@@ -50,7 +50,7 @@ suite ParserArraySuite {
 
     void nestedTest() {
         case "nested {{1,2},{3,4}}": {
-            Parser p = new Parser("{{1, 2}, {3, 4}}")
+            Parser p = new unique Parser("{{1, 2}, {3, 4}}")
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 11)
             ASTArrayValue a = e.asArrayValue()
@@ -64,7 +64,7 @@ suite ParserArraySuite {
 
     void objectElementsTest() {
         case "array of new {new C()}": {
-            Parser p = new Parser("{new C(), new C()}")
+            Parser p = new unique Parser("{new C(), new C()}")
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 16)
             ASTArrayValue a = e.asArrayValue()
@@ -77,7 +77,7 @@ suite ParserArraySuite {
             src = str.concat(src, ", ")
             src = str.concat(src, str.concat(Q, str.concat("b", Q)))
             src = str.concat(src, "}")
-            Parser p = new Parser(src)
+            Parser p = new unique Parser(src)
             ASTExpr e = p.parseExpr()
             assert.assertTrue(p.isSuccess(), 18)
             ASTArrayValue a = e.asArrayValue()
@@ -87,17 +87,17 @@ suite ParserArraySuite {
 
     void arrayTypeTest() {
         case "T[] field decl": {
-            Parser p = new Parser("class C { int[] xs }")
+            Parser p = new unique Parser("class C { int[] xs }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 20)
         }
         case "T[N] sized decl": {
-            Parser p = new Parser("void f() { int[3] a }")
+            Parser p = new unique Parser("void f() { int[3] a }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 21)
         }
         case "T[][] nested type": {
-            Parser p = new Parser("void f() { int[][] m }")
+            Parser p = new unique Parser("void f() { int[][] m }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 22)
         }
@@ -105,17 +105,17 @@ suite ParserArraySuite {
 
     void initTest() {
         case "field init T[] xs = {1,2}": {
-            Parser p = new Parser("class C { int[] xs = {1, 2} }")
+            Parser p = new unique Parser("class C { int[] xs = {1, 2} }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 23)
         }
         case "local init int[] a = {1,2,3}": {
-            Parser p = new Parser("void f() { int[] a = {1, 2, 3} }")
+            Parser p = new unique Parser("void f() { int[] a = {1, 2, 3} }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 24)
         }
         case "empty init int[] a = {}": {
-            Parser p = new Parser("void f() { int[] a = {} }")
+            Parser p = new unique Parser("void f() { int[] a = {} }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 25)
         }
@@ -123,7 +123,7 @@ suite ParserArraySuite {
 
     void forInParseTest() {
         case "for x in a parses": {
-            Parser p = new Parser("void f() { int[] a = {1, 2, 3}  for x in a { } }")
+            Parser p = new unique Parser("void f() { int[] a = {1, 2, 3}  for x in a { } }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 26)
         }
@@ -135,27 +135,27 @@ suite ParserArraySuite {
     // declaration and a subscript expression, decided by bracketDeclAhead.
     void subscriptTest() {
         case "read k[1]": {
-            Parser p = new Parser("void f() { int[] k = {1, 2}  int x = k[1] }")
+            Parser p = new unique Parser("void f() { int[] k = {1, 2}  int x = k[1] }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 31)
         }
         case "write k[0] = 9 stays an expression statement": {
-            Parser p = new Parser("void f() { int[] k = {1, 2}  k[0] = 9 }")
+            Parser p = new unique Parser("void f() { int[] k = {1, 2}  k[0] = 9 }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 32)
         }
         case "computed index k[i + 1]": {
-            Parser p = new Parser("void f() { int[] k = {1, 2}  int i = 0  int x = k[i + 1] }")
+            Parser p = new unique Parser("void f() { int[] k = {1, 2}  int i = 0  int x = k[i + 1] }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 33)
         }
         case "chained m[i][j]": {
-            Parser p = new Parser("void f() { int[][] m = {{1}}  int x = m[0][0] }")
+            Parser p = new unique Parser("void f() { int[][] m = {{1}}  int x = m[0][0] }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 34)
         }
         case "nested index m[k[0]]": {
-            Parser p = new Parser("void f() { int[] k = {0}  int[] m = {5}  int x = m[k[0]] }")
+            Parser p = new unique Parser("void f() { int[] k = {0}  int[] m = {5}  int x = m[k[0]] }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 35)
         }
@@ -165,22 +165,22 @@ suite ParserArraySuite {
     // the closing bracket run tells them apart.
     void bracketDeclTest() {
         case "C[3] cs is a declaration": {
-            Parser p = new Parser("class C { } void f() { C[3] cs }")
+            Parser p = new unique Parser("class C { } void f() { C[3] cs }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 41)
         }
         case "C[] cs = {} is a declaration": {
-            Parser p = new Parser("class C { } void f() { C[] cs = {} }")
+            Parser p = new unique Parser("class C { } void f() { C[] cs = {} }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 42)
         }
         case "C[2][3] grid — consecutive groups are one run": {
-            Parser p = new Parser("class C { } void f() { C[2][3] grid }")
+            Parser p = new unique Parser("class C { } void f() { C[2][3] grid }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 43)
         }
         case "k[0].m() is an expression, not a declaration": {
-            Parser p = new Parser("class C { public void m() { } } void f() { C[1] k  k[0].m() }")
+            Parser p = new unique Parser("class C { public void m() { } } void f() { C[1] k  k[0].m() }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 44)
         }
@@ -193,17 +193,17 @@ suite ParserArraySuite {
     // middle of a function and check the statements AFTER it still parse.
     void probeNeutralityTest() {
         case "statements after a decl fork are intact": {
-            Parser p = new Parser("class C { } void f() { C[2] cs  int a = 1  int b = a + 1  return }")
+            Parser p = new unique Parser("class C { } void f() { C[2] cs  int a = 1  int b = a + 1  return }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 51)
         }
         case "statements after an expression fork are intact": {
-            Parser p = new Parser("void f() { int[] k = {1, 2}  k[0] = 9  int a = 1  int b = a + 1  return }")
+            Parser p = new unique Parser("void f() { int[] k = {1, 2}  k[0] = 9  int a = 1  int b = a + 1  return }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 52)
         }
         case "an unterminated bracket run still reports, not hangs": {
-            Parser p = new Parser("void f() { int[] k = {1}  k[0 }")
+            Parser p = new unique Parser("void f() { int[] k = {1}  k[0 }")
             ASTModule mod = p.parseModule("t")
             assert.assertFalse(p.isSuccess(), 53)
         }
@@ -213,7 +213,7 @@ suite ParserArraySuite {
     // the new '[' suffix must not disturb multi-return assignment.
     void outSlotTest() {
         case "out[0] = x in a multi-return function": {
-            Parser p = new Parser("int,int g() { out[0] = 1  out[1] = 2 } void f() { }")
+            Parser p = new unique Parser("int,int g() { out[0] = 1  out[1] = 2 } void f() { }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 61)
         }

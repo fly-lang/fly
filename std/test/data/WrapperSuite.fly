@@ -33,7 +33,7 @@ suite WrapperSuite {
     // ── scalar payloads ──────────────────────────────────────────────────────
     void scalarTest() {
         case "int: construct, get, set": {
-            Wrapper<int> w = new Wrapper<int>(42)
+            Wrapper<int> w = new unique Wrapper<int>(42)
             assert.assertEqI(w.get(), 42, 101)
             w.set(0 - 7)
             assert.assertEqI(w.get(), 0 - 7, 102)
@@ -41,36 +41,36 @@ suite WrapperSuite {
         }
         case "int: constructed from a variable, copied not aliased": {
             int src = 5
-            Wrapper<int> w = new Wrapper<int>(src)
+            Wrapper<int> w = new unique Wrapper<int>(src)
             src = 9
             assert.assertEqI(w.get(), 5, 104)
         }
         case "long": {
-            Wrapper<long> w = new Wrapper<long>(9000000000)
+            Wrapper<long> w = new unique Wrapper<long>(9000000000)
             assert.assertEqL(w.get(), 9000000000, 105)
             w.set(0)
             assert.assertEqL(w.get(), 0, 106)
         }
         case "bool": {
-            Wrapper<bool> w = new Wrapper<bool>(true)
+            Wrapper<bool> w = new unique Wrapper<bool>(true)
             assert.assertTrue(w.get(), 107)
             w.set(false)
             assert.assertFalse(w.get(), 108)
         }
         case "double": {
-            Wrapper<double> w = new Wrapper<double>(1.25)
+            Wrapper<double> w = new unique Wrapper<double>(1.25)
             assert.assertApprox(w.get(), 1.25, 109)
             w.set(0.0 - 3.5)
             assert.assertApprox(w.get(), 0.0 - 3.5, 110)
         }
         case "byte": {
-            Wrapper<byte> w = new Wrapper<byte>(200)
+            Wrapper<byte> w = new unique Wrapper<byte>(200)
             assert.assertEqI((int)w.get() & 255, 200, 111)
             w.set(0)
             assert.assertEqI((int)w.get() & 255, 0, 112)
         }
         case "repeated set keeps only the last value": {
-            Wrapper<int> w = new Wrapper<int>(0)
+            Wrapper<int> w = new unique Wrapper<int>(0)
             int i = 0
             while i < 50 {
                 w.set(i)
@@ -83,24 +83,24 @@ suite WrapperSuite {
     // ── string payload ───────────────────────────────────────────────────────
     void stringTest() {
         case "construct from a literal": {
-            Wrapper<string> w = new Wrapper<string>("hello")
+            Wrapper<string> w = new unique Wrapper<string>("hello")
             assert.assertStr(w.get(), "hello", 201)
             assert.assertStr(w.get(), "hello", 202)
         }
         case "construct from a runtime-built string": {
             string built = str.concat("foo", "bar")
-            Wrapper<string> w = new Wrapper<string>(built)
+            Wrapper<string> w = new unique Wrapper<string>(built)
             assert.assertStr(w.get(), "foobar", 203)
             assert.assertStr(built, "foobar", 204)     // source intact
         }
         case "set replaces the payload": {
-            Wrapper<string> w = new Wrapper<string>("old")
+            Wrapper<string> w = new unique Wrapper<string>("old")
             w.set("new")
             assert.assertStr(w.get(), "new", 205)
             assert.assertStrNe(w.get(), "old", 206)
         }
         case "empty string payload": {
-            Wrapper<string> w = new Wrapper<string>("")
+            Wrapper<string> w = new unique Wrapper<string>("")
             assert.assertEmpty(w.get(), 207)
             w.set("filled")
             assert.assertStr(w.get(), "filled", 208)
@@ -108,7 +108,7 @@ suite WrapperSuite {
             assert.assertEmpty(w.get(), 209)
         }
         case "a wrapped string can be read into a local": {
-            Wrapper<string> w = new Wrapper<string>("kept")
+            Wrapper<string> w = new unique Wrapper<string>("kept")
             string a = w.get()
             string b = w.get()
             assert.assertStr(a, "kept", 210)
@@ -122,7 +122,7 @@ suite WrapperSuite {
     // ── handles, pointers and structs ────────────────────────────────────────
     void referenceTest() {
         case "pointer payload": {
-            Wrapper<pointer> w = new Wrapper<pointer>(4096)
+            Wrapper<pointer> w = new unique Wrapper<pointer>(4096)
             assert.assertEqP(w.get(), 4096, 301)
             assert.assertNotNull(w.get(), 302)
             w.set(0)
@@ -130,7 +130,7 @@ suite WrapperSuite {
         }
         case "class handle is borrowed, not cloned": {
             Node n = new Node(1)
-            Wrapper<Node> w = new Wrapper<Node>(n)
+            Wrapper<Node> w = new unique Wrapper<Node>(n)
             n.v = 99                                   // visible through the box
             Node got = w.get()
             assert.assertEqI(got.v, 99, 304)
@@ -140,7 +140,7 @@ suite WrapperSuite {
         case "set swaps the referenced object": {
             Node a = new Node(1)
             Node b = new Node(2)
-            Wrapper<Node> w = new Wrapper<Node>(a)
+            Wrapper<Node> w = new unique Wrapper<Node>(a)
             // Hoisted: the reference cannot type `w.get().v` as an argument
             // (chained call member access), and the seed compiles this suite
             // in stage1's interleaved pass.
@@ -155,7 +155,7 @@ suite WrapperSuite {
             Point p = new Point()
             p.x = 1
             p.y = 2
-            Wrapper<Point> w = new Wrapper<Point>(p)
+            Wrapper<Point> w = new unique Wrapper<Point>(p)
             Point got = w.get()
             assert.assertEqI(got.x, 1, 309)
             assert.assertEqI(got.y, 2, 310)
@@ -185,14 +185,14 @@ suite WrapperSuite {
         case "a struct read out of a wrapper is independent of the source": {
             Point p = new Point()
             p.x = 5
-            Wrapper<Point> w = new Wrapper<Point>(p)
+            Wrapper<Point> w = new unique Wrapper<Point>(p)
             Point got = w.get()
             p.x = 50
             assert.assertEqI(got.x, 5, 317)
         }
         case "nested wrapper": {
             Wrapper<int> inner = new Wrapper<int>(5)
-            Wrapper<Wrapper<int> > outer = new Wrapper<Wrapper<int> >(inner)
+            Wrapper<Wrapper<int> > outer = new unique Wrapper<Wrapper<int> >(inner)
             assert.assertEqI(outer.get().get(), 5, 311)
             inner.set(6)
             assert.assertEqI(outer.get().get(), 6, 312)

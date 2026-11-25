@@ -59,7 +59,7 @@ suite ToolChainSuite {
     void pieTest() {
         case "getPIE truth table (PIE unless Shared/Static)": {
             CodeGenOptions o1 = new CodeGenOptions()
-            ToolChain a = new ToolChain(null, tripleParse("x86_64-unknown-linux-gnu"), o1)
+            ToolChain a = new unique ToolChain(null, tripleParse("x86_64-unknown-linux-gnu"), o1)
             assert.assertFalse(a.getPIE(), 20)                 // default: no PIE
             o1.setPie(true)
             assert.assertTrue(a.getPIE(), 21)                  // PIE enabled
@@ -68,7 +68,7 @@ suite ToolChainSuite {
             CodeGenOptions o2 = new CodeGenOptions()
             o2.setPie(true)
             o2.setShared(true)
-            ToolChain b = new ToolChain(null, tripleParse("x86_64-unknown-linux-gnu"), o2)
+            ToolChain b = new unique ToolChain(null, tripleParse("x86_64-unknown-linux-gnu"), o2)
             assert.assertFalse(b.getPIE(), 23)                 // shared cancels PIE
         }
     }
@@ -86,7 +86,7 @@ suite ToolChainSuite {
         case "B13: missing fly archives are reported before linking": {
             CodeGenOptions o = new CodeGenOptions()
             o.setRuntimeLibDir("/nonexistent-fly-libdir")
-            ToolChain tc = new ToolChain(null, tripleParse("x86_64-unknown-linux-gnu"), o)
+            ToolChain tc = new unique ToolChain(null, tripleParse("x86_64-unknown-linux-gnu"), o)
             assert.assertFalse(tc.requireFlyArchives(), 40)
             assert.assertStr(tc.GetStdLibPath(), "", 41)
             assert.assertStr(tc.GetRuntimeLibPath(), "", 42)
@@ -159,7 +159,7 @@ suite ToolChainSuite {
             assert.assertStr(tc.rpathFor("/opt/llvm/lib", true), "/opt/llvm/lib", 92)
         }
         case "the options keep every --rpath, in order": {
-            CodeGenOptions o = new CodeGenOptions()
+            CodeGenOptions o = new unique CodeGenOptions()
             o.addRpath("$ORIGIN/../lib")
             o.addRpath("/opt/x")
             string rp = o.getRpaths()

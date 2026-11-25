@@ -8,17 +8,17 @@ import fly.assert
 suite ParserModifierSuite {
     void modifierTest() {
         case "public static int f()": {
-            Parser p = new Parser("public static int f() { return 1 }")
+            Parser p = new unique Parser("public static int f() { return 1 }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
         }
         case "private/protected members": {
-            Parser p = new Parser("class C { private int a  protected string s  public C() { } }")
+            Parser p = new unique Parser("class C { private int a  protected string s  public C() { } }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 2)
         }
         case "final abstract class": {
-            Parser p = new Parser("public abstract class Base { public int x }")
+            Parser p = new unique Parser("public abstract class Base { public int x }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 3)
         }

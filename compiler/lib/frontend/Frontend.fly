@@ -211,7 +211,7 @@ public class Frontend {
         List<ASTModule> entryMods = new List<ASTModule>()
         int inCount = fo.inputCount()
         if inCount <= 0 {
-            Parser p = new Parser(src)
+            Parser p = new unique Parser(src)
             ASTModule m = p.parseModule(name)
             if p.isSuccess() == false {
                 this.printDiags(p.getSink())
@@ -228,7 +228,7 @@ public class Frontend {
                     io.printErrLn(str.concat("error: cannot read input file: ", ipath))
                     return 1
                 }
-                Parser pk = new Parser(isrc)
+                Parser pk = new unique Parser(isrc)
                 ASTModule mk = pk.parseModule(ipath)
                 if pk.isSuccess() == false {
                     this.printDiags(pk.getSink())
@@ -293,7 +293,7 @@ public class Frontend {
         if depsOk == false {
             return 1
         }
-        SemaContext ctx = new SemaContext(diags)
+        SemaContext ctx = new unique SemaContext(diags)
         List<SemaModule> _resModules = ctx.Resolve(mods, fo.getTestMode())
         if diags.hasErrorOccurred() {
             return 1
@@ -331,7 +331,7 @@ public class Frontend {
 
         // 3) codegen + verify
         this.trace("generating code")
-        CodeGenModule cgm = new CodeGenModule(name)
+        CodeGenModule cgm = new unique CodeGenModule(name)
         cgm.setCodeGenOpts(this.ci.getCodeGenOptions())
         cgm.configureTarget(ti)
         cgm.generate(reg)
@@ -504,7 +504,7 @@ public class Frontend {
                 if hm == null {
                     string src = fs.readStr(full)
                     if str.isEmpty(src) == false {
-                        Parser hp = new Parser(src)
+                        Parser hp = new unique Parser(src)
                         // The FULL path, not the bare entry name: a module's
                         // name is the identity anything downstream uses to
                         // reopen it. Registered as "str.fly.h" it could not be
@@ -714,7 +714,7 @@ public class Frontend {
                     }
                     if dm == null {
                         string src = fs.readStr(p)
-                        Parser dp = new Parser(src)
+                        Parser dp = new unique Parser(src)
                         dm = dp.parseModule(p)
                         if dp.isSuccess() == false {
                             this.printDiags(dp.getSink())

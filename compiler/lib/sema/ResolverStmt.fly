@@ -185,26 +185,16 @@ public class ResolverStmt {
         SemaBlockStmt blk = r.getCurrentSemaBlock()
         blk.addContent(ds)
 
-        // Alloc tracking (Stage 7): a `C x = new C(...)` binds an owned heap class
-        // handle — register it for free at this scope's exit. (Conservative: only
-        // direct new-into-local; escape analysis / smart-pointer ownership is the
-        // soundness follow-up.)
+        // Ownership: `C x = new unique C(...)` binds an owner, `new shared` a
+        // holder — register it for release at this scope's exit (trackUnique
+        // marks it; calls returning an owner or a holder register there). A plain
+        // `new` object belongs to the program until an explicit `delete`.
         if init != null {
             ResolverStmt.trackUnique(r, node, slv, init, ds)
             SemaCall ic = init.asCall()
-            if ic != null {
-                if ic.isNew() {
-                    SemaType vt = slv.getType()
-                    if vt != null {
-                        SemaClassType vc = vt.asClass()
-                        if vc != null {
-                            // STRUCTs are stack objects (alloca): freeing them at
-                            // scope exit would call free() on a stack pointer
-                            if vc.getClassKind() != SemaClassKind.STRUCT {
-                                blk.addAlloc(slv)
-                            }
-                        }
-                    }
+            if ic != null && ic.isNew() {
+                if slv.isUniqueOwner() || slv.isSharedHolder() {
+                    blk.addAlloc(slv)
                 }
             }
         }
@@ -259,7 +249,7 @@ public class ResolverStmt {
         SemaBlockStmt blk = r.getCurrentSemaBlock()
         List<SemaParam> retParams = ResolverStmt.returnParamsOf(r)
         List<ASTExpr> values = node.getExprs()
-        List<SemaExpr> moves = new List<SemaExpr>()     // unique owners this return hands out
+        List<SemaExpr> moves = new unique List<SemaExpr>()     // unique owners this return hands out
 
         if values.size() == 0 {
             // A bare `return` is an early exit, valid only where no value is due.

@@ -41,7 +41,7 @@ public Manifest loadManifest(int errOut) {
     }
     string src = fs.readStr(path)
     int e = 0
-    FlyManifestReader r = new FlyManifestReader()
+    FlyManifestReader r = new unique FlyManifestReader()
     Manifest m = r.read(src, e)
     errOut = e
     return m
@@ -113,7 +113,7 @@ public int cmdBuild(const string profile, const string targetKey, const bool for
     if str.isEmpty(prof) {
         prof = "debug"
     }
-    Builder b = new Builder(m, prof, false)
+    Builder b = new unique Builder(m, prof, false)
     b.setForce(force)
     b.setOutRoot(outDir)
     b.setKeepObjects(keepObjects)
@@ -147,7 +147,7 @@ public int cmdRun(const string profile, const string binKey, const bool force) {
     if str.isEmpty(key) && m.targetCount() > 0 {
         key = m.targetAt(0).getKey()
     }
-    Builder b = new Builder(m, prof, false)
+    Builder b = new unique Builder(m, prof, false)
     b.setForce(force)
     return b.runTarget(key)
 }
@@ -168,7 +168,7 @@ public int cmdTest(const string profile, const bool force) {
     if str.isEmpty(prof) {
         prof = "debug"
     }
-    Builder b = new Builder(m, prof, true)
+    Builder b = new unique Builder(m, prof, true)
     b.setForce(force)
 
     // Resolve suite files with a NATIVE directory walk. This used to shell out to
@@ -181,7 +181,7 @@ public int cmdTest(const string profile, const bool force) {
     // List<string> accumulator drops entries past its growth boundary), and it
     // already skips dot-dirs and build/. Entries come back in per-directory
     // order rather than lexicographic; the order only affects the report.
-    Driver walker = new Driver()
+    Driver walker = new unique Driver()
     string all = walker.collectFlySources(".")
     string nl = "\n"
     string list = ""
@@ -352,7 +352,7 @@ public class RealFetcher : ManifestFetcher {
 // doLock — resolve the manifest's deps, write Lock.fly. Returns 0 on success.
 public int doLock(const Manifest root, const string tomlPath) {
     RealFetcher fetcher = new RealFetcher(root)
-    MVSResolver resolver = new MVSResolver(false)
+    MVSResolver resolver = new unique MVSResolver(false)
     List<ResolvedPackage> resolved = resolver.resolve(root, fetcher)
 
     if resolver.errorsEmpty() == false || fetcher.errorCount() > 0 {
@@ -370,7 +370,7 @@ public int doLock(const Manifest root, const string tomlPath) {
         return 1
     }
 
-    Lockfile lf = new Lockfile()
+    Lockfile lf = new unique Lockfile()
     lf.setFlyVersion(flyVersion())
     lf.setTomlChecksum(fly.driver.sha256File(tomlPath))
     int k = 0

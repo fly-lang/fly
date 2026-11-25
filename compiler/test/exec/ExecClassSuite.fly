@@ -76,19 +76,19 @@ suite ExecClassSuite {
 
     void constructionTest() {
         case "constructor argument lands in the field": {
-            ExecCounter c = new ExecCounter(10)
+            ExecCounter c = new unique ExecCounter(10)
             assert.assertEqI(c.read(), 10, 101)
         }
         case "methods mutate instance state": {
-            ExecCounter c = new ExecCounter(0)
+            ExecCounter c = new unique ExecCounter(0)
             c.bump()
             c.bump()
             c.bump()
             assert.assertEqI(c.read(), 3, 111)
         }
         case "instances are independent": {
-            ExecCounter a = new ExecCounter(1)
-            ExecCounter b = new ExecCounter(100)
+            ExecCounter a = new unique ExecCounter(1)
+            ExecCounter b = new unique ExecCounter(100)
             a.bump()
             assert.assertEqI(a.read(), 2, 121)
             assert.assertEqI(b.read(), 100, 122)
@@ -97,15 +97,15 @@ suite ExecClassSuite {
 
     void dispatchTest() {
         case "override wins through a base-typed variable": {
-            ExecAnimal x = new ExecDog()
+            ExecAnimal x = new unique ExecDog()
             assert.assertEqI(x.speak(), 2, 201)
         }
         case "inherited method stays available": {
-            ExecDog d = new ExecDog()
+            ExecDog d = new unique ExecDog()
             assert.assertEqI(d.legs(), 4, 211)
         }
         case "base instance keeps the base behavior": {
-            ExecAnimal a = new ExecAnimal()
+            ExecAnimal a = new unique ExecAnimal()
             assert.assertEqI(a.speak(), 1, 221)
         }
     }
@@ -113,7 +113,7 @@ suite ExecClassSuite {
     void compositionTest() {
         case "a class field holding another class": {
             ExecCounter c = new ExecCounter(41)
-            ExecHolder h = new ExecHolder(c)
+            ExecHolder h = new unique ExecHolder(c)
             c.bump()
             assert.assertEqI(h.peek(), 42, 301)          // holder aliases the object
         }
@@ -122,8 +122,8 @@ suite ExecClassSuite {
     void staticFieldTest() {
         case "static field counts across instances (B030)": {
             int before = ExecReg.count
-            ExecReg a = new ExecReg()
-            ExecReg b = new ExecReg()
+            ExecReg a = new unique ExecReg()
+            ExecReg b = new unique ExecReg()
             assert.assertEqI(ExecReg.count - before, 2, 501)
         }
         case "static field is writable from outside": {
@@ -135,7 +135,7 @@ suite ExecClassSuite {
 
     void structFieldTest() {
         case "struct field lives inline in the class": {
-            ExecShape s = new ExecShape()
+            ExecShape s = new unique ExecShape()
             assert.assertEqI(s.span(), 34, 401)
         }
     }

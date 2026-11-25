@@ -21,7 +21,7 @@ import fly.assert
 // buildAddVerifies — build `i32 add(i32,i32)` through CodeGenLLVM's marshalled
 // functionTypeN and return whether the module passes verifyModule.
 public bool buildAddVerifies() {
-    CodeGenLLVM cg = new CodeGenLLVM()
+    CodeGenLLVM cg = new unique CodeGenLLVM()
     LLVM llvm = cg.getLLVM()
     pointer ctx
     llvm.contextCreate(ctx)

@@ -37,7 +37,7 @@ suite TargetHostEmitSuite {
             // `void main()`: a main that declares a return type is rejected now
             // (the exit code comes from the error protocol, never from `out`), and
             // this suite only needs SOME module to emit an object for.
-            Parser p = new Parser("void main() { }")
+            Parser p = new unique Parser("void main() { }")
             ASTModule m = p.parseModule("hostemit")
             assert.assertTrue(p.isSuccess(), 3)
             List<ASTModule> mods = new List<ASTModule>()
@@ -47,11 +47,11 @@ suite TargetHostEmitSuite {
             // here an invalid source segfaulted the suite binary instead of failing
             // the case (that is exactly how this one failed on Linux).
             DiagnosticsEngine diags = p.getDiags()
-            SemaContext ctx = new SemaContext(diags)
+            SemaContext ctx = new unique SemaContext(diags)
             List<SemaModule> res = ctx.Resolve(mods, false)
             assert.assertFalse(diags.hasErrorOccurred(), 4)
 
-            CodeGenModule cgm = new CodeGenModule("hostemit")
+            CodeGenModule cgm = new unique CodeGenModule("hostemit")
             cgm.configureTarget(ti)
             cgm.generate(ctx.getReg())
             bool vok = false

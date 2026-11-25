@@ -54,10 +54,6 @@ public class CodeGenExpr : SemaVisitor {
                            // (set by CodeGenTrace.emitEnter, read by the exit hooks)
     pointer returnSlotArg  // NRVO: the hidden return param's slot (ptr to the caller's cell)
     pointer nrvoCell       // NRVO: the bound local's own pointer cell (holds the caller's storage)
-    List<pointer> outSlots // class-return: each class-typed return param's slot (a ptr
-                           // to the return slot). Its stored value is a RETURNED heap
-                           // handle, which must NOT be freed at scope exit (ownership
-                           // escapes). Empty = no class is returned (free every handle).
     SemaStmt curStmt       // the statement being generated: where a null trap reports
 
     public CodeGenExpr(const CodeGenModule cgm) {
@@ -79,7 +75,6 @@ public class CodeGenExpr : SemaVisitor {
         this.lastStrLit = ""
         this.curStmt = null
         this.traceName = ""
-        this.outSlots = new List<pointer>()
     }
     public string getTraceName() {
         return this.traceName
@@ -100,30 +95,6 @@ public class CodeGenExpr : SemaVisitor {
     }
     public void setNrvoCell(const pointer p) {
         this.nrvoCell = p
-    }
-    // bindOutSlot — if the function returns a CLASS/INTERFACE handle, record the
-    // synthetic return param's slot so scope-exit cleanup can spare the returned
-    // handle. Called after the param allocas are bound. No-op for void/struct/
-    // primitive returns. Keyed on the synthetic flag, never on the parameter's
-    // name: a runtime function may well declare an explicit parameter called
-    // `out`, and that one is the user's, not a return slot.
-    public void bindOutSlot(const List<SemaParam> params) {
-        int i = 0
-        while i < params.size() {
-            SemaParam p = params.get(i)
-            if p.isSynthetic() {
-                SemaType pt = p.getType()
-                if pt != null {
-                    SemaClassType pc = pt.asClass()
-                    if pc != null {
-                        if pc.getClassKind() != SemaClassKind.STRUCT {
-                            this.outSlots.add(p.getLlvmAlloca())
-                        }
-                    }
-                }
-            }
-            i = i + 1
-        }
     }
     public pointer getLastErrPtr() {
         return this.lastErrPtr
@@ -485,27 +456,14 @@ public class CodeGenExpr : SemaVisitor {
         this.emitCleanup(this.frames.size())
     }
 
-    // emitFrameCleanup — free one scope's owned locals: a string's buffer, one
-    // reference to an array, an owned class handle (except the one being
-    // returned). A local with no storage yet is declared further down than the
-    // exit being emitted, so it holds nothing and is skipped.
+    // emitFrameCleanup — release one scope's owned locals: a string's buffer, one
+    // reference to an array, a `new unique` owner, a `new shared` holder, a weak
+    // reference. An object made with a plain `new` is never released here: that
+    // takes an explicit `delete`. A local with no storage yet is declared further
+    // down than the exit being emitted, so it holds nothing and is skipped.
     public void emitFrameCleanup(const SemaBlockStmt node) {
         if node != null {
             List<SemaLocalVar> allocs = node.getAllocs()
-            // The RETURNED heap handle escapes: `C mk(){ C c=new C() out=c }` stores c into
-            // the out slot and must NOT free it (else the caller gets a dangling pointer —
-            // e.g. fly.os.io.fileWriter → printLn crashed). For a class-returning function,
-            // load the out slot's value and free every owned handle EXCEPT that one.
-            // A multi-return can hand back several handles (`return a, c`): every
-            // class slot's value is spared.
-            List<pointer> outVals = new List<pointer>()
-            int oi = 0
-            while oi < this.outSlots.size() {
-                pointer outVal
-                this.llvm.buildLoad2(this.builder, this.ptrType(), this.outSlots.get(oi), "retv", outVal)
-                outVals.add(outVal)
-                oi = oi + 1
-            }
             int j = 0
             while j < allocs.size() {
                 SemaLocalVar v = allocs.get(j)
@@ -537,10 +495,8 @@ public class CodeGenExpr : SemaVisitor {
                     j = j + 1
                     continue
                 }
-                // ESCAPED handles (passed as a call argument or assigned away —
-                // see the Stage-7 escape marking in ResolverCall/ResolverExpr)
-                // may be retained elsewhere: freeing them here left dangling
-                // handles inside containers (LockfileSuite segfault).
+                // Strings and arrays: an ESCAPED local (see the escape marking in
+                // ResolverCall/ResolverExpr) is left alone.
                 if v.isEscaped() == false {
                     SemaType vty = v.getType()
                     bool isStr = false
@@ -552,8 +508,7 @@ public class CodeGenExpr : SemaVisitor {
                         // {ptr,size} struct). Under clone-on-store it owns the buffer
                         // uniquely; a returned string was CLONED into the out slot
                         // (value semantics), so freeing the local never touches the
-                        // caller's copy — no out-slot compare needed (unlike class
-                        // handles below). free(null) covers the empty {null,0} case.
+                        // caller's copy. free(null) covers the empty {null,0} case.
                         pointer salloca = v.getLlvmAlloca()
                         pointer strTy2 = this.cgm.getStringTy()
                         pointer sval2
@@ -566,46 +521,16 @@ public class CodeGenExpr : SemaVisitor {
                     }
                     // Array local: drop ONE reference to its buffer. The block goes
                     // back only when the count reaches zero, so two names over one
-                    // buffer release twice and free once. Handled here, before the
-                    // out-slot compare below: a returned array needs no such compare
-                    // because `out = xs` RETAINED it, so this release just undoes
-                    // this frame's own reference — the same reasoning as strings,
-                    // which are cloned into the out slot.
+                    // buffer release twice and free once. A returned array was
+                    // RETAINED by `return xs`, so this release just undoes this
+                    // frame's own reference — the same reasoning as strings, which
+                    // are cloned into the return slot.
                     bool isArr = false
                     if vty != null {
                         isArr = vty.isArray()
                     }
                     if isArr {
                         CodeGenArray.emitRelease(this, v.getLlvmAlloca(), vty.asArray())
-                        j = j + 1
-                        continue
-                    }
-                    pointer alloca = v.getLlvmAlloca()
-                    pointer ty = this.lowerType(v.getType())
-                    pointer objPtr
-                    this.llvm.buildLoad2(this.builder, ty, alloca, "freeld", objPtr)
-                    if outVals.size() > 0 {
-                        pointer cmp
-                        this.llvm.buildICmp(this.builder, 33, objPtr, outVals.get(0), "retcmp", cmp)  // NE
-                        int ci = 1
-                        while ci < outVals.size() {
-                            pointer cmpN
-                            this.llvm.buildICmp(this.builder, 33, objPtr, outVals.get(ci), "retcmp", cmpN)
-                            pointer both
-                            this.llvm.buildAnd(this.builder, cmp, cmpN, "retcmpand", both)
-                            cmp = both
-                            ci = ci + 1
-                        }
-                        pointer freeBB = this.newBlock("free.do")
-                        pointer skipBB = this.newBlock("free.skip")
-                        pointer cbr
-                        this.llvm.buildCondBr(this.builder, cmp, freeBB, skipBB, cbr)
-                        this.position(freeBB)
-                        this.cgm.freeHandle(objPtr)
-                        this.br(skipBB)
-                        this.position(skipBB)
-                    } else {
-                        this.cgm.freeHandle(objPtr)
                     }
                 }
                 j = j + 1

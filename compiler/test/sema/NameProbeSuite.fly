@@ -86,7 +86,7 @@ public class NameProbe : ASTVisitor {
 suite NameProbeSuite {
     void baseTypedFieldReadTest() {
         case "base-typed dispatch reads concrete node fields": {
-            Parser p = new Parser("int foo(const int a) { int x = a }")
+            Parser p = new unique Parser("int foo(const int a) { int x = a }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
             List<ASTNode> nodes = m.getNodes()

@@ -24,26 +24,26 @@ suite StackSuite {
     // ── the empty stack: every accessor must be safe ─────────────────────────
     void emptyTest() {
         case "fresh stack": {
-            Stack<long> s = new Stack<long>()
+            Stack<long> s = new unique Stack<long>()
             assert.assertEqI((int)s.size(), 0, 101)
             assert.assertTrue(s.isEmpty(), 102)
             s.free()
         }
         case "pop / peek on empty yield default T": {
             // items == 0: both guards must return before touching the buffer.
-            Stack<long> s = new Stack<long>()
+            Stack<long> s = new unique Stack<long>()
             assert.assertEqL(s.pop(), 0, 103)
             assert.assertEqL(s.peek(), 0, 104)
             assert.assertEqI((int)s.size(), 0, 105)
             s.free()
         }
         case "free on a never-used stack": {
-            Stack<long> s = new Stack<long>()
+            Stack<long> s = new unique Stack<long>()
             s.free()
             assert.assertEqI((int)s.size(), 0, 106)
         }
         case "drained stack behaves like a fresh one": {
-            Stack<long> s = new Stack<long>()
+            Stack<long> s = new unique Stack<long>()
             s.push(1)
             assert.assertEqL(s.pop(), 1, 107)
             assert.assertTrue(s.isEmpty(), 108)
@@ -56,7 +56,7 @@ suite StackSuite {
     // ── LIFO ordering and the size/isEmpty transitions ───────────────────────
     void lifoTest() {
         case "push then peek does not consume": {
-            Stack<long> s = new Stack<long>()
+            Stack<long> s = new unique Stack<long>()
             s.push(1)
             s.push(2)
             s.push(3)
@@ -67,7 +67,7 @@ suite StackSuite {
             s.free()
         }
         case "pop returns in reverse push order": {
-            Stack<long> s = new Stack<long>()
+            Stack<long> s = new unique Stack<long>()
             s.push(1)
             s.push(2)
             s.push(3)
@@ -79,7 +79,7 @@ suite StackSuite {
             s.free()
         }
         case "interleaved push and pop": {
-            Stack<long> s = new Stack<long>()
+            Stack<long> s = new unique Stack<long>()
             s.push(10)
             s.push(20)
             assert.assertEqL(s.pop(), 20, 210)
@@ -91,7 +91,7 @@ suite StackSuite {
             s.free()
         }
         case "reuse after full drain": {
-            Stack<long> s = new Stack<long>()
+            Stack<long> s = new unique Stack<long>()
             s.push(1)
             s.pop()
             s.push(2)
@@ -105,7 +105,7 @@ suite StackSuite {
     void growTest() {
         case "grow past the initial capacity": {
             // cap 0 → 8 (mem_alloc) → 16 → 32 → 64 (mem_realloc).
-            Stack<long> s = new Stack<long>()
+            Stack<long> s = new unique Stack<long>()
             long i = 0
             while i < 40 {
                 s.push(i)
@@ -116,7 +116,7 @@ suite StackSuite {
             s.free()
         }
         case "every grown element pops back in order": {
-            Stack<int> s = new Stack<int>()
+            Stack<int> s = new unique Stack<int>()
             int i = 0
             while i < 50 {
                 s.push(i)
@@ -135,7 +135,7 @@ suite StackSuite {
             s.free()
         }
         case "grow, drain, grow again": {
-            Stack<int> s = new Stack<int>()
+            Stack<int> s = new unique Stack<int>()
             int i = 0
             while i < 20 {
                 s.push(i)
@@ -159,7 +159,7 @@ suite StackSuite {
     // ── ownership: Stack<string> ─────────────────────────────────────────────
     void stringOwnershipTest() {
         case "push clones, source stays intact": {
-            Stack<string> s = new Stack<string>()
+            Stack<string> s = new unique Stack<string>()
             string built = str.concat("foo", "bar")
             s.push(built)
             s.push("baz")
@@ -169,7 +169,7 @@ suite StackSuite {
             s.free()
         }
         case "pop transfers ownership to the caller": {
-            Stack<string> s = new Stack<string>()
+            Stack<string> s = new unique Stack<string>()
             s.push("first")
             s.push("second")
             string top = s.pop()
@@ -178,7 +178,7 @@ suite StackSuite {
             assert.assertStr(top, "second", 405)
         }
         case "peek yields a fresh clone": {
-            Stack<string> s = new Stack<string>()
+            Stack<string> s = new unique Stack<string>()
             s.push("only")
             string a = s.peek()
             string b = s.peek()
@@ -189,13 +189,13 @@ suite StackSuite {
             assert.assertStr(a, "only", 409)
         }
         case "empty pop/peek yield the empty string": {
-            Stack<string> s = new Stack<string>()
+            Stack<string> s = new unique Stack<string>()
             assert.assertEmpty(s.pop(), 410)
             assert.assertEmpty(s.peek(), 411)
             s.free()
         }
         case "string stack grows and frees the remainder": {
-            Stack<string> s = new Stack<string>()
+            Stack<string> s = new unique Stack<string>()
             int i = 0
             while i < 20 {
                 s.push(str.concat("s", str.convert(i)))
@@ -211,7 +211,7 @@ suite StackSuite {
     // ── other element kinds ──────────────────────────────────────────────────
     void elementKindTest() {
         case "Stack<bool>": {
-            Stack<bool> s = new Stack<bool>()
+            Stack<bool> s = new unique Stack<bool>()
             s.push(true)
             s.push(false)
             assert.assertFalse(s.pop(), 501)
@@ -220,7 +220,7 @@ suite StackSuite {
             s.free()
         }
         case "Stack<double>": {
-            Stack<double> s = new Stack<double>()
+            Stack<double> s = new unique Stack<double>()
             s.push(2.5)
             s.push(0.0 - 1.25)
             assert.assertApprox(s.pop(), 0.0 - 1.25, 504)
@@ -229,7 +229,7 @@ suite StackSuite {
             s.free()
         }
         case "Stack<pointer>": {
-            Stack<pointer> s = new Stack<pointer>()
+            Stack<pointer> s = new unique Stack<pointer>()
             s.push(4096)
             assert.assertEqP(s.peek(), 4096, 507)
             assert.assertEqP(s.pop(), 4096, 508)

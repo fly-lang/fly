@@ -66,6 +66,7 @@ public class ParserClass {
             ctp.add(typeParams.get(ti))
             ti = ti + 1
         }
+        delete typeParams
         p.expectPunct("{")
         p.setCurClass(c)
         bool go = p.curIsPunct("}") == false && p.hadErr() == false

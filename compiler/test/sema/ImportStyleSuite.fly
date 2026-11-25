@@ -26,15 +26,15 @@ import fly.assert
 
 // resolveErr — parse libSrc+mainSrc, resolve, out = "did an error occur".
 bool resolveErr(const string libSrc, const string mainSrc) {
-    Parser pa = new Parser(libSrc)
+    Parser pa = new unique Parser(libSrc)
     ASTModule ma = pa.parseModule("lib")
-    Parser pb = new Parser(mainSrc)
+    Parser pb = new unique Parser(mainSrc)
     ASTModule mb = pb.parseModule("main")
     List<ASTModule> mods = new List<ASTModule>()
     mods.add(ma)
     mods.add(mb)
     DiagnosticsEngine diags = pa.getDiags()
-    SemaContext ctx = new SemaContext(diags)
+    SemaContext ctx = new unique SemaContext(diags)
     List<SemaModule> res = ctx.Resolve(mods, false)
     return diags.hasErrorOccurred()
 }

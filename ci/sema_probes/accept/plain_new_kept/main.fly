@@ -1,0 +1,40 @@
+public class Node {
+
+    int v
+
+    public Node(const int n) {
+        this.v = n
+    }
+
+    // keeps a second name for the object outside the scope that made it; the
+    // receiver of a method call is not an argument, so the local does not escape
+    public void register() {
+        Seen.last = this
+    }
+}
+
+public class Seen {
+    static Node last = null
+}
+
+// A plain `new` object belongs to the program until `delete`: leaving the scope of
+// the local that holds it releases nothing. Up to 0.15 the local was freed at the
+// end of its scope, and the next object of the same size reused its memory.
+void make() {
+    Node n = new Node(7)
+    n.register()
+}
+
+void main() {
+    make()
+    Node fresh = new Node(8)
+    if fresh == Seen.last {
+        fail 1, "a plain new object was released at the end of its scope"
+    }
+    if Seen.last.v != 7 {
+        fail 2, "a plain new object changed after the end of its scope"
+    }
+    delete fresh
+    Node kept = Seen.last
+    delete kept
+}

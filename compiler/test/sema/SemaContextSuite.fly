@@ -21,14 +21,14 @@ suite SemaContextSuite {
     // declaration initialized from the param.
     void resolveFunctionTest() {
         case "function signature + local decl resolve end-to-end": {
-            Parser p = new Parser("int f(const int a) { int x = a  return x }")
+            Parser p = new unique Parser("int f(const int a) { int x = a  return x }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
             DiagnosticsEngine diags = p.getDiags()
-            SemaContext ctx = new SemaContext(diags)
+            SemaContext ctx = new unique SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
             assert.assertFalse(diags.hasErrorOccurred(), 99)
             assert.assertEqI((int)resolved.size(), 1, 2)
@@ -70,14 +70,14 @@ suite SemaContextSuite {
     // "current" fields; resolveFunctionTest covers type resolution.)
     void resolveLocalDeclTest() {
         case "literal-initialized local resolves to a decl statement": {
-            Parser p = new Parser("int g() { int y = 5  return y }")
+            Parser p = new unique Parser("int g() { int y = 5  return y }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 20)
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
             DiagnosticsEngine diags = p.getDiags()
-            SemaContext ctx = new SemaContext(diags)
+            SemaContext ctx = new unique SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
             assert.assertFalse(diags.hasErrorOccurred(), 99)
 
@@ -98,14 +98,14 @@ suite SemaContextSuite {
     // the function body, with their conditions (binary + identifier) resolved.
     void resolveControlFlowTest() {
         case "if + while resolve into the body": {
-            Parser p = new Parser("void h(const int n) { int r = 0  if n > 0 { r = 1 } else { r = 2 }  while r < 10 { r = r + 1 } }")
+            Parser p = new unique Parser("void h(const int n) { int r = 0  if n > 0 { r = 1 } else { r = 2 }  while r < 10 { r = r + 1 } }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 30)
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
             DiagnosticsEngine diags = p.getDiags()
-            SemaContext ctx = new SemaContext(diags)
+            SemaContext ctx = new unique SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
             assert.assertFalse(diags.hasErrorOccurred(), 99)
 
@@ -129,14 +129,14 @@ suite SemaContextSuite {
     // constructor is synthesized.
     void resolveClassTest() {
         case "class with fields resolves attributes + default ctor": {
-            Parser p = new Parser("public class Point { public int x  public int y }")
+            Parser p = new unique Parser("public class Point { public int x  public int y }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 40)
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
             DiagnosticsEngine diags = p.getDiags()
-            SemaContext ctx = new SemaContext(diags)
+            SemaContext ctx = new unique SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
             assert.assertFalse(diags.hasErrorOccurred(), 99)
 
@@ -159,14 +159,14 @@ suite SemaContextSuite {
     // Class method: signature (return → synthetic out) + body resolve.
     void resolveMethodTest() {
         case "class method resolves signature + body": {
-            Parser p = new Parser("public class Box { public int get() { return 5 } }")
+            Parser p = new unique Parser("public class Box { public int get() { return 5 } }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 50)
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
             DiagnosticsEngine diags = p.getDiags()
-            SemaContext ctx = new SemaContext(diags)
+            SemaContext ctx = new unique SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
             assert.assertFalse(diags.hasErrorOccurred(), 99)
 
@@ -193,14 +193,14 @@ suite SemaContextSuite {
     // base method it overrides.
     void resolveInheritanceTest() {
         case "subclass links base class + override": {
-            Parser p = new Parser("public class A { public int who() { return 1 } }  public class B : A { public int who() { return 2 } }")
+            Parser p = new unique Parser("public class A { public int who() { return 1 } }  public class B : A { public int who() { return 2 } }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 60)
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
             DiagnosticsEngine diags = p.getDiags()
-            SemaContext ctx = new SemaContext(diags)
+            SemaContext ctx = new unique SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
             assert.assertFalse(diags.hasErrorOccurred(), 99)
 
@@ -225,14 +225,14 @@ suite SemaContextSuite {
     // Enum: the type resolves and is registered as a named TYPE_ENUM symbol.
     void resolveEnumTest() {
         case "enum resolves as a named type": {
-            Parser p = new Parser("enum Color { RED, GREEN, BLUE }")
+            Parser p = new unique Parser("enum Color { RED, GREEN, BLUE }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 70)
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
             DiagnosticsEngine diags = p.getDiags()
-            SemaContext ctx = new SemaContext(diags)
+            SemaContext ctx = new unique SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
             assert.assertFalse(diags.hasErrorOccurred(), 99)
 
@@ -250,14 +250,15 @@ suite SemaContextSuite {
     // on the caller (out-param return convention).
     void resolveFunctionCallTest() {
         case "function call resolves + synthesizes out-var": {
-            Parser p = new Parser("int dbl(const int n) { return n + n }  int use() { int r = dbl(3)  return r }")
+            Parser p = new unique Parser(
+                    "int dbl(const int n) { return n + n }  int use() { int r = dbl(3)  return r }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 80)
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
             DiagnosticsEngine diags = p.getDiags()
-            SemaContext ctx = new SemaContext(diags)
+            SemaContext ctx = new unique SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
             assert.assertFalse(diags.hasErrorOccurred(), 99)
 
@@ -273,7 +274,7 @@ suite SemaContextSuite {
     // new + instance method call + member access (this.x) resolve end-to-end.
     void resolveNewAndMethodCallTest() {
         case "new + method call + member access resolve": {
-            Parser p = new Parser("
+            Parser p = new unique Parser("
                 public class Box { public int x
                     public int get() { return this.x }
                 }
@@ -288,7 +289,7 @@ suite SemaContextSuite {
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
             DiagnosticsEngine diags = p.getDiags()
-            SemaContext ctx = new SemaContext(diags)
+            SemaContext ctx = new unique SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
             assert.assertFalse(diags.hasErrorOccurred(), 99)
 

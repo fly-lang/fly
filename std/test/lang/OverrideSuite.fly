@@ -85,9 +85,9 @@ suite OverrideSuite {
     // ── static-type dispatch ─────────────────────────────────────────────────
     void staticTest() {
         case "each class calls its own implementation": {
-            Square sq = new Square()
-            Triangle tr = new Triangle()
-            Shape sh = new Shape()
+            Square sq = new unique Square()
+            Triangle tr = new unique Triangle()
+            Shape sh = new unique Shape()
             assert.assertEqI(sq.sides(), 4, 101)
             assert.assertEqI(tr.sides(), 3, 102)
             assert.assertEqI(sh.sides(), 0, 103)
@@ -96,9 +96,9 @@ suite OverrideSuite {
             // Hoisted: the reference cannot chain a call onto a `new` expression
             // (postfix-on-new is self-host-only, B014), and the seed compiles
             // this suite in stage1's interleaved pass.
-            Shape shBase = new Shape()
-            Square shSquare = new Square()
-            Leaf shLeaf = new Leaf()
+            Shape shBase = new unique Shape()
+            Square shSquare = new unique Square()
+            Leaf shLeaf = new unique Leaf()
             assert.assertEqI(shBase.family(), 1, 104)
             assert.assertEqI(shSquare.family(), 1, 105)
             assert.assertEqI(shLeaf.family(), 1, 106)
@@ -114,24 +114,26 @@ suite OverrideSuite {
             Shape b = tr
             assert.assertEqI(a.sides(), 4, 201)
             assert.assertEqI(b.sides(), 3, 202)
+            delete tr
+            delete sq
         }
         case "reassigning the base reference switches implementations": {
-            Shape s = new Square()
+            Shape s = new unique Square()
             assert.assertEqI(s.sides(), 4, 203)
-            s = new Triangle()
+            s = new unique Triangle()
             assert.assertEqI(s.sides(), 3, 204)
-            s = new Shape()
+            s = new unique Shape()
             assert.assertEqI(s.sides(), 0, 205)
         }
         case "the base instance is unaffected by any override": {
-            Shape sh = new Shape()
-            Shape sq = new Square()
+            Shape sh = new unique Shape()
+            Shape sq = new unique Square()
             assert.assertEqI(sh.sides(), 0, 206)
             assert.assertEqI(sq.sides(), 4, 207)
             assert.assertEqI(sh.sides(), 0, 208)
         }
         case "repeated dispatch is stable": {
-            Shape s = new Triangle()
+            Shape s = new unique Triangle()
             int bad = 0 - 1
             int i = 0
             while i < 50 {
@@ -153,6 +155,7 @@ suite OverrideSuite {
             assert.assertEqI(s.sides(), 5, 302)
             Middle m = l
             assert.assertEqI(m.sides(), 5, 303)
+            delete l
         }
         case "a leaf that overrides again wins over the middle": {
             Deep d = new Deep()
@@ -161,12 +164,14 @@ suite OverrideSuite {
             assert.assertEqI(s.sides(), 7, 305)
             Middle m = d
             assert.assertEqI(m.sides(), 7, 306)
+            delete d
         }
         case "the middle class keeps its own implementation": {
             Middle m = new Middle()
             assert.assertEqI(m.sides(), 5, 307)
             Shape s = m
             assert.assertEqI(s.sides(), 5, 308)
+            delete m
         }
     }
 
@@ -197,23 +202,23 @@ suite OverrideSuite {
             // Shape.corners() calls this.sides(); on a Square that must be 4.
             // Hoisted: postfix-on-new is self-host-only (B014) and the seed
             // compiles this suite in stage1's interleaved pass.
-            Shape scShape = new Shape()
-            Square scSquare = new Square()
-            Triangle scTriangle = new Triangle()
+            Shape scShape = new unique Shape()
+            Square scSquare = new unique Square()
+            Triangle scTriangle = new unique Triangle()
             assert.assertEqI(scShape.corners(), 0, 501)
             assert.assertEqI(scSquare.corners(), 4, 502)
             assert.assertEqI(scTriangle.corners(), 3, 503)
         }
         case "the self-call resolves through a base reference too": {
-            Shape s = new Square()
+            Shape s = new unique Square()
             assert.assertEqI(s.corners(), 4, 504)
-            s = new Triangle()
+            s = new unique Triangle()
             assert.assertEqI(s.corners(), 3, 505)
         }
         case "the self-call works down a two-level chain": {
             // Hoisted: postfix-on-new is self-host-only (B014).
-            Leaf scLeaf = new Leaf()
-            Deep scDeep = new Deep()
+            Leaf scLeaf = new unique Leaf()
+            Deep scDeep = new unique Deep()
             assert.assertEqI(scLeaf.corners(), 5, 506)
             assert.assertEqI(scDeep.corners(), 7, 507)
         }

@@ -17,7 +17,7 @@ suite OverloadSuite {
 
     void overloadByTypeTest() {
         case "each call resolves to the matching overload by argument type": {
-            Parser p = new Parser("
+            Parser p = new unique Parser("
                 int f(const int n) { return n }
                 bool f(const bool b) { return b }
                 void use() { int a = f(3)
@@ -30,7 +30,7 @@ suite OverloadSuite {
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
             DiagnosticsEngine diags = p.getDiags()
-            SemaContext ctx = new SemaContext(diags)
+            SemaContext ctx = new unique SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
             assert.assertFalse(diags.hasErrorOccurred(), 99)
 
@@ -52,14 +52,14 @@ suite OverloadSuite {
 
     void promotionTest() {
         case "int argument resolves to a long-param overload via promotion": {
-            Parser p = new Parser("long g(const long x) { return x }  void useG() { long r = g(3) }")
+            Parser p = new unique Parser("long g(const long x) { return x }  void useG() { long r = g(3) }")
             ASTModule m = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 10)
 
             List<ASTModule> modules = new List<ASTModule>()
             modules.add(m)
             DiagnosticsEngine diags = p.getDiags()
-            SemaContext ctx = new SemaContext(diags)
+            SemaContext ctx = new unique SemaContext(diags)
             List<SemaModule> resolved = ctx.Resolve(modules, false)
             assert.assertFalse(diags.hasErrorOccurred(), 99)
 

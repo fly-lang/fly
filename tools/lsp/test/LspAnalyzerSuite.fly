@@ -260,7 +260,7 @@ suite LspAnalyzerSuite {
             // The reference's whole analyzer test file is this contract: an
             // editor asks before the first didOpen, and must get nothing rather
             // than a read of uninitialised state.
-            LspAnalyzer a = new LspAnalyzer()
+            LspAnalyzer a = new unique LspAnalyzer()
             LspTarget t = a.findTargetAt(1, 1)
             assert.assertEqI(t.kind, 0, 101)
             assert.assertEmpty(a.hoverOf(t), 102)
@@ -278,7 +278,7 @@ suite LspAnalyzerSuite {
         case "a file that cannot be read reports an error, not a clean bill": {
             // Answering "no diagnostics" for a missing file would show the user
             // a green editor for a file that does not compile.
-            LspAnalyzer a = new LspAnalyzer()
+            LspAnalyzer a = new unique LspAnalyzer()
             List<LspDiag> d = a.compileFile("lsp_suite_absent_xyz.fly")
             assert.assertEqI((int)d.size(), 1, 113)
             assert.assertEqI(d.get(0).severity, 1, 114)
@@ -293,7 +293,7 @@ suite LspAnalyzerSuite {
             // queries), so the compiler warns about them, and a warning reaches the
             // editor as a warning, not an error.
             writeNavFixture()
-            LspAnalyzer a = new LspAnalyzer()
+            LspAnalyzer a = new unique LspAnalyzer()
             List<LspDiag> d = a.compileFile(navFixturePath())
             assert.assertEqI((int)d.size(), 4, 201)
             int vars = 0
@@ -319,7 +319,7 @@ suite LspAnalyzerSuite {
             string p = "lsp_suite_fx_broken/broken.fly"
             string src = "void main() {\n    nosuchfn(1)\n}\n"
             fs.writeStr(p, src, 420)
-            LspAnalyzer a = new LspAnalyzer()
+            LspAnalyzer a = new unique LspAnalyzer()
             List<LspDiag> d = a.compileFile(p)
             assert.assertTrue(d.size() > 0, 202)
             LspDiag first = d.get(0)
@@ -335,7 +335,7 @@ suite LspAnalyzerSuite {
             fs.dirCreateAll(dir, 493)
             string p = "lsp_suite_fx_parse/parse.fly"
             fs.writeStr(p, "void main( {\n}\n", 420)
-            LspAnalyzer a = new LspAnalyzer()
+            LspAnalyzer a = new unique LspAnalyzer()
             List<LspDiag> d = a.compileFile(p)
             assert.assertTrue(d.size() > 0, 206)
             assert.assertEqI(d.get(0).severity, 1, 207)
@@ -607,7 +607,7 @@ suite LspAnalyzerSuite {
             s = str.concat(s, "}\n")
             fs.dirCreateAll("lsp_suite_fx_raw", 493)
             fs.writeStr("lsp_suite_fx_raw/raw.fly", s, 420)
-            LspAnalyzer a = new LspAnalyzer()
+            LspAnalyzer a = new unique LspAnalyzer()
             List<LspDiag> d = a.compileFile("lsp_suite_fx_raw/raw.fly")
             List<LspSym> toks = a.semanticTokens()
             bool sawK = false
@@ -718,7 +718,7 @@ suite LspAnalyzerSuite {
             // app/main.fly imports fxroot.util, which the compile pulled from
             // lib/util.fly: the link points there.
             writeRootFixture()
-            LspAnalyzer a = new LspAnalyzer()
+            LspAnalyzer a = new unique LspAnalyzer()
             List<LspDiag> d = a.compileFile("lsp_suite_fx_root/app/main.fly")
             List<LspLink> ls = a.documentLinks()
             assert.assertEqI((int)ls.size(), 1, 1301)
@@ -787,7 +787,7 @@ suite LspAnalyzerSuite {
             // only `ok` would not catch it — the file must EXIST on disk, which
             // is exactly what a basename fails.
             writeHdrFixture()
-            LspAnalyzer a = new LspAnalyzer()
+            LspAnalyzer a = new unique LspAnalyzer()
             a.setStdLibDir("lsp_suite_fx_hdr/lib")
             List<LspDiag> d = a.compileFile("lsp_suite_fx_hdr/app/main.fly")
             LspTarget t = a.findTargetAt(6, 22)
@@ -807,7 +807,7 @@ suite LspAnalyzerSuite {
             // answered null and the target degraded to "other" — every enum
             // type was unclickable.
             writeEnumFixture()
-            LspAnalyzer a = new LspAnalyzer()
+            LspAnalyzer a = new unique LspAnalyzer()
             List<LspDiag> d = a.compileFile(enumFixturePath())
             LspTarget t = a.findTargetAt(8, 1)
             assert.assertEqI(t.kind, 5, 1211)
@@ -843,7 +843,7 @@ suite LspAnalyzerSuite {
             // route through a project fixture where the attribute's type is a
             // class the compile knows.
             writeRootFixture()
-            LspAnalyzer a = new LspAnalyzer()
+            LspAnalyzer a = new unique LspAnalyzer()
             List<LspDiag> d = a.compileFile("lsp_suite_fx_root/app/main.fly")
             // No crash and no bogus answer for a position with nothing on it.
             LspTarget t = a.findTargetAt(1, 1)
@@ -870,18 +870,18 @@ suite LspAnalyzerSuite {
     void resolveRootTest() {
         case "nearest ancestor with Manifest.fly wins over the workspace": {
             writeRootFixture()
-            LspAnalyzer a = new LspAnalyzer()
+            LspAnalyzer a = new unique LspAnalyzer()
             a.setProjectRoot("some_workspace")
             assert.assertStr(a.resolveRoot("lsp_suite_fx_root/app/main.fly"), "lsp_suite_fx_root", 1101)
             fs.dirDeleteAll(rootFixtureDir())
         }
         case "no manifest anywhere: the workspace root from initialize": {
-            LspAnalyzer a = new LspAnalyzer()
+            LspAnalyzer a = new unique LspAnalyzer()
             a.setProjectRoot("some_workspace")
             assert.assertStr(a.resolveRoot("lsp_suite_fx_nav/nav.fly"), "some_workspace", 1102)
         }
         case "no manifest, no workspace: the file's own directory": {
-            LspAnalyzer a = new LspAnalyzer()
+            LspAnalyzer a = new unique LspAnalyzer()
             assert.assertStr(a.resolveRoot("lsp_suite_fx_nav/nav.fly"), "lsp_suite_fx_nav", 1103)
         }
         case "a dependency edited on disk is re-read, never served from cache": {
@@ -890,7 +890,7 @@ suite LspAnalyzerSuite {
             // Break lib/util.fly after a clean compile and the next compile of
             // the SAME entry must report the breakage.
             writeRootFixture()
-            LspAnalyzer a = new LspAnalyzer()
+            LspAnalyzer a = new unique LspAnalyzer()
             List<LspDiag> clean = a.compileFile("lsp_suite_fx_root/app/main.fly")
             assert.assertEqI((int)clean.size(), 0, 1105)
 
@@ -910,7 +910,7 @@ suite LspAnalyzerSuite {
             // directory: only the manifest root sees both. This is the exact
             // shape that produced hundreds of unknown-type errors per file.
             writeRootFixture()
-            LspAnalyzer a = new LspAnalyzer()
+            LspAnalyzer a = new unique LspAnalyzer()
             List<LspDiag> d = a.compileFile("lsp_suite_fx_root/app/main.fly")
             assert.assertEqI((int)d.size(), 0, 1104)
             fs.dirDeleteAll(rootFixtureDir())

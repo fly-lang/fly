@@ -505,27 +505,27 @@ public class LLVM {
     // spike). So neither a shared `this.lib` field nor a table-driven init loop is
     // expressible until the bootstrap propagates the mapping to field assignments.
     public void initializeAllTargetInfos() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeX86TargetInfo", new NoArgs())
     }
 
     public void initializeAllTargets() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeX86Target", new NoArgs())
     }
 
     public void initializeAllTargetMCs() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeX86TargetMC", new NoArgs())
     }
 
     public void initializeAllAsmParsers() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeX86AsmParser", new NoArgs())
     }
 
     public void initializeAllAsmPrinters() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeX86AsmPrinter", new NoArgs())
     }
 
@@ -538,126 +538,126 @@ public class LLVM {
     // dispatches the right one per arch.
 
     public void initX86() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeX86TargetInfo", new NoArgs())
         lib.call("LLVMInitializeX86Target", new NoArgs())
         lib.call("LLVMInitializeX86TargetMC", new NoArgs())
         lib.call("LLVMInitializeX86AsmPrinter", new NoArgs())
     }
     public void initAArch64() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeAArch64TargetInfo", new NoArgs())
         lib.call("LLVMInitializeAArch64Target", new NoArgs())
         lib.call("LLVMInitializeAArch64TargetMC", new NoArgs())
         lib.call("LLVMInitializeAArch64AsmPrinter", new NoArgs())
     }
     public void initARM() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeARMTargetInfo", new NoArgs())
         lib.call("LLVMInitializeARMTarget", new NoArgs())
         lib.call("LLVMInitializeARMTargetMC", new NoArgs())
         lib.call("LLVMInitializeARMAsmPrinter", new NoArgs())
     }
     public void initMips() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeMipsTargetInfo", new NoArgs())
         lib.call("LLVMInitializeMipsTarget", new NoArgs())
         lib.call("LLVMInitializeMipsTargetMC", new NoArgs())
         lib.call("LLVMInitializeMipsAsmPrinter", new NoArgs())
     }
     public void initPowerPC() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializePowerPCTargetInfo", new NoArgs())
         lib.call("LLVMInitializePowerPCTarget", new NoArgs())
         lib.call("LLVMInitializePowerPCTargetMC", new NoArgs())
         lib.call("LLVMInitializePowerPCAsmPrinter", new NoArgs())
     }
     public void initRISCV() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeRISCVTargetInfo", new NoArgs())
         lib.call("LLVMInitializeRISCVTarget", new NoArgs())
         lib.call("LLVMInitializeRISCVTargetMC", new NoArgs())
         lib.call("LLVMInitializeRISCVAsmPrinter", new NoArgs())
     }
     public void initSparc() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeSparcTargetInfo", new NoArgs())
         lib.call("LLVMInitializeSparcTarget", new NoArgs())
         lib.call("LLVMInitializeSparcTargetMC", new NoArgs())
         lib.call("LLVMInitializeSparcAsmPrinter", new NoArgs())
     }
     public void initSystemZ() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeSystemZTargetInfo", new NoArgs())
         lib.call("LLVMInitializeSystemZTarget", new NoArgs())
         lib.call("LLVMInitializeSystemZTargetMC", new NoArgs())
         lib.call("LLVMInitializeSystemZAsmPrinter", new NoArgs())
     }
     public void initWebAssembly() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeWebAssemblyTargetInfo", new NoArgs())
         lib.call("LLVMInitializeWebAssemblyTarget", new NoArgs())
         lib.call("LLVMInitializeWebAssemblyTargetMC", new NoArgs())
         lib.call("LLVMInitializeWebAssemblyAsmPrinter", new NoArgs())
     }
     public void initBPF() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeBPFTargetInfo", new NoArgs())
         lib.call("LLVMInitializeBPFTarget", new NoArgs())
         lib.call("LLVMInitializeBPFTargetMC", new NoArgs())
         lib.call("LLVMInitializeBPFAsmPrinter", new NoArgs())
     }
     public void initNVPTX() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeNVPTXTargetInfo", new NoArgs())
         lib.call("LLVMInitializeNVPTXTarget", new NoArgs())
         lib.call("LLVMInitializeNVPTXTargetMC", new NoArgs())
         lib.call("LLVMInitializeNVPTXAsmPrinter", new NoArgs())
     }
     public void initAMDGPU() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeAMDGPUTargetInfo", new NoArgs())
         lib.call("LLVMInitializeAMDGPUTarget", new NoArgs())
         lib.call("LLVMInitializeAMDGPUTargetMC", new NoArgs())
         lib.call("LLVMInitializeAMDGPUAsmPrinter", new NoArgs())
     }
     public void initAVR() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeAVRTargetInfo", new NoArgs())
         lib.call("LLVMInitializeAVRTarget", new NoArgs())
         lib.call("LLVMInitializeAVRTargetMC", new NoArgs())
         lib.call("LLVMInitializeAVRAsmPrinter", new NoArgs())
     }
     public void initMSP430() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeMSP430TargetInfo", new NoArgs())
         lib.call("LLVMInitializeMSP430Target", new NoArgs())
         lib.call("LLVMInitializeMSP430TargetMC", new NoArgs())
         lib.call("LLVMInitializeMSP430AsmPrinter", new NoArgs())
     }
     public void initHexagon() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeHexagonTargetInfo", new NoArgs())
         lib.call("LLVMInitializeHexagonTarget", new NoArgs())
         lib.call("LLVMInitializeHexagonTargetMC", new NoArgs())
         lib.call("LLVMInitializeHexagonAsmPrinter", new NoArgs())
     }
     public void initLanai() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeLanaiTargetInfo", new NoArgs())
         lib.call("LLVMInitializeLanaiTarget", new NoArgs())
         lib.call("LLVMInitializeLanaiTargetMC", new NoArgs())
         lib.call("LLVMInitializeLanaiAsmPrinter", new NoArgs())
     }
     public void initXCore() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeXCoreTargetInfo", new NoArgs())
         lib.call("LLVMInitializeXCoreTarget", new NoArgs())
         lib.call("LLVMInitializeXCoreTargetMC", new NoArgs())
         lib.call("LLVMInitializeXCoreAsmPrinter", new NoArgs())
     }
     public void initVE() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInitializeVETargetInfo", new NoArgs())
         lib.call("LLVMInitializeVETarget", new NoArgs())
         lib.call("LLVMInitializeVETargetMC", new NoArgs())
@@ -665,26 +665,26 @@ public class LLVM {
     }
 
     public void shutdown() {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMShutdown", new NoArgs())
     }
 
     // ── Context ───────────────────────────────────────────────────────────────
 
     public void contextCreate(pointer ctx) {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMContextCreate", new NoArgs(), ctx)
     }
 
     public void contextDispose(const pointer ctx) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMContextDispose", a)
     }
 
     public void getGlobalContext(pointer ctx) {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMGetGlobalContext", new NoArgs(), ctx)
     }
 
@@ -694,14 +694,14 @@ public class LLVM {
         StrPtrArgs a = new StrPtrArgs()
         a.s = name
         a.a = ctx
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMModuleCreateWithNameInContext", a, mod)
     }
 
     public void disposeModule(const pointer mod) {
         Ptr1Args a = new Ptr1Args()
         a.a = mod
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDisposeModule", a)
     }
 
@@ -709,7 +709,7 @@ public class LLVM {
         Ptr2Args a = new Ptr2Args()
         a.a = mod
         a.b = cbuf(layout)
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMSetDataLayout", a)
     }
 
@@ -717,7 +717,7 @@ public class LLVM {
         Ptr2Args a = new Ptr2Args()
         a.a = mod
         a.b = cbuf(triple)
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMSetTarget", a)
     }
 
@@ -730,7 +730,7 @@ public class LLVM {
         a.a = mod
         a.b = cbuf(filename)
         a.c = 0
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMPrintModuleToFile", a)
     }
 
@@ -745,7 +745,7 @@ public class LLVM {
         a.a = mod
         a.b = cbuf(filename)
         a.c = buf
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         bool failed = false
         lib.call("LLVMPrintModuleToFile", a, failed)
         pointer mp = mem.readPtr(buf, 0)
@@ -764,7 +764,7 @@ public class LLVM {
         PtrStrArgs a = new PtrStrArgs()
         a.a = mod
         a.s = path
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMWriteBitcodeToFile", a)
     }
 
@@ -775,7 +775,7 @@ public class LLVM {
         PtrStrArgs a = new PtrStrArgs()
         a.a = mod
         a.s = path
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         int rc = 0
         lib.call("LLVMWriteBitcodeToFile", a, rc)
         ok = rc == 0
@@ -788,7 +788,7 @@ public class LLVM {
         vargs.a = mod
         vargs.n = 2
         vargs.b = 0
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         bool broken = false
         lib.call("LLVMVerifyModule", vargs, broken)
         if broken == false {
@@ -811,7 +811,7 @@ public class LLVM {
         vargs.a = mod
         vargs.n = 2
         vargs.b = buf
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         bool broken = false
         lib.call("LLVMVerifyModule", vargs, broken)
         pointer mp = mem.readPtr(buf, 0)
@@ -858,35 +858,35 @@ public class LLVM {
     public void int1TypeInContext(const pointer ctx, pointer ty) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInt1TypeInContext", a, ty)
     }
 
     public void int8TypeInContext(const pointer ctx, pointer ty) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInt8TypeInContext", a, ty)
     }
 
     public void int16TypeInContext(const pointer ctx, pointer ty) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInt16TypeInContext", a, ty)
     }
 
     public void int32TypeInContext(const pointer ctx, pointer ty) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInt32TypeInContext", a, ty)
     }
 
     public void int64TypeInContext(const pointer ctx, pointer ty) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMInt64TypeInContext", a, ty)
     }
 
@@ -894,7 +894,7 @@ public class LLVM {
         PtrIntArgs a = new PtrIntArgs()
         a.a = ctx
         a.n = bits
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMIntTypeInContext", a, ty)
     }
 
@@ -903,14 +903,14 @@ public class LLVM {
     public void floatTypeInContext(const pointer ctx, pointer ty) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMFloatTypeInContext", a, ty)
     }
 
     public void doubleTypeInContext(const pointer ctx, pointer ty) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDoubleTypeInContext", a, ty)
     }
 
@@ -919,7 +919,7 @@ public class LLVM {
     public void voidTypeInContext(const pointer ctx, pointer ty) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMVoidTypeInContext", a, ty)
     }
 
@@ -927,7 +927,7 @@ public class LLVM {
         PtrIntArgs a = new PtrIntArgs()
         a.a = elemTy
         a.n = addrSpace
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMPointerType", a, ty)
     }
 
@@ -935,7 +935,7 @@ public class LLVM {
         PtrIntArgs a = new PtrIntArgs()
         a.a = elemTy
         a.n = count
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMArrayType", a, ty)
     }
 
@@ -947,7 +947,7 @@ public class LLVM {
         a.b = paramTypes
         a.n = paramCount
         a.p = 0
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMFunctionType", a, ty)
     }
 
@@ -959,7 +959,7 @@ public class LLVM {
         a.b = elemTypes
         a.n = elemCount
         a.p = 0
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMStructTypeInContext", a, ty)
     }
 
@@ -967,7 +967,7 @@ public class LLVM {
         PtrStrArgs a = new PtrStrArgs()
         a.a = ctx
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMStructCreateNamed", a, ty)
     }
 
@@ -978,7 +978,7 @@ public class LLVM {
         a.b = elemTypes
         a.n = elemCount
         a.p = 0
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMStructSetBody", a)
     }
 
@@ -989,7 +989,7 @@ public class LLVM {
         a.a = mod
         a.s = name
         a.b = fnTy
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMAddFunction", a, fn)
     }
 
@@ -997,7 +997,7 @@ public class LLVM {
         PtrStrArgs a = new PtrStrArgs()
         a.a = mod
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMGetNamedFunction", a, fn)
     }
 
@@ -1005,7 +1005,7 @@ public class LLVM {
         PtrIntArgs a = new PtrIntArgs()
         a.a = fn
         a.n = index
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMGetParam", a, param)
     }
 
@@ -1013,7 +1013,7 @@ public class LLVM {
         PtrStrArgs a = new PtrStrArgs()
         a.a = val
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMSetValueName2", a)
     }
 
@@ -1021,7 +1021,7 @@ public class LLVM {
         PtrIntArgs a = new PtrIntArgs()
         a.a = val
         a.n = linkage
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMSetLinkage", a)
     }
 
@@ -1029,14 +1029,14 @@ public class LLVM {
         PtrIntArgs a = new PtrIntArgs()
         a.a = val
         a.n = visibility
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMSetVisibility", a)
     }
 
     public void typeOf(const pointer val, pointer ty) {
         Ptr1Args a = new Ptr1Args()
         a.a = val
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMTypeOf", a, ty)
     }
 
@@ -1048,35 +1048,35 @@ public class LLVM {
         a.a = ctx
         a.b = fn
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMAppendBasicBlockInContext", a, bb)
     }
 
     public void getInsertBlock(const pointer builder, pointer bb) {
         Ptr1Args a = new Ptr1Args()
         a.a = builder
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMGetInsertBlock", a, bb)
     }
 
     public void getBasicBlockParent(const pointer bb, pointer fn) {
         Ptr1Args a = new Ptr1Args()
         a.a = bb
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMGetBasicBlockParent", a, fn)
     }
 
     public void getEntryBasicBlock(const pointer fn, pointer bb) {
         Ptr1Args a = new Ptr1Args()
         a.a = fn
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMGetEntryBasicBlock", a, bb)
     }
 
     public void getBasicBlockTerminator(const pointer bb, pointer term) {
         Ptr1Args a = new Ptr1Args()
         a.a = bb
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMGetBasicBlockTerminator", a, term)
     }
 
@@ -1085,14 +1085,14 @@ public class LLVM {
     public void createBuilderInContext(const pointer ctx, pointer builder) {
         Ptr1Args a = new Ptr1Args()
         a.a = ctx
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMCreateBuilderInContext", a, builder)
     }
 
     public void disposeBuilder(const pointer builder) {
         Ptr1Args a = new Ptr1Args()
         a.a = builder
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDisposeBuilder", a)
     }
 
@@ -1100,7 +1100,7 @@ public class LLVM {
         Ptr2Args a = new Ptr2Args()
         a.a = builder
         a.b = bb
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMPositionBuilderAtEnd", a)
     }
 
@@ -1108,7 +1108,7 @@ public class LLVM {
         Ptr2Args a = new Ptr2Args()
         a.a = builder
         a.b = instr
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMPositionBuilderBefore", a)
     }
 
@@ -1120,7 +1120,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildAdd", a, v)
     }
 
@@ -1130,7 +1130,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildSub", a, v)
     }
 
@@ -1140,7 +1140,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildMul", a, v)
     }
 
@@ -1150,7 +1150,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildSDiv", a, v)
     }
 
@@ -1160,7 +1160,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildUDiv", a, v)
     }
 
@@ -1170,7 +1170,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildSRem", a, v)
     }
 
@@ -1180,7 +1180,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildURem", a, v)
     }
 
@@ -1190,7 +1190,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildFAdd", a, v)
     }
 
@@ -1200,7 +1200,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildFSub", a, v)
     }
 
@@ -1210,7 +1210,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildFMul", a, v)
     }
 
@@ -1220,7 +1220,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildFDiv", a, v)
     }
 
@@ -1229,7 +1229,7 @@ public class LLVM {
         a.a = b
         a.b = v
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildNeg", a, result)
     }
 
@@ -1238,7 +1238,7 @@ public class LLVM {
         a.a = b
         a.b = v
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildFNeg", a, result)
     }
 
@@ -1250,7 +1250,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildAnd", a, v)
     }
 
@@ -1260,7 +1260,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildOr", a, v)
     }
 
@@ -1270,7 +1270,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildXor", a, v)
     }
 
@@ -1280,7 +1280,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildShl", a, v)
     }
 
@@ -1290,7 +1290,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildLShr", a, v)
     }
 
@@ -1300,7 +1300,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildAShr", a, v)
     }
 
@@ -1315,7 +1315,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildICmp", a, v)
     }
 
@@ -1328,7 +1328,7 @@ public class LLVM {
         a.b = lhs
         a.c = rhs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildFCmp", a, v)
     }
 
@@ -1341,7 +1341,7 @@ public class LLVM {
         a.c = thenV
         a.d = elseV
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildSelect", a, v)
     }
 
@@ -1392,7 +1392,7 @@ public class LLVM {
         a.a = b
         a.b = ty
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildAlloca", a, v)
         if moved {
             this.positionBuilderAtEnd(b, cur)
@@ -1409,7 +1409,7 @@ public class LLVM {
         a.b = ty
         a.c = ptr
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildLoad2", a, v)
     }
 
@@ -1418,7 +1418,7 @@ public class LLVM {
         a.a = b
         a.b = val
         a.c = ptr
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildStore", a)
     }
 
@@ -1433,7 +1433,7 @@ public class LLVM {
         a.d = indices
         a.n = numIndices
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildGEP2", a, v)
     }
 
@@ -1444,7 +1444,7 @@ public class LLVM {
         a.a = b
         a.b = ty
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildMalloc", a, v)
     }
 
@@ -1453,7 +1453,7 @@ public class LLVM {
     public void sizeOf(const pointer ty, pointer v) {
         Ptr1Args a = new Ptr1Args()
         a.a = ty
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMSizeOf", a, v)
     }
 
@@ -1462,7 +1462,7 @@ public class LLVM {
     public void getModuleDataLayout(const pointer mod, pointer td) {
         Ptr1Args a = new Ptr1Args()
         a.a = mod
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMGetModuleDataLayout", a, td)
     }
 
@@ -1473,7 +1473,7 @@ public class LLVM {
         a.a = td
         a.b = structTy
         a.n = idx
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMOffsetOfElement", a, v)
     }
 
@@ -1482,7 +1482,7 @@ public class LLVM {
         Ptr2Args a = new Ptr2Args()
         a.a = td
         a.b = ty
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMABISizeOfType", a, v)
     }
 
@@ -1491,7 +1491,7 @@ public class LLVM {
         PtrIntArgs a = new PtrIntArgs()
         a.a = structTy
         a.n = idx
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMStructGetTypeAtIndex", a, v)
     }
 
@@ -1506,7 +1506,7 @@ public class LLVM {
         a.c = val
         a.d = len
         a.n = align
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildMemSet", a, v)
     }
 
@@ -1519,7 +1519,7 @@ public class LLVM {
         a.c = ptr
         a.n = idx
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildStructGEP2", a, v)
     }
 
@@ -1532,7 +1532,7 @@ public class LLVM {
         a.c = elt
         a.n = idx
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildInsertValue", a, v)
     }
 
@@ -1547,7 +1547,7 @@ public class LLVM {
         a.src = src
         a.srcAlign = 1
         a.size = size
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildMemCpy", a, v)
     }
 
@@ -1563,7 +1563,7 @@ public class LLVM {
         a.src = src
         a.srcAlign = 1
         a.size = size
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildMemMove", a, v)
     }
 
@@ -1575,7 +1575,7 @@ public class LLVM {
         a.b = val
         a.c = destTy
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildTrunc", a, v)
     }
 
@@ -1585,7 +1585,7 @@ public class LLVM {
         a.b = val
         a.c = destTy
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildZExt", a, v)
     }
 
@@ -1595,7 +1595,7 @@ public class LLVM {
         a.b = val
         a.c = destTy
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildSExt", a, v)
     }
 
@@ -1605,7 +1605,7 @@ public class LLVM {
         a.b = val
         a.c = destTy
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildFPToSI", a, v)
     }
 
@@ -1615,7 +1615,7 @@ public class LLVM {
         a.b = val
         a.c = destTy
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildSIToFP", a, v)
     }
 
@@ -1625,7 +1625,7 @@ public class LLVM {
         a.b = val
         a.c = destTy
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildUIToFP", a, v)
     }
 
@@ -1635,7 +1635,7 @@ public class LLVM {
         a.b = val
         a.c = destTy
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildFPExt", a, v)
     }
 
@@ -1645,7 +1645,7 @@ public class LLVM {
         a.b = val
         a.c = destTy
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildFPTrunc", a, v)
     }
 
@@ -1655,7 +1655,7 @@ public class LLVM {
         a.b = val
         a.c = destTy
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildBitCast", a, v)
     }
 
@@ -1664,7 +1664,7 @@ public class LLVM {
         PtrIntArgs a = new PtrIntArgs()
         a.a = inst
         a.n = ordering
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMSetOrdering", a)
     }
 
@@ -1678,7 +1678,7 @@ public class LLVM {
         a.n = ordering        // success
         a.m = ordering        // failure
         a.k = 0               // not single-thread
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildAtomicCmpXchg", a, v)
     }
 
@@ -1692,7 +1692,7 @@ public class LLVM {
         a.c = val
         a.n = ordering
         a.m = 0               // not single-thread
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildAtomicRMW", a, v)
     }
 
@@ -1702,7 +1702,7 @@ public class LLVM {
         a.b = agg
         a.n = index
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildExtractValue", a, v)
     }
 
@@ -1712,7 +1712,7 @@ public class LLVM {
         a.b = val
         a.c = destTy
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildPtrToInt", a, v)
     }
 
@@ -1722,7 +1722,7 @@ public class LLVM {
         a.b = val
         a.c = destTy
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildIntToPtr", a, v)
     }
 
@@ -1733,7 +1733,7 @@ public class LLVM {
         a.b = val
         a.c = destTy
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildPointerCast", a, v)
     }
 
@@ -1743,14 +1743,14 @@ public class LLVM {
         Ptr2Args a = new Ptr2Args()
         a.a = b
         a.b = val
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildRet", a, v)
     }
 
     public void buildRetVoid(const pointer b, pointer v) {
         Ptr1Args a = new Ptr1Args()
         a.a = b
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildRetVoid", a, v)
     }
 
@@ -1758,7 +1758,7 @@ public class LLVM {
         Ptr2Args a = new Ptr2Args()
         a.a = b
         a.b = dest
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildBr", a, v)
     }
 
@@ -1769,7 +1769,7 @@ public class LLVM {
         a.b = cond
         a.c = thenBB
         a.d = elseBB
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildCondBr", a, v)
     }
 
@@ -1781,7 +1781,7 @@ public class LLVM {
         a.b = val
         a.c = defaultBB
         a.n = numCases
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildSwitch", a, v)
     }
 
@@ -1790,7 +1790,7 @@ public class LLVM {
         a.a = switchInstr
         a.b = onVal
         a.c = dest
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMAddCase", a)
     }
 
@@ -1800,7 +1800,7 @@ public class LLVM {
         a.a = b
         a.b = ty
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildPhi", a, v)
     }
 
@@ -1822,14 +1822,14 @@ public class LLVM {
         a.d = args
         a.n = numArgs
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildCall2", a, v)
     }
 
     public void buildUnreachable(const pointer b, pointer v) {
         Ptr1Args a = new Ptr1Args()
         a.a = b
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMBuildUnreachable", a, v)
     }
 
@@ -1841,7 +1841,7 @@ public class LLVM {
         a.a = intTy
         a.n = val
         a.p = 0
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMConstInt", a, v)
     }
 
@@ -1850,7 +1850,7 @@ public class LLVM {
         PtrDoubleArgs a = new PtrDoubleArgs()
         a.a = realTy
         a.d = val
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMConstReal", a, v)
     }
 
@@ -1860,21 +1860,21 @@ public class LLVM {
         PtrStrArgs a = new PtrStrArgs()
         a.a = realTy
         a.s = text
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMConstRealOfString", a, v)
     }
 
     public void constNull(const pointer ty, pointer v) {
         Ptr1Args a = new Ptr1Args()
         a.a = ty
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMConstNull", a, v)
     }
 
     public void constPointerNull(const pointer ty, pointer v) {
         Ptr1Args a = new Ptr1Args()
         a.a = ty
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMConstPointerNull", a, v)
     }
 
@@ -1892,7 +1892,7 @@ public class LLVM {
         } else {
             a.m = 1
         }
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMConstStringInContext", a, v)
     }
 
@@ -1902,7 +1902,7 @@ public class LLVM {
         a.a = ctx
         a.b = vals
         a.n = numVals
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMConstStructInContext", a, v)
     }
 
@@ -1911,7 +1911,7 @@ public class LLVM {
         a.a = elemTy
         a.b = vals
         a.n = numVals
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMConstArray", a, v)
     }
 
@@ -1923,7 +1923,7 @@ public class LLVM {
         a.a = structTy
         a.b = vals
         a.n = numVals
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMConstNamedStruct", a, v)
     }
 
@@ -1935,7 +1935,7 @@ public class LLVM {
         a.a = mod
         a.b = ty
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMAddGlobal", a, v)
     }
 
@@ -1943,7 +1943,7 @@ public class LLVM {
         PtrStrArgs a = new PtrStrArgs()
         a.a = mod
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMGetNamedGlobal", a, v)
     }
 
@@ -1955,7 +1955,7 @@ public class LLVM {
         PtrStrArgs a = new PtrStrArgs()
         a.a = mod
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMGetOrInsertComdat", a, c)
     }
 
@@ -1964,7 +1964,7 @@ public class LLVM {
         Ptr2Args a = new Ptr2Args()
         a.a = val
         a.b = comdat
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMSetComdat", a)
     }
 
@@ -1972,7 +1972,7 @@ public class LLVM {
         Ptr2Args a = new Ptr2Args()
         a.a = global
         a.b = val
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMSetInitializer", a)
     }
 
@@ -1984,7 +1984,7 @@ public class LLVM {
         } else {
             a.n = 0
         }
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMSetGlobalConstant", a)
     }
 
@@ -1997,7 +1997,7 @@ public class LLVM {
         } else {
             a.n = 0
         }
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMSetThreadLocal", a)
     }
 
@@ -2007,14 +2007,14 @@ public class LLVM {
         Ptr2Args a = new Ptr2Args()
         a.a = constVal
         a.b = toType
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMConstIntToPtr", a, v)
     }
 
     // ── Target machine ────────────────────────────────────────────────────────
 
     public void getDefaultTargetTriple(pointer triple) {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMGetDefaultTargetTriple", new NoArgs(), triple)
     }
 
@@ -2030,7 +2030,7 @@ public class LLVM {
         a.a = cbuf(triple)   // const char* Triple (NUL-terminated)
         a.b = buf            // LLVMTargetRef* T  (out-pointer buffer)
         // a.c stays null → char** Err = NULL
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMGetTargetFromTriple", a, ok)
         target = mem.readPtr(buf, 0)
         mem.free(buf, 8)
@@ -2048,21 +2048,21 @@ public class LLVM {
         a.level = optLevel
         a.reloc = reloc
         a.codeModel = codeModel
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMCreateTargetMachine", a, tm)
     }
 
     public void disposeTargetMachine(const pointer tm) {
         Ptr1Args a = new Ptr1Args()
         a.a = tm
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDisposeTargetMachine", a)
     }
 
     public void createTargetDataLayout(const pointer tm, pointer dl) {
         Ptr1Args a = new Ptr1Args()
         a.a = tm
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMCreateTargetDataLayout", a, dl)
     }
 
@@ -2070,7 +2070,7 @@ public class LLVM {
         Ptr2Args a = new Ptr2Args()
         a.a = mod
         a.b = dl
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMSetModuleDataLayout", a)
     }
 
@@ -2092,7 +2092,7 @@ public class LLVM {
         a.filename = cbuf(filename)
         a.emitType = emitType
         a.err = errBuf
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMTargetMachineEmitToFile", a, ok)
         pointer mp = mem.readPtr(errBuf, 0)
         if mp != 0 {
@@ -2104,7 +2104,7 @@ public class LLVM {
     // ── Pass manager ──────────────────────────────────────────────────────────
 
     public void createPassManager(pointer pm) {
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMCreatePassManager", new NoArgs(), pm)
     }
 
@@ -2112,14 +2112,14 @@ public class LLVM {
         Ptr2Args a = new Ptr2Args()
         a.a = pm
         a.b = mod
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMRunPassManager", a, changed)
     }
 
     public void disposePassManager(const pointer pm) {
         Ptr1Args a = new Ptr1Args()
         a.a = pm
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDisposePassManager", a)
     }
 
@@ -2128,7 +2128,7 @@ public class LLVM {
     public void lookupIntrinsicID(const string name, int id) {
         StrArgs a = new StrArgs()
         a.s = name
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMLookupIntrinsicID", a, id)
     }
 
@@ -2138,7 +2138,7 @@ public class LLVM {
         a.a = mod
         a.b = paramTypes
         a.n = id
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMGetIntrinsicDeclaration", a, fn)
     }
 
@@ -2147,21 +2147,21 @@ public class LLVM {
     public void disposeMessage(const pointer msg) {
         Ptr1Args a = new Ptr1Args()
         a.a = msg
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDisposeMessage", a)
     }
 
     public void isNull(const pointer val, bool result) {
         Ptr1Args a = new Ptr1Args()
         a.a = val
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMIsNull", a, result)
     }
 
     public void isUndef(const pointer val, bool result) {
         Ptr1Args a = new Ptr1Args()
         a.a = val
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMIsUndef", a, result)
     }
 
@@ -2170,14 +2170,14 @@ public class LLVM {
     public void createDIBuilder(const pointer m, pointer v) {
         Ptr1Args a = new Ptr1Args()
         a.a = m
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMCreateDIBuilder", a, v)
     }
 
     public void diBuilderFinalize(const pointer db) {
         Ptr1Args a = new Ptr1Args()
         a.a = db
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDIBuilderFinalize", a)
     }
 
@@ -2188,7 +2188,7 @@ public class LLVM {
         a.nameLen = str.len(name)
         a.dir = cbuf(dir)
         a.dirLen = str.len(dir)
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDIBuilderCreateFile", a, v)
     }
 
@@ -2215,7 +2215,7 @@ public class LLVM {
         a.sysRootLen = 0
         a.sdk = cbuf("")
         a.sdkLen = 0
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDIBuilderCreateCompileUnit", a, v)
     }
 
@@ -2228,7 +2228,7 @@ public class LLVM {
         a.params = 0
         a.count = 0
         a.flags = 0
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDIBuilderCreateSubroutineType", a, v)
     }
 
@@ -2252,7 +2252,7 @@ public class LLVM {
         a.scopeLine = line
         a.flags = 256          // LLVMDIFlagPrototyped
         a.isOptimized = 0
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDIBuilderCreateFunction", a, v)
     }
 
@@ -2260,7 +2260,7 @@ public class LLVM {
         Ptr2Args a = new Ptr2Args()
         a.a = fn
         a.b = sp
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMSetSubprogram", a)
     }
 
@@ -2272,7 +2272,7 @@ public class LLVM {
         a.col = col
         a.scope = scope
         a.inlinedAt = 0
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDIBuilderCreateDebugLocation", a, v)
     }
 
@@ -2281,21 +2281,21 @@ public class LLVM {
         Ptr2Args a = new Ptr2Args()
         a.a = b
         a.b = loc
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMSetCurrentDebugLocation2", a)
     }
 
     public void getCurrentDebugLocation(const pointer b, pointer v) {
         Ptr1Args a = new Ptr1Args()
         a.a = b
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMGetCurrentDebugLocation2", a, v)
     }
 
     public void valueAsMetadata(const pointer val, pointer v) {
         Ptr1Args a = new Ptr1Args()
         a.a = val
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMValueAsMetadata", a, v)
     }
 
@@ -2308,7 +2308,7 @@ public class LLVM {
         a.sizeInBits = sizeInBits
         a.encoding = encoding
         a.flags = 0
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDIBuilderCreateBasicType", a, v)
     }
 
@@ -2321,7 +2321,7 @@ public class LLVM {
         a.addressSpace = 0
         a.name = cbuf(name)
         a.nameLen = str.len(name)
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDIBuilderCreatePointerType", a, v)
     }
 
@@ -2345,7 +2345,7 @@ public class LLVM {
         a.vtableHolder = 0
         a.uniqueId = cbuf("")
         a.uniqueIdLen = 0
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDIBuilderCreateStructType", a, v)
     }
 
@@ -2363,7 +2363,7 @@ public class LLVM {
         a.offsetInBits = offsetInBits
         a.flags = 0
         a.ty = ty
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDIBuilderCreateMemberType", a, v)
     }
 
@@ -2383,7 +2383,7 @@ public class LLVM {
         a.alignInBits = 0
         a.uniqueId = cbuf("")
         a.uniqueIdLen = 0
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDIBuilderCreateForwardDecl", a, v)
     }
 
@@ -2400,7 +2400,7 @@ public class LLVM {
         a.alwaysPreserve = 1
         a.flags = 0
         a.alignInBits = 0
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDIBuilderCreateAutoVariable", a, v)
     }
 
@@ -2417,7 +2417,7 @@ public class LLVM {
         a.ty = ty
         a.alwaysPreserve = 1
         a.flags = 0
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDIBuilderCreateParameterVariable", a, v)
     }
 
@@ -2426,7 +2426,7 @@ public class LLVM {
         Ptr1Args a = new Ptr1Args()
         a.a = val
         pointer r
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMIsAArgument", a, r)
         return r != 0
     }
@@ -2440,7 +2440,7 @@ public class LLVM {
         Ptr1Args a = new Ptr1Args()
         a.a = val
         pointer z
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMConstIntGetZExtValue", a, z)
         return z == 0
     }
@@ -2450,7 +2450,7 @@ public class LLVM {
         Ptr1Args a = new Ptr1Args()
         a.a = val
         pointer ci
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMIsAConstantInt", a, ci)
         return ci != 0
     }
@@ -2460,7 +2460,7 @@ public class LLVM {
         Ptr1Args a = new Ptr1Args()
         a.a = ty
         pointer w
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMGetIntTypeWidth", a, w)
         int r = (int)w
         return r
@@ -2476,7 +2476,7 @@ public class LLVM {
         a.b = db
         a.addr = ops
         a.count = 1
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDIBuilderCreateExpression", a, v)
     }
 
@@ -2486,7 +2486,7 @@ public class LLVM {
         a.b = db
         a.addr = 0
         a.count = 0
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDIBuilderCreateExpression", a, v)
     }
 
@@ -2500,7 +2500,7 @@ public class LLVM {
         a.loc = loc
         a.block = block
         pointer rec
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMDIBuilderInsertDeclareRecordAtEnd", a, rec)
     }
 
@@ -2512,7 +2512,7 @@ public class LLVM {
         a.key = cbuf(key)
         a.keyLen = str.len(key)
         a.val = val
-        CLang lib = new CLang("libLLVM-20.so")
+        CLang lib = new unique CLang("libLLVM-20.so")
         lib.call("LLVMAddModuleFlag", a)
     }
 }

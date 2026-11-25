@@ -56,7 +56,7 @@ public int cmdFmt(const string pathsSemi, const bool check) {
     while fi < files.size() {
         string f = files.get(fi)
         string src = fs.readBytes(f)
-        Formatter fm = new Formatter()
+        Formatter fm = new unique Formatter()
         string out = fm.format(src)
         if fm.isOk() == false {
             io.printErrLn(str.concat("fmt: does not parse, left as is: ", f))
@@ -131,7 +131,7 @@ public void wrapParamList(const string src, const List<int> starts, const int fr
     // greedy fill: a parameter goes to a new line when the current one would
     // pass column 120 with it (its comma included; the last one carries the
     // rest of the line, `) {` and all)
-    List<int> brk = new List<int>()
+    List<int> brk = new unique List<int>()
     int lineBegin = ls
     int colBase = 0
     int k = from + 1
@@ -267,7 +267,7 @@ public string lineEnding(const string src) {
 public string applyBreaks(const string src, const List<int> offs, const List<string> indents, const string eol) {
     // selection order, highest offset first: later edits never shift earlier ones
     int n = (int)offs.size()
-    List<bool> done = new List<bool>()
+    List<bool> done = new unique List<bool>()
     int k = 0
     while k < n {
         done.add(false)

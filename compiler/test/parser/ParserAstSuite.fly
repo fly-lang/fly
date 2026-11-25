@@ -13,7 +13,7 @@ suite ParserAstSuite {
 
     void nodeKindsTest() {
         case "top-level node kinds in declaration order": {
-            Parser p = new Parser("import a.b  class Box { int x }  enum E { A, B }  void m() { }")
+            Parser p = new unique Parser("import a.b  class Box { int x }  enum E { A, B }  void m() { }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
             List<ASTNode> nodes = mod.getNodes()
@@ -31,7 +31,7 @@ suite ParserAstSuite {
 
     void blockContentTest() {
         case "function body statement kinds": {
-            Parser p = new Parser("void m() { int x = 1  return  x = 2 }")
+            Parser p = new unique Parser("void m() { int x = 1  return  x = 2 }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 10)
             // The single top-level node is the function.
@@ -44,7 +44,7 @@ suite ParserAstSuite {
 
     void classMemberCountTest() {
         case "class with attribute + method registers two members": {
-            Parser p = new Parser("class Box { int v  public int get() { return v } }")
+            Parser p = new unique Parser("class Box { int v  public int get() { return v } }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 20)
             List<ASTNode> nodes = mod.getNodes()

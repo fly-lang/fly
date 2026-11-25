@@ -27,19 +27,19 @@ import fly.test.util.*
 // cgIRTrace — TestUtil.cgIR with traceCalls switched on before generate().
 string cgIRTrace(const string src) {
     string ret
-    Parser p = new Parser(src)
+    Parser p = new unique Parser(src)
     ASTModule m = p.parseModule("t")
     assert.assertTrue(p.isSuccess(), 91)
     DiagnosticsEngine diags = p.getDiags()
     List<ASTModule> mods = new List<ASTModule>()
     mods.add(m)
-    SemaContext ctx = new SemaContext(diags)
+    SemaContext ctx = new unique SemaContext(diags)
     List<SemaModule> res = ctx.Resolve(mods, false)
     if diags.hasErrorOccurred() {
         ret = ""
         fail 92, "cgIRTrace: source did not resolve"
     }
-    CodeGenModule cgm = new CodeGenModule("t")
+    CodeGenModule cgm = new unique CodeGenModule("t")
     CodeGenOptions o = new CodeGenOptions()
     o.setTraceCalls(true)
     cgm.setCodeGenOpts(o)

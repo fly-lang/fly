@@ -33,7 +33,7 @@ suite BridgeSuite {
         case "strlen through the bridge": {
             StrlenArgs args = new StrlenArgs()
             args.s = "hello"
-            CLang libc = new CLang("libc.so.6")
+            CLang libc = new unique CLang("libc.so.6")
             long len = 0
             libc.call("strlen", args, len)
             assert.assertEqL(len, 5, 101)
@@ -41,13 +41,13 @@ suite BridgeSuite {
         case "strlen of the empty string": {
             StrlenArgs args = new StrlenArgs()
             args.s = ""
-            CLang libc = new CLang("libc.so.6")
+            CLang libc = new unique CLang("libc.so.6")
             long len = 0
             libc.call("strlen", args, len)
             assert.assertEqL(len, 0, 102)
         }
         case "the same handle serves repeated calls": {
-            CLang libc = new CLang("libc.so.6")
+            CLang libc = new unique CLang("libc.so.6")
             StrlenArgs args = new StrlenArgs()
             long len = 0
             args.s = "a"
@@ -64,7 +64,7 @@ suite BridgeSuite {
         case "abs through the bridge": {
             AbsArgs args = new AbsArgs()
             args.v = 0 - 7
-            CLang libc = new CLang("libc.so.6")
+            CLang libc = new unique CLang("libc.so.6")
             int r = 0
             libc.call("abs", args, r)
             assert.assertEqI(r, 7, 201)
@@ -72,7 +72,7 @@ suite BridgeSuite {
         case "abs of a non-negative value": {
             AbsArgs args = new AbsArgs()
             args.v = 7
-            CLang libc = new CLang("libc.so.6")
+            CLang libc = new unique CLang("libc.so.6")
             int r = 0
             libc.call("abs", args, r)
             assert.assertEqI(r, 7, 202)

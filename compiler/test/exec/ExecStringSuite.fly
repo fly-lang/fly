@@ -185,7 +185,7 @@ suite ExecStringSuite {
         }
         case "a field owns its own buffer in both directions": {
             string given = str.concat("in", "it")
-            ExecStringBox box = new ExecStringBox(given)
+            ExecStringBox box = new unique ExecStringBox(given)
             given = "changed"                       // must not reach the field
             string read = box.read()
             assert.assertStr(read, "init", 721)

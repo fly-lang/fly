@@ -44,24 +44,24 @@ suite BuilderSuite {
     void outDirTest() {
         case "outDir is target/<profile> and target/test": {
             Manifest m = new Manifest()
-            Builder b = new Builder(m, "debug", false)
+            Builder b = new unique Builder(m, "debug", false)
             assert.assertTrue(str.contains(b.outDir(), "target"), 1)
             assert.assertTrue(str.contains(b.outDir(), "debug"), 2)
-            Builder bt = new Builder(m, "debug", true)
+            Builder bt = new unique Builder(m, "debug", true)
             assert.assertTrue(str.contains(bt.outDir(), "test"), 3)
         }
         case "buildTarget on a missing key returns false": {
             Manifest m = new Manifest()
-            Builder b = new Builder(m, "debug", false)
+            Builder b = new unique Builder(m, "debug", false)
             assert.assertFalse(b.buildTarget("no_such_target"), 4)
         }
         case "built-in release profile gives -O3 without debug symbols": {
             // Regression: with no [profiles] in the manifest, `--release` used to
             // fall back to the debug defaults (-O0 --debug-symbols).
             Manifest m = new Manifest()
-            Builder br = new Builder(m, "release", false)
+            Builder br = new unique Builder(m, "release", false)
             assert.assertStr(br.profileFlags(), "-O3", 7)
-            Builder bd = new Builder(m, "debug", false)
+            Builder bd = new unique Builder(m, "debug", false)
             assert.assertStr(bd.profileFlags(), "-O0 --debug-symbols", 8)
         }
         case "a manifest-declared profile overrides the built-in": {
@@ -69,7 +69,7 @@ suite BuilderSuite {
             BuildProfile p = new BuildProfile()
             p.setOptLevel(2)
             m.addProfile("release", p)
-            Builder b = new Builder(m, "release", false)
+            Builder b = new unique Builder(m, "release", false)
             assert.assertStr(b.profileFlags(), "-O2 --debug-symbols", 9)
         }
         case "lib passes use --lib-dyn / --lib (never the removed --shared)": {
@@ -77,7 +77,7 @@ suite BuilderSuite {
             // dropped — under the unknown-option hard error every dynamic lib
             // build would fail. The flag contract is pinned here.
             Manifest m = new Manifest()
-            Builder b = new Builder(m, "debug", false)
+            Builder b = new unique Builder(m, "debug", false)
             assert.assertStr(b.libShapeFlag(true), "--lib-dyn", 5)
             assert.assertStr(b.libShapeFlag(false), "--lib", 6)
         }
@@ -156,7 +156,7 @@ suite BuilderSuite {
             int targets = m.targetCount()
             string name = m.getName()
 
-            Builder b = new Builder(m, "debug", false)
+            Builder b = new unique Builder(m, "debug", false)
             bool ok = b.buildAll()                     // execs fly to compile src/main.fly
             // the emitted binary (Windows appends .exe; POSIX doesn't)
             bool built = fs.exists("target/debug/hello.exe")
@@ -236,7 +236,7 @@ suite BuilderSuite {
 
             int e = 0
             Manifest m = driver.loadManifest(e)
-            Builder b = new Builder(m, "debug", false)
+            Builder b = new unique Builder(m, "debug", false)
             Target t = m.targetAt(0)
 
             bool ok1 = b.buildAll()                    // cold: compiles + saves fp
@@ -282,7 +282,7 @@ suite BuilderSuite {
             m.setName("demo")
             m.setVersion("2.3.4")
             m.setDescription("a demo")
-            Builder b = new Builder(m, "debug", false)
+            Builder b = new unique Builder(m, "debug", false)
             string t = b.packageModule()
             assert.assertTrue(str.startsWith(t, "namespace fly.meta.package"), 501)
             assert.assertTrue(str.contains(t, "public string name() {"), 502)
@@ -295,13 +295,13 @@ suite BuilderSuite {
             m.setName("x")
             m.setVersion("1.0.0")
             m.setDescription(str.concat("say ", str.concat(q, str.concat("hi", q))))
-            Builder b = new Builder(m, "debug", false)
+            Builder b = new unique Builder(m, "debug", false)
             string bs = "\\"
             assert.assertTrue(str.contains(b.packageModule(), str.concat(bs, q)), 505)
         }
         case "os filter, @out, artifact names and source roots": {
             Manifest m = new Manifest()
-            Builder b = new Builder(m, "debug", false)
+            Builder b = new unique Builder(m, "debug", false)
             Target other = new Target("t", "t", "", "")
             if str.equals(b.hostOs(), "windows") {
                 other.setOs("linux")
@@ -339,7 +339,7 @@ suite BuilderSuite {
             fs.writeStr(path.join(root, "b.fly"), "x", 420)
             fs.writeStr(path.join(root, "a.fly"), "y", 420)
             fs.writeStr(path.join(path.join(root, "sub"), "c.fly"), "z", 420)
-            Fingerprint f = new Fingerprint()
+            Fingerprint f = new unique Fingerprint()
             string txt = f.compute(root, "h\n")
             fs.dirDeleteAll(root)
             int ia = str.indexOf(txt, "a.fly")
@@ -355,7 +355,7 @@ suite BuilderSuite {
     void layoutTest() {
         case "dir puts the artifact in a subdirectory of the output": {
             Manifest m = new Manifest()
-            Builder b = new Builder(m, "debug", false)
+            Builder b = new unique Builder(m, "debug", false)
             Target lib = new Target("std", "std", "", "static")
             lib.setArtifact("fly_std_lib")
             assert.assertStr(b.targetOut(lib), b.outDir(), 541)
@@ -366,7 +366,7 @@ suite BuilderSuite {
         }
         case "a target of copies alone compiles nothing": {
             Manifest m = new Manifest()
-            Builder b = new Builder(m, "debug", false)
+            Builder b = new unique Builder(m, "debug", false)
             Target c = new Target("bundle", "bundle", "", "")
             c.getCopy().add("build/llvm/bin/ld.lld")
             assert.assertTrue(b.copyOnly(c), 544)
@@ -392,7 +392,7 @@ suite BuilderSuite {
             string home = env.cwdGet()
             env.cwdSet(root)
             Manifest m = new Manifest()
-            Builder b = new Builder(m, "debug", false)
+            Builder b = new unique Builder(m, "debug", false)
             Target t = new Target("bundle", "bundle", "", "")
             t.setDir("lib")
             t.getCopy().add(path.join(src, "a.txt"))
@@ -421,7 +421,7 @@ suite BuilderSuite {
         }
         case "the fingerprint sees dir and rpaths": {
             Manifest m = new Manifest()
-            Builder b = new Builder(m, "debug", false)
+            Builder b = new unique Builder(m, "debug", false)
             Target t = new Target("fly", "fly", "", "")
             t.setDir("bin")
             t.getRpaths().add("$ORIGIN/../lib")
@@ -431,7 +431,7 @@ suite BuilderSuite {
         }
         case "a prefix map of several pairs, placeholders expanded": {
             Manifest m = new Manifest()
-            Builder b = new Builder(m, "debug", false)
+            Builder b = new unique Builder(m, "debug", false)
             b.setOutRoot("fly_out_probe")
             List<string> pairs = b.prefixMapPairs("@root=.;@out=out")
             assert.assertEqI((int)pairs.size(), 2, 561)

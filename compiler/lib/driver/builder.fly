@@ -718,7 +718,7 @@ public class Builder {
     // computeFpForDir — full fingerprint text for one source dir. Also used by
     // cmdTest, which has suite files instead of Targets.
     public string computeFpForDir(const string srcDir, const string kind, const string name) {
-        Fingerprint f = new Fingerprint()
+        Fingerprint f = new unique Fingerprint()
         return f.compute(srcDir, this.fpHeader(kind, name))
     }
 
@@ -746,7 +746,7 @@ public class Builder {
         head = str.concat(head, "\n")
         List<string> roots = this.targetRoots(t)
         string all = ""
-        Fingerprint fpr = new Fingerprint()
+        Fingerprint fpr = new unique Fingerprint()
         int i = 0
         while i < roots.size() {
             string r = roots.get(i)

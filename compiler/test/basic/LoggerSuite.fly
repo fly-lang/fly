@@ -8,23 +8,23 @@ suite LoggerSuite {
 
     void buildTest() {
         case "mixed attrs": {
-            Logger lg = new Logger("Node")
+            Logger lg = new unique Logger("Node")
             lg.attrStr("name", "foo")
             lg.attrInt("id", 7)
             lg.attrBool("flag", true)
             assert.assertStr(lg.end(), "Node{name=foo, id=7, flag=true}", 1)
         }
         case "single attr": {
-            Logger lg = new Logger("T")
+            Logger lg = new unique Logger("T")
             lg.attrInt("n", 42)
             assert.assertStr(lg.end(), "T{n=42}", 2)
         }
         case "empty record": {
-            Logger lg = new Logger("X")
+            Logger lg = new unique Logger("X")
             assert.assertStr(lg.end(), "X{}", 3)
         }
         case "bool false": {
-            Logger lg = new Logger("B")
+            Logger lg = new unique Logger("B")
             lg.attrBool("ok", false)
             assert.assertStr(lg.end(), "B{ok=false}", 4)
         }

@@ -8,14 +8,14 @@ import fly.assert
 suite ParserStmtSuite {
     void stmtTest() {
         case "return in body": {
-            Parser p = new Parser("int f(const int a) { int x = a + 1  return x }")
+            Parser p = new unique Parser("int f(const int a) { int x = a + 1  return x }")
             ASTModule m = p.parseModule("demo")
             assert.assertTrue(p.isSuccess(), 1)
             List<ASTNode> nodes = m.getNodes()
             assert.assertEqI((int)nodes.size(), 1, 2)
         }
         case "nested block + exprstmt": {
-            Parser p = new Parser("void g() { { x = 1 }  doIt(2) }")
+            Parser p = new unique Parser("void g() { { x = 1 }  doIt(2) }")
             ASTModule m = p.parseModule("d")
             assert.assertTrue(p.isSuccess(), 3)
         }

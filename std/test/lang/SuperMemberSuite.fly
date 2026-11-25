@@ -97,21 +97,21 @@ suite SuperMemberSuite {
     // ── one level: super.method() ────────────────────────────────────────────
     void oneLevelTest() {
         case "an override extends the base without recursing": {
-            B o = new B(3, 4)
+            B o = new unique B(3, 4)
             assert.assertEqI(o.label(), 7, 101)        // A.label()=3 + b=4
         }
         case "a non-overridden base method through super": {
-            B o = new B(3, 4)
+            B o = new unique B(3, 4)
             assert.assertEqI(o.viaSuperOnlyA(), 4, 102) // A.onlyA() = a+1 = 4
         }
         case "the base implementation is unchanged for base instances": {
-            A base = new A(3)
+            A base = new unique A(3)
             assert.assertEqI(base.label(), 3, 103)
             assert.assertEqI(base.onlyA(), 4, 104)
         }
         case "several instances keep their own values": {
-            B x = new B(1, 1)
-            B y = new B(10, 20)
+            B x = new unique B(1, 1)
+            B y = new unique B(10, 20)
             assert.assertEqI(x.label(), 2, 105)
             assert.assertEqI(y.label(), 30, 106)
         }
@@ -120,32 +120,32 @@ suite SuperMemberSuite {
     // ── inherited fields through super ───────────────────────────────────────
     void inheritedFieldTest() {
         case "reading an inherited protected field": {
-            B o = new B(3, 4)
+            B o = new unique B(3, 4)
             assert.assertEqI(o.readP(), 30, 201)       // p = 3 * 10
             assert.assertEqI(o.readSuperA(), 3, 202)
         }
         case "writing an inherited field through super": {
-            B o = new B(3, 4)
+            B o = new unique B(3, 4)
             o.bumpP()
             assert.assertEqI(o.readP(), 35, 203)
             o.bumpP()
             assert.assertEqI(o.readP(), 40, 204)
         }
         case "a write through super is visible to the base's own accessor": {
-            B o = new B(3, 4)
+            B o = new unique B(3, 4)
             o.setP(77)
             assert.assertEqI(o.readP(), 77, 205)
             assert.assertEqI(o.readOwnP(), 77, 206)    // A.readOwnP() sees it too
         }
         case "writing an inherited field changes what the base method returns": {
-            B o = new B(3, 4)
+            B o = new unique B(3, 4)
             o.bumpSuperA()                             // a: 3 -> 4
             assert.assertEqI(o.readSuperA(), 4, 207)
             assert.assertEqI(o.label(), 8, 208)        // A.label()=4 + b=4
         }
         case "field writes are per-instance": {
-            B x = new B(3, 4)
-            B y = new B(3, 4)
+            B x = new unique B(3, 4)
+            B y = new unique B(3, 4)
             x.setP(1)
             assert.assertEqI(x.readP(), 1, 209)
             assert.assertEqI(y.readP(), 30, 210)       // untouched
@@ -155,28 +155,28 @@ suite SuperMemberSuite {
     // ── two levels ───────────────────────────────────────────────────────────
     void twoLevelTest() {
         case "each level's super resolves one step up": {
-            C d = new C(1, 2, 5)
+            C d = new unique C(1, 2, 5)
             // C.label() = B.label() + c ; B.label() = A.label() + b = 1 + 2 = 3
             assert.assertEqI(d.label(), 8, 301)        // 3 + 5
         }
         case "a grandparent field through the immediate base": {
-            C d = new C(1, 2, 5)
+            C d = new unique C(1, 2, 5)
             assert.assertEqI(d.readGrandP(), 10, 302)  // A.p = 1 * 10
         }
         case "a base method that itself uses super": {
-            C d = new C(1, 2, 5)
+            C d = new unique C(1, 2, 5)
             assert.assertEqI(d.viaSuperReadP(), 10, 303)
         }
         case "a write two levels up propagates back down": {
-            C d = new C(1, 2, 5)
+            C d = new unique C(1, 2, 5)
             d.bumpP()                                  // B.bumpP writes A.p
             assert.assertEqI(d.readGrandP(), 15, 304)
             assert.assertEqI(d.readOwnP(), 15, 305)
         }
         case "the middle class is unaffected by the leaf's override": {
-            B mid = new B(1, 2)
+            B mid = new unique B(1, 2)
             assert.assertEqI(mid.label(), 3, 306)
-            C leaf = new C(1, 2, 5)
+            C leaf = new unique C(1, 2, 5)
             assert.assertEqI(leaf.label(), 8, 307)
         }
     }
@@ -189,15 +189,16 @@ suite SuperMemberSuite {
             assert.assertEqI(asA.label(), 8, 401)      // C.label(), not A.label()
             B asB = d
             assert.assertEqI(asB.label(), 8, 402)
+            delete d
         }
         case "super stays non-virtual under a derived reference": {
             // B.label() calls super.label(); even for a C instance that must be
             // A.label(), never C.label() — otherwise this would not terminate.
-            C d = new C(2, 3, 4)
+            C d = new unique C(2, 3, 4)
             assert.assertEqI(d.label(), 9, 403)        // (2 + 3) + 4
         }
         case "repeated calls are stable": {
-            C d = new C(1, 2, 5)
+            C d = new unique C(1, 2, 5)
             int bad = 0 - 1
             int i = 0
             while i < 50 {

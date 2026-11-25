@@ -136,7 +136,7 @@ suite ExecLoopSuite {
 
     void forInListTest() {
         case "for-in over a List of ints": {
-            List<int> l = new List<int>()
+            List<int> l = new unique List<int>()
             l.add(10)
             l.add(20)
             l.add(30)

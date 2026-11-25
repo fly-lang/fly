@@ -23,7 +23,7 @@ suite DiagnosticRenderSuite {
             SourceLocation loc = new SourceLocation(21)
             Diagnostic diag = new Diagnostic(DiagLevel.Error, loc, 1, 22, "t.fly",
                                  "use of undeclared 'zzz'", "1:22: error: use of undeclared 'zzz'", sm)
-            TextDiagnostic td = new TextDiagnostic()
+            TextDiagnostic td = new unique TextDiagnostic()
             assert.assertStr(td.header(diag), "t.fly:1:22: error: use of undeclared 'zzz'", 1)
             string full = td.render(diag)
             assert.assertTrue(str.contains(full, "t.fly:1:22: error: use of undeclared 'zzz'"), 2)
@@ -39,7 +39,7 @@ suite DiagnosticRenderSuite {
             SourceLocation loc = new SourceLocation(0)
             Diagnostic diag = new Diagnostic(DiagLevel.Warning, loc, 0, 0, "x.fly",
                                              "deprecated", "0:0: warning: deprecated", null)
-            TextDiagnostic td = new TextDiagnostic()
+            TextDiagnostic td = new unique TextDiagnostic()
             string full = td.render(diag)
             assert.assertStr(full, "x.fly:0:0: warning: deprecated", 10)
         }
@@ -52,7 +52,7 @@ suite DiagnosticRenderSuite {
             SourceLocation loc = new SourceLocation(21)
             Diagnostic diag = new Diagnostic(DiagLevel.Error, loc, 1, 22, "t.fly",
                                  "use of undeclared 'zzz'", "1:22: error: use of undeclared 'zzz'", sm)
-            TextDiagnosticPrinter p = new TextDiagnosticPrinter()
+            TextDiagnosticPrinter p = new unique TextDiagnosticPrinter()
             p.handleDiagnostic(diag)
             assert.assertEqI(p.errorCount(), 1, 20)
             assert.assertEqI(p.warningCount(), 0, 21)
@@ -68,7 +68,7 @@ suite DiagnosticRenderSuite {
                                  "use of undeclared 'zzz'", "1:22: error: use of undeclared 'zzz'", sm)
             StoringDiagnosticConsumer a = new StoringDiagnosticConsumer()
             TextDiagnosticBuffer b = new TextDiagnosticBuffer()
-            ChainedDiagnosticConsumer chain = new ChainedDiagnosticConsumer(a, b)
+            ChainedDiagnosticConsumer chain = new unique ChainedDiagnosticConsumer(a, b)
             chain.handleDiagnostic(diag)
             assert.assertEqI(a.count(), 1, 30)
             assert.assertEqI(b.errorCount(), 1, 31)
@@ -83,7 +83,7 @@ suite DiagnosticRenderSuite {
             SourceLocation loc = new SourceLocation(21)
             Diagnostic diag = new Diagnostic(DiagLevel.Error, loc, 1, 22, "t.fly",
                                  "use of undeclared 'zzz'", "1:22: error: use of undeclared 'zzz'", sm)
-            LogDiagnosticPrinter log = new LogDiagnosticPrinter()
+            LogDiagnosticPrinter log = new unique LogDiagnosticPrinter()
             log.handleDiagnostic(diag)
             assert.assertEqI(log.count(), 1, 40)
             string json = log.toJson()
@@ -101,14 +101,14 @@ suite DiagnosticRenderSuite {
             assert.assertTrue(str.contains(txt, "error: t.fly:1:22: use of undeclared 'zzz'"), 45)
         }
         case "add() records a pre-rendered entry (parser-error path)": {
-            LogDiagnosticPrinter log = new LogDiagnosticPrinter()
+            LogDiagnosticPrinter log = new unique LogDiagnosticPrinter()
             log.add("error", "p.fly", "3", "7", "unexpected token")
             assert.assertEqI(log.count(), 1, 50)
             string txt = log.toText()
             assert.assertTrue(str.contains(txt, "error: p.fly:3:7: unexpected token"), 51)
         }
         case "toTextReport prepends inputs/output header and separator": {
-            LogDiagnosticPrinter log = new LogDiagnosticPrinter()
+            LogDiagnosticPrinter log = new unique LogDiagnosticPrinter()
             log.add("error", "a.fly", "1", "1", "boom")
             string rep = log.toTextReport("a.fly b.fly", "out.o")
             assert.assertTrue(str.contains(rep, "inputs: a.fly b.fly"), 52)
@@ -117,7 +117,7 @@ suite DiagnosticRenderSuite {
             assert.assertTrue(str.contains(rep, "error: a.fly:1:1: boom"), 55)
         }
         case "toJsonReport wraps the diagnostics array with inputs/output": {
-            LogDiagnosticPrinter log = new LogDiagnosticPrinter()
+            LogDiagnosticPrinter log = new unique LogDiagnosticPrinter()
             log.add("error", "a.fly", "1", "1", "boom")
             string rep = log.toJsonReport("a.fly", "out.o")
             string q = "\""
@@ -132,7 +132,7 @@ suite DiagnosticRenderSuite {
             // The file field used to be emitted RAW while every other string went
             // through jsonEscape, so a Windows path turned the whole log into
             // invalid JSON ("C:\Users\..." — \U is not a JSON escape).
-            LogDiagnosticPrinter log = new LogDiagnosticPrinter()
+            LogDiagnosticPrinter log = new unique LogDiagnosticPrinter()
             string bs = "\\"
             string p = str.concat("C:", str.concat(bs, "Users"))
             log.add("error", p, "1", "1", "boom")
@@ -144,7 +144,7 @@ suite DiagnosticRenderSuite {
         }
         case "jsonEscape escapes backslashes and quotes": {
             // a quote becomes backslash+quote, a backslash becomes two backslashes
-            LogDiagnosticPrinter log = new LogDiagnosticPrinter()
+            LogDiagnosticPrinter log = new unique LogDiagnosticPrinter()
             string q = "\""
             string bs = "\\"
             string esc = log.jsonEscape(str.concat(q, bs))

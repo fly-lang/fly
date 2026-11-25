@@ -11,7 +11,7 @@ suite ASTBaseSuite {
     void baseTest() {
         case "construct + accessors": {
             SourceLocation loc = slGetFileLoc(42)
-            ASTBase b = new ASTBase(ASTKind.CLASS, loc)
+            ASTBase b = new unique ASTBase(ASTKind.CLASS, loc)
             assert.assertTrue(b.getKind() == ASTKind.CLASS, 1)
             SourceLocation bl = b.getLoc()
             assert.assertEqI(bl.getOffset(), 42, 2)
@@ -19,7 +19,7 @@ suite ASTBaseSuite {
         }
         case "setKind updates kind + str": {
             SourceLocation loc = slGetFileLoc(0)
-            ASTBase b = new ASTBase(ASTKind.ENUM, loc)
+            ASTBase b = new unique ASTBase(ASTKind.ENUM, loc)
             assert.assertStr(b.str(), "ENUM@0", 6)
             b.setKind(ASTKind.MODULE)
             assert.assertTrue(b.getKind() == ASTKind.MODULE, 7)

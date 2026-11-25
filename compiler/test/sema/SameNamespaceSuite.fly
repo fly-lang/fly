@@ -30,10 +30,10 @@ suite SameNamespaceSuite {
             // module B: same namespace, calls helperFn with NO `import`
             string srcB = "namespace demo  public int useIt(const int y) { return helperFn(y) }"
 
-            Parser pa = new Parser(srcA)
+            Parser pa = new unique Parser(srcA)
             ASTModule ma = pa.parseModule("a")
             assert.assertTrue(pa.isSuccess(), 1)
-            Parser pb = new Parser(srcB)
+            Parser pb = new unique Parser(srcB)
             ASTModule mb = pb.parseModule("b")
             assert.assertTrue(pb.isSuccess(), 2)
 
@@ -45,11 +45,11 @@ suite SameNamespaceSuite {
             // which is all the assert needs; only its rendered location would come
             // from A's source manager.
             DiagnosticsEngine diags = pa.getDiags()
-            SemaContext ctx = new SemaContext(diags)
+            SemaContext ctx = new unique SemaContext(diags)
             List<SemaModule> res = ctx.Resolve(mods, false)
             assert.assertFalse(diags.hasErrorOccurred(), 99)
 
-            CodeGenModule cgm = new CodeGenModule("t")
+            CodeGenModule cgm = new unique CodeGenModule("t")
             TargetInfo ti = targetInfoCreate(new TargetOptions("x86_64-unknown-linux-gnu"))
             cgm.configureTarget(ti)
             cgm.generate(ctx.getReg())

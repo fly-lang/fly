@@ -212,7 +212,7 @@ public class Parser {
     // (i.e. `Name<…> name` is a declaration, not a `Name < …` comparison). All
     // probed tokens are pushed into `pending` so the stream is left untouched.
     public bool genericDeclAhead() {
-        List<Token> scanned = new List<Token>()
+        List<Token> scanned = new unique List<Token>()
         int depth = 1
         bool isDecl = false
         bool go = true
@@ -277,7 +277,7 @@ public class Parser {
     // Every probed token is pushed back into `pending`: leaving one behind
     // desynchronises the stream silently, which is far worse than a wrong answer.
     public bool bracketDeclAhead() {
-        List<Token> scanned = new List<Token>()
+        List<Token> scanned = new unique List<Token>()
         int depth = 1
         bool isDecl = false
         bool go = true
@@ -327,7 +327,7 @@ public class Parser {
     }
 
     public bool qualifiedDeclAhead() {
-        List<Token> scanned = new List<Token>()
+        List<Token> scanned = new unique List<Token>()
         bool isDecl = false
         // cur is the first segment; nxt is '.'. Probing starts at the token after
         // nxt, which must be an identifier segment. `expectDot` alternates between
@@ -418,7 +418,7 @@ public class Parser {
             }
         }
         bool wrapped = false
-        List<Token> scanned = new List<Token>()
+        List<Token> scanned = new unique List<Token>()
         bool go = depth > 0
         while go {
             Token t = this.nextRaw()
@@ -1310,6 +1310,7 @@ public class Parser {
                     hftp.add(htp.get(hti))
                     hti = hti + 1
                 }
+                delete htp
                 return hf
             }
         }
@@ -1369,6 +1370,7 @@ public class Parser {
             ftp.add(typeParams.get(ti))
             ti = ti + 1
         }
+        delete typeParams
         return f
     }
 
@@ -1897,7 +1899,7 @@ public class Parser {
     // silently). The RHS must be a direct or member call.
     public void parseMultiAssign(const ASTBlockStmt block) {
         SourceLocation loc = this.curLoc()
-        List<string> names = new List<string>()
+        List<string> names = new unique List<string>()
         names.add(this.curText())
         this.bump()
         while this.curIsPunct(",") {

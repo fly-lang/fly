@@ -76,7 +76,7 @@ suite MVSResolverSuite {
 
     void singleDepTest() {
         case "single tag dep resolves to its version": {
-            MVSResolver r = new MVSResolver(false)
+            MVSResolver r = new unique MVSResolver(false)
             Manifest root = new Manifest()
             root.setName("root")
             root.setVersion("0.1.0")
@@ -92,7 +92,7 @@ suite MVSResolverSuite {
 
     void maxVersionTest() {
         case "MVS picks the highest required version": {
-            MVSResolver r = new MVSResolver(false)
+            MVSResolver r = new unique MVSResolver(false)
             Manifest root = new Manifest()
             root.setName("root")
             root.setVersion("0.1.0")
@@ -108,7 +108,7 @@ suite MVSResolverSuite {
 
     void conflictTest() {
         case "conflicting URLs → E001, empty result": {
-            MVSResolver r = new MVSResolver(false)
+            MVSResolver r = new unique MVSResolver(false)
             Manifest root = new Manifest()
             root.setName("root")
             root.setVersion("0.1.0")
@@ -124,7 +124,7 @@ suite MVSResolverSuite {
 
     void edgeCasesTest() {
         case "no deps → empty, no error": {
-            MVSResolver r = new MVSResolver(false)
+            MVSResolver r = new unique MVSResolver(false)
             Manifest root = new Manifest()
             root.setName("root")
             root.setVersion("0.1.0")
@@ -134,7 +134,7 @@ suite MVSResolverSuite {
             assert.assertEqL((long)res.size(), 0, 41)
         }
         case "fetch failure still resolves the constraint (no resolver error)": {
-            MVSResolver r = new MVSResolver(false)
+            MVSResolver r = new unique MVSResolver(false)
             Manifest root = new Manifest()
             root.setName("root")
             root.setVersion("0.1.0")

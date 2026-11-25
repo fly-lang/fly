@@ -11,7 +11,7 @@ suite ParserDiagSuite {
 
     void successTest() {
         case "clean parse → no diagnostics": {
-            Parser p = new Parser("void m() { }")
+            Parser p = new unique Parser("void m() { }")
             ASTModule mod = p.parseModule("t")
             assert.assertTrue(p.isSuccess(), 1)
             StoringDiagnosticConsumer sink = p.getSink()
@@ -23,7 +23,7 @@ suite ParserDiagSuite {
 
     void multipleNamespaceTest() {
         case "two namespaces → multiple_namespace error": {
-            Parser p = new Parser("namespace a.b  namespace c.d  void m() { }")
+            Parser p = new unique Parser("namespace a.b  namespace c.d  void m() { }")
             ASTModule mod = p.parseModule("t")
             assert.assertFalse(p.isSuccess(), 10)
             StoringDiagnosticConsumer sink = p.getSink()
@@ -35,7 +35,7 @@ suite ParserDiagSuite {
 
     void missingNameTest() {
         case "class with no name → identifier expected": {
-            Parser p = new Parser("class { int x }")
+            Parser p = new unique Parser("class { int x }")
             ASTModule mod = p.parseModule("t")
             assert.assertFalse(p.isSuccess(), 20)
             StoringDiagnosticConsumer sink = p.getSink()
@@ -45,7 +45,7 @@ suite ParserDiagSuite {
 
     void fineKindTest() {
         case "curIs bridges to fine TokenKind": {
-            Parser p = new Parser("namespace foo")
+            Parser p = new unique Parser("namespace foo")
             assert.assertTrue(p.curIs(TokenKind.kw_namespace), 30)
             assert.assertTrue(p.curKind() == TokenKind.kw_namespace, 31)
             p.bump()
