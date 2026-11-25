@@ -46,6 +46,7 @@ public class CodeGenModule {
     List<string> dropNames // `@__fly_drop.<class>` helpers built so far (delete bodies), by name
     List<pointer> dropFns
     pointer dropFnTyV      // their common type: void (ptr err, ptr slot)
+    pointer destroyFnTyV   // the vtable release entry's type: void (ptr err, ptr obj, i32 mode)
     pointer retainFnV      // `@__fly_retain`, counts one more holder of a shared object; 0 until first use
     pointer retainFnTyV    // its type: void (ptr obj)
     pointer weakGetV       // `@__fly_weak_get`: the object while it lives, else null
@@ -70,6 +71,7 @@ public class CodeGenModule {
         this.dropNames = new List<string>()
         this.dropFns = new List<pointer>()
         this.dropFnTyV = 0
+        this.destroyFnTyV = 0
         this.retainFnV = 0
         this.retainFnTyV = 0
         this.weakGetV = 0
@@ -1529,6 +1531,66 @@ public class CodeGenModule {
     // itself instead of expanding forever.
     public pointer dropFn(const SemaClassType cls) {
         return this.classFn("__fly_drop.", cls, false)
+    }
+
+    // destroyFnTy — the type of every vtable release entry:
+    // void (ptr err, ptr obj, i32 mode).
+    public pointer destroyFnTy() {
+        if this.destroyFnTyV == 0 {
+            LLVM llvm = this.cg.getLLVM()
+            pointer voidTy
+            llvm.voidTypeInContext(this.ctx, voidTy)
+            pointer i32Ty
+            llvm.int32TypeInContext(this.ctx, i32Ty)
+            List<pointer> ps = new List<pointer>()
+            ps.add(this.types.ptrType())
+            ps.add(this.types.ptrType())
+            ps.add(i32Ty)
+            pointer fty
+            this.cg.functionTypeN(voidTy, ps, false, fty)
+            this.destroyFnTyV = fty
+        }
+        return this.destroyFnTyV
+    }
+
+    // destroyFn — `void @__fly_destroy.<ns>.<Class>(ptr err, ptr obj, i32 mode)`, the
+    // release entry of the class's vtable (slot -1, see CodeGenClass.buildVTable):
+    // what an object of exactly this class does before its memory goes — the free()
+    // the class resolves, then every owning, holding and weak field it has, bases'
+    // fields included (CodeGenStmt.emitDestroy). It never frees `obj` itself: a
+    // plain object and a `new shared` block are freed differently, by the caller.
+    // `mode` is 0 (normal release); fly-lang/fly#235 adds the end-of-main teardown.
+    // Built with the vtable, so `delete` through a base or interface type reaches
+    // the fields of the dynamic class.
+    public pointer destroyFn(const SemaClassType cls) {
+        string qual = str.concat(SemaBuilder.classNsFlat(cls), str.concat(".", cls.getName()))
+        string name = str.concat("__fly_destroy.", qual)
+        LLVM llvm = this.cg.getLLVM()
+        pointer fn
+        llvm.getNamedFunction(this.module, name, fn)
+        if fn != 0 {
+            return fn
+        }
+        llvm.addFunction(this.module, name, this.destroyFnTy(), fn)
+        llvm.setLinkage(fn, 3)
+        this.setWeakComdat(fn, name)
+
+        pointer savedLoc = this.helperEnter()
+        pointer callerBB = this.helperCaller()
+        pointer entryBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "entry", entryBB)
+        llvm.positionBuilderAtEnd(this.builder, entryBB)
+        CodeGenExpr dcg = new unique CodeGenExpr(this)
+        pointer errP
+        llvm.getParam(fn, 0, errP)
+        dcg.setErrPtr(errP)
+        pointer objP
+        llvm.getParam(fn, 1, objP)
+        CodeGenStmt.emitDestroy(dcg, cls, objP)
+        pointer rv
+        llvm.buildRetVoid(this.builder, rv)
+        this.helperLeave(callerBB, savedLoc)
+        return fn
     }
 
     public pointer retainFnTy() {

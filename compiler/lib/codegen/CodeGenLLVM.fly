@@ -138,4 +138,14 @@ public class CodeGenLLVM {
         this.llvm.buildGEP2(b, ty, ptr, arr, n, name, v)
         this.freeBuf(buf, n)
     }
+
+    // constInBoundsGEP2N — LLVMConstInBoundsGEP2 over a marshalled index-value array.
+    public void constInBoundsGEP2N(const pointer ty, const pointer constVal, const List<pointer> idxAddrs,
+            pointer v) {
+        int n = (int)idxAddrs.size()
+        pointer buf = this.packAddrs(idxAddrs)
+        pointer arr = buf
+        this.llvm.constInBoundsGEP2(ty, constVal, arr, n, v)
+        this.freeBuf(buf, n)
+    }
 }

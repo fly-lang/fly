@@ -1,0 +1,103 @@
+import fly.str
+
+public class Res {
+
+    public static int freed
+
+    public Res() {
+    }
+
+    public void free() {
+        Res.freed = Res.freed + 1
+    }
+}
+
+public interface Shape {
+    int area()
+}
+
+public class Base : Shape {
+
+    Res base
+
+    public Base() {
+    }
+
+    public void fillBase() {
+        this.base = new unique Res()
+    }
+
+    public int area() {
+        return 1
+    }
+}
+
+// Derived adds an owning, a holding and a weak field, and a free() of its own:
+// none of them is visible through a Base or Shape reference.
+public class Derived : Base {
+
+    public static int freed
+
+    Res own
+    Res held
+    Res seen
+
+    public Derived() {
+        this.fillBase()
+        this.own = new unique Res()
+        Res h = new shared Res()
+        this.held = h
+        this.seen = weak h
+    }
+
+    public bool sees() {
+        return this.seen != null
+    }
+
+    public void free() {
+        Derived.freed = Derived.freed + 1
+    }
+}
+
+void expect(const int res, const int derived, const int code, const string what) {
+    if Res.freed != res {
+        fail code, str.concat(what, ": the fields of the derived class were not all released")
+    }
+    if Derived.freed != derived {
+        fail code + 1, str.concat(what, ": the free() of the derived class did not run")
+    }
+}
+
+void uniqueViaBase() {
+    Base u = new unique Derived()
+}
+
+void sharedViaInterface() {
+    Shape s = new shared Derived()
+}
+
+// Destruction dispatches on the DYNAMIC class (fly-lang/fly#202): deleting a
+// derived object through its base or an interface, and the automatic release of
+// a unique owner or the last shared holder typed so, run the derived class's
+// free() and release every owning, holding and weak field it has, bases' fields
+// included. Each Derived owns three Res (base, own, held) that count free().
+// Before, only the fields of the static type went: Res.freed 1, Derived.freed 0.
+void main() {
+    Derived d = new Derived()
+    if d.sees() == false {
+        fail 9, "the weak field observes the held object"
+    }
+    Base b = d
+    delete b
+    expect(3, 1, 1, "delete through the base")
+
+    Shape s = new Derived()
+    delete s
+    expect(6, 2, 3, "delete through an interface")
+
+    uniqueViaBase()
+    expect(9, 3, 5, "a unique owner typed as the base")
+
+    sharedViaInterface()
+    expect(12, 4, 7, "the last shared holder typed as an interface")
+}

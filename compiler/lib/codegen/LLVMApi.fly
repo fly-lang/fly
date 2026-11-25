@@ -2011,6 +2011,19 @@ public class LLVM {
         lib.call("LLVMConstIntToPtr", a, v)
     }
 
+    // constInBoundsGEP2 — LLVMConstInBoundsGEP2(Ty, ConstantVal, Indices, NumIndices):
+    // a constant address inside a global (the address point of a vtable).
+    public void constInBoundsGEP2(const pointer ty, const pointer constVal, const pointer indices,
+            const int numIndices, pointer v) {
+        Ptr3IntArgs a = new Ptr3IntArgs()
+        a.a = ty
+        a.b = constVal
+        a.c = indices
+        a.n = numIndices
+        CLang lib = new unique CLang("libLLVM-20.so")
+        lib.call("LLVMConstInBoundsGEP2", a, v)
+    }
+
     // ── Target machine ────────────────────────────────────────────────────────
 
     public void getDefaultTargetTriple(pointer triple) {

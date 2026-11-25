@@ -60,7 +60,9 @@ suite CodeGenClassSuite {
                 }
             ")
             assert.assertTrue(str.contains(ir, "@malloc"), 21)
-            assert.assertTrue(str.contains(ir, "store ptr @vtable..Point"), 22)
+            // the object points at the vtable's address point, past the type info
+            // and the release entry (fly-lang/fly#202)
+            assert.assertTrue(str.contains(ir, "ptr @vtable..Point, i64 0, i64 2)"), 22)
             assert.assertTrue(str.contains(ir, "call void @Point_F0"), 23)
         }
     }

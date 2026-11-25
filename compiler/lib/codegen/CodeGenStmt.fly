@@ -270,16 +270,57 @@ public class CodeGenStmt {
         pointer cbr
         llvm.buildCondBr(b, notNull, doBB, endBB, cbr)
         cge.position(doBB)
-        CodeGenStmt.emitDestroy(cge, cls, obj)
+        CodeGenStmt.emitDestroyDynamic(cge, cls, obj)
         cge.getCgm().freeHandle(obj)
         llvm.buildStore(b, nul, slot)
         cge.br(endBB)
         cge.position(endBB)
     }
 
-    // emitDestroy — what an object does before its memory goes: the class's free()
-    // (when it declares one), then its owning fields. Shared by `delete` and by the
-    // last release of a `new shared` object.
+    // emitDestroyDynamic — destroy `obj` (not null) as its DYNAMIC class: a class or
+    // interface object calls the release entry its vtable holds at slot -1
+    // (CodeGenModule.destroyFn), so deleting through a base or interface type
+    // still runs the free() and releases the fields of the real class
+    // (fly-lang/fly#202). A struct has no vtable and no subclass with fields of its
+    // own: it is destroyed as its static type. Shared by `delete` and by the last
+    // release of a `new shared` object; the caller frees the memory.
+    public static void emitDestroyDynamic(const CodeGenExpr cge, const SemaClassType cls, const pointer obj) {
+        if cls.getClassKind() == SemaClassKind.STRUCT {
+            CodeGenStmt.emitDestroy(cge, cls, obj)
+            return
+        }
+        CodeGenModule cgm = cge.getCgm()
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        pointer ptrTy = cge.ptrType()
+        pointer vt
+        llvm.buildLoad2(b, ptrTy, obj, "vt", vt)
+        pointer i64Ty
+        llvm.int64TypeInContext(cgm.getCtx(), i64Ty)
+        pointer minus1
+        llvm.constInt(i64Ty, 0 - 1, true, minus1)
+        List<pointer> idx = new List<pointer>()
+        idx.add(minus1)
+        pointer entryP
+        cgm.getCg().buildGEP2N(b, ptrTy, vt, idx, "destroyp", entryP)
+        pointer entry
+        llvm.buildLoad2(b, ptrTy, entryP, "destroy", entry)
+        pointer i32Ty
+        llvm.int32TypeInContext(cgm.getCtx(), i32Ty)
+        pointer mode
+        llvm.constInt(i32Ty, 0, false, mode)
+        List<pointer> args = new List<pointer>()
+        args.add(cge.getErrPtr())
+        args.add(obj)
+        args.add(mode)
+        pointer cv
+        cgm.getCg().buildCallN(b, cgm.destroyFnTy(), entry, args, "", cv)
+    }
+
+    // emitDestroy — what an object of exactly class `cls` does before its memory
+    // goes: the class's free() (when it declares or inherits one), then its owning,
+    // holding and weak fields, bases' included. The body of the class's release
+    // entry (CodeGenModule.destroyFn); a struct runs it inline.
     public static void emitDestroy(const CodeGenExpr cge, const SemaClassType cls, const pointer obj) {
         SemaClassMethod freeM = CodeGenClass.findFreeMethod(cls)
         if freeM != null {
@@ -357,7 +398,7 @@ public class CodeGenStmt {
         pointer cbr2
         llvm.buildCondBr(b, last, destroyBB, doneBB, cbr2)
         cge.position(destroyBB)
-        CodeGenStmt.emitDestroy(cge, cls, obj)
+        CodeGenStmt.emitDestroyDynamic(cge, cls, obj)
         // the block outlives the object while a weak reference may still look at
         // the header; with none, it goes now
         List<pointer> wIdx = new List<pointer>()
@@ -433,9 +474,8 @@ public class CodeGenStmt {
     // emitDeleteOwnedFields — delete every OWNING field of `obj` (a field a method
     // fills with `new unique` or an owner), after the class's free() and before
     // the object goes: what the object owns goes with it. The fields are those of
-    // the STATIC type `cls`, bases included; deleting through a base or interface
-    // type therefore misses fields only a subclass declares (they leak, nothing
-    // is freed twice).
+    // `cls`, bases included; `cls` is the dynamic class, since this runs inside its
+    // vtable release entry (emitDestroyDynamic).
     public static void emitDeleteOwnedFields(const CodeGenExpr cge, const SemaClassType cls, const pointer obj) {
         if cls.getClassKind() == SemaClassKind.INTERFACE {
             return

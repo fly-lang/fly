@@ -311,9 +311,35 @@ public class CodeGenClass {
             slots.set(0, dirG)
         }
 
+        // Two entries sit BEFORE the address point, where an object's vtable pointer
+        // points (the itable directory, slot 0):
+        //   vt[-1]  the release entry `@__fly_destroy.<Class>` (CodeGenModule.destroyFn):
+        //           `delete` and the last release of a `new shared` object call it,
+        //           so destruction runs for the DYNAMIC class — every owning, holding
+        //           and weak field of the real object, also through a base or an
+        //           interface reference (fly-lang/fly#202);
+        //   vt[-2]  the type info `{ ptr name, i64 size }` (fly-lang/fly#235 reports
+        //           undeleted objects by class with it).
+        // Negative, so slot 0 and every method slot keep their index: a class built
+        // by an earlier release (the seed, a package) still dispatches its methods.
+        // An interface is never the dynamic class: both entries are null there.
+        List<pointer> all = new List<pointer>()
+        if cls.getClassKind() == SemaClassKind.INTERFACE {
+            all.add(nullSlot)
+            all.add(nullSlot)
+        } else {
+            all.add(typeInfo(cgm, cls))
+            all.add(cgm.destroyFn(cls))
+        }
+        int si = 0
+        while si < slots.size() {
+            all.add(slots.get(si))
+            si = si + 1
+        }
+
         pointer init
-        cg.constArrayN(ptrTy, slots, init)
-        int n = (int)slots.size()
+        cg.constArrayN(ptrTy, all, init)
+        int n = (int)all.size()
         pointer arrTy
         llvm.arrayType(ptrTy, n, arrTy)
         pointer g
@@ -327,7 +353,57 @@ public class CodeGenClass {
             llvm.setLinkage(g, 3)
             cgm.setWeakComdat(g, vtableName(cls))
         }
-        cls.setLlvmVTable(g)
+        // the address point: element 2, past the two entries above
+        pointer i64Ty
+        llvm.int64TypeInContext(cgm.getCtx(), i64Ty)
+        pointer zero
+        llvm.constInt(i64Ty, 0, false, zero)
+        pointer two
+        llvm.constInt(i64Ty, 2, false, two)
+        List<pointer> apIdx = new List<pointer>()
+        apIdx.add(zero)
+        apIdx.add(two)
+        pointer ap
+        cg.constInBoundsGEP2N(arrTy, g, apIdx, ap)
+        cls.setLlvmVTable(ap)
+    }
+
+    // typeInfo — `@typeinfo.<ns>.<Class> = constant { ptr, i64 } { "<ns>.<Class>", size }`,
+    // entry -2 of the class's vtable: the qualified name (just `<Class>` in the
+    // default namespace) and the object size.
+    public static pointer typeInfo(const CodeGenModule cgm, const SemaClassType cls) {
+        CodeGenLLVM cg = cgm.getCg()
+        LLVM llvm = cg.getLLVM()
+        pointer ptrTy = cgm.getTypes().ptrType()
+        pointer i64Ty
+        llvm.int64TypeInContext(cgm.getCtx(), i64Ty)
+        string ns = SemaBuilder.classNsFlat(cls)
+        string qual = cls.getName()
+        if str.len(ns) > 0 {
+            qual = str.concat(ns, str.concat(".", qual))
+        }
+        List<pointer> elems = new List<pointer>()
+        elems.add(ptrTy)
+        elems.add(i64Ty)
+        pointer tiTy
+        cg.structTypeN(cgm.getCtx(), elems, tiTy)
+        pointer szVal
+        llvm.sizeOf(cls.getLlvmStructType(), szVal)
+        List<pointer> vals = new List<pointer>()
+        vals.add(cgm.cstr(qual))
+        vals.add(szVal)
+        pointer tiInit
+        cg.constNamedStructN(tiTy, vals, tiInit)
+        string tiName = str.concat("typeinfo.", structName(cls))
+        pointer ti
+        llvm.addGlobal(cgm.getModule(), tiTy, tiName, ti)
+        llvm.setInitializer(ti, tiInit)
+        llvm.setGlobalConstant(ti, true)
+        if cls.getGenericTemplate() != null {
+            llvm.setLinkage(ti, 3)
+            cgm.setWeakComdat(ti, tiName)
+        }
+        return ti
     }
 
     // ifaceId — an interface's identity in every itable directory: an FNV-1a-style
