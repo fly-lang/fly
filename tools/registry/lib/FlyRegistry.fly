@@ -126,6 +126,8 @@ string readRequest(const long s) {
 }
 
 void main() {
+    // the registry shares the compiler's leaks (Manifest parsing): no report at exit
+    fly.runtime.obj_quiet()
     string storage = argValue("--storage")
     if str.isEmpty(storage) {
         string home = env.get("FLY_HOME")

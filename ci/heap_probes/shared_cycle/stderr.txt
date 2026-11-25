@@ -1,0 +1,2 @@
+warning: 2 objects not deleted (64 B)
+  Peer x2, 64 B

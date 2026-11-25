@@ -206,7 +206,8 @@ public class CodeGenCall {
                         if oc.getClassKind() == SemaClassKind.STRUCT {
                             llvm.buildAlloca(b, sty, "outobj", target)
                         } else {
-                            llvm.buildMalloc(b, sty, "outobj", target)
+                            // the callee stores its object's pointer here
+                            llvm.constPointerNull(cge.ptrType(), target)
                         }
                         llvm.buildStore(b, target, slot)
                     }

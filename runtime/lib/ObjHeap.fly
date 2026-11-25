@@ -1,0 +1,1369 @@
+namespace fly.runtime
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The object heap (fly-lang/fly#235) — where every class object lives: `new`,
+// `new unique` and `new shared` call obj_alloc, `delete` and the automatic
+// releases call obj_free. Shared by the three runtimes; each provides the four
+// virtual-memory primitives vm_reserve / vm_commit / vm_decommit / vm_release.
+//
+// The heap knows every live object, so at the end of `main` the generated code
+// asks it what the program did not delete (obj_teardown_begin prints the report)
+// and walks those objects to release them (obj_iter / obj_next): Fly has no
+// function values, so the calls into the release entries are generated code.
+//
+// Layout. One region of 64 GiB of address space is reserved on first use and
+// committed on demand, so membership of a pointer is a range check. The region
+// is cut into 64 KiB spans aligned on 64 KiB: the span of p is p & ~0xFFFF.
+// Span 0 is the control block. A small span serves ONE size class (16-byte steps
+// up to 128 B, then about 25% steps up to 2 KiB); a bigger object gets a run of
+// spans of its own. A small span starts with its header and three bitmaps, one
+// bit per slot: live, shared (the slot is a `new shared` block, its object 16
+// bytes in) and child (teardown: owned or held by another live object). Free
+// slots are an intrusive list through their first 8 bytes; slots never used yet
+// are taken from a bump index, so a fresh span is not touched slot by slot.
+//
+// A pointer outside the region is not ours: obj_free hands it to the system
+// free() (objects allocated by seed-compiled code during the bootstrap, and by
+// the malloc fallback when the region cannot be reserved or is full).
+//
+// The lock is taken only once a thread has been spawned (thread_spawn calls
+// objHeapThreaded): a single-threaded program pays no atomic operation.
+//
+// Control block (span 0), byte offsets:
+//   0 ticket next (int)   4 ticket serving (int)   8 bump   16 commit top
+//   24 limit   32 live objects   40 live bytes   64 tearing   72 span pool
+//   80 pool size   88 free large runs   96 raw base   104 raw size
+//   112 iterator span   120 iterator slot   128 iterator phase
+//   256 + 8c current span of class c   512 + 8c partial spans of class c
+//   768 + 4c slot size   896 + 4c slots per span   1024 + 4c first slot offset
+//   1152 bitmap bytes (4c)   1280 + k class of a size of k 16-byte units (byte)
+// Span header, byte offsets:
+//   0 kind (1 small, 2 large, 3 pooled small, 4 free large run)   4 class
+//   8 slot size   12 slot count   16 live   20 bump index   24 free list
+//   32 next   40 prev   48 in partial list   52 first slot offset
+//   56 span count   64 committed (pooled)   72 shared (large)   76 child (large)
+//   84 bitmap bytes   96 object size (large)   128 bitmaps (small)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class ObjHeapState {
+    static pointer base = 0         // the control block (64 KiB aligned)
+    static int state = 0            // 0 not set up, 1 on, 2 off (system malloc), 3 released
+    static int threaded = 0         // a thread was spawned: alloc and free lock
+    static long top = 0             // end of the region (state 3: still ours, ignored)
+    static long caseLive = 0        // obj_case_begin's snapshot
+    static long caseBytes = 0
+    static int quiet = 0            // obj_quiet: no report, no release at exit
+    public ObjHeapState() { }
+}
+
+// obj_quiet — the toolchain's switch (compiler, fly-lsp, fly-registry): no report
+// of objects not deleted, per case or at exit, and no release pass — the system
+// takes the memory back. Until the toolchain deletes what it allocates.
+public void obj_quiet() {
+    ObjHeapState.quiet = 1
+}
+
+// objHeapThreaded — called by thread_spawn before the first thread starts.
+public void objHeapThreaded() {
+    ObjHeapState.threaded = 1
+}
+
+// Every call between runtime functions is a C call, and the runtime is built
+// without optimisation: the hot paths (obj_alloc, obj_free, obj_check) read and
+// write the headers with the intrinsics directly instead of small helpers, and
+// every helper returns through an out parameter, the runtime's convention.
+
+// ── locking ──────────────────────────────────────────────────────────────────
+
+private void ohLock() {
+    pointer cb = ObjHeapState.base
+    int ticket = 0
+    fly.runtime.__atomic_fetch_add_4(cb, 1, 4, ticket)
+    bool wait = true
+    while wait {
+        int serving = 0
+        fly.runtime.__atomic_load_4(cb + 4, 2, serving)
+        if serving == ticket {
+            wait = false
+        }
+    }
+}
+
+private void ohUnlock() {
+    pointer cb = ObjHeapState.base
+    int prev = 0
+    fly.runtime.__atomic_fetch_add_4(cb + 4, 1, 4, prev)
+}
+
+// ── bitmaps ──────────────────────────────────────────────────────────────────
+
+// ohBit — bit `i` of the bitmap at `bm`.
+private void ohBit(const pointer bm, const int i, bool out) {
+    long w = 0
+    fly.llvm.ptrReadLong(bm, (i >> 6) * 8, w)
+    long one = 1
+    long m = one << (i & 63)
+    out = (w & m) != 0
+}
+
+private void ohSetBit(const pointer bm, const int i, const bool on) {
+    int off = (i >> 6) * 8
+    long w = 0
+    fly.llvm.ptrReadLong(bm, off, w)
+    long one = 1
+    long m = one << (i & 63)
+    if on {
+        w = w | m
+    } else {
+        w = w & (m ^ (0 - one))
+    }
+    fly.llvm.ptrPokeLong(bm, off, w)
+}
+
+// ohClearSlot — slot `idx` of small span `s` leaves the live set: its three bits,
+// the span's live count and the totals.
+private void ohClearSlot(const pointer s, const int idx) {
+    int bmBytes = 0
+    fly.llvm.ptrReadInt(s, 84, bmBytes)
+    pointer bm = s + 128
+    ohSetBit(bm, idx, false)
+    ohSetBit(bm + bmBytes, idx, false)
+    ohSetBit(bm + 2 * bmBytes, idx, false)
+    int live = 0
+    fly.llvm.ptrReadInt(s, 16, live)
+    fly.llvm.ptrPokeInt(s, 16, live - 1)
+    int slotSize = 0
+    fly.llvm.ptrReadInt(s, 8, slotSize)
+    ohUncount(slotSize)
+}
+
+// ohUncount — one object of `bytes` less in the live totals.
+private void ohUncount(const long bytes) {
+    pointer cb = ObjHeapState.base
+    long n = 0
+    fly.llvm.ptrReadLong(cb, 32, n)
+    fly.llvm.ptrPokeLong(cb, 32, n - 1)
+    long t = 0
+    fly.llvm.ptrReadLong(cb, 40, t)
+    fly.llvm.ptrPokeLong(cb, 40, t - bytes)
+}
+
+// ── set-up ───────────────────────────────────────────────────────────────────
+
+// ohInit — reserve the region, commit its first MiB (the control block and the
+// first spans) and build the size-class tables. A region that cannot be
+// reserved turns the heap off: every object then comes from the system malloc.
+private void ohInit() {
+    long region = 68719476736                       // 64 GiB of address space
+    long span = 65536
+    pointer raw = 0
+    fly.runtime.vm_reserve((ulong)(region + span), raw)
+    if raw == 0 {
+        ObjHeapState.state = 2
+        return
+    }
+    long b = ((long)raw + span - 1) & (0 - span)
+    pointer cb = b
+    int ok = 0
+    fly.runtime.vm_commit(cb, 1048576, ok)
+    if ok == 0 {
+        fly.runtime.vm_release(raw, (ulong)(region + span))
+        ObjHeapState.state = 2
+        return
+    }
+    fly.llvm.ptrPokeLong(cb, 8, b + span)
+    fly.llvm.ptrPokeLong(cb, 16, b + 1048576)
+    fly.llvm.ptrPokeLong(cb, 24, b + region)
+    fly.llvm.ptrPokeLong(cb, 96, (long)raw)
+    fly.llvm.ptrPokeLong(cb, 104, region + span)
+    // the classes: 16..128 by 16, then about 25% steps to 2048
+    int c = 0
+    while c < 24 {
+        int size = 0
+        if c < 8 {
+            size = (c + 1) * 16
+        } else {
+            int group = (c - 8) / 4                  // 0: 128..256, 1: 256..512 …
+            int step = 32 << group
+            int start = 128 << group
+            size = start + ((c - 8) % 4 + 1) * step
+        }
+        // slots and bitmaps share the span: shrink the count until both fit
+        int n = 65536 / size
+        int bmBytes = ((n + 63) / 64) * 8
+        int first = (128 + 3 * bmBytes + 15) / 16 * 16
+        while first + n * size > 65536 {
+            n = n - 1
+            bmBytes = ((n + 63) / 64) * 8
+            first = (128 + 3 * bmBytes + 15) / 16 * 16
+        }
+        fly.llvm.ptrPokeInt(cb, 768 + 4 * c, size)
+        fly.llvm.ptrPokeInt(cb, 896 + 4 * c, n)
+        fly.llvm.ptrPokeInt(cb, 1024 + 4 * c, first)
+        fly.llvm.ptrPokeInt(cb, 1152 + 4 * c, bmBytes)
+        c = c + 1
+    }
+    // size → class, in 16-byte units (1..128)
+    int k = 1
+    int cls = 0
+    while k <= 128 {
+        bool small = true
+        while small {
+            int cs = 0
+            fly.llvm.ptrReadInt(cb, 768 + 4 * cls, cs)
+            if cs < k * 16 {
+                cls = cls + 1
+            } else {
+                small = false
+            }
+        }
+        fly.llvm.ptrPokeByte(cb, 1280 + k, (byte)cls)
+        k = k + 1
+    }
+    ObjHeapState.base = cb
+    ObjHeapState.top = b + region
+    ObjHeapState.state = 1
+}
+
+// ── spans ────────────────────────────────────────────────────────────────────
+
+// ohBump — `n` fresh spans from the never-used end of the region, committing
+// ahead a MiB at a time; 0 when the region is full or the system refuses.
+private void ohBump(const long n, pointer out) {
+    out = 0
+    pointer cb = ObjHeapState.base
+    long b = 0
+    fly.llvm.ptrReadLong(cb, 8, b)
+    long nb = b + n * 65536
+    long limit = 0
+    fly.llvm.ptrReadLong(cb, 24, limit)
+    if nb > limit {
+        return
+    }
+    long ct = 0
+    fly.llvm.ptrReadLong(cb, 16, ct)
+    while ct < nb {
+        long chunk = 1048576
+        if nb - ct > chunk {
+            chunk = nb - ct
+        }
+        if ct + chunk > limit {
+            chunk = limit - ct
+        }
+        pointer cp = ct
+        int ok = 0
+        fly.runtime.vm_commit(cp, (ulong)chunk, ok)
+        if ok == 0 {
+            return
+        }
+        ct = ct + chunk
+        fly.llvm.ptrPokeLong(cb, 16, ct)
+    }
+    fly.llvm.ptrPokeLong(cb, 8, nb)
+    out = b
+}
+
+// ohPartialPush / ohPartialRemove — the doubly linked list of class c's spans
+// that have a free slot and are not the class's current span.
+private void ohPartialPush(const pointer s, const int c) {
+    pointer cb = ObjHeapState.base
+    long head = 0
+    fly.llvm.ptrReadLong(cb, 512 + 8 * c, head)
+    fly.llvm.ptrPokeLong(s, 32, head)
+    fly.llvm.ptrPokeLong(s, 40, 0)
+    if head != 0 {
+        pointer h = head
+        fly.llvm.ptrPokeLong(h, 40, (long)s)
+    }
+    fly.llvm.ptrPokeLong(cb, 512 + 8 * c, (long)s)
+    fly.llvm.ptrPokeInt(s, 48, 1)
+}
+
+private void ohPartialRemove(const pointer s, const int c) {
+    int inList = 0
+    fly.llvm.ptrReadInt(s, 48, inList)
+    if inList == 0 {
+        return
+    }
+    pointer cb = ObjHeapState.base
+    long nx = 0
+    fly.llvm.ptrReadLong(s, 32, nx)
+    long pv = 0
+    fly.llvm.ptrReadLong(s, 40, pv)
+    if pv != 0 {
+        pointer pp = pv
+        fly.llvm.ptrPokeLong(pp, 32, nx)
+    } else {
+        fly.llvm.ptrPokeLong(cb, 512 + 8 * c, nx)
+    }
+    if nx != 0 {
+        pointer np = nx
+        fly.llvm.ptrPokeLong(np, 40, pv)
+    }
+    fly.llvm.ptrPokeInt(s, 48, 0)
+}
+
+// ohNewSmall — a span for class c: a pooled empty one (recommitted if it was
+// given back to the system), else a fresh one. Header and bitmaps zeroed.
+private void ohNewSmall(const int c, pointer out) {
+    pointer cb = ObjHeapState.base
+    pointer s = 0
+    long pool = 0
+    fly.llvm.ptrReadLong(cb, 72, pool)
+    long poolN = 0
+    fly.llvm.ptrReadLong(cb, 80, poolN)
+    if pool != 0 {
+        s = pool
+        long nx = 0
+        fly.llvm.ptrReadLong(s, 32, nx)
+        fly.llvm.ptrPokeLong(cb, 72, nx)
+        fly.llvm.ptrPokeLong(cb, 80, poolN - 1)
+        long committed = 0
+        fly.llvm.ptrReadLong(s, 64, committed)
+        if committed == 0 {
+            int ok = 0
+            fly.runtime.vm_commit(s + 16384, 49152, ok)
+            if ok == 0 {
+                // keep it pooled for later; take a fresh span instead
+                fly.llvm.ptrPokeLong(s, 32, nx)
+                fly.llvm.ptrPokeLong(cb, 72, (long)s)
+                fly.llvm.ptrPokeLong(cb, 80, poolN)
+                ohBump(1, s)
+            }
+        }
+    } else {
+        ohBump(1, s)
+    }
+    out = s
+    if s == 0 {
+        return
+    }
+    int first = 0
+    fly.llvm.ptrReadInt(cb, 1024 + 4 * c, first)
+    pointer hdrSize = first
+    fly.llvm.memset(s, 0, hdrSize)
+    int v = 0
+    fly.llvm.ptrPokeInt(s, 0, 1)
+    fly.llvm.ptrPokeInt(s, 4, c)
+    fly.llvm.ptrReadInt(cb, 768 + 4 * c, v)
+    fly.llvm.ptrPokeInt(s, 8, v)
+    fly.llvm.ptrReadInt(cb, 896 + 4 * c, v)
+    fly.llvm.ptrPokeInt(s, 12, v)
+    fly.llvm.ptrPokeInt(s, 52, first)
+    fly.llvm.ptrPokeLong(s, 56, 1)
+    fly.llvm.ptrPokeLong(s, 64, 1)
+    fly.llvm.ptrReadInt(cb, 1152 + 4 * c, v)
+    fly.llvm.ptrPokeInt(s, 84, v)
+}
+
+// ohRefill — class c's current span is full (or there is none): make a span
+// with a free slot current, a partial one first. 0 when the region is full.
+private void ohRefill(const int c, pointer out) {
+    pointer cb = ObjHeapState.base
+    long part = 0
+    fly.llvm.ptrReadLong(cb, 512 + 8 * c, part)
+    pointer s = part
+    if part != 0 {
+        ohPartialRemove(s, c)
+    } else {
+        ohNewSmall(c, s)
+    }
+    out = s
+    if s != 0 {
+        fly.llvm.ptrPokeLong(cb, 256 + 8 * c, (long)s)
+    }
+}
+
+// ohPoolSpan — an empty small span goes back to the pool; past 16 pooled spans
+// its slots are given back to the system (the header page stays: it links the
+// pool).
+private void ohPoolSpan(const pointer s) {
+    pointer cb = ObjHeapState.base
+    fly.llvm.ptrPokeInt(s, 0, 3)
+    long poolN = 0
+    fly.llvm.ptrReadLong(cb, 80, poolN)
+    if poolN >= 16 {
+        fly.runtime.vm_decommit(s + 16384, 49152)
+        fly.llvm.ptrPokeLong(s, 64, 0)
+    }
+    long pool = 0
+    fly.llvm.ptrReadLong(cb, 72, pool)
+    fly.llvm.ptrPokeLong(s, 32, pool)
+    fly.llvm.ptrPokeLong(cb, 72, (long)s)
+    fly.llvm.ptrPokeLong(cb, 80, poolN + 1)
+}
+
+// ── allocation ───────────────────────────────────────────────────────────────
+
+// ohLarge — an object above 2 KiB: a run of spans of its own, the object 128
+// bytes in (a freed run of enough spans first).
+private void ohLarge(const ulong size, const int kind, pointer out) {
+    out = 0
+    pointer cb = ObjHeapState.base
+    long need = (128 + (long)size + 65535) / 65536
+    pointer s = 0
+    long prev = 0
+    long it = 0
+    fly.llvm.ptrReadLong(cb, 88, it)
+    while it != 0 {
+        pointer r = it
+        long rc = 0
+        fly.llvm.ptrReadLong(r, 56, rc)
+        long nx = 0
+        fly.llvm.ptrReadLong(r, 32, nx)
+        if rc >= need {
+            if prev == 0 {
+                fly.llvm.ptrPokeLong(cb, 88, nx)
+            } else {
+                pointer pr = prev
+                fly.llvm.ptrPokeLong(pr, 32, nx)
+            }
+            s = r
+            it = 0
+        } else {
+            prev = it
+            it = nx
+        }
+    }
+    long count = need
+    if s != 0 {
+        fly.llvm.ptrReadLong(s, 56, count)
+        int ok = 0
+        fly.runtime.vm_commit(s + 16384, (ulong)(count * 65536 - 16384), ok)
+        if ok == 0 {
+            // back on the list; a fresh run instead
+            long head = 0
+            fly.llvm.ptrReadLong(cb, 88, head)
+            fly.llvm.ptrPokeLong(s, 32, head)
+            fly.llvm.ptrPokeLong(cb, 88, (long)s)
+            s = 0
+            count = need
+        }
+    }
+    if s == 0 {
+        ohBump(need, s)
+        if s == 0 {
+            return
+        }
+    }
+    pointer hdr128 = 128
+    fly.llvm.memset(s, 0, hdr128)
+    fly.llvm.ptrPokeInt(s, 0, 2)
+    fly.llvm.ptrPokeInt(s, 16, 1)
+    fly.llvm.ptrPokeLong(s, 56, count)
+    fly.llvm.ptrPokeInt(s, 72, kind)
+    fly.llvm.ptrPokeLong(s, 96, (long)size)
+    long n = 0
+    fly.llvm.ptrReadLong(cb, 32, n)
+    fly.llvm.ptrPokeLong(cb, 32, n + 1)
+    long t = 0
+    fly.llvm.ptrReadLong(cb, 40, t)
+    fly.llvm.ptrPokeLong(cb, 40, t + (long)size)
+    out = s + 128
+}
+
+// obj_alloc — `size` bytes for a class object; kind 1 = a `new shared` block
+// (16-byte count header, then the object). Not zeroed: the compiler clears the
+// object itself.
+public void obj_alloc(const ulong size, const int kind, pointer out) {
+    if ObjHeapState.state != 1 {
+        if ObjHeapState.state == 0 {
+            ohInit()
+        }
+        if ObjHeapState.state != 1 {
+            fly.runtime.malloc(size, out)
+            return
+        }
+    }
+    bool locked = ObjHeapState.threaded != 0
+    if locked {
+        ohLock()
+    }
+    pointer cb = ObjHeapState.base
+    pointer p = 0
+    if size <= 2048 {
+        int units = (int)((size + 15) / 16)
+        if units == 0 {
+            units = 1
+        }
+        byte cbyte = 0
+        fly.llvm.ptrByteAt(cb, 1280 + units, cbyte)
+        int c = cbyte & 255
+        long cur = 0
+        fly.llvm.ptrReadLong(cb, 256 + 8 * c, cur)
+        pointer s = cur
+        long fh = 0
+        int bi = 0
+        int count = 0
+        if cur != 0 {
+            fly.llvm.ptrReadLong(s, 24, fh)
+            fly.llvm.ptrReadInt(s, 20, bi)
+            fly.llvm.ptrReadInt(s, 12, count)
+        }
+        if fh == 0 && bi == count {
+            ohRefill(c, s)
+            if s != 0 {
+                fly.llvm.ptrReadLong(s, 24, fh)
+                fly.llvm.ptrReadInt(s, 20, bi)
+            }
+        }
+        if s != 0 {
+            int slotSize = 0
+            fly.llvm.ptrReadInt(s, 8, slotSize)
+            int first = 0
+            fly.llvm.ptrReadInt(s, 52, first)
+            int idx = 0
+            if fh != 0 {
+                p = fh
+                long nx = 0
+                fly.llvm.ptrReadLong(p, 0, nx)
+                fly.llvm.ptrPokeLong(s, 24, nx)
+                idx = (int)(((long)p - (long)s - first) / slotSize)
+            } else {
+                idx = bi
+                p = s + first + bi * slotSize
+                fly.llvm.ptrPokeInt(s, 20, bi + 1)
+            }
+            // live bit (and shared bit) of the slot
+            int woff = 128 + (idx >> 6) * 8
+            long one = 1
+            long m = one << (idx & 63)
+            long w = 0
+            fly.llvm.ptrReadLong(s, woff, w)
+            fly.llvm.ptrPokeLong(s, woff, w | m)
+            if kind == 1 {
+                int bmBytes = 0
+                fly.llvm.ptrReadInt(s, 84, bmBytes)
+                fly.llvm.ptrReadLong(s, woff + bmBytes, w)
+                fly.llvm.ptrPokeLong(s, woff + bmBytes, w | m)
+            }
+            int live = 0
+            fly.llvm.ptrReadInt(s, 16, live)
+            fly.llvm.ptrPokeInt(s, 16, live + 1)
+            long n = 0
+            fly.llvm.ptrReadLong(cb, 32, n)
+            fly.llvm.ptrPokeLong(cb, 32, n + 1)
+            long t = 0
+            fly.llvm.ptrReadLong(cb, 40, t)
+            fly.llvm.ptrPokeLong(cb, 40, t + slotSize)
+        }
+    } else {
+        ohLarge(size, kind, p)
+    }
+    if locked {
+        ohUnlock()
+    }
+    if p == 0 {
+        fly.runtime.malloc(size, out)
+        return
+    }
+    out = p
+}
+
+// ── release ──────────────────────────────────────────────────────────────────
+
+// ohSlot — the slot of small span `s` that `a` points at (its start, or 16 bytes
+// in for a shared block); -1 when `a` is not one.
+private void ohSlot(const pointer s, const long a, int out) {
+    out = 0 - 1
+    int first = 0
+    fly.llvm.ptrReadInt(s, 52, first)
+    int slotSize = 0
+    fly.llvm.ptrReadInt(s, 8, slotSize)
+    int bi = 0
+    fly.llvm.ptrReadInt(s, 20, bi)
+    long off = a - (long)s - first
+    if off < 0 {
+        return
+    }
+    long idx = off / slotSize
+    if idx >= bi {
+        return
+    }
+    long rest = off - idx * slotSize
+    if rest != 0 {
+        if rest != 16 {
+            return
+        }
+    }
+    out = (int)idx
+}
+
+// ohFreeSmall — slot `idx` of small span `s` goes back (lock held).
+private void ohFreeSmall(const pointer s, const int idx) {
+    pointer cb = ObjHeapState.base
+    ohClearSlot(s, idx)
+    long tearing = 0
+    fly.llvm.ptrReadLong(cb, 64, tearing)
+    if tearing != 0 {
+        return                          // teardown: nothing is reused, links stay out
+    }
+    int first = 0
+    fly.llvm.ptrReadInt(s, 52, first)
+    int slotSize = 0
+    fly.llvm.ptrReadInt(s, 8, slotSize)
+    pointer slot = s + first + idx * slotSize
+    long fh = 0
+    fly.llvm.ptrReadLong(s, 24, fh)
+    fly.llvm.ptrPokeLong(slot, 0, fh)
+    fly.llvm.ptrPokeLong(s, 24, (long)slot)
+    int c = 0
+    fly.llvm.ptrReadInt(s, 4, c)
+    long cur = 0
+    fly.llvm.ptrReadLong(cb, 256 + 8 * c, cur)
+    if cur == (long)s {
+        return
+    }
+    int live = 0
+    fly.llvm.ptrReadInt(s, 16, live)
+    if live == 0 {
+        ohPartialRemove(s, c)
+        ohPoolSpan(s)
+        return
+    }
+    int inList = 0
+    fly.llvm.ptrReadInt(s, 48, inList)
+    if inList == 0 {
+        ohPartialPush(s, c)
+    }
+}
+
+// ohFreeLarge — the run of large span `s` goes back (lock held).
+private void ohFreeLarge(const pointer s) {
+    int live = 0
+    fly.llvm.ptrReadInt(s, 16, live)
+    if live == 0 {
+        return
+    }
+    fly.llvm.ptrPokeInt(s, 16, 0)
+    long size = 0
+    fly.llvm.ptrReadLong(s, 96, size)
+    ohUncount(size)
+    pointer cb = ObjHeapState.base
+    long tearing = 0
+    fly.llvm.ptrReadLong(cb, 64, tearing)
+    if tearing != 0 {
+        return
+    }
+    long count = 0
+    fly.llvm.ptrReadLong(s, 56, count)
+    if count * 65536 > 16384 {
+        fly.runtime.vm_decommit(s + 16384, (ulong)(count * 65536 - 16384))
+    }
+    fly.llvm.ptrPokeInt(s, 0, 4)
+    long head = 0
+    fly.llvm.ptrReadLong(cb, 88, head)
+    fly.llvm.ptrPokeLong(s, 32, head)
+    fly.llvm.ptrPokeLong(cb, 88, (long)s)
+}
+
+// obj_free — give an object (or a shared block) back. Outside the region it is
+// the system's: free(). A slot already free is ignored here: `delete` checks
+// with obj_check first and traps.
+public void obj_free(const pointer p) {
+    if p == 0 {
+        return
+    }
+    long a = (long)p
+    int st = ObjHeapState.state
+    if st != 1 {
+        if st == 3 {
+            if a >= (long)ObjHeapState.base && a < ObjHeapState.top {
+                return
+            }
+        }
+        fly.runtime.free(p)
+        return
+    }
+    pointer cb = ObjHeapState.base
+    long bump = 0
+    fly.llvm.ptrReadLong(cb, 8, bump)
+    if a < (long)cb + 65536 || a >= bump {
+        fly.runtime.free(p)
+        return
+    }
+    bool locked = ObjHeapState.threaded != 0
+    if locked {
+        ohLock()
+    }
+    pointer s = a & (0 - 65536)
+    int kind = 0
+    fly.llvm.ptrReadInt(s, 0, kind)
+    if kind == 1 {
+        int idx = 0
+        ohSlot(s, a, idx)
+        if idx >= 0 {
+            long w = 0
+            fly.llvm.ptrReadLong(s, 128 + (idx >> 6) * 8, w)
+            long one = 1
+            long m = one << (idx & 63)
+            if (w & m) != 0 {
+                ohFreeSmall(s, idx)
+            }
+        }
+    } elsif kind == 2 {
+        ohFreeLarge(s)
+    }
+    if locked {
+        ohUnlock()
+    }
+}
+
+// obj_check — before an object is destroyed: 0 go on (live, or not ours);
+// 1 skip it (teardown is releasing it already); 2 it is not a live object (a
+// double delete, or a pointer that never came from `new`).
+public void obj_check(const pointer p, int out) {
+    out = 0
+    if ObjHeapState.state != 1 {
+        return
+    }
+    long a = (long)p
+    pointer cb = ObjHeapState.base
+    long bump = 0
+    fly.llvm.ptrReadLong(cb, 8, bump)
+    if a < (long)cb + 65536 || a >= bump {
+        return
+    }
+    long tearing = 0
+    fly.llvm.ptrReadLong(cb, 64, tearing)
+    int dead = 2
+    if tearing != 0 {
+        dead = 1
+    }
+    pointer s = a & (0 - 65536)
+    int kind = 0
+    fly.llvm.ptrReadInt(s, 0, kind)
+    if kind == 1 {
+        int idx = 0
+        ohSlot(s, a, idx)
+        if idx < 0 {
+            out = 2
+            return
+        }
+        long w = 0
+        fly.llvm.ptrReadLong(s, 128 + (idx >> 6) * 8, w)
+        long one = 1
+        long m = one << (idx & 63)
+        if (w & m) == 0 {
+            out = dead
+        }
+        return
+    }
+    if kind == 2 {
+        long off = a - (long)s
+        if off != 128 && off != 144 {
+            out = 2
+            return
+        }
+        int live = 0
+        fly.llvm.ptrReadInt(s, 16, live)
+        if live == 0 {
+            out = dead
+        }
+        return
+    }
+    out = dead
+}
+
+// obj_owned — 1 when `p` is a live plain object of the heap (not a shared block)
+// whose class was built by this compiler: what `handle` may delete as the
+// object of a consumed failure. 0 for anything else (a raw pointer, a shared
+// object, an object already deleted, a class of another vtable layout).
+public void obj_owned(const pointer p, int out) {
+    out = 0
+    if p == 0 {
+        return
+    }
+    int rc = 0
+    obj_check(p, rc)
+    if rc != 0 || ObjHeapState.state != 1 {
+        return
+    }
+    long a = (long)p
+    pointer cb = ObjHeapState.base
+    long bump = 0
+    fly.llvm.ptrReadLong(cb, 8, bump)
+    if a < (long)cb + 65536 || a >= bump {
+        return
+    }
+    pointer s = a & (0 - 65536)
+    int kind = 0
+    fly.llvm.ptrReadInt(s, 0, kind)
+    if kind == 1 {
+        int idx = 0
+        ohSlot(s, a, idx)
+        int bmBytes = 0
+        fly.llvm.ptrReadInt(s, 84, bmBytes)
+        bool shared = false
+        ohBit(s + 128 + bmBytes, idx, shared)
+        int first = 0
+        fly.llvm.ptrReadInt(s, 52, first)
+        int slotSize = 0
+        fly.llvm.ptrReadInt(s, 8, slotSize)
+        if shared || a != (long)s + first + idx * slotSize {
+            return
+        }
+    } else {
+        int sh = 0
+        fly.llvm.ptrReadInt(s, 72, sh)
+        if sh == 1 || a != (long)s + 128 {
+            return
+        }
+    }
+    pointer ti = 0
+    ohTypeInfo(p, ti)
+    if ti != 0 {
+        out = 1
+    }
+}
+
+// ── per-case accounting (suites) ─────────────────────────────────────────────
+
+// ohLive — the live object count (which = 0) or bytes (which = 1).
+private void ohLive(const int which, long out) {
+    out = 0
+    if ObjHeapState.state != 1 {
+        return
+    }
+    fly.llvm.ptrReadLong(ObjHeapState.base, 32 + 8 * which, out)
+}
+
+// obj_case_begin / obj_case_end — around a suite case: objects the case left
+// alive are reported under its result line. A warning: the case still passes.
+public void obj_case_begin() {
+    long n = 0
+    ohLive(0, n)
+    long bytes = 0
+    ohLive(1, bytes)
+    ObjHeapState.caseLive = n
+    ObjHeapState.caseBytes = bytes
+}
+
+public void obj_case_end() {
+    if ObjHeapState.quiet != 0 {
+        return
+    }
+    long n = 0
+    ohLive(0, n)
+    long bytes = 0
+    ohLive(1, bytes)
+    n = n - ObjHeapState.caseLive
+    if n <= 0 {
+        return
+    }
+    bytes = bytes - ObjHeapState.caseBytes
+    ohLit("      warning: ")
+    ohDec(n)
+    if n == 1 {
+        ohLit(" object not deleted (")
+    } else {
+        ohLit(" objects not deleted (")
+    }
+    ohDec(bytes)
+    ohLit(" B)\n")
+}
+
+// ── output (stderr; the report runs once, allocating is fine) ────────────────
+
+private void ohLit(const string s) {
+    pointer p = 0
+    fly.llvm.strGetPtr(s, p)
+    int n = 0
+    fly.llvm.strSize(s, n)
+    long w = 0
+    fly.runtime.io_write(2, p, (ulong)n, w)
+}
+
+private void ohCStr(const pointer s) {
+    int n = 0
+    bool go = true
+    while go {
+        byte b = 0
+        fly.llvm.ptrByteAt(s, n, b)
+        if b == 0 {
+            go = false
+        } else {
+            n = n + 1
+        }
+    }
+    long w = 0
+    fly.runtime.io_write(2, s, (ulong)n, w)
+}
+
+private void ohDec(const long v) {
+    pointer buf = 0
+    fly.runtime.malloc(24, buf)
+    long t = v
+    int i = 23
+    if t == 0 {
+        fly.llvm.ptrPokeByte(buf, i, 48)
+        i = i - 1
+    }
+    while t > 0 {
+        long d = t % 10
+        fly.llvm.ptrPokeByte(buf, i, (byte)(48 + d))
+        i = i - 1
+        t = t / 10
+    }
+    long w = 0
+    fly.runtime.io_write(2, buf + i + 1, (ulong)(23 - i), w)
+    fly.runtime.free(buf)
+}
+
+// ── teardown ─────────────────────────────────────────────────────────────────
+//
+// The generated end of `main` calls obj_teardown_begin (the report); when it
+// returns non-zero, three passes over the live objects, each started with
+// obj_iter(phase) and walked with obj_next, calling the object's release entry:
+//   1 mark   every object; its release entry (mode 2) calls obj_mark_child on
+//            each owned and held field, so the passes after know what is
+//            reachable from another leaked object;
+//   2 roots  the objects nothing marked: released whole (mode 1), so an object
+//            goes before what it owns (a writer flushes into its file first);
+//   3 rest   what is still live (cycles): released one by one.
+// obj_next takes the slot out of the live set BEFORE returning it, and while
+// tearing down a release that meets a slot already out skips it (obj_check 1):
+// an object reached twice, or a cycle, is released once. obj_teardown_end then
+// gives the region back.
+
+// ohObject — the object in a live slot (16 bytes in for a shared block); 0 for a
+// shared block whose object is gone (only weak references kept the counts).
+private void ohObject(const pointer slot, const bool shared, pointer out) {
+    out = slot
+    if shared {
+        long strong = 0
+        fly.llvm.ptrReadLong(slot, 0, strong)
+        if strong == 0 {
+            out = 0
+        } else {
+            out = slot + 16
+        }
+    }
+}
+
+// ohTypeInfo — the type info of an object built by this compiler: its vtable
+// carries the magic at -3 and the type info at -2. 0 for a class built by an
+// earlier release (another vtable layout).
+private void ohTypeInfo(const pointer obj, pointer out) {
+    out = 0
+    long vt = 0
+    fly.llvm.ptrReadLong(obj, 0, vt)
+    if vt == 0 {
+        return
+    }
+    pointer vp = vt - 24
+    long magic = 0
+    fly.llvm.ptrReadLong(vp, 0, magic)
+    if magic != 3561329519710792774 {         // "FlyVTbl1"
+        return
+    }
+    long ti = 0
+    fly.llvm.ptrReadLong(vp, 8, ti)
+    out = ti
+}
+
+// ohNextSpan — the span after `s` (a run counts its spans).
+private void ohNextSpan(const pointer s, long out) {
+    int kind = 0
+    fly.llvm.ptrReadInt(s, 0, kind)
+    long n = 1
+    if kind == 2 || kind == 4 {
+        fly.llvm.ptrReadLong(s, 56, n)
+    }
+    if n < 1 {
+        n = 1
+    }
+    out = (long)s + n * 65536
+}
+
+// ohSlotObject — slot `i` of span `s` when it holds a live object: the object
+// (0 otherwise). A large span has one slot, 0.
+private void ohSlotObject(const pointer s, const int i, pointer out) {
+    out = 0
+    int kind = 0
+    fly.llvm.ptrReadInt(s, 0, kind)
+    if kind == 1 {
+        bool live = false
+        ohBit(s + 128, i, live)
+        if live == false {
+            return
+        }
+        int bmBytes = 0
+        fly.llvm.ptrReadInt(s, 84, bmBytes)
+        int first = 0
+        fly.llvm.ptrReadInt(s, 52, first)
+        int slotSize = 0
+        fly.llvm.ptrReadInt(s, 8, slotSize)
+        bool shared = false
+        ohBit(s + 128 + bmBytes, i, shared)
+        ohObject(s + first + i * slotSize, shared, out)
+        return
+    }
+    if kind == 2 {
+        int live2 = 0
+        fly.llvm.ptrReadInt(s, 16, live2)
+        if live2 == 0 {
+            return
+        }
+        int sh = 0
+        fly.llvm.ptrReadInt(s, 72, sh)
+        ohObject(s + 128, sh == 1, out)
+    }
+}
+
+// ohSlots — how many slot indexes span `s` has (0 for pooled and freed spans).
+private void ohSlots(const pointer s, int out) {
+    out = 0
+    int kind = 0
+    fly.llvm.ptrReadInt(s, 0, kind)
+    if kind == 1 {
+        fly.llvm.ptrReadInt(s, 20, out)
+    } elsif kind == 2 {
+        out = 1
+    }
+}
+
+// ohObjectBytes — the size the report counts for object `o` of span `s`.
+private void ohObjectBytes(const pointer s, const pointer ti, long out) {
+    if ti != 0 {
+        fly.llvm.ptrReadLong(ti, 8, out)
+        return
+    }
+    int kind = 0
+    fly.llvm.ptrReadInt(s, 0, kind)
+    if kind == 2 {
+        fly.llvm.ptrReadLong(s, 96, out)
+        return
+    }
+    int slotSize = 0
+    fly.llvm.ptrReadInt(s, 8, slotSize)
+    out = slotSize
+}
+
+// ohAdd — count one object of type `ti` (0 = unknown layout) in the report table
+// (`cap` entries of { ti, count, bytes }, open addressing).
+private void ohAdd(const pointer tab, const int cap, const pointer ti, const long bytes) {
+    long h = ((long)ti >> 4) % cap
+    if h < 0 {
+        h = 0 - h
+    }
+    int i = (int)h
+    int tries = 0
+    while tries < cap {
+        pointer e = tab + i * 24
+        long k = 0
+        fly.llvm.ptrReadLong(e, 0, k)
+        long used = 0
+        fly.llvm.ptrReadLong(e, 8, used)
+        long sum = 0
+        fly.llvm.ptrReadLong(e, 16, sum)
+        if used == 0 {
+            fly.llvm.ptrPokeLong(e, 0, (long)ti)
+            fly.llvm.ptrPokeLong(e, 8, 1)
+            fly.llvm.ptrPokeLong(e, 16, bytes)
+            return
+        }
+        if k == (long)ti {
+            fly.llvm.ptrPokeLong(e, 8, used + 1)
+            fly.llvm.ptrPokeLong(e, 16, sum + bytes)
+            return
+        }
+        i = (i + 1) % cap
+        tries = tries + 1
+    }
+}
+
+// ohNameLess — whether the class name of type info `a` sorts before `b`'s
+// (an unknown layout, 0, sorts last).
+private void ohNameLess(const long a, const long b, bool out) {
+    out = false
+    if a == 0 {
+        return
+    }
+    if b == 0 {
+        out = true
+        return
+    }
+    pointer pa = a
+    pointer pb = b
+    long nal = 0
+    fly.llvm.ptrReadLong(pa, 0, nal)
+    long nbl = 0
+    fly.llvm.ptrReadLong(pb, 0, nbl)
+    pointer na = nal
+    pointer nb = nbl
+    int i = 0
+    bool go = true
+    while go {
+        byte x = 0
+        byte y = 0
+        fly.llvm.ptrByteAt(na, i, x)
+        fly.llvm.ptrByteAt(nb, i, y)
+        int xi = x & 255
+        int yi = y & 255
+        if xi != yi {
+            out = xi < yi
+            go = false
+        } elsif xi == 0 {
+            go = false
+        }
+        i = i + 1
+    }
+}
+
+// ohPrintTable — the report lines, most objects first, then by name.
+private void ohPrintTable(const pointer tab, const int cap) {
+    bool more = true
+    while more {
+        int best = 0 - 1
+        long bestCount = 0
+        long bestTi = 0
+        int j = 0
+        while j < cap {
+            pointer e = tab + j * 24
+            long cnt = 0
+            fly.llvm.ptrReadLong(e, 8, cnt)
+            long eti = 0
+            fly.llvm.ptrReadLong(e, 0, eti)
+            if cnt > 0 {
+                bool take = false
+                if best < 0 || cnt > bestCount {
+                    take = true
+                } elsif cnt == bestCount {
+                    ohNameLess(eti, bestTi, take)
+                }
+                if take {
+                    best = j
+                    bestCount = cnt
+                    bestTi = eti
+                }
+            }
+            j = j + 1
+        }
+        if best < 0 {
+            more = false
+        } else {
+            pointer w = tab + best * 24
+            ohLit("  ")
+            if bestTi == 0 {
+                ohLit("(a class built by an earlier compiler)")
+            } else {
+                pointer wp = bestTi
+                long npl = 0
+                fly.llvm.ptrReadLong(wp, 0, npl)
+                pointer np = npl
+                ohCStr(np)
+            }
+            ohLit(" x")
+            ohDec(bestCount)
+            ohLit(", ")
+            long wb = 0
+            fly.llvm.ptrReadLong(w, 16, wb)
+            ohDec(wb)
+            ohLit(" B\n")
+            fly.llvm.ptrPokeLong(w, 8, 0)
+        }
+    }
+}
+
+// ohReport — print what is still live, by class; out = how many objects there
+// are (unknown layouts included).
+private void ohReport(long out) {
+    out = 0
+    pointer cb = ObjHeapState.base
+    int cap = 4096
+    pointer tab = 0
+    fly.runtime.malloc((ulong)(cap * 24), tab)
+    pointer tabSize = cap * 24
+    fly.llvm.memset(tab, 0, tabSize)
+    long totalBytes = 0
+    long s = (long)cb + 65536
+    long end = 0
+    fly.llvm.ptrReadLong(cb, 8, end)
+    while s < end {
+        pointer sp = s
+        int n = 0
+        ohSlots(sp, n)
+        int i = 0
+        while i < n {
+            pointer o = 0
+            ohSlotObject(sp, i, o)
+            if o != 0 {
+                pointer ti = 0
+                ohTypeInfo(o, ti)
+                long bytes = 0
+                ohObjectBytes(sp, ti, bytes)
+                ohAdd(tab, cap, ti, bytes)
+                out = out + 1
+                totalBytes = totalBytes + bytes
+            }
+            i = i + 1
+        }
+        ohNextSpan(sp, s)
+    }
+    if out > 0 {
+        ohLit("warning: ")
+        ohDec(out)
+        if out == 1 {
+            ohLit(" object not deleted (")
+        } else {
+            ohLit(" objects not deleted (")
+        }
+        ohDec(totalBytes)
+        ohLit(" B)\n")
+        ohPrintTable(tab, cap)
+    }
+    fly.runtime.free(tab)
+}
+
+// obj_teardown_begin — the end of `main`: report the objects not deleted, enter
+// teardown, and return how many there are (0: nothing more to do).
+public void obj_teardown_begin(long out) {
+    out = 0
+    if ObjHeapState.state != 1 || ObjHeapState.quiet != 0 {
+        return
+    }
+    ohReport(out)
+    fly.llvm.ptrPokeLong(ObjHeapState.base, 64, 1)
+}
+
+// obj_iter — start pass `phase` (1 mark, 2 roots, 3 rest) at the first span.
+public void obj_iter(const int phase) {
+    if ObjHeapState.state != 1 {
+        return
+    }
+    pointer cb = ObjHeapState.base
+    fly.llvm.ptrPokeLong(cb, 112, (long)cb + 65536)
+    fly.llvm.ptrPokeLong(cb, 120, 0)
+    fly.llvm.ptrPokeLong(cb, 128, phase)
+}
+
+// ohTake — pass `phase` meets slot `idx` of `s` holding the live object `o`:
+// whether it hands `o` out. Roots and rest take the slot out of the live set
+// first; an object of an unknown layout is only taken out (nothing generated
+// can release it), never handed out.
+private void ohTake(const pointer s, const int idx, const pointer o, const int phase, bool out) {
+    pointer ti = 0
+    ohTypeInfo(o, ti)
+    out = ti != 0
+    int kind = 0
+    fly.llvm.ptrReadInt(s, 0, kind)
+    if phase == 1 {
+        return
+    }
+    if phase == 2 {
+        bool child = false
+        if kind == 1 {
+            int bmBytes = 0
+            fly.llvm.ptrReadInt(s, 84, bmBytes)
+            ohBit(s + 128 + 2 * bmBytes, idx, child)
+        } else {
+            int c2 = 0
+            fly.llvm.ptrReadInt(s, 76, c2)
+            child = c2 != 0
+        }
+        if child {
+            out = false
+            return
+        }
+    }
+    if kind == 1 {
+        ohClearSlot(s, idx)
+    } else {
+        fly.llvm.ptrPokeInt(s, 16, 0)
+        long size = 0
+        fly.llvm.ptrReadLong(s, 96, size)
+        ohUncount(size)
+    }
+}
+
+// obj_next — the next object of the current pass, 0 when it is over.
+public void obj_next(pointer out) {
+    out = 0
+    if ObjHeapState.state != 1 {
+        return
+    }
+    pointer cb = ObjHeapState.base
+    long phl = 0
+    fly.llvm.ptrReadLong(cb, 128, phl)
+    int phase = (int)phl
+    long s = 0
+    fly.llvm.ptrReadLong(cb, 112, s)
+    long il = 0
+    fly.llvm.ptrReadLong(cb, 120, il)
+    int i = (int)il
+    long end = 0
+    fly.llvm.ptrReadLong(cb, 8, end)
+    while s < end {
+        pointer sp = s
+        int n = 0
+        ohSlots(sp, n)
+        while i < n {
+            pointer o = 0
+            ohSlotObject(sp, i, o)
+            if o != 0 {
+                bool give = false
+                ohTake(sp, i, o, phase, give)
+                if give {
+                    fly.llvm.ptrPokeLong(cb, 112, s)
+                    fly.llvm.ptrPokeLong(cb, 120, i + 1)
+                    out = o
+                    return
+                }
+            }
+            i = i + 1
+        }
+        ohNextSpan(sp, s)
+        i = 0
+    }
+    fly.llvm.ptrPokeLong(cb, 112, s)
+    fly.llvm.ptrPokeLong(cb, 120, 0)
+}
+
+// obj_mark_child — pass 1: `p` (an object or null) is owned or held by another
+// live object.
+public void obj_mark_child(const pointer p) {
+    if p == 0 {
+        return
+    }
+    if ObjHeapState.state != 1 {
+        return
+    }
+    long a = (long)p
+    pointer cb = ObjHeapState.base
+    long bump = 0
+    fly.llvm.ptrReadLong(cb, 8, bump)
+    if a < (long)cb + 65536 || a >= bump {
+        return
+    }
+    pointer s = a & (0 - 65536)
+    int kind = 0
+    fly.llvm.ptrReadInt(s, 0, kind)
+    if kind == 1 {
+        int idx = 0
+        ohSlot(s, a, idx)
+        if idx >= 0 {
+            int bmBytes = 0
+            fly.llvm.ptrReadInt(s, 84, bmBytes)
+            ohSetBit(s + 128 + 2 * bmBytes, idx, true)
+        }
+    } elsif kind == 2 {
+        fly.llvm.ptrPokeInt(s, 76, 1)
+    }
+}
+
+// obj_teardown_end — the region goes back to the system. A pointer into it that
+// still reaches obj_free afterwards is ignored.
+public void obj_teardown_end() {
+    if ObjHeapState.state != 1 {
+        return
+    }
+    pointer cb = ObjHeapState.base
+    long rawl = 0
+    fly.llvm.ptrReadLong(cb, 96, rawl)
+    long rawSize = 0
+    fly.llvm.ptrReadLong(cb, 104, rawSize)
+    pointer raw = rawl
+    ObjHeapState.state = 3
+    fly.runtime.vm_release(raw, (ulong)rawSize)
+}

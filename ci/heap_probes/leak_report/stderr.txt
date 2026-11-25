@@ -1,0 +1,4 @@
+warning: 6 objects not deleted (120 B)
+  probe.heap.Leaf x4, 64 B
+  fly.data.List<string> x1, 40 B
+  probe.heap.Owner x1, 16 B

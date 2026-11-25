@@ -1,3 +1,5 @@
+namespace fly.lsp
+
 import fly.os.io
 import fly.lsp.LspServer
 
@@ -8,6 +10,8 @@ import fly.lsp.LspServer
 // terminators — either alone permanently desyncs the Content-Length framing.
 // They are no-ops on POSIX.
 void main() {
+    // the server keeps the compiler's AST and Sema alive: no report at exit
+    fly.runtime.obj_quiet()
     io.setBinaryMode(0)
     io.setBinaryMode(1)
     LspServer server = new unique LspServer()

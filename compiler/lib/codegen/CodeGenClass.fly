@@ -311,7 +311,7 @@ public class CodeGenClass {
             slots.set(0, dirG)
         }
 
-        // Two entries sit BEFORE the address point, where an object's vtable pointer
+        // Three entries sit BEFORE the address point, where an object's vtable pointer
         // points (the itable directory, slot 0):
         //   vt[-1]  the release entry `@__fly_destroy.<Class>` (CodeGenModule.destroyFn):
         //           `delete` and the last release of a `new shared` object call it,
@@ -319,7 +319,11 @@ public class CodeGenClass {
         //           and weak field of the real object, also through a base or an
         //           interface reference (fly-lang/fly#202);
         //   vt[-2]  the type info `{ ptr name, i64 size }` (fly-lang/fly#235 reports
-        //           undeleted objects by class with it).
+        //           undeleted objects by class with it);
+        //   vt[-3]  the magic word "FlyVTbl1": the end-of-main teardown trusts -2
+        //           and -1 only when it is there, since an object of a class built
+        //           by an earlier release (a package, the seed's archive) has a
+        //           vtable without these entries.
         // Negative, so slot 0 and every method slot keep their index: a class built
         // by an earlier release (the seed, a package) still dispatches its methods.
         // An interface is never the dynamic class: both entries are null there.
@@ -327,7 +331,9 @@ public class CodeGenClass {
         if cls.getClassKind() == SemaClassKind.INTERFACE {
             all.add(nullSlot)
             all.add(nullSlot)
+            all.add(nullSlot)
         } else {
+            all.add(vtableMagic(cgm))
             all.add(typeInfo(cgm, cls))
             all.add(cgm.destroyFn(cls))
         }
@@ -353,19 +359,84 @@ public class CodeGenClass {
             llvm.setLinkage(g, 3)
             cgm.setWeakComdat(g, vtableName(cls))
         }
-        // the address point: element 2, past the two entries above
+        // the address point: element 3, past the three entries above
         pointer i64Ty
         llvm.int64TypeInContext(cgm.getCtx(), i64Ty)
         pointer zero
         llvm.constInt(i64Ty, 0, false, zero)
-        pointer two
-        llvm.constInt(i64Ty, 2, false, two)
+        pointer three
+        llvm.constInt(i64Ty, 3, false, three)
         List<pointer> apIdx = new List<pointer>()
         apIdx.add(zero)
-        apIdx.add(two)
+        apIdx.add(three)
         pointer ap
         cg.constInBoundsGEP2N(arrTy, g, apIdx, ap)
         cls.setLlvmVTable(ap)
+    }
+
+    // displayName — the class as the teardown report prints it: the dotted
+    // namespace (none in the default one), the name, and a specialization's type
+    // arguments (`fly.data.List<string>`).
+    public static string displayName(const SemaClassType cls) {
+        string qual = cls.getName()
+        SemaModule m = cls.getModule()
+        if m != null {
+            ASTModule am = m.getAST()
+            if am != null {
+                ASTNameSpace ns = am.getNameSpace()
+                if ns != null {
+                    List<ASTName> names = ns.getNames()
+                    string dotted = ""
+                    int i = 0
+                    while i < names.size() {
+                        if i > 0 {
+                            dotted = str.concat(dotted, ".")
+                        }
+                        dotted = str.concat(dotted, names.get(i).getName())
+                        i = i + 1
+                    }
+                    if str.len(dotted) > 0 {
+                        qual = str.concat(dotted, str.concat(".", qual))
+                    }
+                }
+            }
+        }
+        List<SemaType> args = cls.getTypeArgs()
+        if args != null {
+            if args.size() > 0 {
+                string list = ""
+                int j = 0
+                while j < args.size() {
+                    if j > 0 {
+                        list = str.concat(list, ", ")
+                    }
+                    SemaType ta = args.get(j)
+                    SemaClassType tc = ta.asClass()
+                    if tc != null {
+                        list = str.concat(list, displayName(tc))
+                    } else {
+                        list = str.concat(list, ta.str())
+                    }
+                    j = j + 1
+                }
+                qual = str.concat(qual, str.concat("<", str.concat(list, ">")))
+            }
+        }
+        return qual
+    }
+
+    // vtableMagic — entry -3 of every class vtable: the 64-bit word "FlyVTbl1"
+    // (little-endian bytes), as a pointer constant. The runtime's teardown
+    // (runtime/lib/ObjHeap.fly) compares it before reading -2 and -1.
+    public static pointer vtableMagic(const CodeGenModule cgm) {
+        LLVM llvm = cgm.getCg().getLLVM()
+        pointer i64Ty
+        llvm.int64TypeInContext(cgm.getCtx(), i64Ty)
+        pointer mv
+        llvm.constInt(i64Ty, 3561329519710792774, true, mv)
+        pointer pv
+        llvm.constIntToPtr(mv, cgm.getTypes().ptrType(), pv)
+        return pv
     }
 
     // typeInfo — `@typeinfo.<ns>.<Class> = constant { ptr, i64 } { "<ns>.<Class>", size }`,
@@ -377,12 +448,8 @@ public class CodeGenClass {
         pointer ptrTy = cgm.getTypes().ptrType()
         pointer i64Ty
         llvm.int64TypeInContext(cgm.getCtx(), i64Ty)
-        string ns = SemaBuilder.classNsFlat(cls)
-        string qual = cls.getName()
-        if str.len(ns) > 0 {
-            qual = str.concat(ns, str.concat(".", qual))
-        }
-        List<pointer> elems = new List<pointer>()
+        string qual = displayName(cls)
+        List<pointer> elems = new unique List<pointer>()
         elems.add(ptrTy)
         elems.add(i64Ty)
         pointer tiTy
@@ -607,8 +674,7 @@ public class CodeGenClass {
         }
         SemaClassMethod ctor = cls.getDefaultConstructor()
 
-        pointer obj
-        llvm.buildMalloc(b, structTy, "anew.obj", obj)
+        pointer obj = allocObject(cge, structTy)
 
         if cls.isFromHeader() {
             // Header classes follow the reference protocol: the archive-defined
@@ -701,7 +767,7 @@ public class CodeGenClass {
         } elsif node.getAST().getCallKind() == ASTCallKind.CALL_NEW_SHARED {
             obj = allocShared(cge, structTy)
         } else {
-            llvm.buildMalloc(b, structTy, "obj", obj)
+            obj = allocObject(cge, structTy)
         }
 
         if headerClass {
@@ -981,11 +1047,14 @@ public class CodeGenClass {
             if oc2 != null {
                 pointer sty2 = oc2.getLlvmStructType()
                 if sty2 != 0 {
+                    // a class result: the callee stores its object's pointer
+                    // into the slot, null until it does (a failing callee
+                    // leaves it null)
                     pointer target2
                     if oc2.getClassKind() == SemaClassKind.STRUCT {
                         llvm.buildAlloca(b, sty2, "outobj", target2)
                     } else {
-                        llvm.buildMalloc(b, sty2, "outobj", target2)
+                        llvm.constPointerNull(cge.ptrType(), target2)
                     }
                     llvm.buildStore(b, target2, outPtr)
                 }
@@ -1144,6 +1213,14 @@ public class CodeGenClass {
     //   CLASS:  1 + position in the FLATTENED list (slot 0 = vtable) — inherited
     //           fields included, which the old header layout could not reach;
     //   STRUCT: plain position (no vtable slot).
+    // allocObject — memory for a class object, from the runtime's object heap
+    // (fly-lang/fly#235): what `new` and `new unique` allocate; not zeroed.
+    public static pointer allocObject(const CodeGenExpr cge, const pointer structTy) {
+        pointer szVal
+        cge.getLLVM().sizeOf(structTy, szVal)
+        return cge.getCgm().objAlloc(szVal, 0)
+    }
+
     // allocShared — memory for a `new shared` object: a 16-byte header (strong count
     // 1, weak count 0) followed by the object, whose address is returned. Freed
     // from the header by the last release (CodeGenStmt.emitReleaseBody).
@@ -1161,7 +1238,7 @@ public class CodeGenClass {
         llvm.constInt(i64Ty, 16, false, sixteen)
         pointer total
         llvm.buildAdd(b, objSize, sixteen, "shsize", total)
-        pointer hdr = cgm.emitMalloc(total)
+        pointer hdr = cgm.objAlloc(total, 1)
         pointer one
         llvm.constInt(i64Ty, 1, false, one)
         llvm.buildStore(b, one, hdr)

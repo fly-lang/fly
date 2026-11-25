@@ -59,10 +59,11 @@ suite CodeGenClassSuite {
                     fail s
                 }
             ")
-            assert.assertTrue(str.contains(ir, "@malloc"), 21)
-            // the object points at the vtable's address point, past the type info
-            // and the release entry (fly-lang/fly#202)
-            assert.assertTrue(str.contains(ir, "ptr @vtable..Point, i64 0, i64 2)"), 22)
+            // the object comes from the runtime's object heap (fly-lang/fly#235)
+            assert.assertTrue(str.contains(ir, "@obj_alloc"), 21)
+            // the object points at the vtable's address point, past the magic word,
+            // the type info and the release entry (fly-lang/fly#202, #235)
+            assert.assertTrue(str.contains(ir, "ptr @vtable..Point, i64 0, i64 3)"), 22)
             assert.assertTrue(str.contains(ir, "call void @Point_F0"), 23)
         }
     }

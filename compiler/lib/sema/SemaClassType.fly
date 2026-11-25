@@ -60,6 +60,7 @@ public class SemaClassType : SemaType {
     Map<string, SemaClassType> specializations
     List<SemaClassType> specializationList   // ordered specializations (Map has no iteration; for codegen)
     SemaClassType genericTemplate
+    List<SemaType> typeArgs      // a specialization's type arguments (empty otherwise)
     string mangledName
     pointer llvmStructType   // CodeGen back-pointer: the LLVM struct type (null until codegen'd)
     pointer llvmVTable       // CodeGen back-pointer: the LLVM vtable global (null until codegen'd)
@@ -274,6 +275,14 @@ public class SemaClassType : SemaType {
     }
     public void setGenericTemplate(const SemaClassType t) {
         this.genericTemplate = t
+    }
+    // getTypeArgs — the type arguments of a specialization (`string` for
+    // List<string>); null for a class that is not one.
+    public List<SemaType> getTypeArgs() {
+        return this.typeArgs
+    }
+    public void setTypeArgs(const List<SemaType> args) {
+        this.typeArgs = args
     }
     public Map<string, SemaClassType> getSpecializations() {
         return this.specializations

@@ -1,0 +1,25 @@
+// The object of a failure belongs to the error: a `handle` that consumes the
+// failure deletes it (fly-lang/fly#235), so a hundred thousand handled
+// failures leave nothing for the end-of-main report.
+public class Problem {
+
+    int code
+
+    public Problem(const int code) {
+        this.code = code
+    }
+}
+
+void check(const int i) {
+    fail 3, new Problem(i)
+}
+
+void main() {
+    int i = 0
+    while i < 100000 {
+        handle {
+            check(i)
+        }
+        i = i + 1
+    }
+}

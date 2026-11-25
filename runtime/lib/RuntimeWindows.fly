@@ -38,9 +38,13 @@ public void WriteFile(const pointer h, const pointer buf, const int n, const poi
         int out) {}
 // process / thread
 public void ExitProcess(const int code) {}
+public void exit(const int code) {}             // proc_exit: runs the atexit handlers (the object heap teardown)
 // crash report (crash_init)
 public void SetUnhandledExceptionFilter(const pointer filter, pointer out) {}
 public void SetThreadStackGuarantee(const pointer size, int out) {}
+// object heap (ObjHeap.fly)
+public void VirtualAlloc(const pointer addr, const ulong size, const int type, const int protect, pointer out) {}
+public void VirtualFree(const pointer addr, const ulong size, const int type, int out) {}
 public void CreateThread(const pointer attrs, const ulong stack, const pointer start, const pointer param,
         const int flags, const pointer threadId, pointer out) {}
 public void CloseHandle(const pointer h, int out) {}
@@ -156,6 +160,32 @@ public void asinh(const double x, double out) {}
 public void acosh(const double x, double out) {}
 public void atanh(const double x, double out) {}
 
+// ── Object heap: virtual memory (ObjHeap.fly) ─────────────────────────────────
+
+public void vm_reserve(const ulong size, pointer out) {
+    fly.runtime.VirtualAlloc(0, size, 8192, 1, out)                // MEM_RESERVE, PAGE_NOACCESS
+}
+
+public void vm_commit(const pointer p, const ulong size, int out) {
+    pointer q = 0
+    fly.runtime.VirtualAlloc(p, size, 4096, 4, q)                  // MEM_COMMIT, PAGE_READWRITE
+    if q == 0 {
+        out = 0
+    } else {
+        out = 1
+    }
+}
+
+public void vm_decommit(const pointer p, const ulong size) {
+    int ok = 0
+    fly.runtime.VirtualFree(p, size, 16384, ok)                    // MEM_DECOMMIT
+}
+
+public void vm_release(const pointer p, const ulong size) {
+    int ok = 0
+    fly.runtime.VirtualFree(p, 0, 32768, ok)                       // MEM_RELEASE: the whole reservation
+}
+
 // ── Memory ────────────────────────────────────────────────────────────────────
 public void mem_alloc(const ulong size, pointer out) {
     ulong s = size
@@ -210,6 +240,13 @@ public void io_write(const int fd, const pointer buf, const ulong count, long ou
 
 // ── Process ───────────────────────────────────────────────────────────────────
 public void proc_exit(const int code) {
+    fly.runtime.exit(code)
+}
+
+// proc_abort — end the process now, WITHOUT the atexit handlers: a run-time trap
+// (null reference, overflow, double delete…) stops a program whose state is
+// broken, so the object heap's end-of-main teardown must not run its releases.
+public void proc_abort(const int code) {
     fly.runtime.ExitProcess(code)
 }
 
@@ -1442,6 +1479,7 @@ private void appendCStrPath(const pointer buf, const int pos, const pointer src,
     nextpos = p
 }
 public void thread_spawn(const pointer fn, const pointer arg, const ulong stackSize, int out) {
+    objHeapThreaded()                    // alloc and free lock from now on
     pointer tidp = 0
     fly.runtime.malloc(4, tidp)
     pointer h = 0

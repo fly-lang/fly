@@ -126,7 +126,7 @@ suite CodeGenInheritanceSuite {
     // release entry (-1) that frees the class's owning fields; `delete` through a
     // base reference loads entry -1 instead of releasing the base's fields only.
     void releaseTest() {
-        case "vtable = [typeinfo, release entry, itables, methods]; delete calls entry -1": {
+        case "vtable = [magic, typeinfo, release entry, itables, methods]; delete calls entry -1": {
             string ir = cgIR("
                 public class Res { public Res() { } }
                 public class Animal { public Animal() { }
@@ -141,7 +141,9 @@ suite CodeGenInheritanceSuite {
             ")
             assert.assertTrue(str.contains(ir, "define linkonce_odr void @__fly_destroy..Dog(ptr"), 51)
             assert.assertTrue(str.contains(ir, "@typeinfo..Dog = constant { ptr, i64 }"), 52)
-            assert.assertTrue(str.contains(ir, "[ptr @typeinfo..Dog, ptr @__fly_destroy..Dog, ptr null"), 53)
+            // -3 the magic word, -2 the type info, -1 the release entry
+            string head = "[ptr inttoptr (i64 3561329519710792774 to ptr), "
+            assert.assertTrue(str.contains(ir, str.concat(head, "ptr @typeinfo..Dog, ptr @__fly_destroy..Dog, ptr null")), 53)
             // the drop of an Animal reads the entry at -1 of the object's vtable
             assert.assertTrue(str.contains(ir, "getelementptr ptr, ptr %vt, i64 -1"), 54)
             // Dog's entry releases the field only Dog declares

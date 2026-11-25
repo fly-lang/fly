@@ -1,0 +1,68 @@
+// Two `new shared` objects holding each other: their counts never reach zero, so
+// the end-of-main teardown reports them and then releases each exactly once
+// (fly-lang/fly#235). free() prints, so a second release would show.
+import fly.os.io
+
+public class Peer {
+
+    Peer other
+    string name
+
+    public Peer(const string name) {
+        this.name = name
+    }
+
+    // adopt — a new peer this one holds: storing `new shared` into the field is
+    // what makes `other` a holding field
+    public void adopt(const string name) {
+        Peer p = new shared Peer(name)
+        this.other = p
+    }
+
+    // holdA / holdB — a copy out of a holding field is a holder: the peer holds
+    // the other one the box holds
+    public void holdA(Box k) {
+        Peer h = k.getA()
+        this.other = h
+    }
+
+    public void holdB(Box k) {
+        Peer h = k.getB()
+        this.other = h
+    }
+
+    public void free() {
+        io.printLn(this.name)
+    }
+}
+
+public class Box {
+
+    Peer a
+    Peer b
+
+    public Box() {
+        Peer x = new shared Peer("released a")
+        Peer y = new shared Peer("released b")
+        this.a = x
+        this.b = y
+    }
+
+    public Peer getA() {
+        Peer c = this.a
+        return c
+    }
+
+    public Peer getB() {
+        Peer c = this.b
+        return c
+    }
+}
+
+void main() {
+    Box k = new unique Box()
+    Peer a = k.getA()
+    Peer b = k.getB()
+    a.holdB(k)
+    b.holdA(k)
+}

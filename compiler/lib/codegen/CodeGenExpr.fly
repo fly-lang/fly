@@ -934,6 +934,10 @@ public class CodeGenExpr : SemaVisitor {
         pointer errSlot = this.errPtr
         this.cgm.zeroErrSlot(errSlot)
         this.cgm.incrSuiteCounter(this.cgm.suiteCounter("__fly_suite_total"))
+        // objects the case leaves alive are reported under its result line
+        List<pointer> noTy = new unique List<pointer>()
+        List<pointer> noArg = new unique List<pointer>()
+        this.cgm.callVoidRt("obj_case_begin", noTy, noArg)
 
         // Run the body under the fail-fast target (this.errPtr stays the method slot).
         pointer endBB = this.newBlock(str.concat("case.end.", label))
@@ -963,6 +967,7 @@ public class CodeGenExpr : SemaVisitor {
         resArgs.add(endCode)
         resArgs.add(endMsg)
         this.cgm.callVoidRt("suite_case_result", resTy, resArgs)
+        this.cgm.callVoidRt("obj_case_end", noTy, noArg)
 
         // On failure, count it and clear the slot before the next case.
         pointer hasErr

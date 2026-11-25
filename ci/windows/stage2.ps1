@@ -45,10 +45,12 @@ if ($LASTEXITCODE -ne 0) { Write-Host "error: build_stage2.ps1 failed (exit $LAS
 # can see a check that went missing - suites only compile valid programs.
 # test_traps: a run-time error (a null reference) must stop the program with its
 # diagnostic. No suite can see a trap that went missing - suites run valid programs.
+# test_heap: the object heap reports, at the end of main, the objects a program
+# never deleted, and releases them (fly-lang/fly#235).
 # test_fly_build: build\stage2 is a toolchain of its own (bare PATH, no option),
 # and a project built with `fly build` reads its own manifest.
-foreach ($step in 'test_lsp', 'test_registry', 'test_tools', 'test_abi', 'test_sema', 'test_traps', 'test_leaks',
-                  'test_dbg', 'test_fly_build') {
+foreach ($step in 'test_lsp', 'test_registry', 'test_tools', 'test_abi', 'test_sema', 'test_traps', 'test_heap',
+                  'test_leaks', 'test_dbg', 'test_fly_build') {
     & ".\ci\windows\$step.ps1"
     if ($LASTEXITCODE -ne 0) { Write-Host "error: $step.ps1 failed (exit $LASTEXITCODE)"; exit 1 }
 }

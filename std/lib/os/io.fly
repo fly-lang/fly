@@ -306,6 +306,16 @@ public class BufWriter : Writer {
         }
         this.inner.close()
     }
+
+    // free — a BufWriter deleted, or released at the end of main because nobody
+    // deleted it, still holding bytes: they are written out and the writer closed,
+    // as close() does. Buffered output is never dropped silently. Nothing to do
+    // once closed.
+    public void free() {
+        if this.buf_ptr != 0 {
+            this.close()
+        }
+    }
 }
 
 // writeFd — write all n bytes at p to fd: n on success, -1 on an error. A write

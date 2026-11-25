@@ -1,0 +1,37 @@
+// Objects never deleted are counted by class at the end of main, most first,
+// then by name (fly-lang/fly#235): the namespace is dotted, a specialization
+// carries its type arguments, an object owned by a leaked one counts too, and
+// the exit code does not change.
+namespace probe.heap
+
+import fly.data.List
+
+public class Leaf {
+
+    int v
+
+    public Leaf() {
+    }
+}
+
+public class Owner {
+
+    Leaf mine
+
+    public Owner() {
+        this.mine = new unique Leaf()
+    }
+}
+
+void main() {
+    int i = 0
+    while i < 3 {
+        Leaf l = new Leaf()
+        i = i + 1
+    }
+    Owner o = new Owner()
+    List<string> names = new List<string>()
+    names.add("kept")
+    Leaf gone = new Leaf()
+    delete gone
+}

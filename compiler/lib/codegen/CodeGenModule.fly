@@ -227,6 +227,66 @@ public class CodeGenModule {
         this.cg.buildCallN(this.builder, this.freeFnTy, this.freeFn, args, "", cv)
     }
 
+    // callRt — declare (get-or-add) and call a C-ABI runtime function returning
+    // `retTy`: the value of the call (callVoidRt for a void one).
+    public pointer callRt(const string name, const pointer retTy, const List<pointer> paramTys,
+            const List<pointer> args) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer fnTy
+        this.cg.functionTypeN(retTy, paramTys, false, fnTy)
+        pointer fn
+        llvm.getNamedFunction(this.module, name, fn)
+        if fn == 0 {
+            llvm.addFunction(this.module, name, fnTy, fn)
+        }
+        pointer cv
+        this.cg.buildCallN(this.builder, fnTy, fn, args, "rt", cv)
+        return cv
+    }
+
+    // objAlloc — `obj_alloc(size, kind)`: a class object's memory from the runtime's
+    // object heap (fly-lang/fly#235); kind 1 = a `new shared` block. Not zeroed.
+    public pointer objAlloc(const pointer sizeV, const int kind) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer i64Ty
+        llvm.int64TypeInContext(this.ctx, i64Ty)
+        pointer i32Ty
+        llvm.int32TypeInContext(this.ctx, i32Ty)
+        pointer kindV
+        llvm.constInt(i32Ty, kind, false, kindV)
+        List<pointer> tys = new unique List<pointer>()
+        tys.add(i64Ty)
+        tys.add(i32Ty)
+        List<pointer> args = new unique List<pointer>()
+        args.add(sizeV)
+        args.add(kindV)
+        return this.callRt("obj_alloc", this.types.ptrType(), tys, args)
+    }
+
+    // objFree — `obj_free(p)`: an object (or a shared block) back to the object
+    // heap; a pointer from outside it goes to the system free().
+    public void objFree(const pointer p) {
+        List<pointer> tys = new unique List<pointer>()
+        tys.add(this.types.ptrType())
+        List<pointer> args = new unique List<pointer>()
+        args.add(p)
+        this.callVoidRt("obj_free", tys, args)
+    }
+
+    // objCheck — `obj_check(p)` (i32): 0 the object is live (or not the heap's),
+    // 1 the end-of-main teardown is releasing it already, 2 it is not a live
+    // object (a double delete).
+    public pointer objCheck(const pointer p) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer i32Ty
+        llvm.int32TypeInContext(this.ctx, i32Ty)
+        List<pointer> tys = new unique List<pointer>()
+        tys.add(this.types.ptrType())
+        List<pointer> args = new unique List<pointer>()
+        args.add(p)
+        return this.callRt("obj_check", i32Ty, tys, args)
+    }
+
     public CodeGenLLVM getCg() {
         return this.cg
     }
@@ -522,13 +582,27 @@ public class CodeGenModule {
     }
 
     // zeroErrSlot — consume a failure: free the message the slot owns (a heap copy
-    // every fail makes; free(null) when there is none), then reset the slot to
-    // { 0, null, null }. The object is not the slot's: it is only dropped.
+    // every fail makes; free(null) when there is none), delete the object of a
+    // `fail ..., obj` (errorObjDropFn: the error owns it), then reset the slot to
+    // { 0, null, null }.
     public void zeroErrSlot(const pointer errSlot) {
         LLVM llvm = this.cg.getLLVM()
         pointer oldMsg
         llvm.buildLoad2(this.builder, this.types.ptrType(), this.errField(errSlot, 1, "ezm"), "ezmsg", oldMsg)
         this.freeHandle(oldMsg)
+        pointer oldObj
+        llvm.buildLoad2(this.builder, this.types.ptrType(), this.errField(errSlot, 2, "ezo"), "ezobj", oldObj)
+        pointer dropFn = this.errorObjDropFn()
+        pointer voidTy
+        llvm.voidTypeInContext(this.ctx, voidTy)
+        List<pointer> ps = new unique List<pointer>()
+        ps.add(this.types.ptrType())
+        pointer dropTy
+        this.cg.functionTypeN(voidTy, ps, false, dropTy)
+        List<pointer> dargs = new unique List<pointer>()
+        dargs.add(oldObj)
+        pointer dcv
+        this.cg.buildCallN(this.builder, dropTy, dropFn, dargs, "", dcv)
         pointer i32
         llvm.int32TypeInContext(this.ctx, i32)
         pointer zero
@@ -638,6 +712,7 @@ public class CodeGenModule {
         pointer errSlot
         llvm.buildAlloca(this.builder, this.errorTy, "suite_err", errSlot)
         this.emitCrashInit(errSlot)
+        this.emitTeardownAtExit()
         pointer codePtr
         llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 0, "ecode", codePtr)
         pointer zero
@@ -979,6 +1054,7 @@ public class CodeGenModule {
         pointer errSlot
         llvm.buildAlloca(this.builder, this.errorTy, "err", errSlot)
         this.emitCrashInit(errSlot)
+        this.emitTeardownAtExit()
         pointer codePtr
         llvm.buildStructGEP2(this.builder, this.errorTy, errSlot, 0, "ecode", codePtr)
         pointer zero
@@ -1096,6 +1172,8 @@ public class CodeGenModule {
         epArgs.add(codeV)
         epArgs.add(strV)
         this.callVoidRt("err_print", epTys, epArgs)
+        // the failure is reported: its message and object go before the teardown
+        this.zeroErrSlot(errSlot)
         pointer r1
         llvm.buildRet(this.builder, codeV, r1)
         llvm.positionBuilderAtEnd(this.builder, okBB)
@@ -1591,9 +1669,247 @@ public class CodeGenModule {
         dcg.setErrPtr(errP)
         pointer objP
         llvm.getParam(fn, 1, objP)
+        // mode 2 — the teardown's mark pass: only tell the heap which objects
+        // this one owns or holds (CodeGenStmt.emitMarkFields), release nothing
+        pointer modeP
+        llvm.getParam(fn, 2, modeP)
+        pointer i32Ty
+        llvm.int32TypeInContext(this.ctx, i32Ty)
+        pointer two
+        llvm.constInt(i32Ty, 2, false, two)
+        pointer isMark
+        llvm.buildICmp(this.builder, 32, modeP, two, "ismark", isMark)
+        pointer markBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "mark", markBB)
+        pointer relBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "release", relBB)
+        pointer cbr
+        llvm.buildCondBr(this.builder, isMark, markBB, relBB, cbr)
+        llvm.positionBuilderAtEnd(this.builder, markBB)
+        CodeGenStmt.emitMarkFields(dcg, cls, objP)
+        pointer rv0
+        llvm.buildRetVoid(this.builder, rv0)
+        llvm.positionBuilderAtEnd(this.builder, relBB)
         CodeGenStmt.emitDestroy(dcg, cls, objP)
         pointer rv
         llvm.buildRetVoid(this.builder, rv)
+        this.helperLeave(callerBB, savedLoc)
+        return fn
+    }
+
+    // teardownFn — `@__fly_teardown()`, internal to the program's main module: the
+    // end of `main` (fly-lang/fly#235). obj_teardown_begin prints the report of the
+    // objects never deleted; when there are some, three passes call each one's
+    // release entry (vtable -1): mode 2 marks what live objects own or hold, then
+    // the unmarked roots are released (mode 1) — an object before what it owns —
+    // then whatever is left (cycles). The runtime hands out each object once and
+    // takes it out of the live set first, so a release reaching it again skips it.
+    // Fly has no function values: this loop is generated, the runtime only walks.
+    public pointer teardownFn() {
+        LLVM llvm = this.cg.getLLVM()
+        pointer fn
+        llvm.getNamedFunction(this.module, "__fly_teardown", fn)
+        if fn != 0 {
+            return fn
+        }
+        pointer voidTy
+        llvm.voidTypeInContext(this.ctx, voidTy)
+        List<pointer> none = new unique List<pointer>()
+        pointer fty
+        this.cg.functionTypeN(voidTy, none, false, fty)
+        llvm.addFunction(this.module, "__fly_teardown", fty, fn)
+        llvm.setLinkage(fn, 8)
+        pointer savedLoc = this.helperEnter()
+        pointer callerBB = this.helperCaller()
+        pointer b = this.builder
+        pointer ptrTy = this.types.ptrType()
+        pointer i32Ty
+        llvm.int32TypeInContext(this.ctx, i32Ty)
+        pointer i64Ty
+        llvm.int64TypeInContext(this.ctx, i64Ty)
+        pointer entryBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "entry", entryBB)
+        pointer endBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "end", endBB)
+        llvm.positionBuilderAtEnd(b, entryBB)
+        // a private error slot: a free() that fails during teardown fails alone
+        pointer errSlot
+        llvm.buildAlloca(b, this.errorTy, "tderr", errSlot)
+        pointer nullErr
+        llvm.constNull(this.errorTy, nullErr)
+        llvm.buildStore(b, nullErr, errSlot)
+        List<pointer> noTys = new unique List<pointer>()
+        List<pointer> noArgs = new unique List<pointer>()
+        pointer n = this.callRt("obj_teardown_begin", i64Ty, noTys, noArgs)
+        pointer zero64
+        llvm.constInt(i64Ty, 0, false, zero64)
+        pointer any
+        llvm.buildICmp(b, 33, n, zero64, "leaked", any)
+        pointer passBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "pass1", passBB)
+        pointer cbr
+        llvm.buildCondBr(b, any, passBB, endBB, cbr)
+        llvm.positionBuilderAtEnd(b, passBB)
+        int phase = 1
+        while phase <= 3 {
+            pointer phaseV
+            llvm.constInt(i32Ty, phase, false, phaseV)
+            List<pointer> itTys = new unique List<pointer>()
+            itTys.add(i32Ty)
+            List<pointer> itArgs = new unique List<pointer>()
+            itArgs.add(phaseV)
+            this.callVoidRt("obj_iter", itTys, itArgs)
+            pointer loopBB
+            llvm.appendBasicBlockInContext(this.ctx, fn, "next", loopBB)
+            pointer bodyBB
+            llvm.appendBasicBlockInContext(this.ctx, fn, "release", bodyBB)
+            pointer doneBB
+            llvm.appendBasicBlockInContext(this.ctx, fn, "passdone", doneBB)
+            pointer br0
+            llvm.buildBr(b, loopBB, br0)
+            llvm.positionBuilderAtEnd(b, loopBB)
+            pointer o = this.callRt("obj_next", ptrTy, noTys, noArgs)
+            pointer nul
+            llvm.constPointerNull(ptrTy, nul)
+            pointer has
+            llvm.buildICmp(b, 33, o, nul, "hasobj", has)
+            pointer br1
+            llvm.buildCondBr(b, has, bodyBB, doneBB, br1)
+            llvm.positionBuilderAtEnd(b, bodyBB)
+            pointer vt
+            llvm.buildLoad2(b, ptrTy, o, "vt", vt)
+            pointer minus1
+            llvm.constInt(i64Ty, 0 - 1, true, minus1)
+            List<pointer> idx = new unique List<pointer>()
+            idx.add(minus1)
+            pointer entryP
+            this.cg.buildGEP2N(b, ptrTy, vt, idx, "destroyp", entryP)
+            pointer entry
+            llvm.buildLoad2(b, ptrTy, entryP, "destroy", entry)
+            int mode = 1
+            if phase == 1 {
+                mode = 2
+            }
+            pointer modeV
+            llvm.constInt(i32Ty, mode, false, modeV)
+            List<pointer> dArgs = new unique List<pointer>()
+            dArgs.add(errSlot)
+            dArgs.add(o)
+            dArgs.add(modeV)
+            pointer cv
+            this.cg.buildCallN(b, this.destroyFnTy(), entry, dArgs, "", cv)
+            this.zeroErrSlot(errSlot)
+            pointer br2
+            llvm.buildBr(b, loopBB, br2)
+            llvm.positionBuilderAtEnd(b, doneBB)
+            phase = phase + 1
+        }
+        pointer br3
+        llvm.buildBr(b, endBB, br3)
+        llvm.positionBuilderAtEnd(b, endBB)
+        this.callVoidRt("obj_teardown_end", noTys, noArgs)
+        pointer rv
+        llvm.buildRetVoid(b, rv)
+        this.helperLeave(callerBB, savedLoc)
+        return fn
+    }
+
+    // emitTeardownAtExit — register @__fly_teardown with the C runtime's atexit,
+    // first thing in the program's main: it then runs when main returns (or
+    // fails) and also when the program ends through exit() (fly.os.env.exit), with
+    // every frame's objects already released in the first case.
+    public void emitTeardownAtExit() {
+        pointer fn = this.teardownFn()
+        LLVM llvm = this.cg.getLLVM()
+        pointer i32Ty
+        llvm.int32TypeInContext(this.ctx, i32Ty)
+        List<pointer> tys = new unique List<pointer>()
+        tys.add(this.types.ptrType())
+        List<pointer> args = new unique List<pointer>()
+        args.add(fn)
+        pointer _rc = this.callRt("atexit", i32Ty, tys, args)
+    }
+
+    // errorObjDropFn — `@__fly_error_obj_drop(ptr obj)`: the object of a consumed
+    // failure (`fail ..., obj` then `handle`, or the end of main) is deleted — the
+    // error owned it and nothing can reach it any more. Only a live object of the
+    // object heap with this compiler's vtable layout (obj_owned): a raw pointer, a
+    // shared object or an object already deleted is left alone.
+    public pointer errorObjDropFn() {
+        LLVM llvm = this.cg.getLLVM()
+        pointer voidTy
+        llvm.voidTypeInContext(this.ctx, voidTy)
+        List<pointer> ps = new unique List<pointer>()
+        ps.add(this.types.ptrType())
+        pointer fty
+        this.cg.functionTypeN(voidTy, ps, false, fty)
+        pointer fn
+        llvm.getNamedFunction(this.module, "__fly_error_obj_drop", fn)
+        if fn != 0 {
+            return fn
+        }
+        fn = this.helperFn("__fly_error_obj_drop", fty)
+        pointer savedLoc = this.helperEnter()
+        pointer callerBB = this.helperCaller()
+        pointer b = this.builder
+        pointer ptrTy = this.types.ptrType()
+        pointer i32Ty
+        llvm.int32TypeInContext(this.ctx, i32Ty)
+        pointer i64Ty
+        llvm.int64TypeInContext(this.ctx, i64Ty)
+        pointer entryBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "entry", entryBB)
+        pointer dropBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "drop", dropBB)
+        pointer endBB
+        llvm.appendBasicBlockInContext(this.ctx, fn, "end", endBB)
+        llvm.positionBuilderAtEnd(b, entryBB)
+        pointer obj
+        llvm.getParam(fn, 0, obj)
+        List<pointer> tys = new unique List<pointer>()
+        tys.add(ptrTy)
+        List<pointer> args = new unique List<pointer>()
+        args.add(obj)
+        pointer owned = this.callRt("obj_owned", i32Ty, tys, args)
+        pointer zero
+        llvm.constInt(i32Ty, 0, false, zero)
+        pointer isOwned
+        llvm.buildICmp(b, 33, owned, zero, "owned", isOwned)
+        pointer cbr
+        llvm.buildCondBr(b, isOwned, dropBB, endBB, cbr)
+        llvm.positionBuilderAtEnd(b, dropBB)
+        pointer errSlot
+        llvm.buildAlloca(b, this.errorTy, "dderr", errSlot)
+        pointer nullErr
+        llvm.constNull(this.errorTy, nullErr)
+        llvm.buildStore(b, nullErr, errSlot)
+        pointer vt
+        llvm.buildLoad2(b, ptrTy, obj, "vt", vt)
+        pointer minus1
+        llvm.constInt(i64Ty, 0 - 1, true, minus1)
+        List<pointer> idx = new unique List<pointer>()
+        idx.add(minus1)
+        pointer entryP
+        this.cg.buildGEP2N(b, ptrTy, vt, idx, "destroyp", entryP)
+        pointer entry
+        llvm.buildLoad2(b, ptrTy, entryP, "destroy", entry)
+        List<pointer> dArgs = new unique List<pointer>()
+        dArgs.add(errSlot)
+        dArgs.add(obj)
+        dArgs.add(zero)
+        pointer cv
+        this.cg.buildCallN(b, this.destroyFnTy(), entry, dArgs, "", cv)
+        // a message a failing free() left goes with the slot (its object is not
+        // followed: one level is all a consumed failure owns)
+        pointer msg
+        llvm.buildLoad2(b, ptrTy, this.errField(errSlot, 1, "ddm"), "ddmsg", msg)
+        this.freeHandle(msg)
+        this.objFree(obj)
+        pointer br
+        llvm.buildBr(b, endBB, br)
+        llvm.positionBuilderAtEnd(b, endBB)
+        pointer rv
+        llvm.buildRetVoid(b, rv)
         this.helperLeave(callerBB, savedLoc)
         return fn
     }
@@ -1859,7 +2175,7 @@ public class CodeGenModule {
         pointer br2
         llvm.buildCondBr(b, both, freeBB, doneBB, br2)
         llvm.positionBuilderAtEnd(b, freeBB)
-        this.freeHandle(this.headerSlot(obj, 0, "hdr"))
+        this.objFree(this.headerSlot(obj, 0, "hdr"))
         pointer br3
         llvm.buildBr(b, doneBB, br3)
         llvm.positionBuilderAtEnd(b, doneBB)
@@ -2057,7 +2373,8 @@ public class CodeGenModule {
         exTys.add(i32Ty)
         List<pointer> exArgs = new List<pointer>()
         exArgs.add(code)
-        this.callVoidRt("proc_exit", exTys, exArgs)
+        // not proc_exit: the atexit teardown must not run after a trap
+        this.callVoidRt("proc_abort", exTys, exArgs)
         pointer u
         llvm.buildUnreachable(b, u)
 

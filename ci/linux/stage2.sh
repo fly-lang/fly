@@ -36,6 +36,8 @@ export STAGE=2
 # seed's (a library and a program compiled by different releases link together).
 # test_sema: the compiler must still REJECT what the language forbids.
 # test_traps: a run-time error must stop the program with its diagnostic.
+# test_heap: the object heap reports, at the end of main, the objects a program
+# never deleted, and releases them (fly-lang/fly#235).
 # test_leaks: programs that free their temporaries stay under a memory ceiling.
 # test_fly_build: build/stage2 is a toolchain of its own (bare environment, no
 # option), and a project built with `fly build` reads its own manifest.
@@ -45,6 +47,7 @@ export STAGE=2
 ./ci/linux/test_abi.sh
 ./ci/linux/test_sema.sh
 ./ci/linux/test_traps.sh
+bash ./ci/linux/test_heap.sh
 ./ci/linux/test_leaks.sh
 ./ci/linux/test_dbg.sh
 bash ./ci/linux/test_fly_build.sh

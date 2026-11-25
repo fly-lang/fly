@@ -82,6 +82,7 @@ public class SemaBuilder {
         SemaClassType spec = new SemaClassType(ast, mod, specScope)
         spec.setMangledName(key)
         spec.setGenericTemplate(template)
+        spec.setTypeArgs(typeArgs)
         spec.setVisibility(template.getVisibility())
         spec.setAbstract(template.isAbstract())
         spec.setFinal(template.isFinal())

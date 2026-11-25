@@ -1,0 +1,18 @@
+// An object deleted through one reference and then through another: the second
+// `delete` finds a slot the object heap no longer counts as live and stops the
+// program there (fly-lang/fly#235), instead of following a vtable that is now a
+// free-list link.
+public class Node {
+
+    int v
+
+    public Node() {
+    }
+}
+
+void main() {
+    Node a = new Node()
+    Node b = a
+    delete a
+    delete b
+}

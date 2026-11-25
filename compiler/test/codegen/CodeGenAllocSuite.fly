@@ -32,10 +32,13 @@ suite CodeGenAllocSuite {
                     fail r
                 }
             ")
-            assert.assertTrue(str.contains(ir, "@malloc"), 11)
-            assert.assertFalse(str.contains(ir, "call void @free"), 12)
+            // objects come from the runtime's object heap (fly-lang/fly#235)
+            assert.assertTrue(str.contains(ir, "@obj_alloc"), 11)
+            // no delete of the Box at scope exit (obj_free itself appears: the error
+            // object drop that main emits)
+            assert.assertFalse(str.contains(ir, "@__fly_drop..Box"), 12)
         }
-        case "a new unique owner is freed via @free at scope exit": {
+        case "a new unique owner is freed via @obj_free at scope exit": {
             string ir = cgIR("
                 public class Box { int v
                     public Box(const int x) { this.v = x }
@@ -46,8 +49,8 @@ suite CodeGenAllocSuite {
                     fail r
                 }
             ")
-            assert.assertTrue(str.contains(ir, "@malloc"), 13)
-            assert.assertTrue(str.contains(ir, "call void @free"), 14)
+            assert.assertTrue(str.contains(ir, "@obj_alloc"), 13)
+            assert.assertTrue(str.contains(ir, "call void @obj_free"), 14)
         }
     }
 }

@@ -58,9 +58,14 @@ public void unsetenv(const pointer name, int out) {}
 public void gethostname(const pointer buf, const ulong size, int out) {}
 public void uname(const pointer buf, int out) {}
 public void _exit(const int code) {}
+public void exit(const int code) {}             // proc_exit: runs the atexit handlers (the object heap teardown)
 // crash report (crash_init)
 public void sigaction(const int sig, const pointer act, const pointer old, int out) {}
 public void sigaltstack(const pointer ss, const pointer old, int out) {}
+public void mmap(const pointer addr, const ulong len, const int prot, const int flags, const int fd, const long off,
+        pointer out) {}
+public void mprotect(const pointer addr, const ulong len, const int prot, int out) {}
+public void munmap(const pointer addr, const ulong len, int out) {}
 public void strlen(const pointer s, ulong out) {}
 public void _NSGetExecutablePath(const pointer buf, const pointer bufsize, int out) {}
 public void _NSGetArgc(pointer out) {}
@@ -123,6 +128,41 @@ public void asinh(const double x, double out) {}
 public void acosh(const double x, double out) {}
 public void atanh(const double x, double out) {}
 
+// ── Object heap: virtual memory (ObjHeap.fly) ─────────────────────────────────
+// Reserve = an inaccessible anonymous mapping; commit = make it read-write;
+// decommit = map fresh inaccessible pages over it (the old ones go back).
+
+public void vm_reserve(const ulong size, pointer out) {
+    pointer p = 0
+    fly.runtime.mmap(0, size, 0, 2 | 4096 | 64, 0 - 1, 0, p)       // PROT_NONE, PRIVATE|ANON|NORESERVE
+    long pl = (long)p
+    if pl == 0 - 1 {
+        out = 0
+        return
+    }
+    out = p
+}
+
+public void vm_commit(const pointer p, const ulong size, int out) {
+    int rc = 0
+    fly.runtime.mprotect(p, size, 3, rc)                     // PROT_READ|PROT_WRITE
+    if rc == 0 {
+        out = 1
+    } else {
+        out = 0
+    }
+}
+
+public void vm_decommit(const pointer p, const ulong size) {
+    pointer q = 0
+    fly.runtime.mmap(p, size, 0, 2 | 4096 | 64 | 16, 0 - 1, 0, q)  // + MAP_FIXED
+}
+
+public void vm_release(const pointer p, const ulong size) {
+    int rc = 0
+    fly.runtime.munmap(p, size, rc)
+}
+
 // ── Memory ────────────────────────────────────────────────────────────────────
 public void mem_alloc(const ulong size, pointer out) {
     ulong s = size
@@ -149,6 +189,13 @@ public void io_write(const int fd, const pointer buf, const ulong count, long ou
 
 // ── Process ───────────────────────────────────────────────────────────────────
 public void proc_exit(const int code) {
+    fly.runtime.exit(code)
+}
+
+// proc_abort — end the process now, WITHOUT the atexit handlers: a run-time trap
+// (null reference, overflow, double delete…) stops a program whose state is
+// broken, so the object heap's end-of-main teardown must not run its releases.
+public void proc_abort(const int code) {
     fly.runtime._exit(code)
 }
 
@@ -801,6 +848,7 @@ public void proc_exec(const pointer path, const pointer argv, int out) {
     }
 }
 public void thread_spawn(const pointer fn, const pointer arg, const ulong stackSize, int out) {
+    objHeapThreaded()                    // alloc and free lock from now on
     pointer th = 0
     fly.runtime.malloc(8, th)
     int rc = 0

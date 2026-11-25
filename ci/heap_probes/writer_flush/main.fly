@@ -1,0 +1,26 @@
+// A buffered writer nobody closed or deleted: the end-of-main teardown releases
+// it, and its free() writes the buffered bytes out (fly-lang/fly#235).
+import fly.mem
+import fly.str
+import fly.os.io
+import fly.os.io.Buf
+import fly.os.io.Writer
+import fly.os.io.BufWriter
+
+void main() {
+    string text = "flushed at exit\n"
+    int n = str.len(text)
+    Buf b = new Buf()
+    b.ptr = mem.alloc(n)
+    int i = 0
+    while i < n {
+        mem.writeByte(b.ptr, i, str.byteAt(text, i))
+        i = i + 1
+    }
+    b.size = (ulong)n
+    b.cap = (ulong)n
+    Writer out = io.fileWriter(1)
+    BufWriter w = io.writerNew(out, 4096)
+    io.bufWrite(w, b)
+    mem.free(b.ptr, n)
+}

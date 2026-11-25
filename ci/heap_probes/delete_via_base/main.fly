@@ -1,0 +1,38 @@
+// A derived object deleted through its base, and through an interface: it goes
+// with what it owns, so nothing is left for the end-of-main report
+// (fly-lang/fly#235, fly-lang/fly#202).
+public class Res {
+
+    public Res() {
+    }
+}
+
+public interface Shape {
+    int area()
+}
+
+public class Base : Shape {
+
+    public Base() {
+    }
+
+    public int area() {
+        return 1
+    }
+}
+
+public class Derived : Base {
+
+    Res own
+
+    public Derived() {
+        this.own = new unique Res()
+    }
+}
+
+void main() {
+    Base b = new Derived()
+    delete b
+    Shape s = new Derived()
+    delete s
+}

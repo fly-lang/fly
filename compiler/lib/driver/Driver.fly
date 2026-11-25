@@ -17,15 +17,22 @@ import fly.str
 // main — the self-host `fly` entry point. The binary IS the driver: it reads the
 // command line and hands off to Driver.run (which dispatches compile vs package
 // mode). Lives here (with the driver) so `compiler/` stays a pure library with no
-// entry. NOTE: an `int main()` entry and a `fail` inside main both miscompile in
-// the reference toolchain ("Broken function"), so this is a `void main()` that sets
-// the process exit status explicitly via fly.os.env.exit(code) (→ proc_exit).
+// entry. main is `void` (its exit code would come from an unhandled `fail`, which
+// also prints it), so the status goes through fly.os.env.exit(code). The driver
+// runs in runDriver, so it is released before exit: the end-of-main teardown
+// (fly-lang/fly#235), which exit() runs too, then finds nothing of it left.
 // ─────────────────────────────────────────────────────────────────────────────
 void main() {
+    // the compiler does not delete its AST and Sema yet: no report at exit
+    fly.runtime.obj_quiet()
+    int code = runDriver()
+    env.exit(code)
+}
+
+int runDriver() {
     fly.os.env.StringArray args = env.argsGet()
     Driver d = new unique Driver()
-    int code = d.run(args)
-    env.exit(code)
+    return d.run(args)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

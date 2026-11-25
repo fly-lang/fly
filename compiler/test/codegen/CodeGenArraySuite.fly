@@ -201,7 +201,7 @@ suite CodeGenArraySuite {
         case "a class array preallocates its elements": {
             string ir = cgIR("class C { int v  public C() { this.v = 1 } } void f() { C[3] cs }")
             assert.assertTrue(str.contains(ir, "anew.cond"), 94)
-            assert.assertTrue(str.contains(ir, "anew.obj"), 95)
+            assert.assertTrue(str.contains(ir, "@obj_alloc"), 95)
             assert.assertTrue(str.contains(ir, "anew.slot"), 96)
         }
     }

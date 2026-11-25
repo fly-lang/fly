@@ -226,6 +226,22 @@ public class CodeGenStmt {
             CodeGenStmt.emitWeakReleaseSlot(cge, slot)
             return
         }
+        // an object already deleted (through another reference) is not a live
+        // slot of the object heap any more: stop here, with the position, before
+        // its vtable — now a free-list link — is followed (fly-lang/fly#235)
+        if cls.getClassKind() != SemaClassKind.STRUCT {
+            LLVM llvm = cge.getLLVM()
+            pointer obj
+            llvm.buildLoad2(cge.getBuilder(), cge.ptrType(), slot, "ddel", obj)
+            pointer rc = cge.getCgm().objCheck(obj)
+            pointer i32Ty
+            llvm.int32TypeInContext(cge.getCgm().getCtx(), i32Ty)
+            pointer two
+            llvm.constInt(i32Ty, 2, false, two)
+            pointer twice
+            llvm.buildICmp(cge.getBuilder(), 32, rc, two, "ddtwice", twice)
+            cge.trapIf(twice, str.concat("double delete of a '", str.concat(cls.getName(), "'")), "ddel")
+        }
         CodeGenStmt.emitDeleteSlot(cge, cls, slot)
     }
 
@@ -254,7 +270,10 @@ public class CodeGenStmt {
 
     // emitDeleteBody — what `@__fly_drop.<class>` does with the reference at `slot`:
     // nothing when it is null; otherwise free() (if the class declares one), the
-    // owning fields, the object itself, and null into the slot.
+    // owning fields, the object itself (back to the object heap), and null into the
+    // slot. An object the heap does not count as live is left alone: the
+    // end-of-main teardown releasing it already (a cycle, an object reached twice),
+    // or one already deleted (`delete` traps on that before calling here).
     public static void emitDeleteBody(const CodeGenExpr cge, const SemaClassType cls, const pointer slot) {
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
@@ -270,8 +289,25 @@ public class CodeGenStmt {
         pointer cbr
         llvm.buildCondBr(b, notNull, doBB, endBB, cbr)
         cge.position(doBB)
+        if cls.getClassKind() != SemaClassKind.STRUCT {
+            pointer rc = cge.getCgm().objCheck(obj)
+            pointer i32Ty
+            llvm.int32TypeInContext(cge.getCgm().getCtx(), i32Ty)
+            pointer zero
+            llvm.constInt(i32Ty, 0, false, zero)
+            pointer isLive
+            llvm.buildICmp(b, 32, rc, zero, "dellive", isLive)
+            pointer goBB = cge.newBlock("delete.live")
+            pointer skipBB = cge.newBlock("delete.skip")
+            pointer cbr2
+            llvm.buildCondBr(b, isLive, goBB, skipBB, cbr2)
+            cge.position(skipBB)
+            llvm.buildStore(b, nul, slot)
+            cge.br(endBB)
+            cge.position(goBB)
+        }
         CodeGenStmt.emitDestroyDynamic(cge, cls, obj)
-        cge.getCgm().freeHandle(obj)
+        cge.getCgm().objFree(obj)
         llvm.buildStore(b, nul, slot)
         cge.br(endBB)
         cge.position(endBB)
@@ -398,6 +434,19 @@ public class CodeGenStmt {
         pointer cbr2
         llvm.buildCondBr(b, last, destroyBB, doneBB, cbr2)
         cge.position(destroyBB)
+        // the end-of-main teardown may be releasing this object already (a cycle
+        // of holders): then the count reaching zero here destroys nothing
+        pointer rc = cgm.objCheck(obj)
+        pointer i32Ty
+        llvm.int32TypeInContext(cgm.getCtx(), i32Ty)
+        pointer zero32
+        llvm.constInt(i32Ty, 0, false, zero32)
+        pointer isLive
+        llvm.buildICmp(b, 32, rc, zero32, "rellive", isLive)
+        pointer liveBB = cge.newBlock("release.live")
+        pointer cbrL
+        llvm.buildCondBr(b, isLive, liveBB, doneBB, cbrL)
+        cge.position(liveBB)
         CodeGenStmt.emitDestroyDynamic(cge, cls, obj)
         // the block outlives the object while a weak reference may still look at
         // the header; with none, it goes now
@@ -415,7 +464,7 @@ public class CodeGenStmt {
         pointer cbr3
         llvm.buildCondBr(b, noWeak, freeBB, doneBB, cbr3)
         cge.position(freeBB)
-        cgm.freeHandle(hdr)
+        cgm.objFree(hdr)
         cge.br(doneBB)
         cge.position(doneBB)
         llvm.buildStore(b, nul, slot)
@@ -521,6 +570,44 @@ public class CodeGenStmt {
                     pointer fldPtr
                     cge.getLLVM().buildStructGEP2(cge.getBuilder(), cls.getLlvmStructType(), obj, idx, "ownfld", fldPtr)
                     CodeGenStmt.emitDeleteSlot(cge, fcls, fldPtr)
+                }
+            }
+            i = i + 1
+        }
+    }
+
+    // emitMarkFields — the teardown's mark pass (release entry mode 2): tell the
+    // object heap which objects `obj` owns or holds (obj_mark_child), so they are
+    // released through `obj` and not before it. Weak fields observe, they do not
+    // count. Nothing is released here.
+    public static void emitMarkFields(const CodeGenExpr cge, const SemaClassType cls, const pointer obj) {
+        if cls.getClassKind() == SemaClassKind.INTERFACE {
+            return
+        }
+        CodeGenModule cgm = cge.getCgm()
+        LLVM llvm = cge.getLLVM()
+        pointer ptrTy = cge.ptrType()
+        List<SemaClassAttribute> attrs = CodeGenClass.allAttributes(cls)
+        int i = 0
+        while i < attrs.size() {
+            SemaClassAttribute a = attrs.get(i)
+            bool counts = a.isUniqueOwner() || a.isSharedHolder()
+            if counts {
+                SemaType at = a.getType()
+                if at.asClass() != null {
+                    if cls.getLlvmStructType() == 0 {
+                        CodeGenClass.declareStruct(cgm, cls)
+                    }
+                    int idx = CodeGenClass.fieldIndex(cls, a.getName())
+                    pointer fp
+                    llvm.buildStructGEP2(cge.getBuilder(), cls.getLlvmStructType(), obj, idx, "markfld", fp)
+                    pointer fv
+                    llvm.buildLoad2(cge.getBuilder(), ptrTy, fp, "markv", fv)
+                    List<pointer> tys = new unique List<pointer>()
+                    tys.add(ptrTy)
+                    List<pointer> args = new unique List<pointer>()
+                    args.add(fv)
+                    cgm.callVoidRt("obj_mark_child", tys, args)
                 }
             }
             i = i + 1

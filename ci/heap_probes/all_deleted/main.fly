@@ -1,0 +1,81 @@
+// Everything this program creates is deleted or released before main ends, so
+// the end-of-main report prints nothing (fly-lang/fly#235): plain `new` +
+// `delete`, `new unique` owners and owning fields, `new shared` holders with a
+// weak reference, an object big enough for a span of its own, and a million
+// allocations reusing the same slots.
+public class Leaf {
+
+    int v
+
+    public Leaf(const int v) {
+        this.v = v
+    }
+}
+
+public class Branch {
+
+    Leaf left
+    Leaf right
+
+    public Branch() {
+        this.left = new unique Leaf(1)
+        this.right = new unique Leaf(2)
+    }
+}
+
+// Big — 2560 bytes (structs are laid out inline): above the largest size class,
+// so it gets a run of spans of its own.
+public struct Quad {
+    long a
+    long b
+    long c
+    long d
+}
+
+public struct Row {
+    Quad a
+    Quad b
+    Quad c
+    Quad d
+    Quad e
+    Quad f
+    Quad g
+    Quad h
+}
+
+public class Big {
+
+    Row a
+    Row b
+    Row c
+    Row d
+    Row e
+    Row f
+    Row g
+    Row h
+    Row i
+    Row j
+
+    public Big() {
+    }
+}
+
+void main() {
+    int i = 0
+    while i < 1000000 {
+        Leaf l = new Leaf(i)
+        delete l
+        i = i + 1
+    }
+    Branch b = new unique Branch()
+    Leaf s = new shared Leaf(3)
+    Leaf w = weak s
+    Big big = new Big()
+    delete big
+    int j = 0
+    while j < 1000 {
+        Leaf t = new Leaf(j)
+        delete t
+        j = j + 1
+    }
+}
