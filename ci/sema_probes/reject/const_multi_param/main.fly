@@ -1,0 +1,11 @@
+int, int two() {
+    return 1, 2
+}
+int f(const int k) {
+    int a = 0
+    a, k = two()
+    return a + k
+}
+void main() {
+    f(3)
+}

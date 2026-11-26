@@ -34,6 +34,9 @@ public class ASTExpr : ASTNode {
     public ASTExprKind getExprKind() {
         return this.exprKind
     }
+    public ASTExpr asExpr() {
+        return this
+    }
     // asIdentifier — narrow to ASTIdentifier (null on the base; overridden there).
     public ASTIdentifier asIdentifier() {
         return null

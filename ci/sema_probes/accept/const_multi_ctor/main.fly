@@ -1,0 +1,25 @@
+// A constructor sets its own uninitialized const field through a multi-assignment,
+// as it may with `v = 1` (fly-lang/fly#244 keeps the fly-lang/fly#240 rule).
+int, int two() {
+    return 1, 2
+}
+class K {
+    const int v
+
+    public K() {
+        int a = 0
+        a, v = two()
+    }
+
+    public int get() {
+        return v
+    }
+}
+void main() {
+    K k = new K()
+    int r = k.get()
+    delete k
+    if r != 2 {
+        fail 1, "bad"
+    }
+}

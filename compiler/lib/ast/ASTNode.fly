@@ -103,6 +103,11 @@ public class ASTNode : ASTBase {
     public ASTBoolValue asBoolValue() {
         return null
     }
+    // asExpr — an argument holds an ASTNode; the resolver needs the receivers of a
+    // multi-assignment as expressions (fly-lang/fly#244). Appended last, same reason.
+    public ASTExpr asExpr() {
+        return null
+    }
 
     // accept — virtual visitor dispatch. Concrete leaf nodes override this with
     // `v.visit(this)`; this base no-op lets a base-typed node (ASTExpr/ASTStmt/

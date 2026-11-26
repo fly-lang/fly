@@ -1,0 +1,20 @@
+int, int two() {
+    return 1, 2
+}
+class K {
+    const int v
+
+    public K() {
+        v = 1
+    }
+
+    public void set() {
+        int a = 0
+        a, v = two()
+    }
+}
+void main() {
+    K k = new K()
+    k.set()
+    delete k
+}

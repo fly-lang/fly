@@ -1,0 +1,14 @@
+int, int two() {
+    return 1, 2
+}
+class K {
+    static const int A = 5
+
+    public static void set() {
+        int a = 0
+        a, A = two()
+    }
+}
+void main() {
+    K.set()
+}

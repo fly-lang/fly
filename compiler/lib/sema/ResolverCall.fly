@@ -276,6 +276,7 @@ public class ResolverCall {
                 r.setCurrentExpr(null)
                 return
             }
+            ResolverCall.checkConstReceivers(r, astArgs, argExprs, mrc)
         }
 
         int j = 0
@@ -487,6 +488,36 @@ public class ResolverCall {
                     // writes it back into the caller's variable, so the value flows the
                     // other way (`ptrReadLong(p, i, aPointer)` stores a long into a pointer)
                     ResolverCall.checkOutNarrowing(r, ae.getLoc(), ax.getType(), p.getType())
+                }
+            }
+            i = i + 1
+        }
+    }
+    // checkConstReceivers — the receivers of a multi-assignment are the last `mrc`
+    // arguments (the parser lowered `a, k = f()` to `f(a, k)`), and the call writes
+    // each of them: a `const` one is the `cannot assign` error of `k = 1`, under the
+    // same rule (fly-lang/fly#244). A receiver is always a bare name, so writesConst
+    // also sees a const field named inside a method; a constructor still sets its
+    // own uninitialized const field this way, as it may with `v = 1`.
+    public static void checkConstReceivers(const Resolver r, const List<ASTArg> astArgs,
+            const List<SemaExpr> argExprs, const int mrc) {
+        int i = (int)argExprs.size() - mrc
+        if i < 0 {
+            i = 0
+        }
+        while i < argExprs.size() {
+            SemaExpr rx = argExprs.get(i)
+            ASTArg ra = astArgs.get(i)
+            ASTNode rn = ra.getExpr()
+            ASTExpr re = rn.asExpr()
+            if rx != null && re != null {
+                if ResolverExpr.writesConst(r, re, rx) {
+                    string rname = "?"
+                    ASTIdentifier rid = re.asIdentifier()
+                    if rid != null {
+                        rname = rid.getName()
+                    }
+                    r.diagStr(re.getLoc(), DiagID.err_sema_const_assign, rname)
                 }
             }
             i = i + 1

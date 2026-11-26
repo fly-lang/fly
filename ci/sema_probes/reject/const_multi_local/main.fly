@@ -1,0 +1,8 @@
+int, int two() {
+    return 1, 2
+}
+void main() {
+    int a = 0
+    const int k = 0
+    a, k = two()
+}
