@@ -159,6 +159,18 @@ suite HeaderGenTypeSuite {
             assert.assertTrue(str.endsWith(outp, ".fly.h"), 205)
             assert.assertTrue(str.contains(fs.readStr(outp), "public Box() { }"), 207)
         }
+        // fly-lang/fly#243: an initializer stays in the archive (it may reach
+        // private names); `= 0` marks the field, so code creating the type calls
+        // the archive's fieldinit routine. A static field is not marked.
+        case "a field initializer is marked, not copied": {
+            string src = "namespace hg.init\n\nint hidden() {\n    return 4\n}\n\npublic class Box {\n"
+            src = str.concat(src, "    int v = hidden()\n    int w\n    static int n = 3\n}\n")
+            string h = genHeader("hg_fx_init", src)
+            assert.assertTrue(str.contains(h, "int v = 0  // set by the archive's field initializer"), 208)
+            assert.assertFalse(str.contains(h, "hidden()"), 209)
+            assert.assertFalse(str.contains(h, "int w ="), 210)
+            assert.assertFalse(str.contains(h, "int n ="), 211)
+        }
     }
 
     // ── one header, two halves (3xx) ─────────────────────────────────────────

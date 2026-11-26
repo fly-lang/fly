@@ -1,0 +1,535 @@
+namespace fly.compiler.sema
+
+import fly.compiler.sema.*
+import fly.compiler.ast.*
+import fly.math
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SemaConstFold — the value of a CONSTANT expression, computed at compile time.
+// A static field's initializer must be one (fly-lang/fly#243): it becomes the
+// initial value of the field's global, so no code runs before `main`.
+//
+// Constant: a bool, integer, float, string or null literal; an enum entry; a
+// `static const` field whose own initializer is constant (by its bare name or
+// as `K.A`); and over those: unary `-` and `!`, the integer operators
+// `+ - * / % & | ^ << >>`, comparisons, `&& ||`, `?:` and casts between
+// integer types and from integer to floating type. Floating-point arithmetic is
+// not folded. Integer arithmetic is checked: a result outside its type, a
+// division by zero or a shift past the width is not a value (`overflowed`).
+// ─────────────────────────────────────────────────────────────────────────────
+
+public enum SemaConstKind {
+    CONST_INT,
+    CONST_FLOAT,
+    CONST_BOOL,
+    CONST_STRING,
+    CONST_NULL
+}
+
+// SemaConstValue — one folded value. An integer keeps its 64-bit pattern
+// (a ulong literal above the long range included); a float keeps its literal
+// text, which LLVM rounds exactly as it does for the literal in code.
+public class SemaConstValue {
+
+    SemaConstKind kind
+    long intValue
+    bool boolValue
+    string text
+    bool literal
+
+    public SemaConstValue(const SemaConstKind kind) {
+        this.kind = kind
+        this.intValue = 0
+        this.boolValue = false
+        this.text = ""
+        this.literal = false
+    }
+
+    public SemaConstKind getKind() {
+        return this.kind
+    }
+    public long getInt() {
+        return this.intValue
+    }
+    public void setInt(const long v) {
+        this.intValue = v
+    }
+    public bool getBool() {
+        return this.boolValue
+    }
+    public void setBool(const bool b) {
+        this.boolValue = b
+    }
+    public string getText() {
+        return this.text
+    }
+    public void setText(const string t) {
+        this.text = t
+    }
+
+    // isLiteral — written as a literal: its fit in the target type was already
+    // checked by checkNarrowing (a ulong above the long range included).
+    public bool isLiteral() {
+        return this.literal
+    }
+    public void setLiteral(const bool l) {
+        this.literal = l
+    }
+}
+
+public class SemaConstFold : SemaVisitor {
+
+    SemaConstValue result
+    bool overflowed
+
+    public SemaConstFold() {
+        this.result = null
+        this.overflowed = false
+    }
+
+    // fold — the value of `e`, or null when it is not a constant expression.
+    public SemaConstValue fold(const SemaExpr e) {
+        this.result = null
+        if e != null {
+            e.accept(this)
+        }
+        return this.result
+    }
+
+    // isOverflowed — the last null came from a checked operation (overflow,
+    // division by zero, shift past the width), not from a non-constant operand.
+    public bool isOverflowed() {
+        return this.overflowed
+    }
+
+    public SemaConstValue intValue(const long v) {
+        SemaConstValue c = new SemaConstValue(SemaConstKind.CONST_INT)
+        c.setInt(v)
+        return c
+    }
+
+    public SemaConstValue boolValue(const bool b) {
+        SemaConstValue c = new SemaConstValue(SemaConstKind.CONST_BOOL)
+        c.setBool(b)
+        return c
+    }
+
+    // outOfRange — no value, because a checked operation went out of range.
+    public void outOfRange() {
+        this.overflowed = true
+        this.result = null
+    }
+
+    // fits — does `v` lie in the range of integer type `t`? A 64-bit unsigned
+    // type is not folded past a literal, so only its non-negative half fits.
+    public bool fits(const long v, const SemaType t) {
+        if t == null {
+            return false
+        }
+        if t.isInteger() == false {
+            return false
+        }
+        int rank = t.getRank()
+        if rank == 63 {
+            return true
+        }
+        if rank % 2 == 0 {
+            if v < 0 {
+                return false
+            }
+            if rank >= 64 {
+                return true
+            }
+            long one = 1
+            long top = one << rank
+            return v < top
+        }
+        long one2 = 1
+        long lim = one2 << rank
+        long lo = math.wrapSubL(0, lim)
+        return v >= lo && v < lim
+    }
+
+    // checked — store an integer result of type `t`, or fail when it does not fit.
+    public void checked(const long v, const SemaType t) {
+        if this.fits(v, t) {
+            this.result = this.intValue(v)
+        } else {
+            this.outOfRange()
+        }
+    }
+
+    // wrapTo — an integer cast: the low bits of `v` that integer type `t` keeps,
+    // read with `t`'s signedness (what the cast does at run time).
+    public long wrapTo(const long v, const SemaType t) {
+        int rank = t.getRank()
+        int bits = rank
+        if rank % 2 == 1 {
+            bits = rank + 1
+        }
+        if bits >= 64 {
+            return v
+        }
+        long one = 1
+        long mask = math.wrapSubL(one << bits, 1)
+        long low = v & mask
+        if rank % 2 == 1 {
+            long sign = one << rank
+            if (low & sign) != 0 {
+                return math.wrapSubL(low, one << bits)
+            }
+        }
+        return low
+    }
+
+    // ── values ────────────────────────────────────────────────────────────────
+    public void visit(const SemaBoolValue node) {
+        this.result = this.boolValue(node.getValue())
+    }
+    public void visit(const SemaIntValue node) {
+        SemaConstValue c = this.intValue(parseConstLong(node.getValue()))
+        c.setLiteral(true)
+        this.result = c
+    }
+    public void visit(const SemaFloatValue node) {
+        SemaConstValue c = new SemaConstValue(SemaConstKind.CONST_FLOAT)
+        c.setText(node.getValue())
+        c.setLiteral(true)
+        this.result = c
+    }
+    public void visit(const SemaStringValue node) {
+        SemaConstValue c = new SemaConstValue(SemaConstKind.CONST_STRING)
+        c.setText(node.getValue())
+        this.result = c
+    }
+    public void visit(const SemaNullValue node) {
+        this.result = new SemaConstValue(SemaConstKind.CONST_NULL)
+    }
+    public void visit(const SemaEnumEntry node) {
+        this.result = this.intValue(node.getIndex())
+    }
+
+    // ── static const fields ───────────────────────────────────────────────────
+    public void visit(const SemaClassAttribute node) {
+        this.result = staticConstValue(node)
+    }
+    public void visit(const SemaMember node) {
+        this.result = staticConstValue(node.getStaticAttr())
+    }
+
+    // ── operators ─────────────────────────────────────────────────────────────
+    public void visit(const SemaUnary node) {
+        SemaConstValue v = this.fold(node.getExpr())
+        if v == null {
+            return
+        }
+        ASTUnaryKind k = node.getAST().getOpKind()
+        this.result = null
+        if k == ASTUnaryKind.OP_UNARY_NOT_LOG {
+            if v.getKind() == SemaConstKind.CONST_BOOL {
+                this.result = this.boolValue(v.getBool() == false)
+            }
+        } elsif k == ASTUnaryKind.OP_UNARY_NEG {
+            if v.getKind() == SemaConstKind.CONST_INT {
+                long n = math.wrapSubL(0, v.getInt())
+                if v.isLiteral() {
+                    // `-5`: the literal's fit was checked with its sign
+                    SemaConstValue c = this.intValue(n)
+                    c.setLiteral(true)
+                    this.result = c
+                } else {
+                    this.checked(n, node.getType())
+                }
+            } elsif v.getKind() == SemaConstKind.CONST_FLOAT {
+                SemaConstValue f = new SemaConstValue(SemaConstKind.CONST_FLOAT)
+                string t = v.getText()
+                if str.startsWith(t, "-") {
+                    f.setText(str.substring(t, 1, str.len(t)))
+                } else {
+                    f.setText(str.concat("-", t))
+                }
+                f.setLiteral(true)
+                this.result = f
+            }
+        }
+    }
+
+    public void visit(const SemaBinary node) {
+        SemaConstValue l = this.fold(node.getLeft())
+        if l == null {
+            return
+        }
+        SemaConstValue r = this.fold(node.getRight())
+        if r == null {
+            return
+        }
+        this.result = null
+        ASTBinaryKind k = node.getAST().getBinaryKind()
+        if l.getKind() == SemaConstKind.CONST_BOOL && r.getKind() == SemaConstKind.CONST_BOOL {
+            bool a = l.getBool()
+            bool b = r.getBool()
+            if k == ASTBinaryKind.OP_BINARY_LOGIC_AND {
+                this.result = this.boolValue(a && b)
+            } elsif k == ASTBinaryKind.OP_BINARY_LOGIC_OR {
+                this.result = this.boolValue(a || b)
+            } elsif k == ASTBinaryKind.OP_BINARY_COMPARE_EQ {
+                this.result = this.boolValue(a == b)
+            } elsif k == ASTBinaryKind.OP_BINARY_COMPARE_NE {
+                this.result = this.boolValue(a != b)
+            }
+            return
+        }
+        if l.getKind() != SemaConstKind.CONST_INT || r.getKind() != SemaConstKind.CONST_INT {
+            return
+        }
+        this.intBinary(k, l.getInt(), r.getInt(), node.getType())
+    }
+
+    // intBinary — one integer operator, checked against the result type `t`.
+    public void intBinary(const ASTBinaryKind k, const long a, const long b, const SemaType t) {
+        if k == ASTBinaryKind.OP_BINARY_COMPARE_EQ {
+            this.result = this.boolValue(a == b)
+        } elsif k == ASTBinaryKind.OP_BINARY_COMPARE_NE {
+            this.result = this.boolValue(a != b)
+        } elsif k == ASTBinaryKind.OP_BINARY_COMPARE_GT {
+            this.result = this.boolValue(a > b)
+        } elsif k == ASTBinaryKind.OP_BINARY_COMPARE_GTE {
+            this.result = this.boolValue(a >= b)
+        } elsif k == ASTBinaryKind.OP_BINARY_COMPARE_LT {
+            this.result = this.boolValue(a < b)
+        } elsif k == ASTBinaryKind.OP_BINARY_COMPARE_LTE {
+            this.result = this.boolValue(a <= b)
+        } elsif t == null || t.isInteger() == false || t.getRank() >= 64 {
+            // a 64-bit unsigned result is not folded past a literal
+            this.result = null
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_ADD {
+            long s = math.wrapAddL(a, b)
+            if (a >= 0) == (b >= 0) && (s >= 0) != (a >= 0) {
+                this.outOfRange()
+            } else {
+                this.checked(s, t)
+            }
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_SUB {
+            long d = math.wrapSubL(a, b)
+            if (a >= 0) != (b >= 0) && (d >= 0) != (a >= 0) {
+                this.outOfRange()
+            } else {
+                this.checked(d, t)
+            }
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_MUL {
+            long p = math.wrapMulL(a, b)
+            long minL = math.wrapSubL(0, 1) << 63
+            if a != 0 && (p / a != b || (a == -1 && b == minL)) {
+                this.outOfRange()
+            } else {
+                this.checked(p, t)
+            }
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_DIV {
+            this.divide(a, b, t, false)
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_MOD {
+            this.divide(a, b, t, true)
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_AND {
+            this.checked(a & b, t)
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_OR {
+            this.checked(a | b, t)
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_XOR {
+            this.checked(a ^ b, t)
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_SHIFT_L {
+            if b < 0 || b >= 63 {
+                this.outOfRange()
+            } else {
+                int n = (int)b
+                long sl = a << n
+                if (sl >> n) != a {
+                    this.outOfRange()
+                } else {
+                    this.checked(sl, t)
+                }
+            }
+        } elsif k == ASTBinaryKind.OP_BINARY_ARITH_SHIFT_R {
+            if b < 0 || b >= 63 {
+                this.outOfRange()
+            } else {
+                int m = (int)b
+                this.checked(a >> m, t)
+            }
+        }
+    }
+
+    // divide — `/` or `%`, checked: a zero divisor and MIN / -1 are not values.
+    public void divide(const long a, const long b, const SemaType t, const bool rem) {
+        if b == 0 {
+            this.outOfRange()
+            return
+        }
+        long minL = math.wrapSubL(0, 1) << 63
+        if a == minL && b == -1 {
+            this.outOfRange()
+            return
+        }
+        if rem {
+            this.checked(a % b, t)
+        } else {
+            this.checked(a / b, t)
+        }
+    }
+
+    // `c ? a : b` with a constant condition is the constant branch it picks.
+    public void visit(const SemaTernary node) {
+        SemaConstValue c = this.fold(node.getCond())
+        if c == null {
+            return
+        }
+        if c.getKind() != SemaConstKind.CONST_BOOL {
+            this.result = null
+            return
+        }
+        if c.getBool() {
+            this.result = this.fold(node.getTrueExpr())
+        } else {
+            this.result = this.fold(node.getFalseExpr())
+        }
+    }
+
+    public void visit(const SemaCast node) {
+        SemaConstValue v = this.fold(node.getExpr())
+        if v == null {
+            return
+        }
+        SemaType to = node.getToType()
+        this.result = null
+        if to == null || v.getKind() != SemaConstKind.CONST_INT {
+            return
+        }
+        if to.isInteger() {
+            this.result = this.intValue(this.wrapTo(v.getInt(), to))
+        } elsif to.isFloat() {
+            SemaConstValue f = new SemaConstValue(SemaConstKind.CONST_FLOAT)
+            f.setText(str.concat(str.convertL(v.getInt()), ".0"))
+            this.result = f
+        }
+    }
+
+    // ── never constant ────────────────────────────────────────────────────────
+    public void visit(const SemaCall node) {
+        this.result = null
+    }
+    public void visit(const SemaEnumList node) {
+        this.result = null
+    }
+    public void visit(const SemaEnumAccessor node) {
+        this.result = null
+    }
+    public void visit(const SemaComplexValue node) {
+        this.result = null
+    }
+    public void visit(const SemaArrayValue node) {
+        this.result = null
+    }
+    public void visit(const SemaStructValue node) {
+        this.result = null
+    }
+    public void visit(const SemaLocalVar node) {
+        this.result = null
+    }
+    public void visit(const SemaParam node) {
+        this.result = null
+    }
+    public void visit(const SemaClassInstance node) {
+        this.result = null
+    }
+    public void visit(const SemaError node) {
+        this.result = null
+    }
+    public void visit(const SemaArrayAccess node) {
+        this.result = null
+    }
+
+    // ── statements (an initializer is an expression) ──────────────────────────
+    public void visit(const SemaBlockStmt node) {
+        this.result = null
+    }
+    public void visit(const SemaDeclStmt node) {
+        this.result = null
+    }
+    public void visit(const SemaExprStmt node) {
+        this.result = null
+    }
+    public void visit(const SemaReturnStmt node) {
+        this.result = null
+    }
+    public void visit(const SemaIfStmt node) {
+        this.result = null
+    }
+    public void visit(const SemaSwitchStmt node) {
+        this.result = null
+    }
+    public void visit(const SemaLoopStmt node) {
+        this.result = null
+    }
+    public void visit(const SemaLoopInStmt node) {
+        this.result = null
+    }
+    public void visit(const SemaBreakStmt node) {
+        this.result = null
+    }
+    public void visit(const SemaContinueStmt node) {
+        this.result = null
+    }
+    public void visit(const SemaFailStmt node) {
+        this.result = null
+    }
+    public void visit(const SemaHandleStmt node) {
+        this.result = null
+    }
+    public void visit(const SemaDeleteStmt node) {
+        this.result = null
+    }
+    public void visit(const SemaCaseStmt node) {
+        this.result = null
+    }
+    public void visit(const SemaTestStmt node) {
+        this.result = null
+    }
+}
+
+// staticConstValue — the folded initializer of a `static const` field, or null
+// for any other field (a non-const static can change before it is read).
+public SemaConstValue staticConstValue(const SemaClassAttribute a) {
+    if a == null {
+        return null
+    }
+    if a.isStatic() == false || a.isConstant() == false {
+        return null
+    }
+    return a.getConstInit()
+}
+
+// parseConstLong — the 64-bit pattern of an integer literal's digits, with
+// wrapping arithmetic (CodeGenExpr.parseLong's rule: a ulong literal above the
+// long range keeps its bits; whether it fits is checkNarrowing's business).
+public long parseConstLong(const string s) {
+    long r = 0
+    int n = str.len(s)
+    int i = 0
+    bool neg = false
+    if n > 0 {
+        if str.byteAt(s, 0) == 45 {     // '-'
+            neg = true
+            i = 1
+        }
+    }
+    while i < n {
+        int bi = str.byteAt(s, i)
+        if bi >= 48 && bi <= 57 {
+            long d = bi - 48
+            r = math.wrapAddL(math.wrapMulL(r, 10), d)
+        }
+        i = i + 1
+    }
+    if neg {
+        r = math.wrapSubL(0, r)
+    }
+    return r
+}

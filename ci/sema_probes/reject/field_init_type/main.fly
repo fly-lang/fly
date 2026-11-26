@@ -1,0 +1,11 @@
+class K {
+    public int f = "abc"
+
+    public K() {
+    }
+}
+
+void main() {
+    K k = new K()
+    delete k
+}

@@ -1,0 +1,9 @@
+class K {
+    public static int a = 1
+    public static int b = a + 1
+}
+
+void main() {
+    int v = K.b
+    K.b = v
+}

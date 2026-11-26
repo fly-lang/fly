@@ -1,0 +1,9 @@
+class K {
+    public static const int MAX = 2147483647
+    public static const int OVER = MAX + 1
+}
+
+void main() {
+    int v = K.OVER
+    int w = v
+}

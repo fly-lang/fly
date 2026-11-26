@@ -369,6 +369,21 @@ public class CodeGenModule {
             }
             cv = cv + 1
         }
+        // 1e) the field-initializer routine of every class and struct defined here
+        // that has something to run (fly-lang/fly#243). Emitted before any body,
+        // so no debug location is current.
+        int fi = 0
+        while fi < classes.size() {
+            SemaClassType fic = classes.get(fi)
+            if fic.isFromHeader() == false {
+                if fic.getClassKind() != SemaClassKind.INTERFACE {
+                    if CodeGenClass.needsFieldInit(fic) {
+                        CodeGenClass.emitFieldInitFn(this, fic)
+                    }
+                }
+            }
+            fi = fi + 1
+        }
 
         // 2a) free-function bodies. Header-origin functions are external (defined in
         // the linked archive) — declared above (1b) but not defined here. Generic
@@ -821,36 +836,17 @@ public class CodeGenModule {
             pointer teardownBB
             llvm.appendBasicBlockInContext(this.ctx, w, "suite.teardown", teardownBB)
 
+            // The suite's field initializers run first, as for any object
+            // (fly-lang/fly#243); a failing one is reported like a failing setup.
+            if suiteThis != nullP {
+                if CodeGenClass.needsFieldInit(sut) {
+                    this.emitFieldInitCall(sut, errSlot, suiteThis)
+                    this.emitStepFailCheck(w, errSlot, "init", teardownBB, failedG, totalG)
+                }
+            }
             if setupM != null {
                 this.emitSuiteMethodCall(setupM, errSlot, suiteThis)
-                pointer sc
-                llvm.buildLoad2(this.builder, i32, this.errField(errSlot, 0, "scc"), "scode", sc)
-                pointer scHas
-                llvm.buildICmp(this.builder, 33, sc, zero, "schas", scHas)   // NE
-                pointer sFail
-                llvm.appendBasicBlockInContext(this.ctx, w, "setup.fail", sFail)
-                pointer sOk
-                llvm.appendBasicBlockInContext(this.ctx, w, "setup.ok", sOk)
-                pointer scbr
-                llvm.buildCondBr(this.builder, scHas, sFail, sOk, scbr)
-                llvm.positionBuilderAtEnd(this.builder, sFail)
-                pointer smsg
-                llvm.buildLoad2(this.builder, this.types.ptrType(), this.errField(errSlot, 1, "scm"), "smsg", smsg)
-                List<pointer> sfTys = new List<pointer>()
-                sfTys.add(this.types.ptrType())
-                sfTys.add(i32)
-                sfTys.add(this.types.ptrType())
-                List<pointer> sfArgs = new List<pointer>()
-                sfArgs.add(this.cstr("setup"))
-                sfArgs.add(sc)
-                sfArgs.add(smsg)
-                this.callVoidRt("suite_step_fail", sfTys, sfArgs)
-                this.incrSuiteCounter(failedG)
-                this.incrSuiteCounter(totalG)
-                this.zeroErrSlot(errSlot)
-                pointer sfbr
-                llvm.buildBr(this.builder, teardownBB, sfbr)      // setup failed → skip methods
-                llvm.positionBuilderAtEnd(this.builder, sOk)
+                this.emitStepFailCheck(w, errSlot, "setup", teardownBB, failedG, totalG)
             }
 
             int ti = 0
@@ -913,6 +909,59 @@ public class CodeGenModule {
     // reference CallMethod passes the shared handler as arg 0). `thisPtr` is
     // the REAL suite instance (B018) so fields and helper dispatch work in
     // suite methods; declared params (rare) are padded with null.
+    // emitStepFailCheck — after a suite step that runs before the methods (the
+    // field initializers, setup): when it failed, report `suite_step_fail(step,
+    // code, message)`, count one failed case, clear the slot and skip to the
+    // teardown; otherwise carry on.
+    public void emitStepFailCheck(const pointer w, const pointer errSlot, const string step, const pointer teardownBB,
+            const pointer failedG, const pointer totalG) {
+        LLVM llvm = this.cg.getLLVM()
+        pointer i32
+        llvm.int32TypeInContext(this.ctx, i32)
+        pointer zero
+        llvm.constInt(i32, 0, true, zero)
+        pointer sc
+        llvm.buildLoad2(this.builder, i32, this.errField(errSlot, 0, "scc"), "scode", sc)
+        pointer scHas
+        llvm.buildICmp(this.builder, 33, sc, zero, "schas", scHas)   // NE
+        pointer sFail
+        llvm.appendBasicBlockInContext(this.ctx, w, str.concat(step, ".fail"), sFail)
+        pointer sOk
+        llvm.appendBasicBlockInContext(this.ctx, w, str.concat(step, ".ok"), sOk)
+        pointer scbr
+        llvm.buildCondBr(this.builder, scHas, sFail, sOk, scbr)
+        llvm.positionBuilderAtEnd(this.builder, sFail)
+        pointer smsg
+        llvm.buildLoad2(this.builder, this.types.ptrType(), this.errField(errSlot, 1, "scm"), "smsg", smsg)
+        List<pointer> sfTys = new List<pointer>()
+        sfTys.add(this.types.ptrType())
+        sfTys.add(i32)
+        sfTys.add(this.types.ptrType())
+        List<pointer> sfArgs = new List<pointer>()
+        sfArgs.add(this.cstr(step))
+        sfArgs.add(sc)
+        sfArgs.add(smsg)
+        this.callVoidRt("suite_step_fail", sfTys, sfArgs)
+        this.incrSuiteCounter(failedG)
+        this.incrSuiteCounter(totalG)
+        this.zeroErrSlot(errSlot)
+        pointer sfbr
+        llvm.buildBr(this.builder, teardownBB, sfbr)      // the step failed → skip methods
+        llvm.positionBuilderAtEnd(this.builder, sOk)
+    }
+
+    // emitFieldInitCall — `fieldinit.<T>(errSlot, obj)` from the test runner,
+    // which has no CodeGenExpr of its own (CodeGenClass.callFieldInit is the
+    // body-side twin, with failure propagation).
+    public void emitFieldInitCall(const SemaClassType cls, const pointer errSlot, const pointer obj) {
+        pointer fn = CodeGenClass.fieldInitFn(this, cls)
+        List<pointer> args = new List<pointer>()
+        args.add(errSlot)
+        args.add(obj)
+        pointer cv
+        this.cg.buildCallN(this.builder, CodeGenClass.fieldInitFnType(this), fn, args, "", cv)
+    }
+
     public void emitSuiteMethodCall(const SemaClassMethod m, const pointer errSlot, const pointer thisPtr) {
         pointer fn = m.getLlvmFn()
         pointer fnTy = m.getLlvmFnType()

@@ -518,12 +518,52 @@ public class ResolverClass {
             }
         }
 
+        // The initializer (fly-lang/fly#243). An INSTANCE field's runs when the
+        // object is created, before any constructor (CodeGenClass.emitFieldInits),
+        // so it may read `this` and the fields declared before it: `this` is put in
+        // a scope of its own around it. A STATIC field's is the initial value of
+        // its global, so it must fold to a constant (SemaConstFold). Both are
+        // checked like a declaration's initializer.
+        // A HEADER field's `= 0` only says that the archive's routine sets it
+        // (HeaderGen): never resolved, as the real initializer stays out of sight.
         ASTExpr ie = node.getExpr()
-        if ie != null {
+        if ie != null && cls.isFromHeader() {
+            attr.setHeaderInit(true)
+        } elsif ie != null {
+            bool instanceInit = attr.isStatic() == false
+            if instanceInit {
+                r.enterScope()
+                SemaClassInstance ti = cls.getThis()
+                if ti != null {
+                    Symbol thisSym = new Symbol("this", SymbolKind.VAR, ti)
+                    thisSym.setExprRef(ti)
+                    r.addSymbol(thisSym)
+                }
+            }
             r.setExpectedType(t)            // so `T[] xs = {...}` types the literal
             ie.accept(r)
             r.setExpectedType(null)
-            attr.setInitExpr(r.getCurrentExpr())
+            SemaExpr init = r.getCurrentExpr()
+            if instanceInit {
+                r.exitScope()
+            }
+            attr.setInitExpr(init)
+            if init != null {
+                checkAssignTypes(r, ie.getLoc(), t, init.getType())
+                checkNarrowing(r, ie.getLoc(), t, init)
+                if attr.isStatic() {
+                    SemaConstFold cf = new SemaConstFold()
+                    SemaConstValue cv = cf.fold(init)
+                    if cv != null {
+                        attr.setConstInit(cv)
+                    } elsif cf.isOverflowed() {
+                        r.diagStr(ie.getLoc(), DiagID.err_sema_static_init_overflow, node.getName())
+                    } else {
+                        r.diagStr(ie.getLoc(), DiagID.err_sema_static_init_not_constant, node.getName())
+                    }
+                    delete cf
+                }
+            }
         }
 
         Symbol sym = new Symbol(node.getName(), SymbolKind.ATTRIBUTE, attr)

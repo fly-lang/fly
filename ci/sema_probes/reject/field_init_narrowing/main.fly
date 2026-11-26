@@ -1,0 +1,15 @@
+long big() {
+    return 5
+}
+
+class K {
+    public int f = big()
+
+    public K() {
+    }
+}
+
+void main() {
+    K k = new K()
+    delete k
+}

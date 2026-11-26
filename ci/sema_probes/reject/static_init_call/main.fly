@@ -1,0 +1,12 @@
+int compute() {
+    return 3
+}
+
+class K {
+    public static int n = compute()
+}
+
+void main() {
+    int v = K.n
+    K.n = v
+}

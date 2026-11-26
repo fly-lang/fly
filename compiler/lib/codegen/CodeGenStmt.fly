@@ -114,6 +114,10 @@ public class CodeGenStmt {
                     // storing the pointer would re-point the cell at callee memory
                     // and the caller would never see the value.
                     CodeGenExprOps.copyStructThroughSlot(cge, nrvoCell, niv, v.getType())
+                } elsif CodeGenClass.needsFieldInit(nct) {
+                    // `P p` built in the caller's slot: its initializers run there
+                    // (fly-lang/fly#243), on the caller's storage
+                    CodeGenClass.callFieldInit(cge, nct, callerData)
                 }
             } else {
                 v.setLlvmAlloca(slotArg)
@@ -191,6 +195,10 @@ public class CodeGenStmt {
                     llvm.constNull(sdataTy, sz)
                     llvm.buildStore(b, sz, sdata)
                     llvm.buildStore(b, sdata, alloca)
+                    // `P p` holds the zero value, then P's initializers (fly-lang/fly#243)
+                    if CodeGenClass.needsFieldInit(dct) {
+                        CodeGenClass.callFieldInit(cge, dct, sdata)
+                    }
                 } else {
                     // no initializer → DEFAULT-initialize (0 / null / empty struct):
                     // `T def  out = def` in the std templates relies on it, and an

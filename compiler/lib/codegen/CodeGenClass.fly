@@ -71,12 +71,12 @@ public class CodeGenClass {
         }
         cg.structSetBodyN(st, fieldTys, false)
 
-        // STATIC attributes live in module GLOBALS (B030), zero-initialized; the
-        // handle rides the attribute's llvmAlloca slot (SemaVar). They also still
-        // occupy an instance slot above — wasted bytes, but keeping the layout
-        // untouched avoids re-threading fieldIndex/vtable math. RESIDUAL: a
-        // non-zero literal initializer is not folded yet (needs const-eval or a
-        // module ctor) — the global starts at zero.
+        // STATIC attributes live in module GLOBALS (B030); the handle rides the
+        // attribute's llvmAlloca slot (SemaVar). They also still occupy an
+        // instance slot above — wasted bytes, but keeping the layout untouched
+        // avoids re-threading fieldIndex/vtable math. The global starts at the
+        // field's initializer, folded to a constant by Sema (fly-lang/fly#243),
+        // or at zero.
         List<SemaClassAttribute> ownAttrs = cls.getAttributeList()
         int si = 0
         while si < ownAttrs.size() {
@@ -87,9 +87,7 @@ public class CodeGenClass {
                     string gname = str.concat(sname, str.concat(".static.", sa.getName()))
                     pointer g
                     llvm.addGlobal(cgm.getModule(), gty, gname, g)
-                    pointer gzv
-                    llvm.constNull(gty, gzv)
-                    llvm.setInitializer(g, gzv)
+                    llvm.setInitializer(g, staticInitValue(cgm, sa, gty))
                     sa.setLlvmAlloca(g)
                 }
             }
@@ -166,6 +164,310 @@ public class CodeGenClass {
         pointer f
         llvm.addFunction(cgm.getModule(), name, fnTy, f)
         m.setLlvmFn(f)
+    }
+
+    // ── field initializers (fly-lang/fly#243) ─────────────────────────────────
+    //
+    // An instance field's initializer runs when its object is created: after the
+    // zeroing, before any constructor, inherited fields first, in declaration
+    // order — whether or not a constructor calls super(...). A struct value runs
+    // its struct's initializers wherever it is made: `new P()`, `P p`, a brace
+    // literal (for the fields it omits) and a struct field inside an object.
+    //
+    // A class or struct with something to run gets a routine
+    // `void fieldinit.<ns>.<T>(err, obj)` in the object that defines it. A header
+    // carries no initializer, only a mark on each field that has one
+    // (HeaderGen: `= 0`), so code creating a header type calls the archive's
+    // routine; an archive built by an older release has no marks and no calls.
+
+    // fieldInitName — the routine's symbol: the FULL namespace (fly_os_io), as a
+    // last segment alone could name two types the same.
+    public static string fieldInitName(const SemaClassType cls) {
+        string ns = SemaBuilder.classNsFlat(cls)
+        string a = str.concat("fieldinit.", ns)
+        string b2 = str.concat(a, ".")
+        return str.concat(b2, className(cls))
+    }
+
+    public static pointer fieldInitFnType(const CodeGenModule cgm) {
+        CodeGenLLVM cg = cgm.getCg()
+        LLVM llvm = cg.getLLVM()
+        pointer voidTy
+        llvm.voidTypeInContext(cgm.getCtx(), voidTy)
+        List<pointer> ps = new List<pointer>()
+        ps.add(cgm.getTypes().ptrType())        // errPtr
+        ps.add(cgm.getTypes().ptrType())        // the object
+        pointer fty
+        cg.functionTypeN(voidTy, ps, false, fty)
+        return fty
+    }
+
+    // fieldInitFn — the routine of `cls`, declared on first use.
+    public static pointer fieldInitFn(const CodeGenModule cgm, const SemaClassType cls) {
+        LLVM llvm = cgm.getCg().getLLVM()
+        string name = fieldInitName(cls)
+        pointer fn
+        llvm.getNamedFunction(cgm.getModule(), name, fn)
+        if fn == 0 {
+            llvm.addFunction(cgm.getModule(), name, fieldInitFnType(cgm), fn)
+        }
+        return fn
+    }
+
+    // inlineStructOf — the struct type of a field laid out inline, else null.
+    public static SemaClassType inlineStructOf(const SemaType t) {
+        if t == null {
+            return null
+        }
+        SemaClassType c = t.asClass()
+        if c == null {
+            return null
+        }
+        if c.getClassKind() != SemaClassKind.STRUCT {
+            return null
+        }
+        return c
+    }
+
+    // needsFieldInit — does creating a `cls` run an initializer? A header type
+    // says so field by field (SemaClassAttribute.isHeaderInit): an archive built
+    // by a release that never emitted the routine never asks for it.
+    public static bool needsFieldInit(const SemaClassType cls) {
+        if cls == null {
+            return false
+        }
+        if cls.getClassKind() == SemaClassKind.INTERFACE {
+            return false
+        }
+        List<SemaClassType> bases = cls.getBaseClasses()
+        if bases.size() > 0 {
+            if needsFieldInit(bases.get(0)) {
+                return true
+            }
+        }
+        List<SemaClassAttribute> own = cls.getAttributeList()
+        int i = 0
+        while i < own.size() {
+            SemaClassAttribute a = own.get(i)
+            if a.isStatic() == false {
+                if a.getInitExpr() != null || a.isHeaderInit() {
+                    return true
+                }
+                SemaClassType sc = inlineStructOf(a.getType())
+                if sc != null {
+                    if needsFieldInit(sc) {
+                        return true
+                    }
+                }
+            }
+            i = i + 1
+        }
+        return false
+    }
+
+    // emitFieldInitFn — define `fieldinit.<T>`: the initializers of `cls` run on
+    // the object it is given. Weak, like init_ctor: a generic specialization is
+    // emitted by every object that uses it.
+    public static void emitFieldInitFn(const CodeGenModule cgm, const SemaClassType cls) {
+        if cls.getLlvmStructType() == 0 {
+            return
+        }
+        CodeGenLLVM cg = cgm.getCg()
+        LLVM llvm = cg.getLLVM()
+        pointer b = cgm.getBuilder()
+        pointer fn = fieldInitFn(cgm, cls)
+        llvm.setLinkage(fn, 3)
+        cgm.setWeakComdat(fn, fieldInitName(cls))
+
+        pointer entry
+        llvm.appendBasicBlockInContext(cgm.getCtx(), fn, "entry", entry)
+        llvm.positionBuilderAtEnd(b, entry)
+        CodeGenExpr cge = new CodeGenExpr(cgm)
+        pointer errParam
+        llvm.getParam(fn, 0, errParam)
+        cge.setErrPtr(errParam)
+        pointer i32le
+        llvm.int32TypeInContext(cgm.getCtx(), i32le)
+        pointer leSlot
+        llvm.buildAlloca(b, i32le, "lasterr", leSlot)
+        pointer leZero
+        llvm.constInt(i32le, 0, true, leZero)
+        llvm.buildStore(b, leZero, leSlot)
+        cge.setLastErrPtr(leSlot)
+        pointer obj
+        llvm.getParam(fn, 1, obj)
+
+        emitFieldInits(cge, cls, obj, null)
+        if cge.isTerminated() == false {
+            pointer ret
+            llvm.buildRetVoid(b, ret)
+        }
+    }
+
+    // callFieldInit — run the initializers of `cls` on `obj` from a body: a call
+    // to its routine, then the failure check of any call.
+    public static void callFieldInit(const CodeGenExpr cge, const SemaClassType cls, const pointer obj) {
+        CodeGenModule cgm = cge.getCgm()
+        pointer fn = fieldInitFn(cgm, cls)
+        List<pointer> args = new List<pointer>()
+        args.add(cge.getErrPtr())
+        args.add(obj)
+        pointer cv
+        cgm.getCg().buildCallN(cge.getBuilder(), fieldInitFnType(cgm), fn, args, "", cv)
+        CodeGenError.propagate(cge)
+    }
+
+    // emitFieldInits — the initializers of `cls`, emitted inline on `obj` (laid
+    // out as `cls`), skipping the fields named in `skip` (those a brace literal
+    // gives). The base comes first: inline too, unless it is a header type,
+    // whose routine is called. A CLASS lays the fields of a STRUCT base flat
+    // after its vtable slot, at the same offsets as in the struct itself.
+    // Each initializer is stored like the assignment `f = init` in a
+    // constructor (string copy, inline struct copy, coercion); a struct field
+    // without one gets its own struct's initializers.
+    public static void emitFieldInits(const CodeGenExpr cge, const SemaClassType cls, const pointer obj,
+            const List<string> skip) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        pointer structTy = cls.getLlvmStructType()
+        bool isStruct = cls.getClassKind() == SemaClassKind.STRUCT
+
+        List<SemaClassType> bases = cls.getBaseClasses()
+        if bases.size() > 0 {
+            SemaClassType base = bases.get(0)
+            if needsFieldInit(base) {
+                pointer baddr = obj
+                if isStruct == false && base.getClassKind() == SemaClassKind.STRUCT {
+                    llvm.buildStructGEP2(b, structTy, obj, 1, "init.base", baddr)
+                }
+                if base.isFromHeader() {
+                    callFieldInit(cge, base, baddr)
+                } else {
+                    emitFieldInits(cge, base, baddr, skip)
+                }
+            }
+        }
+
+        // `this` in an initializer is the object being made: the class instance
+        // reads it from a slot of its own while the initializers are emitted.
+        SemaClassInstance ti = cls.getThis()
+        pointer savedThis = 0
+        bool bound = false
+        List<SemaClassAttribute> own = cls.getAttributeList()
+        int i = 0
+        while i < own.size() {
+            SemaClassAttribute a = own.get(i)
+            bool run = a.isStatic() == false
+            if run {
+                if skip != null {
+                    if listHasName(skip, a.getName()) {
+                        run = false
+                    }
+                }
+            }
+            SemaExpr init = null
+            SemaClassType sc = null
+            if run {
+                init = a.getInitExpr()
+                if init == null {
+                    sc = inlineStructOf(a.getType())
+                    if sc != null {
+                        if needsFieldInit(sc) == false {
+                            sc = null
+                        }
+                    }
+                }
+            }
+            if init != null && cge.isTerminated() == false {
+                if bound == false {
+                    if ti != null {
+                        savedThis = ti.getLlvmAlloca()
+                        pointer slot
+                        llvm.buildAlloca(b, cge.ptrType(), "init.this", slot)
+                        llvm.buildStore(b, obj, slot)
+                        ti.setLlvmAlloca(slot)
+                    }
+                    bound = true
+                }
+                SemaBinary asg = new SemaBinary(null, a, init, a.getType())
+                CodeGenExprOps.assign(cge, asg)
+                delete asg
+            } elsif sc != null && cge.isTerminated() == false {
+                pointer faddr
+                llvm.buildStructGEP2(b, structTy, obj, fieldIndex(cls, a.getName()), "init.fld", faddr)
+                if sc.isFromHeader() {
+                    callFieldInit(cge, sc, faddr)
+                } else {
+                    emitFieldInits(cge, sc, faddr, null)
+                }
+            }
+            i = i + 1
+        }
+        if bound {
+            if ti != null {
+                ti.setLlvmAlloca(savedThis)
+            }
+        }
+    }
+
+    public static bool listHasName(const List<string> names, const string name) {
+        int i = 0
+        while i < names.size() {
+            if str.equals(names.get(i), name) {
+                return true
+            }
+            i = i + 1
+        }
+        return false
+    }
+
+    // staticInitValue — the initial value of a static field's global: its folded
+    // initializer (SemaConstFold) as a constant of the field's LLVM type, or zero.
+    public static pointer staticInitValue(const CodeGenModule cgm, const SemaClassAttribute sa, const pointer gty) {
+        CodeGenLLVM cg = cgm.getCg()
+        LLVM llvm = cg.getLLVM()
+        SemaConstValue cv = sa.getConstInit()
+        SemaType ft = sa.getType()
+        pointer v
+        if cv == null || ft == null {
+            llvm.constNull(gty, v)
+            return v
+        }
+        SemaConstKind k = cv.getKind()
+        if k == SemaConstKind.CONST_INT {
+            if ft.isFloat() {
+                llvm.constRealOfString(gty, str.concat(str.convertL(cv.getInt()), ".0"), v)
+            } else {
+                // an odd integer rank is signed (SemaIntType.isUnsigned)
+                bool signed = true
+                if ft.isInteger() {
+                    signed = ft.getRank() % 2 == 1
+                }
+                llvm.constInt(gty, cv.getInt(), signed, v)
+            }
+        } elsif k == SemaConstKind.CONST_FLOAT {
+            llvm.constRealOfString(gty, cv.getText(), v)
+        } elsif k == SemaConstKind.CONST_BOOL {
+            long bv = 0
+            if cv.getBool() {
+                bv = 1
+            }
+            llvm.constInt(gty, bv, false, v)
+        } elsif k == SemaConstKind.CONST_STRING {
+            string sv = cv.getText()
+            pointer g = cg.globalString(cgm.getModule(), cgm.getCtx(), sv)
+            pointer i32len
+            llvm.int32TypeInContext(cgm.getCtx(), i32len)
+            pointer lenC
+            llvm.constInt(i32len, str.len(sv), false, lenC)
+            List<pointer> fields = new List<pointer>()
+            fields.add(g)
+            fields.add(lenC)
+            cg.constNamedStructN(cgm.getStringTy(), fields, v)
+        } else {
+            llvm.constNull(gty, v)
+        }
+        return v
     }
 
     // buildVTable — emit `@vtable.<ns>.<Class> = constant [N x ptr] [null, m0, …]`.
@@ -711,6 +1013,10 @@ public class CodeGenClass {
             llvm.buildStore(b, vtable, vtSlot)
         }
 
+        if needsFieldInit(cls) {
+            callFieldInit(cge, cls, obj)
+        }
+
         if ctor != null {
             pointer cf = ctor.getLlvmFn()
             if cf != 0 {
@@ -805,6 +1111,11 @@ public class CodeGenClass {
                 pointer vtable = cls.getLlvmVTable()
                 llvm.buildStore(b, vtable, vtSlot)
             }
+        }
+
+        // the field initializers, before any constructor (fly-lang/fly#243)
+        if needsFieldInit(cls) {
+            callFieldInit(cge, cls, obj)
         }
 
         SemaFunctionBase ctor = node.getFunction()
@@ -1167,6 +1478,15 @@ public class CodeGenClass {
 
         List<string> names = node.getNames()
         List<SemaExpr> exprs = node.getExprs()
+        // the struct's initializers, for the fields the literal does not give
+        // (fly-lang/fly#243); a header struct's routine runs them all
+        if needsFieldInit(ct) {
+            if ct.isFromHeader() {
+                callFieldInit(cge, ct, slot)
+            } else {
+                emitFieldInits(cge, ct, slot, names)
+            }
+        }
         int i = 0
         while i < names.size() {
             string nm = names.get(i)

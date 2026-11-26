@@ -1,0 +1,9 @@
+class K {
+    public static const int Z = 0
+    public static const int D = 10 / Z
+}
+
+void main() {
+    int v = K.D
+    int w = v
+}

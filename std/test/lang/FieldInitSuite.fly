@@ -1,0 +1,312 @@
+import fly.assert
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FieldInitSuite — field initializers (fly-lang/fly#243).
+//
+// A STATIC field's initializer is a constant, folded at compile time into the
+// field's initial value: literals, enum entries, static const fields and the
+// operators over them.
+//
+// An INSTANCE field's initializer runs when the object is created: after the
+// zeroing, before any constructor, inherited fields first, in declaration
+// order — whether or not the constructor calls super(...). It may read `this`
+// and the fields declared before it.
+//
+// A STRUCT runs its initializers wherever a value of it is made: `new P()`,
+// `P p`, a brace literal (for the fields it omits), a struct field inside an
+// object, and the struct base of a class.
+//
+// Assert codes: 1xx static, 2xx instance, 3xx inheritance, 4xx structs,
+// 5xx failures, 6xx class arrays.
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum Level {
+    LOW,
+    MID,
+    HIGH
+}
+
+class Limits {
+    public static int B = 11
+    public static int NEG = -7
+    public static long BIG = 5000000000
+    public static byte SMALL = 200
+    public static double RATE = 2.5
+    public static bool ON = true
+    public static string NAME = "limits"
+    public static Level LEVEL = Level.HIGH
+    public static const int A = 6
+    public static const int TWICE = A * 2 + 1
+    public static const long MASK = (1 << 10) - 1
+    public static const int PICK = A > 5 ? 100 : 200
+    public static const byte WRAP = (byte)300
+    public static const double HALF = (double)3
+}
+
+class Other {
+    public static const int FROM = Limits.A + 1
+}
+
+class Counter {
+    public int n = 4
+    public string label = "count"
+    public int twice = n * 2
+    public int viaThis = this.n + 1
+    public const int K = 9
+    public bool flag = true
+    public int seen
+
+    public Counter() {
+        this.seen = this.n          // the initializers already ran
+    }
+}
+
+class Assigned {
+    public int v = 1
+
+    public Assigned(const int x) {
+        this.v = this.v + x
+    }
+}
+
+class Base {
+    public int bf = 3
+    public int bc
+
+    public Base() {
+        this.bc = this.bf + 1
+    }
+}
+
+// No super(...): the base constructor does not run, the base initializer does.
+class NoSuper : Base {
+    public int sf = 5
+
+    public NoSuper() {
+    }
+}
+
+class WithSuper : Base {
+    public int sf = 6
+
+    public WithSuper() {
+        super()
+    }
+}
+
+class Third : WithSuper {
+    public int tf = 7
+
+    public Third() {
+        super()
+    }
+}
+
+struct Point {
+    int x = 4
+    int y
+    string tag = "pt"
+}
+
+struct Point3 : Point {
+    int z = 8
+}
+
+struct Line {
+    Point a
+    Point b
+}
+
+class Holder {
+    public Point p
+    public int after = 2
+
+    public Holder() {
+    }
+}
+
+class OnStruct : Point {
+    public int w = 12
+
+    public OnStruct() {
+    }
+}
+
+int boom() {
+    fail 77, "boom"
+}
+
+class Failing {
+    public int ok = 1
+    public int bad = boom()
+
+    public Failing() {
+    }
+}
+
+Point makePoint() {
+    Point r
+    r.y = 3
+    return r
+}
+
+suite FieldInitSuite {
+
+    // ── static fields ────────────────────────────────────────────────────────
+    void staticTest() {
+        case "literals of every kind": {
+            assert.assertEqI(Limits.B, 11, 101)
+            assert.assertEqI(Limits.NEG, -7, 102)
+            assert.assertEqL(Limits.BIG, 5000000000, 103)
+            assert.assertEqI(Limits.SMALL, 200, 104)
+            assert.assertApprox(Limits.RATE, 2.5, 105)
+            assert.assertTrue(Limits.ON, 106)
+            assert.assertStr(Limits.NAME, "limits", 107)
+            assert.assertTrue(Limits.LEVEL == Level.HIGH, 108)
+        }
+        case "static consts and the operators over them": {
+            assert.assertEqI(Limits.A, 6, 111)
+            assert.assertEqI(Limits.TWICE, 13, 112)
+            assert.assertEqL(Limits.MASK, 1023, 113)
+            assert.assertEqI(Limits.PICK, 100, 114)
+            assert.assertEqI(Limits.WRAP, 44, 115)
+            assert.assertApprox(Limits.HALF, 3.0, 116)
+            assert.assertEqI(Other.FROM, 7, 117)
+        }
+        case "a static field initialized is still assignable": {
+            Limits.B = Limits.B + 1
+            assert.assertEqI(Limits.B, 12, 121)
+            Limits.NAME = str.concat(Limits.NAME, "!")
+            assert.assertStr(Limits.NAME, "limits!", 122)
+            Limits.B = 11
+        }
+    }
+
+    // ── instance fields ──────────────────────────────────────────────────────
+    void instanceTest() {
+        case "initializers run at creation": {
+            Counter c = new unique Counter()
+            assert.assertEqI(c.n, 4, 201)
+            assert.assertStr(c.label, "count", 202)
+            assert.assertEqI(c.K, 9, 203)
+            assert.assertTrue(c.flag, 204)
+        }
+        case "an initializer reads earlier fields and this": {
+            Counter c = new unique Counter()
+            assert.assertEqI(c.twice, 8, 211)
+            assert.assertEqI(c.viaThis, 5, 212)
+        }
+        case "the constructor sees the initialized fields": {
+            Counter c = new unique Counter()
+            assert.assertEqI(c.seen, 4, 221)
+            Assigned a = new unique Assigned(10)
+            assert.assertEqI(a.v, 11, 222)
+        }
+        case "each object gets its own values": {
+            Counter c1 = new unique Counter()
+            Counter c2 = new unique Counter()
+            c1.n = 40
+            c1.label = "changed"
+            assert.assertEqI(c2.n, 4, 231)
+            assert.assertStr(c2.label, "count", 232)
+        }
+    }
+
+    // ── inheritance ──────────────────────────────────────────────────────────
+    void inheritTest() {
+        case "base initializers run without super": {
+            NoSuper o = new unique NoSuper()
+            assert.assertEqI(o.bf, 3, 301)
+            assert.assertEqI(o.sf, 5, 302)
+            assert.assertEqI(o.bc, 0, 303)           // no super(): Base() did not run
+        }
+        case "with super the base constructor sees its initializers": {
+            WithSuper o = new unique WithSuper()
+            assert.assertEqI(o.bf, 3, 311)
+            assert.assertEqI(o.bc, 4, 312)
+            assert.assertEqI(o.sf, 6, 313)
+        }
+        case "three levels": {
+            Third o = new unique Third()
+            assert.assertEqI(o.bf, 3, 321)
+            assert.assertEqI(o.bc, 4, 322)
+            assert.assertEqI(o.sf, 6, 323)
+            assert.assertEqI(o.tf, 7, 324)
+        }
+    }
+
+    // ── structs ──────────────────────────────────────────────────────────────
+    void structTest() {
+        case "new P()": {
+            Point p = new Point()
+            assert.assertEqI(p.x, 4, 401)
+            assert.assertEqI(p.y, 0, 402)
+            assert.assertStr(p.tag, "pt", 403)
+        }
+        case "P p without initializer": {
+            Point p
+            assert.assertEqI(p.x, 4, 411)
+            assert.assertStr(p.tag, "pt", 412)
+            Point r = makePoint()
+            assert.assertEqI(r.x, 4, 413)
+            assert.assertEqI(r.y, 3, 414)
+        }
+        case "a brace literal fills the fields it omits": {
+            Point p = {y = 5}
+            assert.assertEqI(p.x, 4, 421)
+            assert.assertEqI(p.y, 5, 422)
+            Point q = {x = 9, tag = "q"}
+            assert.assertEqI(q.x, 9, 423)
+            assert.assertStr(q.tag, "q", 424)
+        }
+        case "a struct base and nested struct fields": {
+            Point3 p
+            assert.assertEqI(p.x, 4, 431)
+            assert.assertEqI(p.z, 8, 432)
+            Line l
+            assert.assertEqI(l.a.x, 4, 433)
+            assert.assertEqI(l.b.x, 4, 434)
+            Holder h = new unique Holder()
+            assert.assertEqI(h.p.x, 4, 435)
+            assert.assertStr(h.p.tag, "pt", 436)
+            assert.assertEqI(h.after, 2, 437)
+        }
+        case "a class extending a struct": {
+            OnStruct o = new unique OnStruct()
+            assert.assertEqI(o.x, 4, 441)
+            assert.assertStr(o.tag, "pt", 442)
+            assert.assertEqI(o.w, 12, 443)
+        }
+    }
+
+    // ── failures ─────────────────────────────────────────────────────────────
+    void failTest() {
+        // The half-built object is not released (nor is one whose constructor
+        // fails): this case leaves one undeleted object behind.
+        case "a failing initializer fails the new": {
+            int code = 0
+            handle {
+                Failing f = new Failing()
+                delete f
+            }
+            if error {
+                code = 77
+            }
+            assert.assertEqI(code, 77, 501)
+        }
+    }
+
+    // ── class arrays ─────────────────────────────────────────────────────────
+    void arrayTest() {
+        case "each element of a class array is initialized": {
+            Counter[2] cs
+            assert.assertEqI(cs[0].n, 4, 601)
+            assert.assertEqI(cs[1].twice, 8, 602)
+            Counter c0 = cs[0]
+            Counter c1 = cs[1]
+            delete c0
+            delete c1
+        }
+    }
+}

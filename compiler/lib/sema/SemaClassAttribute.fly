@@ -8,6 +8,7 @@ import fly.compiler.sema.SemaClassType
 import fly.compiler.sema.SemaComment
 import fly.compiler.sema.SemaExpr
 import fly.compiler.sema.SemaVisibilityKind
+import fly.compiler.sema.SemaConstValue
 import fly.compiler.ast.ASTAttribute
 
 // SemaClassAttribute — a resolved class member variable. 1:1 with C++.
@@ -19,12 +20,17 @@ public class SemaClassAttribute : SemaVar {
     SemaClassType inherited
     SemaComment comment
     SemaExpr initExpr
+    SemaConstValue constInit
+    bool headerInit
 
     public SemaClassAttribute(const ASTAttribute attrAst, const SemaClassType classType, const SemaType type) {
         super(attrAst, SemaKind.ATTRIBUTE, type)
         this.classType = classType
         this.visibility = SemaVisibilityKind.DEFAULT
         this.staticFlag = false
+        this.initExpr = null
+        this.constInit = null
+        this.headerInit = false
     }
 
     public SemaClassType getClass() {
@@ -60,6 +66,25 @@ public class SemaClassAttribute : SemaVar {
     public void setInitExpr(const SemaExpr initExpr) {
         this.initExpr = initExpr
     }
+
+    // getConstInit — a STATIC field's folded initializer (SemaConstFold): the
+    // initial value of its global. Null without an initializer.
+    public SemaConstValue getConstInit() {
+        return this.constInit
+    }
+    public void setConstInit(const SemaConstValue constInit) {
+        this.constInit = constInit
+    }
+
+    // isHeaderInit — a field of a HEADER type whose declaration has an
+    // initializer: the archive's fieldinit routine sets it (HeaderGen).
+    public bool isHeaderInit() {
+        return this.headerInit
+    }
+    public void setHeaderInit(const bool headerInit) {
+        this.headerInit = headerInit
+    }
+
     public void accept(const SemaVisitor v) {
         v.visit(this)
     }

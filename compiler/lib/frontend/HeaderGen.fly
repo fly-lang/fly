@@ -835,6 +835,16 @@ public class HeaderGen {
                         h = str.concat(h, fty)
                         h = str.concat(h, " ")
                         h = str.concat(h, v.getName())
+                        // An initializer is not copied (it may reach private
+                        // names): `= 0` only says there is one, so code creating
+                        // the type calls the archive's fieldinit routine
+                        // (fly-lang/fly#243). An archive whose header says nothing
+                        // (one built by an older release) is never called.
+                        if v.getExpr() != null {
+                            if HeaderGen.hasModifier(v.getModifiers(), ASTModifierKind.MOD_STATIC) == false {
+                                h = str.concat(h, " = 0  // set by the archive's field initializer")
+                            }
+                        }
                         h = str.concat(h, lf)
                     }
                 }

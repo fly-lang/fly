@@ -128,7 +128,9 @@ public enum DiagID {
     err_parser_bad_escape,
     err_sema_generic_new_no_args,
     err_sema_symbol_protected,
-    err_sema_protected_placement
+    err_sema_protected_placement,
+    err_sema_static_init_not_constant,
+    err_sema_static_init_overflow
 }
 
 // getDiagClass — the class column for a diagnostic id.
@@ -430,6 +432,12 @@ public string getDescription(const DiagID id) {
     }
     if id == DiagID.err_sema_protected_placement {
         return "'protected' cannot be written on %0: it applies only to the methods and attributes of a class"
+    }
+    if id == DiagID.err_sema_static_init_not_constant {
+        return "static field '%0' needs a constant initializer (literals, enum entries, static consts, operators)"
+    }
+    if id == DiagID.err_sema_static_init_overflow {
+        return "the initializer of static field '%0' overflows its type, divides by zero or shifts too far"
     }
     if id == DiagID.err_sema_abstract_instantiation {
         return "cannot instantiate '%0': it is declared 'abstract'"
