@@ -1,0 +1,19 @@
+class K {
+    public const int v
+
+    public K() {
+        this.v = 1
+    }
+
+    public K(const K o) {
+        o.v = 5
+        this.v = 2
+    }
+}
+
+void main() {
+    K k = new K()
+    K j = new K(k)
+    delete j
+    delete k
+}

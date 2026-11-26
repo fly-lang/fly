@@ -932,6 +932,11 @@ public class ResolverStmt {
             return
         }
         string why = deleteTargetProblem(re)
+        // a const field named bare (`delete f` in a method) carries no flag of its
+        // own: writesConst judges it like the assignment does
+        if str.isEmpty(why) && ResolverExpr.writesConst(r, e, re) {
+            why = "the variable is declared 'const'"
+        }
         if str.isEmpty(why) == false {
             r.diagStr(node.getLoc(), DiagID.err_sema_delete_target, why)
             return

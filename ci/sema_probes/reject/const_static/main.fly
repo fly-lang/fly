@@ -1,0 +1,7 @@
+class K {
+    public static const int A = 1
+}
+
+void main() {
+    K.A = 2
+}

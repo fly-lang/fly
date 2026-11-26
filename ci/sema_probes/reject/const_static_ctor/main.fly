@@ -1,0 +1,12 @@
+class K {
+    static const int A = 1
+
+    public K() {
+        K.A = 3
+    }
+}
+
+void main() {
+    K k = new K()
+    delete k
+}

@@ -1,0 +1,46 @@
+import fly.os.io
+import fly.str
+
+// The writes a const field allows (fly-lang/fly#240): a constructor of the class
+// that declares it sets it once on its own object, through `this.v` or the bare
+// name, when it has no initializer; reads are free everywhere.
+class Base {
+    public static const int SCALE = 10
+    public const int id
+
+    public Base(const int id) {
+        this.id = id
+    }
+}
+
+class Item : Base {
+    const int qty
+    const int unit
+    const int extra = 5
+
+    public Item(const int n) {
+        super(1)
+        qty = n
+        this.unit = 10
+    }
+
+    public int total() {
+        return qty * this.unit + this.id
+    }
+
+    // reads of initialized const fields: their values are not asserted here
+    public int fixed() {
+        return this.extra + Base.SCALE
+    }
+}
+
+void main() {
+    Item it = new Item(3)
+    int n = it.total()
+    int f = it.fixed()
+    delete it
+    if n != 31 || f < 0 {
+        fail 1, "const fields misbehaved"
+    }
+    io.printLn(str.convert(n))
+}

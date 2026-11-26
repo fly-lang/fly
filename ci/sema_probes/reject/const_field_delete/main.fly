@@ -1,0 +1,20 @@
+class N {
+}
+
+class K {
+    const N n
+
+    public K() {
+        this.n = new N()
+    }
+
+    public void drop() {
+        delete n
+    }
+}
+
+void main() {
+    K k = new K()
+    k.drop()
+    delete k
+}

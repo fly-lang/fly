@@ -1,0 +1,19 @@
+class B {
+    public const int v
+
+    public B() {
+        this.v = 1
+    }
+}
+
+class D : B {
+
+    public D() {
+        super.v = 2
+    }
+}
+
+void main() {
+    D d = new D()
+    delete d
+}

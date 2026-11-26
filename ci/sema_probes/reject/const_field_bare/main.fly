@@ -1,0 +1,17 @@
+class K {
+    const int v
+
+    public K() {
+        v = 1
+    }
+
+    public void set() {
+        v = 3
+    }
+}
+
+void main() {
+    K k = new K()
+    k.set()
+    delete k
+}

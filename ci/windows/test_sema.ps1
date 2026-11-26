@@ -75,7 +75,8 @@ foreach ($probe in Get-ChildItem 'ci/sema_probes/reject' -Directory | Sort-Objec
 # check added on this line (member_of_array: a member of a non-object;
 # generic_new_no_args: `new` on a generic class without type arguments;
 # protected_* and private_static*/private_super: protected and private on every
-# member path).
+# member path; const_static*, const_field_{bare,init,other,super,delete}: a const
+# field written outside the one constructor write it allows).
 $SEED = 'build/stage0/bin/fly.exe'
 $SEEDLIB = 'build/stage1/lib'
 if ((Test-Path $SEED -PathType Leaf) -and (Test-Path $SEEDLIB)) {

@@ -1,0 +1,12 @@
+class K {
+    const int v = 4
+
+    public K() {
+        this.v = 1
+    }
+}
+
+void main() {
+    K k = new K()
+    delete k
+}

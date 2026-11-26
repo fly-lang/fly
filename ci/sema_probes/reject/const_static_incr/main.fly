@@ -1,0 +1,11 @@
+class K {
+    static const int A = 1
+
+    public static void bump() {
+        A++
+    }
+}
+
+void main() {
+    K.bump()
+}

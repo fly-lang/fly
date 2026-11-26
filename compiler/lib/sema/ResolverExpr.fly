@@ -259,10 +259,11 @@ public class ResolverExpr {
                             checkNarrowing(r, node.getOpLocation(), left.getType(), right)
                         }
                     }
-                    // A `const` local or parameter is read-only. Only the variable
-                    // ITSELF is protected: `p.x = 1` through a const `p` writes a
-                    // field of the object, which const does not cover.
-                    if left.isConstVar() {
+                    // A `const` local, parameter or field is read-only (a field
+                    // outside the one write constFieldLocked allows). Only the
+                    // variable ITSELF is protected: `p.x = 1` through a const `p`
+                    // writes a field of the object, which const does not cover.
+                    if writesConst(r, l, left) {
                         string cn = "?"
                         ASTIdentifier cid = l.asIdentifier()
                         if cid != null {
@@ -337,7 +338,7 @@ public class ResolverExpr {
                 writes = true
             }
             if writes {
-                if inner.isConstVar() {
+                if writesConst(r, e, inner) {
                     string un = "?"
                     ASTIdentifier uid = e.asIdentifier()
                     if uid != null {
@@ -486,6 +487,11 @@ public class ResolverExpr {
                                 thisE = tsym.getExprRef()
                             }
                             SemaMember smem = SemaBuilder.CreateMemberVar(node, sattr, thisE)
+                            // `super.v` names a field of a base, never this class's
+                            // own: a const one is read-only even in a constructor
+                            if constFieldLocked(r, sattr, false) {
+                                smem.setConstVar(true)
+                            }
                             r.setCurrentExpr(smem)
                             return
                         }
@@ -540,6 +546,10 @@ public class ResolverExpr {
                                 }
                                 SemaMember sm2 = SemaBuilder.CreateMemberVar(node, sattr2, null)
                                 sm2.setStaticAttr(sattr2)
+                                // a static const is set by its initializer only
+                                if sattr2.isConstant() {
+                                    sm2.setConstVar(true)
+                                }
                                 r.setCurrentExpr(sm2)
                                 return
                             }
@@ -619,26 +629,74 @@ public class ResolverExpr {
             fowner.markUsed()
         }
         SemaMember mem = SemaBuilder.CreateMemberVar(node, attr, pe)
-        // A `const` field is written once, by a constructor of its own class;
-        // everywhere else the member expression is read-only. The flag rides on
-        // the expression (see SemaExpr.constVar), so the assignment and ++/--
-        // checks treat it exactly like a const local.
-        if attr.isConstant() {
-            bool inOwnCtor = false
-            SemaFunctionBase cfn = r.getCurrentFunction()
-            if cfn != null {
-                SemaClassMethod cm = cfn.asClassMethod()
-                if cm != null {
-                    if cm.isConstructor() {
-                        inOwnCtor = classMayAccess(r, attr.getClass())
-                    }
-                }
-            }
-            if inOwnCtor == false {
-                mem.setConstVar(true)
-            }
+        // A `const` field is read-only here unless constFieldLocked lets this
+        // constructor set it. The flag rides on the expression (see
+        // SemaExpr.constVar), so the assignment and ++/-- checks treat it exactly
+        // like a const local.
+        if constFieldLocked(r, attr, pe.getKind() == SemaKind.INSTANCE_VAR) {
+            mem.setConstVar(true)
         }
         r.setCurrentExpr(mem)
+    }
+
+    // constFieldLocked — is a write to `attr` rejected at this point? Only a
+    // `const` field is ever locked. A static const is set by its initializer
+    // alone. An instance const is set once, by a constructor of the class that
+    // declares it, on its own object (`this.v`, or the bare name: `viaThis`), and
+    // only when it has no initializer: an initialized const field is fixed like a
+    // static one. Every other write — another object, another method, a subclass
+    // constructor — is the `cannot assign` error of a const local.
+    public static bool constFieldLocked(const Resolver r, const SemaClassAttribute attr, const bool viaThis) {
+        if attr.isConstant() == false {
+            return false
+        }
+        if attr.isStatic() {
+            return true
+        }
+        if viaThis == false {
+            return true
+        }
+        ASTVar fast = attr.getAST()
+        if fast != null {
+            if fast.getExpr() != null {
+                return true
+            }
+        }
+        SemaFunctionBase cfn = r.getCurrentFunction()
+        if cfn == null {
+            return true
+        }
+        SemaClassMethod cm = cfn.asClassMethod()
+        if cm == null {
+            return true
+        }
+        if cm.isConstructor() == false {
+            return true
+        }
+        return classMayAccess(r, attr.getClass()) == false
+    }
+
+    // writesConst — does writing `left` (resolved from `ast`) assign a const?
+    // A const local, parameter or member expression carries the flag itself; a
+    // field named bare inside a method (`v = 1`) resolves to the attribute shared
+    // by every use, which cannot carry a per-site flag, so it is judged here.
+    public static bool writesConst(const Resolver r, const ASTExpr ast, const SemaExpr left) {
+        if left.isConstVar() {
+            return true
+        }
+        if left.getKind() != SemaKind.ATTRIBUTE {
+            return false
+        }
+        ASTIdentifier id = ast.asIdentifier()
+        SemaClassType here = r.getCurrentClass()
+        if id == null || here == null {
+            return false
+        }
+        SemaClassAttribute attr = here.LookupAttribute(id.getName())
+        if attr == null {
+            return false
+        }
+        return constFieldLocked(r, attr, true)
     }
 
     // arrayValue — resolve an array literal `{e0, e1, ...}`. The element type is
