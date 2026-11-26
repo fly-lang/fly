@@ -282,8 +282,7 @@ suite FieldInitSuite {
 
     // ── failures ─────────────────────────────────────────────────────────────
     void failTest() {
-        // The half-built object is not released (nor is one whose constructor
-        // fails): this case leaves one undeleted object behind.
+        // The half-built object is released (fly-lang/fly#254, FailedNewSuite).
         case "a failing initializer fails the new": {
             int code = 0
             handle {

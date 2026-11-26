@@ -1,0 +1,1 @@
+The v0.15.2 seed accepts `fail c, this` in a constructor. From 0.16 (fly-lang/fly#254) a constructor that fails releases its object, so `this` cannot also be the object of the error.

@@ -1113,17 +1113,32 @@ public class CodeGenClass {
             }
         }
 
-        // the field initializers, before any constructor (fly-lang/fly#243)
-        if needsFieldInit(cls) {
-            callFieldInit(cge, cls, obj)
-        }
-
         SemaFunctionBase ctor = node.getFunction()
         if isStruct {
             if cls.isFromHeader() {
                 ctor = null
             }
         }
+
+        // A failure from here on (a field initializer, a constructor argument,
+        // the constructor) leaves a half-built object: every failure check
+        // jumps to `new.fail`, which releases it before taking the exit the
+        // check would have taken (fly-lang/fly#254).
+        bool initFields = needsFieldInit(cls)
+        pointer savedSafe = cge.getHandleSafe()
+        pointer failBB = 0
+        if initFields || ctor != null {
+            if cge.getErrPtr() != 0 {
+                failBB = cge.newBlock("new.fail")
+                cge.setHandleSafe(failBB)
+            }
+        }
+
+        // the field initializers, before any constructor (fly-lang/fly#243)
+        if initFields {
+            callFieldInit(cge, cls, obj)
+        }
+
         if ctor != null {
             pointer cf = ctor.getLlvmFn()
             List<pointer> argAddrs = new List<pointer>()
@@ -1188,11 +1203,77 @@ public class CodeGenClass {
             CodeGenExprOps.freeArgTemps(cge, argTemps)
             CodeGenError.propagate(cge)
         }
+        cge.setHandleSafe(savedSafe)
+        if failBB != 0 {
+            int kind = 0
+            if isStruct {
+                kind = 2
+            } elsif node.getAST().getCallKind() == ASTCallKind.CALL_NEW_SHARED {
+                kind = 1
+            }
+            emitFailedNew(cge, cls, obj, kind, failBB)
+        }
         // `new CLang("libm.so")` → register the -lm linker flag (bridge)
         if CodeGenBridge.isCLangClass(cls) {
             CodeGenBridge.captureCtorLib(cge, node)
         }
         node.setLlvmValue(obj)
+    }
+
+    // emitFailedNew — the body of `new.fail`, where every failure check of a
+    // `new` jumps (genNew): the half-built `obj` is released, then the failure
+    // goes on where the check would have sent it. `kind` is how it was made:
+    // 0 the object heap (`new`, `new unique`), 1 `new shared` (a block with a
+    // header in front), 2 a struct on the stack (no memory to give back).
+    // The class's free() does NOT run: the object was never built. The fields
+    // it owns, holds or observes already go — those the constructor did not
+    // reach are still null. They are released with an error slot of their
+    // own, so the pending failure neither stops nor is overwritten by them.
+    // An object that travels in the error (a method the constructor called
+    // did `fail c, this`) belongs to the error: its `handle` deletes it.
+    public static void emitFailedNew(const CodeGenExpr cge, const SemaClassType cls, const pointer obj, const int kind,
+            const pointer failBB) {
+        CodeGenModule cgm = cge.getCgm()
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        pointer ptrTy = cge.ptrType()
+        pointer contBB
+        llvm.getInsertBlock(b, contBB)
+        bool wasTerminated = cge.isTerminated()
+
+        cge.position(failBB)
+        pointer errTy = cgm.getErrorTy()
+        pointer errPtr = cge.getErrPtr()
+        pointer exitBB = cge.newBlock("new.fail.exit")
+        pointer relBB = cge.newBlock("new.fail.release")
+        pointer eobj
+        llvm.buildLoad2(b, ptrTy, cgm.errField(errPtr, 2, "nfo"), "nfobj", eobj)
+        pointer notInError
+        llvm.buildICmp(b, 33, eobj, obj, "nfown", notInError)   // NE
+        pointer cbr
+        llvm.buildCondBr(b, notInError, relBB, exitBB, cbr)
+
+        cge.position(relBB)
+        pointer relErr
+        llvm.buildAlloca(b, errTy, "nferr", relErr)
+        pointer zeroErr
+        llvm.constNull(errTy, zeroErr)
+        llvm.buildStore(b, zeroErr, relErr)
+        cge.setErrPtr(relErr)
+        CodeGenStmt.emitDeleteOwnedFields(cge, cls, obj)
+        cge.setErrPtr(errPtr)
+        if kind == 0 {
+            cgm.objFree(obj)
+        } elsif kind == 1 {
+            cgm.objFree(CodeGenStmt.sharedHeader(cge, obj))
+        }
+        cge.br(exitBB)
+
+        cge.position(exitBB)
+        CodeGenError.takeFailExit(cge)
+
+        cge.position(contBB)
+        cge.setTerminated(wasTerminated)
     }
 
     // methodCall — `obj.m(args)`: virtual dispatch through the receiver's vtable

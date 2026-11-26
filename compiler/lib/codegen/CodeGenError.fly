@@ -205,6 +205,25 @@ public class CodeGenError {
         cge.position(okBB)
     }
 
+    // takeFailExit — from a block that already knows the call failed, the exit
+    // propagate takes: the enclosing handle's safe block, the enclosing suite
+    // case's end, or a return. Leaves the builder terminated.
+    public static void takeFailExit(const CodeGenExpr cge) {
+        pointer safe = cge.getHandleSafe()
+        pointer caseEnd = cge.getCaseEnd()
+        if safe != 0 {
+            cge.br(safe)
+        } elsif caseEnd != 0 {
+            cge.br(caseEnd)
+        } else {
+            cge.emitReturnCleanup()
+            CodeGenTrace.emitExitFail(cge)
+            pointer r
+            cge.getLLVM().buildRetVoid(cge.getBuilder(), r)
+            cge.setTerminated(true)
+        }
+    }
+
     // writeField — store one evaluated fail operand `v` into its slot:
     // int/enum/bool → code (0), string → str (1), class/other ptr → obj (2).
     public static void writeField(const CodeGenExpr cge, const pointer errTy, const pointer errPtr, const SemaExpr e,

@@ -1,0 +1,128 @@
+// A `new` that fails releases its half-built object before the failure goes
+// on (fly-lang/fly#254): its memory and the fields the constructor already set,
+// but not the class's free(), since the object was never built. That holds for
+// a failing constructor, field initializer or constructor argument, for `new`,
+// `new unique` and `new shared`, and for a failure that leaves by a return.
+// free() prints, so the output shows what ran; nothing is left for the
+// end-of-main report.
+import fly.os.io
+
+int refuse() {
+    fail 31, "refused"
+}
+
+bool refuseArg() {
+    fail 35, "argument"
+}
+
+public class Part {
+
+    string name
+
+    public Part(const string name) {
+        this.name = name
+    }
+
+    public void free() {
+        io.printLn(this.name)
+    }
+}
+
+public class Whole {
+
+    Part part
+
+    public Whole(const string name, const bool bad) {
+        this.part = new unique Part(name)
+        if bad {
+            fail 32, "whole"
+        }
+    }
+
+    public void free() {
+        io.printLn("whole free")
+    }
+}
+
+public class BadInit {
+
+    public int n = refuse()
+
+    public BadInit() {
+    }
+
+    public void free() {
+        io.printLn("badinit free")
+    }
+}
+
+public class Plain {
+
+    public int n
+
+    public Plain(const int n) {
+        this.n = n
+        fail 33
+    }
+}
+
+// Selfish — a method the constructor calls fails with `this` as the error's
+// object: the object belongs to the error, and the handle deletes it.
+public class Selfish {
+
+    public Selfish() {
+        this.blame()
+    }
+
+    public void blame() {
+        fail 34, this
+    }
+
+    public void free() {
+        io.printLn("selfish free")
+    }
+}
+
+Whole makeWhole() {
+    Whole w = new Whole("part via return", true)
+    return w
+}
+
+void main() {
+    handle {
+        Whole w = new Whole("part of a heap whole", true)
+        delete w
+    }
+    handle {
+        Whole u = new unique Whole("part of a unique whole", true)
+    }
+    handle {
+        Whole s = new shared Whole("part of a shared whole", true)
+    }
+    handle {
+        Whole r = makeWhole()
+        delete r
+    }
+    handle {
+        BadInit b = new BadInit()
+        delete b
+    }
+    handle {
+        Whole a = new Whole("never made", refuseArg())
+        delete a
+    }
+    handle {
+        Selfish f = new Selfish()
+        delete f
+    }
+    int i = 0
+    while i < 10000 {
+        handle {
+            Plain p = new Plain(i)
+            delete p
+        }
+        i = i + 1
+    }
+    Whole ok = new Whole("part of a whole deleted", false)
+    delete ok
+}

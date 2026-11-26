@@ -1,0 +1,190 @@
+import fly.assert
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FailedNewSuite — a `new` that fails releases its object (fly-lang/fly#254).
+//
+// When a field initializer, a constructor argument or the constructor itself
+// fails, the half-built object is released before the failure goes on: the
+// fields it already owns, holds or observes, and its memory. The class's
+// free() does not run: the object was never built. Each case leaves nothing
+// behind (a leaking case gets a warning line under its result).
+//
+// Assert codes: 1xx failing constructor, 2xx failing initializer,
+// 3xx failing argument, 4xx by return, 5xx the object of the error.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class Tally {
+    public static int parts = 0
+    public static int wholes = 0
+    public static int selves = 0
+}
+
+class Part {
+
+    public Part() {
+    }
+
+    public void free() {
+        Tally.parts = Tally.parts + 1
+    }
+}
+
+class Whole {
+
+    Part part
+
+    public Whole(const bool bad) {
+        this.part = new unique Part()
+        if bad {
+            fail 32, "whole"
+        }
+    }
+
+    public void free() {
+        Tally.wholes = Tally.wholes + 1
+    }
+}
+
+int failedNewRefuse() {
+    fail 31, "refused"
+}
+
+bool failedNewRefuseArg() {
+    fail 35, "argument"
+}
+
+class BadInit {
+
+    public int n = failedNewRefuse()
+
+    public BadInit() {
+    }
+
+    public void free() {
+        Tally.wholes = Tally.wholes + 1
+    }
+}
+
+class Selfish {
+
+    public Selfish() {
+        this.blame()
+    }
+
+    public void blame() {
+        fail 34, this
+    }
+
+    public void free() {
+        Tally.selves = Tally.selves + 1
+    }
+}
+
+Whole failedNewMake() {
+    Whole w = new Whole(true)
+    return w
+}
+
+void failedNewReset() {
+    Tally.parts = 0
+    Tally.wholes = 0
+    Tally.selves = 0
+}
+
+suite FailedNewSuite {
+
+    void ctorTest() {
+        case "a failing constructor releases what it set, not free()": {
+            failedNewReset()
+            handle {
+                Whole w = new Whole(true)
+                delete w
+            }
+            bool caught = error
+            assert.assertTrue(caught, 101)
+            assert.assertEqI(Tally.parts, 1, 102)
+            assert.assertEqI(Tally.wholes, 0, 103)
+        }
+        case "the same for new unique": {
+            failedNewReset()
+            handle {
+                Whole u = new unique Whole(true)
+            }
+            bool caught = error
+            assert.assertTrue(caught, 111)
+            assert.assertEqI(Tally.parts, 1, 112)
+            assert.assertEqI(Tally.wholes, 0, 113)
+        }
+        case "the same for new shared": {
+            failedNewReset()
+            handle {
+                Whole s = new shared Whole(true)
+            }
+            bool caught = error
+            assert.assertTrue(caught, 121)
+            assert.assertEqI(Tally.parts, 1, 122)
+            assert.assertEqI(Tally.wholes, 0, 123)
+        }
+        case "a constructor that succeeds is deleted as usual": {
+            failedNewReset()
+            Whole ok = new Whole(false)
+            delete ok
+            assert.assertEqI(Tally.parts, 1, 131)
+            assert.assertEqI(Tally.wholes, 1, 132)
+        }
+    }
+
+    void initTest() {
+        case "a failing initializer releases the object": {
+            failedNewReset()
+            handle {
+                BadInit b = new BadInit()
+                delete b
+            }
+            bool caught = error
+            assert.assertTrue(caught, 201)
+            assert.assertEqI(Tally.wholes, 0, 202)
+        }
+    }
+
+    void argTest() {
+        case "a failing argument releases the object": {
+            failedNewReset()
+            handle {
+                Whole a = new Whole(failedNewRefuseArg())
+                delete a
+            }
+            bool caught = error
+            assert.assertTrue(caught, 301)
+            assert.assertEqI(Tally.parts, 0, 302)
+            assert.assertEqI(Tally.wholes, 0, 303)
+        }
+    }
+
+    void returnTest() {
+        case "a failure that leaves by a return releases the object": {
+            failedNewReset()
+            handle {
+                Whole r = failedNewMake()
+                delete r
+            }
+            bool caught = error
+            assert.assertTrue(caught, 401)
+            assert.assertEqI(Tally.parts, 1, 402)
+            assert.assertEqI(Tally.wholes, 0, 403)
+        }
+    }
+
+    void errorObjectTest() {
+        case "an object that is the error's object goes with the error": {
+            failedNewReset()
+            handle {
+                Selfish f = new Selfish()
+                delete f
+            }
+            bool caught = error
+            assert.assertTrue(caught, 501)
+            assert.assertEqI(Tally.selves, 1, 502)
+        }
+    }
+}

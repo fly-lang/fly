@@ -130,7 +130,8 @@ public enum DiagID {
     err_sema_symbol_protected,
     err_sema_protected_placement,
     err_sema_static_init_not_constant,
-    err_sema_static_init_overflow
+    err_sema_static_init_overflow,
+    err_sema_fail_this_in_ctor
 }
 
 // getDiagClass — the class column for a diagnostic id.
@@ -435,6 +436,9 @@ public string getDescription(const DiagID id) {
     }
     if id == DiagID.err_sema_static_init_not_constant {
         return "static field '%0' needs a constant initializer (literals, enum entries, static consts, operators)"
+    }
+    if id == DiagID.err_sema_fail_this_in_ctor {
+        return "'this' cannot be the object of a fail in a constructor: a constructor that fails releases the object it was building"
     }
     if id == DiagID.err_sema_static_init_overflow {
         return "the initializer of static field '%0' overflows its type, divides by zero or shifts too far"

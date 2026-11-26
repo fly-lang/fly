@@ -1,0 +1,7 @@
+part of a heap whole
+part of a unique whole
+part of a shared whole
+part via return
+selfish free
+whole free
+part of a whole deleted

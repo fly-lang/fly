@@ -811,6 +811,9 @@ public class ResolverStmt {
             third.accept(r)
             sf.setThird(r.getCurrentExpr())
         }
+        ResolverStmt.checkFailThis(r, fn, first, sf.getFirst())
+        ResolverStmt.checkFailThis(r, fn, second, sf.getSecond())
+        ResolverStmt.checkFailThis(r, fn, third, sf.getThird())
         ResolverStmt.escapeFailOperand(sf.getFirst())
         ResolverStmt.escapeFailOperand(sf.getSecond())
         ResolverStmt.escapeFailOperand(sf.getThird())
@@ -821,6 +824,25 @@ public class ResolverStmt {
         // `fail` writes the error struct and returns — not stack unwinding, but
         // from this function's point of view control is gone.
         r.setStmtExits(true)
+    }
+
+    // checkFailThis — `fail …, this` in a constructor: a constructor that fails
+    // releases the object it was building (fly-lang/fly#254), so `this` cannot
+    // travel out in the error, whose `handle` would delete it a second time.
+    public static void checkFailThis(const Resolver r, const SemaFunctionBase fn, const ASTExpr ast, const SemaExpr e) {
+        if e == null {
+            return
+        }
+        if e.getKind() != SemaKind.INSTANCE_VAR {
+            return
+        }
+        SemaClassMethod cm = fn.asClassMethod()
+        if cm == null {
+            return
+        }
+        if cm.isConstructor() {
+            r.diag(ast.getLoc(), DiagID.err_sema_fail_this_in_ctor)
+        }
     }
 
     // escapeFailOperand — an object handle named in a `fail` travels out in the

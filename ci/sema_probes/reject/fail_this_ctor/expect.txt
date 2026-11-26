@@ -1,0 +1,1 @@
+'this' cannot be the object of a fail in a constructor

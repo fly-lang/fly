@@ -1,0 +1,11 @@
+// A constructor that fails releases the object it was building
+// (fly-lang/fly#254): `this` cannot travel out in the error as well.
+public class Box {
+
+    public Box() {
+        fail 1, this
+    }
+}
+
+void main() {
+}
