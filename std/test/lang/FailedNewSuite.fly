@@ -1,4 +1,5 @@
 import fly.assert
+import fly.str
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FailedNewSuite — a `new` that fails releases its object (fly-lang/fly#254).
@@ -9,14 +10,23 @@ import fly.assert
 // free() does not run: the object was never built. Each case leaves nothing
 // behind (a leaking case gets a warning line under its result).
 //
+// A sized array whose element fails to build stops the declaration: the
+// failing element is released as above, the elements built before it are
+// deleted last first (their free() runs), and the buffer goes
+// (fly-lang/fly#257).
+//
 // Assert codes: 1xx failing constructor, 2xx failing initializer,
-// 3xx failing argument, 4xx by return, 5xx the object of the error.
+// 3xx failing argument, 4xx by return, 5xx the object of the error,
+// 6xx array elements.
 // ─────────────────────────────────────────────────────────────────────────────
 
 class Tally {
     public static int parts = 0
     public static int wholes = 0
     public static int selves = 0
+    public static int made = 0
+    public static int failAt = 0
+    public static string order = ""
 }
 
 class Part {
@@ -85,10 +95,65 @@ Whole failedNewMake() {
     return w
 }
 
+// failedNewNext — the index of the next array element; fails for Tally.failAt
+int failedNewNext() {
+    int k = Tally.made
+    Tally.made = Tally.made + 1
+    if k == Tally.failAt {
+        fail 36, "element"
+    }
+    return k
+}
+
+// Brick — an array element whose constructor fails after it set its part
+class Brick {
+
+    public int idx
+    Part part
+
+    public Brick() {
+        this.part = new unique Part()
+        this.idx = failedNewNext()
+    }
+
+    public void free() {
+        Tally.wholes = Tally.wholes + 1
+        Tally.order = str.concat(Tally.order, str.convert(this.idx))
+    }
+}
+
+// LateBrick — an array element whose field initializer fails
+class LateBrick {
+
+    public int idx = failedNewNext()
+
+    public LateBrick() {
+    }
+
+    public void free() {
+        Tally.wholes = Tally.wholes + 1
+        Tally.order = str.concat(Tally.order, str.convert(this.idx))
+    }
+}
+
+// Tile — a struct array element whose field initializer fails
+struct Tile {
+    int seven = 7
+    int idx = failedNewNext()
+}
+
+void failedNewBricks() {
+    Brick[3] bs
+    Tally.order = str.concat("reached ", str.convert(bs[0].idx))
+}
+
 void failedNewReset() {
     Tally.parts = 0
     Tally.wholes = 0
     Tally.selves = 0
+    Tally.made = 0
+    Tally.failAt = 99
+    Tally.order = ""
 }
 
 suite FailedNewSuite {
@@ -185,6 +250,88 @@ suite FailedNewSuite {
             bool caught = error
             assert.assertTrue(caught, 501)
             assert.assertEqI(Tally.selves, 1, 502)
+        }
+    }
+
+    void arrayTest() {
+        case "a failing element constructor stops the array, built ones go last first": {
+            failedNewReset()
+            Tally.failAt = 2
+            int reached = 0
+            handle {
+                Brick[4] bs
+                reached = bs[0].idx + 1
+            }
+            bool caught = error
+            assert.assertTrue(caught, 601)
+            assert.assertEqI(reached, 0, 602)
+            assert.assertEqI(Tally.made, 3, 603)
+            assert.assertEqI(Tally.parts, 3, 604)
+            assert.assertEqI(Tally.wholes, 2, 605)
+            assert.assertStr(Tally.order, "10", 606)
+        }
+        case "a failing element initializer stops the array": {
+            failedNewReset()
+            Tally.failAt = 1
+            handle {
+                LateBrick[3] ls
+                Tally.order = str.convert(ls[0].idx)
+            }
+            bool caught = error
+            assert.assertTrue(caught, 611)
+            assert.assertEqI(Tally.made, 2, 612)
+            assert.assertEqI(Tally.wholes, 1, 613)
+            assert.assertStr(Tally.order, "0", 614)
+        }
+        case "the first element failing builds nothing": {
+            failedNewReset()
+            Tally.failAt = 0
+            handle {
+                Brick[2] bs
+                Tally.order = str.convert(bs[0].idx)
+            }
+            bool caught = error
+            assert.assertTrue(caught, 621)
+            assert.assertEqI(Tally.parts, 1, 622)
+            assert.assertEqI(Tally.wholes, 0, 623)
+            assert.assertStr(Tally.order, "", 624)
+        }
+        case "a failure that leaves by a return releases the elements": {
+            failedNewReset()
+            Tally.failAt = 1
+            handle {
+                failedNewBricks()
+            }
+            bool caught = error
+            assert.assertTrue(caught, 631)
+            assert.assertEqI(Tally.parts, 2, 632)
+            assert.assertEqI(Tally.wholes, 1, 633)
+            assert.assertStr(Tally.order, "0", 634)
+        }
+        case "a failing struct element initializer stops the array": {
+            failedNewReset()
+            Tally.failAt = 2
+            int seven = 0
+            handle {
+                Tile[3] ts
+                seven = ts[0].seven
+            }
+            bool caught = error
+            assert.assertTrue(caught, 641)
+            assert.assertEqI(seven, 0, 642)
+            assert.assertEqI(Tally.made, 3, 643)
+        }
+        case "an array whose elements all build is kept": {
+            failedNewReset()
+            Brick[2] bs
+            assert.assertEqI(bs[1].idx, 1, 651)
+            assert.assertEqI(Tally.wholes, 0, 652)
+            Brick b0 = bs[0]
+            Brick b1 = bs[1]
+            delete b0
+            delete b1
+            assert.assertEqI(Tally.wholes, 2, 653)
+            assert.assertEqI(Tally.parts, 2, 654)
         }
     }
 }

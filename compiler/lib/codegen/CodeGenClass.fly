@@ -1013,7 +1013,21 @@ public class CodeGenClass {
             llvm.buildStore(b, vtable, vtSlot)
         }
 
-        if needsFieldInit(cls) {
+        // A failing initializer or constructor releases the half-built element,
+        // as for `new` (emitFailedNew), then goes on to the caller's exit: the
+        // array's own fail block, which releases the elements built before it
+        // (fly-lang/fly#257).
+        bool initFields = needsFieldInit(cls)
+        pointer savedSafe = cge.getHandleSafe()
+        pointer failBB = 0
+        if initFields || ctor != null {
+            if cge.getErrPtr() != 0 {
+                failBB = cge.newBlock("anew.efail")
+                cge.setHandleSafe(failBB)
+            }
+        }
+
+        if initFields {
             callFieldInit(cge, cls, obj)
         }
 
@@ -1026,7 +1040,12 @@ public class CodeGenClass {
                 pointer cty = ctor.getLlvmFnType()
                 pointer cv
                 cg.buildCallN(b, cty, cf, cargs, "", cv)
+                CodeGenError.propagate(cge)
             }
+        }
+        cge.setHandleSafe(savedSafe)
+        if failBB != 0 {
+            emitFailedNew(cge, cls, obj, 0, failBB)
         }
         return obj
     }

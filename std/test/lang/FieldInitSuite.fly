@@ -15,10 +15,11 @@ import fly.str
 //
 // A STRUCT runs its initializers wherever a value of it is made: `new P()`,
 // `P p`, a brace literal (for the fields it omits), a struct field inside an
-// object, and the struct base of a class.
+// object, the struct base of a class, and each element of a sized struct
+// array (fly-lang/fly#255).
 //
 // Assert codes: 1xx static, 2xx instance, 3xx inheritance, 4xx structs,
-// 5xx failures, 6xx class arrays.
+// 5xx failures, 6xx arrays.
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum Level {
@@ -296,7 +297,7 @@ suite FieldInitSuite {
         }
     }
 
-    // ── class arrays ─────────────────────────────────────────────────────────
+    // ── arrays ───────────────────────────────────────────────────────────────
     void arrayTest() {
         case "each element of a class array is initialized": {
             Counter[2] cs
@@ -306,6 +307,26 @@ suite FieldInitSuite {
             Counter c1 = cs[1]
             delete c0
             delete c1
+        }
+        // fly-lang/fly#255: what `P p` gets, per element
+        case "each element of a struct array is initialized": {
+            Point[3] ps
+            assert.assertEqI(ps[0].x, 4, 611)
+            assert.assertEqI(ps[2].x, 4, 612)
+            assert.assertEqI(ps[1].y, 0, 613)
+            assert.assertStr(ps[2].tag, "pt", 614)
+            Point3[2] qs
+            assert.assertEqI(qs[1].x, 4, 615)
+            assert.assertEqI(qs[1].z, 8, 616)
+            Line[2] ls
+            assert.assertEqI(ls[1].a.x, 4, 617)
+            assert.assertEqI(ls[1].b.x, 4, 618)
+        }
+        case "a struct array of a runtime length": {
+            int n = 3
+            Point[n] ps
+            assert.assertEqI(ps[n - 1].x, 4, 621)
+            assert.assertStr(ps[0].tag, "pt", 622)
         }
     }
 }
