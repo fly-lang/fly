@@ -1,0 +1,10 @@
+suite CaseFailSuite
+  failTest
+    a direct fail ... FAIL(50): direct
+    the case after it runs ... ok
+    a fail in a nested scope releases the owners ... FAIL(51): nested
+    a fail inside a handle stays in the handle ... ok
+    the failed cases released their locals ... ok
+  laterTest
+    a later method runs ... ok
+suite CaseFailSuite: 6 cases, 4 passed, 2 failed

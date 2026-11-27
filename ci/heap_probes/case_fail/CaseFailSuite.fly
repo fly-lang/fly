@@ -1,0 +1,64 @@
+import fly.assert
+import fly.str
+
+// A `fail` written directly in a suite `case` goes to the end of the case, like
+// a failing call (fly-lang/fly#263): the case is reported on its own line, the
+// scopes the failure leaves release their locals, and the later cases of the
+// method run. Up to 0.15.x it returned from the test method: reported as
+// `body ... FAIL`, the rest of the method skipped. (An index out of range takes
+// the same exit; its message names the source by path, so it is not in here.)
+
+class CaseFailTally {
+    public static int freed = 0
+    public static string order = ""
+}
+
+class CaseFailRes {
+
+    string tag
+
+    public CaseFailRes(const string tag) {
+        this.tag = tag
+    }
+
+    public void free() {
+        CaseFailTally.freed = CaseFailTally.freed + 1
+        CaseFailTally.order = str.concat(CaseFailTally.order, this.tag)
+    }
+}
+
+suite CaseFailSuite {
+
+    void failTest() {
+        case "a direct fail": {
+            fail 50, "direct"
+        }
+        case "the case after it runs": {
+            assert.assertEqI(CaseFailTally.freed, 0, 1)
+        }
+        case "a fail in a nested scope releases the owners": {
+            CaseFailRes a = new unique CaseFailRes("a")
+            if true {
+                CaseFailRes b = new unique CaseFailRes("b")
+                fail 51, "nested"
+            }
+        }
+        case "a fail inside a handle stays in the handle": {
+            handle {
+                fail 52, "handled"
+            }
+            bool caught = error
+            assert.assertTrue(caught, 2)
+        }
+        case "the failed cases released their locals": {
+            assert.assertEqI(CaseFailTally.freed, 2, 3)
+            assert.assertStr(CaseFailTally.order, "ba", 4)
+        }
+    }
+
+    void laterTest() {
+        case "a later method runs": {
+            assert.assertEqI(CaseFailTally.freed, 2, 5)
+        }
+    }
+}

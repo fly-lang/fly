@@ -1092,9 +1092,10 @@ public class CodeGenExpr : SemaVisitor {
     // reference CodeGenModule::visit(SemaCaseStmt): the case uses the method's
     // handler (the shared suite %error passed as arg 0) — zeroed on entry, consumed
     // on exit — so a `fail` reached through an assert call OR written directly in
-    // the case body both land in it. A direct `fail` returns from the method (its
-    // RetVoid) before the case-end report; the runner's CheckEscaped then reports
-    // it as a "body" failure — matching the reference.
+    // the case body both land in it. A direct `fail` (and an index out of range)
+    // jumps to the case end too, like a failing call (fly-lang/fly#263); up to
+    // 0.15.x, as in the reference, it returned from the method and the runner
+    // reported it as a "body" failure, skipping the later cases.
     public void visit(const SemaCaseStmt node) {
         string label = node.getLabel()
         pointer bb = this.newBlock(str.concat("case.", label))
