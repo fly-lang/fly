@@ -1,0 +1,30 @@
+// A free() that fails in `delete` is an ordinary failure (fly-lang/fly#260): the
+// object is still released and the reference set to null, then the failure goes
+// on from the `delete`, as from a failing call: the statement after it does not
+// run, and main reports it and exits with its code. Nothing is left to release.
+import fly.os.io
+
+// Flaky — its free() prints its tag, then fails with its code (0: it does not).
+public class Flaky {
+
+    string tag
+    int code
+
+    public Flaky(const string tag, const int code) {
+        this.tag = tag
+        this.code = code
+    }
+
+    public void free() {
+        io.printLn(this.tag)
+        if this.code != 0 {
+            fail this.code, "free"
+        }
+    }
+}
+
+void main() {
+    Flaky f = new Flaky("free runs", 42)
+    delete f
+    io.printLn("not reached")
+}

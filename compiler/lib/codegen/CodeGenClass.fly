@@ -1254,7 +1254,8 @@ public class CodeGenClass {
     // The class's free() does NOT run: the object was never built. The fields
     // it owns, holds or observes already go — those the constructor did not
     // reach are still null. They are released with an error slot of their
-    // own, so the pending failure neither stops nor is overwritten by them.
+    // own, so the pending failure neither stops nor is overwritten by them: what
+    // they fail with is attached to it (fly-lang/fly#260).
     // An object that travels in the error (a method the constructor called
     // did `fail c, this`) belongs to the error: its `handle` deletes it.
     public static void emitFailedNew(const CodeGenExpr cge, const SemaClassType cls, const pointer obj, const int kind,
@@ -1288,6 +1289,8 @@ public class CodeGenClass {
         cge.setErrPtr(relErr)
         CodeGenStmt.emitDeleteOwnedFields(cge, cls, obj)
         cge.setErrPtr(errPtr)
+        // what they fail with is attached to the pending failure (fly-lang/fly#260)
+        cgm.errMerge(errPtr, relErr)
         if kind == 0 {
             cgm.objFree(obj)
         } elsif kind == 1 {

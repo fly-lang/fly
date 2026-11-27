@@ -1,0 +1,32 @@
+// The element of a sized array that fails stops the declaration, and the
+// elements built before it are deleted, the last first (fly-lang/fly#257); when
+// their free() fails too, each failure is attached to the element's, in the order
+// it happened (fly-lang/fly#260).
+import fly.os.io
+
+public class Count {
+    public static int made = 0
+}
+
+public class Elem {
+
+    int i
+
+    public Elem() {
+        this.i = Count.made
+        Count.made = Count.made + 1
+        if this.i == 2 {
+            fail 41, "element"
+        }
+    }
+
+    public void free() {
+        io.printLn(this.i == 0 ? "free 0" : "free 1")
+        fail 45 + this.i, "free"
+    }
+}
+
+void main() {
+    Elem[3] es
+    io.printLn("not reached")
+}

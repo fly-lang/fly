@@ -1,0 +1,39 @@
+// A constructor fails after it set an owning field: the half-built object is
+// released, its field included, and the field's free() fails as well
+// (fly-lang/fly#260). The constructor's failure stays the failure; the free()'s
+// is attached to it.
+import fly.os.io
+
+// Flaky — its free() prints its tag, then fails with its code (0: it does not).
+public class Flaky {
+
+    string tag
+    int code
+
+    public Flaky(const string tag, const int code) {
+        this.tag = tag
+        this.code = code
+    }
+
+    public void free() {
+        io.printLn(this.tag)
+        if this.code != 0 {
+            fail this.code, "free"
+        }
+    }
+}
+
+public class Whole {
+
+    Flaky part
+
+    public Whole() {
+        this.part = new unique Flaky("part free", 46)
+        fail 32, "whole"
+    }
+}
+
+void main() {
+    Whole w = new Whole()
+    delete w
+}

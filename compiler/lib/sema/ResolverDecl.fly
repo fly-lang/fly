@@ -309,7 +309,18 @@ public class ResolverDecl {
         ASTBlockStmt body = af.getBody()
         if body != null {
             r.setNrvoName(ResolverDecl.findNrvoName(fb))
+            // a constructor's `this` may only be a receiver (fly-lang/fly#260)
+            bool savedWatch = r.getThisWatch()
+            bool isCtor = false
+            if m != null {
+                isCtor = m.isConstructor()
+            }
+            r.setThisWatch(isCtor)
             body.accept(r)
+            if isCtor {
+                r.reportThisValues()
+            }
+            r.setThisWatch(savedWatch)
             r.setNrvoName("")
             fb.setBody(r.getLastBlock())
 

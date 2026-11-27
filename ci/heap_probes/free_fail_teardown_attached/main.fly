@@ -1,0 +1,28 @@
+// main fails, then the release of an object it never deleted fails in its free()
+// too (fly-lang/fly#260): main's failure is reported and sets the exit code, the
+// teardown's is attached to it, reported after the objects-not-deleted report.
+import fly.os.io
+
+// Flaky — its free() prints its tag, then fails with its code (0: it does not).
+public class Flaky {
+
+    string tag
+    int code
+
+    public Flaky(const string tag, const int code) {
+        this.tag = tag
+        this.code = code
+    }
+
+    public void free() {
+        io.printLn(this.tag)
+        if this.code != 0 {
+            fail this.code, "free"
+        }
+    }
+}
+
+void main() {
+    Flaky a = new Flaky("leaked", 47)
+    fail 48, "main"
+}

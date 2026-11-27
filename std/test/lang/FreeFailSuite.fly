@@ -1,0 +1,322 @@
+import fly.assert
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FreeFailSuite — a free() that fails is an ordinary failure (fly-lang/fly#260).
+//
+// A failure that leaves free() is checked like any other: from `delete`, from the
+// end of a `new unique` scope, from the last `new shared` holder, from the
+// reassignment of an owner or a holder, from a break, a `handle` catches it. A
+// free() that fails while another failure is in flight (the cleanup of a failing
+// return, of a failed `new`, of a handle block) does not replace it: it is
+// attached to it, and the handle consumes both. Every release still runs.
+// What main reports (the codes, the `also:` lines, the exit code) is guarded by
+// the ci/heap_probes free_fail_* probes: a suite sees only `error`.
+//
+// Assert codes: 1xx delete, 2xx scope end, 3xx reassignment, 4xx loops,
+// 5xx failure in flight, 6xx the error's object, 7xx fields.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class FreeLog {
+    public static int count = 0
+    public static string order = ""
+}
+
+// FreeFlaky — its free() logs its tag, then fails with its code (0: it does not).
+class FreeFlaky {
+
+    string tag
+    int code
+
+    public FreeFlaky(const string tag, const int code) {
+        this.tag = tag
+        this.code = code
+    }
+
+    public void free() {
+        FreeLog.count = FreeLog.count + 1
+        FreeLog.order = str.concat(FreeLog.order, this.tag)
+        if this.code != 0 {
+            fail this.code, "free"
+        }
+    }
+}
+
+// FreePair — owns two FreeFlaky; its own free() fails first.
+class FreePair {
+
+    FreeFlaky left
+    FreeFlaky right
+
+    public FreePair() {
+        this.left = new unique FreeFlaky("l", 71)
+        this.right = new unique FreeFlaky("r", 0)
+    }
+
+    public void free() {
+        FreeLog.order = str.concat(FreeLog.order, "p")
+        fail 70, "pair"
+    }
+}
+
+// FreeBroken — a constructor that fails after it set an owning field whose free() fails.
+class FreeBroken {
+
+    FreeFlaky part
+
+    public FreeBroken() {
+        this.part = new unique FreeFlaky("b", 52)
+        fail 51, "broken"
+    }
+}
+
+void freeFailReset() {
+    FreeLog.count = 0
+    FreeLog.order = ""
+}
+
+int freeFailReturn() {
+    FreeFlaky a = new unique FreeFlaky("a", 53)
+    FreeFlaky b = new unique FreeFlaky("b", 54)
+    fail 50, "return"
+}
+
+void freeFailThrowObject() {
+    FreeFlaky obj = new FreeFlaky("o", 61)
+    fail 60, obj
+}
+
+suite FreeFailSuite {
+
+    void deleteTest() {
+        case "a delete whose free() fails goes to the handle": {
+            freeFailReset()
+            FreeFlaky f = new FreeFlaky("d", 11)
+            bool after = false
+            handle {
+                delete f
+                after = true
+            }
+            bool caught = error
+            assert.assertTrue(caught, 101)
+            assert.assertFalse(after, 102)
+            assert.assertEqI(FreeLog.count, 1, 103)
+            assert.assertTrue(f == null, 104)
+        }
+        case "a delete whose free() succeeds goes on": {
+            freeFailReset()
+            FreeFlaky f = new FreeFlaky("d", 0)
+            bool after = false
+            handle {
+                delete f
+                after = true
+            }
+            bool caught = error
+            assert.assertFalse(caught, 111)
+            assert.assertTrue(after, 112)
+        }
+        case "the owned fields go even when the object's free() fails": {
+            freeFailReset()
+            FreePair p = new FreePair()
+            handle {
+                delete p
+            }
+            bool caught = error
+            assert.assertTrue(caught, 121)
+            assert.assertStr(FreeLog.order, "plr", 122)
+            assert.assertEqI(FreeLog.count, 2, 123)
+        }
+    }
+
+    void scopeTest() {
+        case "the end of a new unique scope fails": {
+            freeFailReset()
+            bool after = false
+            handle {
+                if true {
+                    FreeFlaky u = new unique FreeFlaky("u", 21)
+                }
+                after = true
+            }
+            bool caught = error
+            assert.assertTrue(caught, 201)
+            assert.assertFalse(after, 202)
+            assert.assertEqI(FreeLog.count, 1, 203)
+        }
+        case "every owner of the scope goes, the last declared first": {
+            freeFailReset()
+            handle {
+                if true {
+                    FreeFlaky x = new unique FreeFlaky("x", 22)
+                    FreeFlaky y = new unique FreeFlaky("y", 23)
+                }
+            }
+            bool caught = error
+            assert.assertTrue(caught, 211)
+            assert.assertStr(FreeLog.order, "yx", 212)
+        }
+        case "the last shared holder fails, the others do nothing": {
+            freeFailReset()
+            FreeFlaky keep = new shared FreeFlaky("k", 24)
+            bool after = false
+            handle {
+                if true {
+                    FreeFlaky other = keep
+                }
+                after = true
+            }
+            bool notCaught = error
+            assert.assertFalse(notCaught, 221)
+            assert.assertTrue(after, 222)
+            assert.assertEqI(FreeLog.count, 0, 223)
+            handle {
+                delete keep
+            }
+            bool caught = error
+            assert.assertTrue(caught, 224)
+            assert.assertEqI(FreeLog.count, 1, 225)
+        }
+    }
+
+    void reassignTest() {
+        case "reassigning an owner whose old object fails": {
+            freeFailReset()
+            bool after = false
+            handle {
+                FreeFlaky u = new unique FreeFlaky("o", 31)
+                u = new unique FreeFlaky("n", 0)
+                after = true
+            }
+            bool caught = error
+            assert.assertTrue(caught, 301)
+            assert.assertFalse(after, 302)
+            assert.assertStr(FreeLog.order, "on", 303)
+        }
+        case "reassigning the last holder whose old object fails": {
+            freeFailReset()
+            bool after = false
+            handle {
+                FreeFlaky h = new shared FreeFlaky("o", 32)
+                h = new shared FreeFlaky("n", 0)
+                after = true
+            }
+            bool caught = error
+            assert.assertTrue(caught, 311)
+            assert.assertFalse(after, 312)
+            assert.assertStr(FreeLog.order, "on", 313)
+        }
+    }
+
+    void loopTest() {
+        case "a break that leaves a failing owner": {
+            freeFailReset()
+            int laps = 0
+            bool after = false
+            handle {
+                while true {
+                    FreeFlaky u = new unique FreeFlaky("u", 41)
+                    laps = laps + 1
+                    break
+                }
+                after = true
+            }
+            bool caught = error
+            assert.assertTrue(caught, 401)
+            assert.assertFalse(after, 402)
+            assert.assertEqI(laps, 1, 403)
+            assert.assertEqI(FreeLog.count, 1, 404)
+        }
+        case "a continue that leaves a failing owner": {
+            freeFailReset()
+            int laps = 0
+            handle {
+                while laps < 3 {
+                    laps = laps + 1
+                    FreeFlaky u = new unique FreeFlaky("u", 42)
+                    continue
+                }
+            }
+            bool caught = error
+            assert.assertTrue(caught, 411)
+            assert.assertEqI(laps, 1, 412)
+            assert.assertEqI(FreeLog.count, 1, 413)
+        }
+        case "a failing owner in every lap of a loop": {
+            freeFailReset()
+            int i = 0
+            int caughtN = 0
+            while i < 100 {
+                handle {
+                    FreeFlaky u = new unique FreeFlaky("", 43)
+                }
+                if error {
+                    caughtN = caughtN + 1
+                }
+                i = i + 1
+            }
+            assert.assertEqI(caughtN, 100, 421)
+            assert.assertEqI(FreeLog.count, 100, 422)
+        }
+    }
+
+    void inFlightTest() {
+        case "a failing return releases every owner and keeps its failure": {
+            freeFailReset()
+            handle {
+                int v = freeFailReturn()
+                FreeLog.order = str.convert(v)
+            }
+            bool caught = error
+            assert.assertTrue(caught, 501)
+            assert.assertStr(FreeLog.order, "ba", 502)
+        }
+        case "a failed new whose field's free() fails": {
+            freeFailReset()
+            handle {
+                FreeBroken b = new FreeBroken()
+                delete b
+            }
+            bool caught = error
+            assert.assertTrue(caught, 511)
+            assert.assertStr(FreeLog.order, "b", 512)
+        }
+        case "a failure leaving a handle block with failing owners": {
+            freeFailReset()
+            handle {
+                FreeFlaky x = new unique FreeFlaky("x", 55)
+                FreeFlaky y = new unique FreeFlaky("y", 56)
+                fail 57, "block"
+            }
+            bool caught = error
+            assert.assertTrue(caught, 521)
+            assert.assertStr(FreeLog.order, "yx", 522)
+            // the handle consumed the failure and what was attached to it
+            handle {
+                FreeLog.order = "clean"
+            }
+            bool clean = error
+            assert.assertFalse(clean, 523)
+        }
+    }
+
+    void errorObjectTest() {
+        case "the handle deletes the error's object, whose free() fails": {
+            freeFailReset()
+            bool innerCaught = false
+            bool after = false
+            handle {
+                handle {
+                    freeFailThrowObject()
+                }
+                innerCaught = error
+                after = true
+            }
+            bool outerCaught = error
+            // the new failure starts after the inner handle: nothing after it runs
+            assert.assertFalse(innerCaught, 601)
+            assert.assertFalse(after, 602)
+            assert.assertTrue(outerCaught, 603)
+            assert.assertStr(FreeLog.order, "o", 604)
+        }
+    }
+}

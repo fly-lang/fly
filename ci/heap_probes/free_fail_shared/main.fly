@@ -1,0 +1,33 @@
+// The last `new shared` holder goes at the end of its scope and the object's
+// free() fails: with no failure in flight, that is the failure at that point
+// (fly-lang/fly#260), and the statement after the scope does not run. A holder
+// that is not the last releases nothing.
+import fly.os.io
+
+// Flaky — its free() prints its tag, then fails with its code (0: it does not).
+public class Flaky {
+
+    string tag
+    int code
+
+    public Flaky(const string tag, const int code) {
+        this.tag = tag
+        this.code = code
+    }
+
+    public void free() {
+        io.printLn(this.tag)
+        if this.code != 0 {
+            fail this.code, "free"
+        }
+    }
+}
+
+void main() {
+    Flaky keep = new shared Flaky("kept", 0)
+    if true {
+        Flaky other = keep
+        Flaky last = new shared Flaky("last holder", 49)
+    }
+    io.printLn("not reached")
+}

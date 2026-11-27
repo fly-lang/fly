@@ -7,6 +7,7 @@ import fly.compiler.codegen.CodeGenIntrinsics
 import fly.compiler.codegen.CodeGenClass
 import fly.compiler.codegen.CodeGenTrace
 import fly.compiler.codegen.CodeGenDebug
+import fly.compiler.codegen.CodeGenError
 import llvm.api.*
 import fly.os.io
 import fly.str
@@ -224,6 +225,9 @@ public class CodeGenStmt {
     // it declares one), release the object, then store null into x. Deleting a
     // null reference does nothing, and the null store makes a second `delete`, or
     // the scope-exit release of a local created with `new`, a no-op instead of a
+    // double free. A free() that fails (fly-lang/fly#260) still leaves the object
+    // released and x null; then the failure goes on from the `delete`, as from a
+    // failing call.
     // double free.
     public static void deleteStmt(const CodeGenExpr cge, const SemaDeleteStmt node) {
         SemaExpr target = node.getExpr()
@@ -233,6 +237,7 @@ public class CodeGenStmt {
         // goes when its last holder does.
         if target.isSharedHolder() {
             CodeGenStmt.emitReleaseSlot(cge, cls, slot)
+            CodeGenError.propagate(cge)
             return
         }
         // `delete w` on a weak reference lets go of the weak reference only.
@@ -257,6 +262,7 @@ public class CodeGenStmt {
             cge.trapIf(twice, str.concat("double delete of a '", str.concat(cls.getName(), "'")), "ddel")
         }
         CodeGenStmt.emitDeleteSlot(cge, cls, slot)
+        CodeGenError.propagate(cge)
     }
 
     // emitNullStore — store null into a reference slot: what a move leaves behind.
@@ -371,10 +377,25 @@ public class CodeGenStmt {
     // goes: the class's free() (when it declares or inherits one), then its owning,
     // holding and weak fields, bases' included. The body of the class's release
     // entry (CodeGenModule.destroyFn); a struct runs it inline.
+    //
+    // A release may run while a failure is in flight (the cleanup of a failing
+    // return, of a failed `new`…), and a free() that fails must not stop the rest
+    // (fly-lang/fly#260): free() runs into a slot of its own, and what it fails
+    // with joins the caller's slot (errMerge) — the failure there when it had
+    // none, else attached to the one in flight. The fields are released through
+    // their own drop/release helpers, which do the same, so every release goes on.
     public static void emitDestroy(const CodeGenExpr cge, const SemaClassType cls, const pointer obj) {
         SemaClassMethod freeM = CodeGenClass.findFreeMethod(cls)
-        if freeM != null {
+        if freeM != null && cge.getErrPtr() == 0 {
             CodeGenClass.callNoArgMethod(cge, cls, freeM, obj)
+        } elsif freeM != null {
+            CodeGenModule cgm = cge.getCgm()
+            pointer outErr = cge.getErrPtr()
+            pointer own = cgm.freshErrSlot("freeerr")
+            cge.setErrPtr(own)
+            CodeGenClass.callNoArgMethod(cge, cls, freeM, obj)
+            cge.setErrPtr(outErr)
+            cgm.errMerge(outErr, own)
         }
         CodeGenStmt.emitDeleteOwnedFields(cge, cls, obj)
     }
@@ -867,14 +888,14 @@ public class CodeGenStmt {
         if cge.isTerminated() {
             return
         }
-        cge.emitCleanup(cge.getFrameDepth() - cge.getBreakDepth())
+        cge.emitCleanupChecked(cge.getFrameDepth() - cge.getBreakDepth())
         cge.br(cge.getBreakTarget())
     }
     public static void continueStmt(const CodeGenExpr cge, const SemaContinueStmt node) {
         if cge.isTerminated() {
             return
         }
-        cge.emitCleanup(cge.getFrameDepth() - cge.getContinueDepth())
+        cge.emitCleanupChecked(cge.getFrameDepth() - cge.getContinueDepth())
         cge.br(cge.getContinueTarget())
     }
 }

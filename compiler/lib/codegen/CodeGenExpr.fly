@@ -444,10 +444,72 @@ public class CodeGenExpr : SemaVisitor {
         // Leave the scope. On fall-through its locals are freed here; a block that
         // ended in return/fail/break/continue already freed them at that exit
         // (emitCleanup), mirroring the reference's AllocCleanupStack.
+        bool check = false
         if this.terminated == false {
             this.emitFrameCleanup(node)
+            check = this.frameReleasesObjects(node)
         }
         this.frames.remove(this.frames.size() - 1)
+        // A free() that failed while the scope's objects went is the failure at
+        // this point (fly-lang/fly#260): checked like a call, once the scope is off
+        // the stack, so its exit does not release these locals a second time.
+        if check {
+            CodeGenError.propagate(this)
+        }
+    }
+
+    // frameReleasesObjects — does leaving `node` release an object (an owner or a
+    // holder already declared), whose free() may fail?
+    public bool frameReleasesObjects(const SemaBlockStmt node) {
+        if node == null {
+            return false
+        }
+        List<SemaLocalVar> allocs = node.getAllocs()
+        int j = 0
+        while j < allocs.size() {
+            SemaLocalVar v = allocs.get(j)
+            if v.getLlvmAlloca() != 0 {
+                if v.isUniqueOwner() || v.isSharedHolder() {
+                    return true
+                }
+            }
+            j = j + 1
+        }
+        return false
+    }
+
+    // emitCleanupChecked — emitCleanup(n) for a break or continue, then the check
+    // of a free() that failed there (fly-lang/fly#260). The scopes just released
+    // are taken off the stack around the check, so its exit releases only the
+    // scopes outside them; then they are put back for the rest of the codegen.
+    public void emitCleanupChecked(const pointer n) {
+        this.emitCleanup(n)
+        pointer depth = this.frames.size()
+        pointer limit = 0
+        if n < depth {
+            limit = depth - n
+        }
+        bool any = false
+        pointer i = depth
+        while i > limit {
+            i = i - 1
+            if this.frameReleasesObjects(this.frames.get(i)) {
+                any = true
+            }
+        }
+        if any == false {
+            return
+        }
+        List<SemaBlockStmt> left = new unique List<SemaBlockStmt>()
+        while this.frames.size() > limit {
+            left.add(this.frames.get(this.frames.size() - 1))
+            this.frames.remove(this.frames.size() - 1)
+        }
+        CodeGenError.propagate(this)
+        while left.size() > 0 {
+            this.frames.add(left.get(left.size() - 1))
+            left.remove(left.size() - 1)
+        }
     }
 
     // emitCleanup — free the locals of the innermost `n` scopes, innermost first
@@ -473,19 +535,19 @@ public class CodeGenExpr : SemaVisitor {
     // to handleSafe: those opened since it was installed (fly-lang/fly#258). Emitted
     // at each failure exit, so only the locals declared before that exit count.
     public void emitHandleCleanup() {
-        this.emitFailCleanup(this.frames.size() - this.handleDepth)
+        this.emitFailCleanup(this.spanAbove(this.handleDepth))
     }
     public bool handleNeedsCleanup() {
-        return this.needsCleanup(this.frames.size() - this.handleDepth)
+        return this.needsCleanup(this.spanAbove(this.handleDepth))
     }
 
     // emitCaseCleanup — the same for a failure that jumps to the end of a suite
     // `case`: free the scopes opened since the case began.
     public void emitCaseCleanup() {
-        this.emitFailCleanup(this.frames.size() - this.caseDepth)
+        this.emitFailCleanup(this.spanAbove(this.caseDepth))
     }
     public bool caseNeedsCleanup() {
-        return this.needsCleanup(this.frames.size() - this.caseDepth)
+        return this.needsCleanup(this.spanAbove(this.caseDepth))
     }
 
     // emitFailReturnCleanup — emitReturnCleanup for a failure that returns from
@@ -494,11 +556,21 @@ public class CodeGenExpr : SemaVisitor {
         this.emitFailCleanup(this.frames.size())
     }
 
+    // spanAbove — how many scopes are open above `depth` (none when a break or
+    // continue already took the stack below it, emitCleanupChecked).
+    public pointer spanAbove(const pointer depth) {
+        if this.frames.size() <= depth {
+            return 0
+        }
+        return this.frames.size() - depth
+    }
+
     // emitFailCleanup — emitCleanup(n) on the way out of a failure. The failure is
     // still in the error struct, so the cleanup runs over a fresh, empty one: a
     // free() that runs with the failure pending would take its first call for a
     // failure of its own and stop there. What the cleanup itself fails with is
-    // dropped, as in emitFailedNew; the pending failure goes on unchanged.
+    // attached to the pending failure (errMerge, fly-lang/fly#260): the pending
+    // one goes on, first, and nothing is dropped.
     public void emitFailCleanup(const pointer n) {
         if this.needsCleanup(n) == false {
             return
@@ -508,15 +580,11 @@ public class CodeGenExpr : SemaVisitor {
             this.emitCleanup(n)
             return
         }
-        pointer errTy = this.cgm.getErrorTy()
-        pointer cleanErr
-        this.llvm.buildAlloca(this.builder, errTy, "clerr", cleanErr)
-        pointer zeroErr
-        this.llvm.constNull(errTy, zeroErr)
-        this.llvm.buildStore(this.builder, zeroErr, cleanErr)
+        pointer cleanErr = this.cgm.freshErrSlot("clerr")
         this.errPtr = cleanErr
         this.emitCleanup(n)
         this.errPtr = errPtr
+        this.cgm.errMerge(errPtr, cleanErr)
     }
 
     // needsCleanup — does emitCleanup(n) have anything to release here? Lets a
@@ -1099,7 +1167,7 @@ public class CodeGenExpr : SemaVisitor {
         this.terminated = true
         this.position(failBB)
         this.cgm.incrSuiteCounter(this.cgm.suiteCounter("__fly_suite_failed"))
-        this.cgm.zeroErrSlot(errSlot)
+        this.cgm.consumeErr(errSlot, 3)     // with what is attached to it (fly-lang/fly#260)
         this.br(contBB)
         this.position(contBB)
     }

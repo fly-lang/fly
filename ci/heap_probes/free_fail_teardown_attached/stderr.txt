@@ -1,0 +1,4 @@
+error 48: main
+warning: 1 object not deleted (32 B)
+  Flaky x1, 32 B
+  also: error 47: free

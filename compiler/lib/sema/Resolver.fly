@@ -106,6 +106,15 @@ public class Resolver : ASTVisitor {
     // (namespace | module | name | parameter types) — see noteSignature.
     Map<string, int> seenSigs
 
+    // `this` in a constructor or an instance field initializer (fly-lang/fly#260)
+    // may only be a receiver: the object is not complete, and a constructor that
+    // fails releases it, so a copy of `this` stored elsewhere would dangle. While
+    // thisWatch is on, every `this` resolved as a name is noted in thisValues; a
+    // member access or method call takes back the one it uses as receiver
+    // (takeThisReceiver), and what is left is reported (reportThisValues).
+    bool thisWatch
+    List<ASTIdentifier> thisValues
+
     public Resolver(const Registry reg, const bool testMode) {
         this.reg = reg
         this.testMode = testMode
@@ -129,6 +138,50 @@ public class Resolver : ASTVisitor {
         this.litRaw = ""
         this.litNeg = false
         this.seenSigs = new Map<string, int>()
+        this.thisWatch = false
+        this.thisValues = new List<ASTIdentifier>()
+    }
+
+    public bool getThisWatch() {
+        return this.thisWatch
+    }
+    public void setThisWatch(const bool on) {
+        this.thisWatch = on
+    }
+
+    // noteThis — a `this` just resolved as a name, while watching.
+    public void noteThis(const ASTIdentifier id) {
+        if this.thisWatch {
+            this.thisValues.add(id)
+        }
+    }
+
+    // takeThisReceiver — `parent` was just resolved as the receiver of a member
+    // access or a method call (or as the object of a fail, reported on its own):
+    // when it is the `this` noted last, it is not a value that escapes.
+    public void takeThisReceiver(const ASTExpr parent) {
+        pointer n = this.thisValues.size()
+        if n == 0 {
+            return
+        }
+        ASTIdentifier id = parent.asIdentifier()
+        if id == null {
+            return
+        }
+        if id == this.thisValues.get(n - 1) {
+            this.thisValues.remove(n - 1)
+        }
+    }
+
+    // reportThisValues — every `this` noted and not taken back was used as a value.
+    public void reportThisValues() {
+        pointer i = 0
+        while i < this.thisValues.size() {
+            ASTIdentifier id = this.thisValues.get(i)
+            this.diag(id.getLoc(), DiagID.err_sema_this_value_in_ctor)
+            i = i + 1
+        }
+        this.thisValues.clear()
     }
 
     // nextOutName — a fresh "__out_N" name for a call's synthetic return variable.

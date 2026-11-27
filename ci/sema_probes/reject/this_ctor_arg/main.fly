@@ -1,0 +1,16 @@
+// In a constructor `this` may only be a receiver (fly-lang/fly#260): passed
+// as an argument, the callee could keep it.
+import fly.data.List
+
+public class Node {
+
+    public Node(List<Node> all) {
+        all.add(this)
+    }
+}
+
+void main() {
+    List<Node> all = new unique List<Node>()
+    Node n = new Node(all)
+    delete n
+}

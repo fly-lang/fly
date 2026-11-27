@@ -103,7 +103,10 @@ suite CodeGenTraceSuite {
                 void guarded() { handle { fail 5 } }
                 void main() { int x = 1 }
             ")
-            assert.assertFalse(str.contains(ir, "_F7fly_log8exitFail_Ss"), 302)
+            // one exit only: the failure a handle may raise as it consumes the error (a
+            // free() of its object that fails, fly-lang/fly#260) leaves after the handle;
+            // the `fail 5` inside it is not an exit
+            assert.assertEqI(str.count(ir, "call void @_F7fly_log8exitFail_Ss"), 1, 302)
             assert.assertTrue(str.contains(ir, "call void @_F7fly_log4exit_Ss"), 303)
         }
     }

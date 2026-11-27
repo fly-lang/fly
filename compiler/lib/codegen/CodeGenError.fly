@@ -17,6 +17,9 @@ import fly.str
 // stack unwinding. The struct owns its message (a NUL-terminated heap copy);
 // `handle` runs its guarded block, then consumes the failure: frees the message
 // and clears message, object and code, so the next failure starts empty.
+// A failure raised while another is in flight (a free() that fails in a cleanup)
+// does not replace it: it is attached to it (runtime err_attach, fly-lang/fly#260),
+// consumed with it by `handle` and reported after it by `main`.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class CodeGenError {
@@ -367,5 +370,9 @@ public class CodeGenError {
         llvm.buildLoad2(b, i32, cp1, "hcode", codeV)
         llvm.buildStore(b, codeV, cge.getLastErrPtr())
         cgm.zeroErrSlot(errPtr)
+        // Consuming deletes the error's object, and the failures attached to it
+        // with theirs: a free() that fails there is a new failure, which starts
+        // after the handle as if a statement there had failed (fly-lang/fly#260).
+        CodeGenError.propagate(cge)
     }
 }

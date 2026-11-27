@@ -1,0 +1,2 @@
+error 32: whole
+  also: error 46: free

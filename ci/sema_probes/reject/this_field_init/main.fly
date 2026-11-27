@@ -1,0 +1,14 @@
+// An instance field initializer runs before the constructor, on an object not
+// complete yet: there too `this` may only be a receiver (fly-lang/fly#260).
+public class Node {
+
+    public int n = 1
+    public Node self = this
+    public int m = this.n
+
+    public Node() {
+    }
+}
+
+void main() {
+}

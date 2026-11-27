@@ -66,6 +66,13 @@ public void obj_quiet() {
 // objHeapThreaded — called by thread_spawn before the first thread starts.
 public void objHeapThreaded() {
     ObjHeapState.threaded = 1
+    // the lock of the attached failures, made while there is still one thread
+    if ErrChainState.lock == 0 {
+        pointer lk = 0
+        fly.runtime.malloc(8, lk)
+        fly.llvm.memset(lk, 0, 8)
+        ErrChainState.lock = lk
+    }
 }
 
 // Every call between runtime functions is a C call, and the runtime is built
@@ -1366,4 +1373,239 @@ public void obj_teardown_end() {
     pointer raw = rawl
     ObjHeapState.state = 3
     fly.runtime.vm_release(raw, (ulong)rawSize)
+}
+
+// ── attached failures (fly-lang/fly#260) ─────────────────────────────────────
+//
+// A failure that happens while another one is in flight (a free() that fails in
+// the cleanup of a failed `new`, of a failing return, of the end of `main`…)
+// does not replace it: the first stays in the error slot, the later one is
+// ATTACHED to it, like Java's suppressed exceptions. The slot keeps its ABI
+// ({ i32 code, ptr str, ptr obj }, byte offsets 0, 8, 16): the attached ones
+// live here, in one list of entries tied to the address of the slot they belong
+// to, in the order they happened. `handle` consumes them with the failure
+// (err_take), `main` reports them (`  also: error …`).
+//
+// Entry, 32 bytes: 0 slot   8 code (int)   16 str   24 obj.
+
+class ErrChainState {
+    static pointer buf = 0          // the entries
+    static long count = 0
+    static long cap = 0
+    static pointer lock = 0         // ticket lock (next, serving), once threaded
+    public ErrChainState() { }
+}
+
+private void ecLock() {
+    pointer lk = ErrChainState.lock
+    if lk == 0 {
+        return
+    }
+    int ticket = 0
+    fly.runtime.__atomic_fetch_add_4(lk, 1, 4, ticket)
+    bool wait = true
+    while wait {
+        int serving = 0
+        fly.runtime.__atomic_load_4(lk + 4, 2, serving)
+        if serving == ticket {
+            wait = false
+        }
+    }
+}
+
+private void ecUnlock() {
+    pointer lk = ErrChainState.lock
+    if lk == 0 {
+        return
+    }
+    int prev = 0
+    fly.runtime.__atomic_fetch_add_4(lk + 4, 1, 4, prev)
+}
+
+// ecAppend — one more entry at the end (the lock is held).
+private void ecAppend(const pointer slot, const int code, const pointer msg, const pointer obj) {
+    if ErrChainState.count == ErrChainState.cap {
+        long ncap = ErrChainState.cap * 2
+        if ncap == 0 {
+            ncap = 8
+        }
+        pointer nb = 0
+        fly.runtime.realloc(ErrChainState.buf, (ulong)(ncap * 32), nb)
+        ErrChainState.buf = nb
+        ErrChainState.cap = ncap
+    }
+    pointer e = ErrChainState.buf + ErrChainState.count * 32
+    fly.llvm.ptrPokeLong(e, 0, (long)slot)
+    fly.llvm.ptrPokeInt(e, 8, code)
+    fly.llvm.ptrPokeLong(e, 16, (long)msg)
+    fly.llvm.ptrPokeLong(e, 24, (long)obj)
+    ErrChainState.count = ErrChainState.count + 1
+}
+
+// ecRekey — the entries of `from` go to the end of the list, now of `to`, in
+// their order (the lock is held).
+private void ecRekey(const pointer from, const pointer to) {
+    long n = ErrChainState.count
+    long moved = 0
+    long i = 0
+    while i < n {
+        pointer e = ErrChainState.buf + i * 32
+        long k = 0
+        fly.llvm.ptrReadLong(e, 0, k)
+        if k == (long)from {
+            moved = moved + 1
+        }
+        i = i + 1
+    }
+    if moved == 0 {
+        return
+    }
+    // stable: keep the others in place, then append the moved ones
+    pointer tmp = 0
+    fly.runtime.malloc((ulong)(moved * 32), tmp)
+    long w = 0
+    long m = 0
+    i = 0
+    while i < n {
+        pointer e = ErrChainState.buf + i * 32
+        long k = 0
+        fly.llvm.ptrReadLong(e, 0, k)
+        long f1 = 0
+        fly.llvm.ptrReadLong(e, 8, f1)
+        long f2 = 0
+        fly.llvm.ptrReadLong(e, 16, f2)
+        long f3 = 0
+        fly.llvm.ptrReadLong(e, 24, f3)
+        pointer d = 0
+        if k == (long)from {
+            d = tmp + m * 32
+            m = m + 1
+            k = (long)to
+        } else {
+            d = ErrChainState.buf + w * 32
+            w = w + 1
+        }
+        fly.llvm.ptrPokeLong(d, 0, k)
+        fly.llvm.ptrPokeLong(d, 8, f1)
+        fly.llvm.ptrPokeLong(d, 16, f2)
+        fly.llvm.ptrPokeLong(d, 24, f3)
+        i = i + 1
+    }
+    i = 0
+    while i < moved {
+        pointer s = tmp + i * 32
+        pointer d2 = ErrChainState.buf + (w + i) * 32
+        long g0 = 0
+        fly.llvm.ptrReadLong(s, 0, g0)
+        fly.llvm.ptrPokeLong(d2, 0, g0)
+        long g1 = 0
+        fly.llvm.ptrReadLong(s, 8, g1)
+        fly.llvm.ptrPokeLong(d2, 8, g1)
+        long g2 = 0
+        fly.llvm.ptrReadLong(s, 16, g2)
+        fly.llvm.ptrPokeLong(d2, 16, g2)
+        long g3 = 0
+        fly.llvm.ptrReadLong(s, 24, g3)
+        fly.llvm.ptrPokeLong(d2, 24, g3)
+        i = i + 1
+    }
+    fly.runtime.free(tmp)
+}
+
+// err_attach — the failure in the slot `src` (code not 0; the generated code
+// checks) joins the slot `dst`: it BECOMES dst's failure when dst has none, else
+// it is attached to it. What was attached to src follows it, after it. src is
+// left empty: its message and object now belong to dst.
+public void err_attach(const pointer dst, const pointer src) {
+    int code = 0
+    fly.llvm.ptrReadInt(src, 0, code)
+    if code == 0 {
+        return
+    }
+    long msg = 0
+    fly.llvm.ptrReadLong(src, 8, msg)
+    long obj = 0
+    fly.llvm.ptrReadLong(src, 16, obj)
+    ecLock()
+    int dcode = 0
+    fly.llvm.ptrReadInt(dst, 0, dcode)
+    if dcode == 0 {
+        fly.llvm.ptrPokeInt(dst, 0, code)
+        fly.llvm.ptrPokeLong(dst, 8, msg)
+        fly.llvm.ptrPokeLong(dst, 16, obj)
+    } else {
+        ecAppend(dst, code, msg, obj)
+    }
+    ecRekey(src, dst)
+    ecUnlock()
+    fly.llvm.ptrPokeInt(src, 0, 0)
+    fly.llvm.ptrPokeLong(src, 8, 0)
+    fly.llvm.ptrPokeLong(src, 16, 0)
+}
+
+// err_rekey — what is attached to the slot `from` is now attached to `to`.
+public void err_rekey(const pointer from, const pointer to) {
+    if ErrChainState.count == 0 {
+        return
+    }
+    ecLock()
+    ecRekey(from, to)
+    ecUnlock()
+}
+
+// err_take — the first failure attached to `slot` moves into the slot `out`
+// (code, message, object); out's code stays 0 when there is none.
+public void err_take(const pointer slot, const pointer out) {
+    fly.llvm.ptrPokeInt(out, 0, 0)
+    fly.llvm.ptrPokeLong(out, 8, 0)
+    fly.llvm.ptrPokeLong(out, 16, 0)
+    if ErrChainState.count == 0 {
+        return
+    }
+    ecLock()
+    long n = ErrChainState.count
+    long i = 0
+    bool found = false
+    while i < n && found == false {
+        pointer e = ErrChainState.buf + i * 32
+        long k = 0
+        fly.llvm.ptrReadLong(e, 0, k)
+        if k == (long)slot {
+            found = true
+        } else {
+            i = i + 1
+        }
+    }
+    if found {
+        pointer e2 = ErrChainState.buf + i * 32
+        int code = 0
+        fly.llvm.ptrReadInt(e2, 8, code)
+        long msg = 0
+        fly.llvm.ptrReadLong(e2, 16, msg)
+        long obj = 0
+        fly.llvm.ptrReadLong(e2, 24, obj)
+        fly.llvm.ptrPokeInt(out, 0, code)
+        fly.llvm.ptrPokeLong(out, 8, msg)
+        fly.llvm.ptrPokeLong(out, 16, obj)
+        long j = i + 1
+        while j < n {
+            pointer s = ErrChainState.buf + j * 32
+            pointer d = ErrChainState.buf + (j - 1) * 32
+            long h0 = 0
+            fly.llvm.ptrReadLong(s, 0, h0)
+            fly.llvm.ptrPokeLong(d, 0, h0)
+            long h1 = 0
+            fly.llvm.ptrReadLong(s, 8, h1)
+            fly.llvm.ptrPokeLong(d, 8, h1)
+            long h2 = 0
+            fly.llvm.ptrReadLong(s, 16, h2)
+            fly.llvm.ptrPokeLong(d, 16, h2)
+            long h3 = 0
+            fly.llvm.ptrReadLong(s, 24, h3)
+            fly.llvm.ptrPokeLong(d, 24, h3)
+            j = j + 1
+        }
+        ErrChainState.count = n - 1
+    }
+    ecUnlock()
 }

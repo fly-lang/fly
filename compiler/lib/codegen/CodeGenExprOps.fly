@@ -5,6 +5,7 @@ import fly.compiler.ast.*
 import fly.compiler.codegen.CodeGenExpr
 import fly.compiler.codegen.CodeGenIntrinsics
 import fly.compiler.codegen.CodeGenStmt
+import fly.compiler.codegen.CodeGenError
 import llvm.api.*
 import fly.data.List
 import fly.str
@@ -43,6 +44,9 @@ public class CodeGenExprOps {
             pointer haddr = cge.genAddr(left)
             CodeGenStmt.emitReleaseSlot(cge, hty.asClass(), haddr)
             cge.getLLVM().buildStore(cge.getBuilder(), rhs, haddr)
+            // a free() of the old object that failed goes on from here, with the
+            // new one already in place (fly-lang/fly#260)
+            CodeGenError.propagate(cge)
             node.setLlvmValue(rhs)
             return
         }
@@ -63,6 +67,7 @@ public class CodeGenExprOps {
             if right.isUniqueOwner() {
                 CodeGenStmt.emitNullStore(cge, cge.genAddr(right))
             }
+            CodeGenError.propagate(cge)
             node.setLlvmValue(rhs)
             return
         }

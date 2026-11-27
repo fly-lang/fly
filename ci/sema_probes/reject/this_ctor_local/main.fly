@@ -1,0 +1,14 @@
+// In a constructor `this` may only be a receiver (fly-lang/fly#260), not the
+// value of a local.
+public class Node {
+
+    public int n
+
+    public Node() {
+        Node self = this
+        self.n = 1
+    }
+}
+
+void main() {
+}

@@ -325,7 +325,8 @@ public class CodeGenArray {
     // `new` does), a struct element gives back the fields it owns, holds or
     // observes. Then the buffer goes and the failure takes the exit the check
     // would have taken. The releases run with an error slot of their own, so the
-    // pending failure neither stops nor is overwritten by them.
+    // pending failure neither stops nor is overwritten by them: what they fail
+    // with is attached to it (fly-lang/fly#260).
     public static void emitFailedFill(const CodeGenExpr cge, const pointer dataPtr, const pointer idxA,
             const pointer elemLL, const SemaClassType cls, const pointer failBB) {
         LLVM llvm = cge.getLLVM()
@@ -391,6 +392,7 @@ public class CodeGenArray {
 
         cge.position(doneBB)
         cge.setErrPtr(errPtr)
+        cgm.errMerge(errPtr, relErr)
         cgm.freeHandle(CodeGenArray.headerOf(cge, dataPtr, "afail.hdr"))
         CodeGenError.takeFailExit(cge)
 

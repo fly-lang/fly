@@ -541,7 +541,14 @@ public class ResolverClass {
                 }
             }
             r.setExpectedType(t)            // so `T[] xs = {...}` types the literal
+            // there `this` may only be a receiver, as in a constructor (fly-lang/fly#260)
+            bool savedWatch = r.getThisWatch()
+            r.setThisWatch(instanceInit)
             ie.accept(r)
+            if instanceInit {
+                r.reportThisValues()
+            }
+            r.setThisWatch(savedWatch)
             r.setExpectedType(null)
             SemaExpr init = r.getCurrentExpr()
             if instanceInit {

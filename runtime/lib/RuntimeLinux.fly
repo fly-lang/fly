@@ -2061,6 +2061,12 @@ public void err_print(const int code, const pointer msg) {
     wrNl(2)
 }
 
+// err_print_also — a failure attached to the one just reported (fly-lang/fly#260).
+public void err_print_also(const int code, const pointer msg) {
+    wrLit(2, "  also: ")
+    err_print(code, msg)
+}
+
 public void suite_begin(const pointer name) {
     wrLit(1, "suite ")
     wrCStr(1, name)

@@ -1,0 +1,13 @@
+// In a constructor `this` may only be a receiver (fly-lang/fly#260): stored in
+// a static field it would outlive a constructor that fails afterwards.
+public class Node {
+
+    public static Node last = null
+
+    public Node() {
+        Node.last = this
+    }
+}
+
+void main() {
+}

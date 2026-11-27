@@ -842,6 +842,8 @@ public class ResolverStmt {
         }
         if cm.isConstructor() {
             r.diag(ast.getLoc(), DiagID.err_sema_fail_this_in_ctor)
+            // reported here: not again as a `this` used as a value
+            r.takeThisReceiver(ast)
         }
     }
 

@@ -1,0 +1,13 @@
+// In a constructor `this` may only be a receiver (fly-lang/fly#260), not a
+// value of an array.
+public class Node {
+
+    public Node[] pair
+
+    public Node() {
+        this.pair = {this, this}
+    }
+}
+
+void main() {
+}

@@ -1,0 +1,3 @@
+warning: 2 objects not deleted (64 B)
+  Flaky x2, 64 B
+error 47: free

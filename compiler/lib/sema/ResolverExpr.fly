@@ -37,6 +37,9 @@ public class ResolverExpr {
                         r.diagStr(node.getLoc(), DiagID.err_sema_error_var_read, node.getName())
                     }
                 }
+                if e.getKind() == SemaKind.INSTANCE_VAR {
+                    r.noteThis(node)
+                }
             } else {
                 // The name resolved to a symbol that yields no value — a namespace
                 // (`int x = fly`), a type/class/enum name (`int y = C`), or a function
@@ -560,6 +563,7 @@ public class ResolverExpr {
         }
 
         parent.accept(r)
+        r.takeThisReceiver(parent)
         SemaExpr pe = r.getCurrentExpr()
         if pe == null {
             r.setCurrentExpr(null)

@@ -132,6 +132,7 @@ public class ResolverCall {
                 errsBefore = pde.getNumErrors()
             }
             parent.accept(r)
+            r.takeThisReceiver(parent)
             parentExpr = r.getCurrentExpr()
             if parentExpr != null {
                 parentType = parentExpr.getType()

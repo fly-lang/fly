@@ -1,0 +1,37 @@
+// A function fails while a `new unique` owner of its scope is still alive: the
+// owner is released on the way out, and its free() fails too (fly-lang/fly#260).
+// The first failure stays the program's failure (its code, its message, the exit
+// code); the later one is attached to it and reported after it. Before 0.16 the
+// free()'s failure overwrote the one in flight.
+import fly.os.io
+
+// Flaky — its free() prints its tag, then fails with its code (0: it does not).
+public class Flaky {
+
+    string tag
+    int code
+
+    public Flaky(const string tag, const int code) {
+        this.tag = tag
+        this.code = code
+    }
+
+    public void free() {
+        io.printLn(this.tag)
+        if this.code != 0 {
+            fail this.code, "free"
+        }
+    }
+}
+
+int compute() {
+    Flaky outer = new unique Flaky("outer free", 44)
+    Flaky inner = new unique Flaky("inner free", 43)
+    fail 50, "return"
+}
+
+void main() {
+    int v = compute()
+    io.printLn("not reached")
+    io.printLn(v == 0 ? "zero" : "other")
+}

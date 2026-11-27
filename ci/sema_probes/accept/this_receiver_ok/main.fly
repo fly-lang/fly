@@ -1,0 +1,60 @@
+// In a constructor and in a field initializer `this` is a receiver: its fields
+// read and set, its methods called, also through a field (fly-lang/fly#260).
+// Outside them it stays an ordinary value. A program that registers a new
+// object does it after the `new`.
+public class Reg {
+
+    public static Node last = null
+}
+
+public class Inner {
+
+    public int v = 0
+
+    public Inner() {
+    }
+
+    public int get() {
+        return this.v
+    }
+}
+
+public class Node {
+
+    public int n = 1
+    public int m = this.n + 1
+    public Inner inner
+    public int k = this.m * 2
+
+    public Node() {
+        this.inner = new unique Inner()
+        this.n = this.m + this.twice(this.k)
+        this.inner.v = this.n
+        this.touch()
+    }
+
+    public int twice(const int x) {
+        return x * 2
+    }
+
+    public void touch() {
+        this.n = this.inner.get()
+    }
+
+    public Node self() {
+        return this
+    }
+
+    public bool same(const Node o) {
+        return o == this
+    }
+}
+
+void main() {
+    Node n = new Node()
+    Reg.last = n
+    if n.same(n.self()) == false {
+        fail 1
+    }
+    delete n
+}
