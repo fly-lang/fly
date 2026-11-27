@@ -13,7 +13,7 @@ import fly.test.util.*
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CodeGenGenericsSuite — generics: a generic TEMPLATE emits no IR; each concrete
-// specialization is emitted with a mangled name (Wrapper<int> → %.Wrapper_int,
+// specialization is emitted with a mangled name (Wrapper<int> → %__f_t.Wrapper_int,
 // @Wrapper_int__…). No direct C++ analog in fly/test/CodeGen (generics codegen is
 // exercised through the self-host monomorphization path).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -31,8 +31,8 @@ suite CodeGenGenericsSuite {
                     fail w.get()
                 }
             ")
-            assert.assertTrue(str.contains(ir, "%.Wrapper_int = type { ptr, i32 }"), 11)
-            assert.assertTrue(str.contains(ir, "@Wrapper_int_F0"), 12)
+            assert.assertTrue(str.contains(ir, "%__f_t.Wrapper_int = type { ptr, i32 }"), 11)
+            assert.assertTrue(str.contains(ir, "@Wrapper_int_F5__f_t"), 12)
         }
     }
 
@@ -50,7 +50,7 @@ suite CodeGenGenericsSuite {
                 void main() { int x = 1 }
             ")
             // (the NAME may still appear in peek's mangled symbol: no type, no method)
-            assert.assertFalse(str.contains(ir, "%.Wrapper_long = type"), 21)
+            assert.assertFalse(str.contains(ir, "%__f_t.Wrapper_long = type"), 21)
             assert.assertFalse(str.contains(ir, "@Wrapper_long_F"), 25)
         }
         case "a call through a parameter brings the specialization in": {
@@ -62,7 +62,7 @@ suite CodeGenGenericsSuite {
                 long peek(const Wrapper<long> w) { return w.get() }
                 void main() { int x = 1 }
             ")
-            assert.assertTrue(str.contains(ir, "@Wrapper_long_F0"), 22)
+            assert.assertTrue(str.contains(ir, "@Wrapper_long_F5__f_t"), 22)
         }
         case "a specialization used only by another one comes in with it": {
             string ir = cgIR("
@@ -76,8 +76,8 @@ suite CodeGenGenericsSuite {
                 Holder<int> keep(const Holder<int> h) { return h }
                 void main() { Holder<int> h = new Holder<int>(3) }
             ")
-            assert.assertTrue(str.contains(ir, "%.Holder_int = type"), 23)
-            assert.assertTrue(str.contains(ir, "%.Wrapper_int = type"), 24)
+            assert.assertTrue(str.contains(ir, "%__f_t.Holder_int = type"), 23)
+            assert.assertTrue(str.contains(ir, "%__f_t.Wrapper_int = type"), 24)
         }
     }
 }

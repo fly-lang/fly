@@ -120,12 +120,12 @@ suite CodeGenArraySuite {
     // nothing while `%Holder = { ptr, %Pt }` laid the same struct inline.
     void structElementTest() {
         // The discriminating fact is the STRIDE of the element GEP: `getelementptr
-        // %.Pt` walks the buffer by the struct, whereas pointer storage would walk
+        // %__f_t.Pt` walks the buffer by the struct, whereas pointer storage would walk
         // it by `ptr`. (The type is named `<namespace>.<Class>`, and cgIR's module
         // has no namespace — hence the leading dot.)
         case "a struct array strides by the struct, not by a pointer": {
             string ir = cgIR("struct Pt { int x  int y } void f() { Pt[2] ps  Pt a = ps[0] }")
-            assert.assertTrue(str.contains(ir, "getelementptr %.Pt"), 71)
+            assert.assertTrue(str.contains(ir, "getelementptr %__f_t.Pt"), 71)
         }
         case "writing through a struct element verifies": {
             // (kept next to the read case: both go through elementLlvmType)

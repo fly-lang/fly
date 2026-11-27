@@ -1777,7 +1777,7 @@ public class CodeGenModule {
     // function — the real C entry is the separate `@main` wrapper.
     public string mangle(const SemaFunctionBase fn) {
         string nm = fn.getName()
-        string ns = fn.getNamespaceName()
+        string ns = this.fnSymbolNs(fn)
         // Build via fresh temps then reassign (never `r = concat(r, …)` in one
         // statement — that self-reassignment corrupts the string). A non-empty
         // namespace is `<len><ns>` exactly like the reference CodeGenHelper::Mangle, so
@@ -1798,13 +1798,39 @@ public class CodeGenModule {
         return r
     }
 
+    // fnSymbolNs — the namespace in a function's or method's symbol: the one Sema
+    // gave it, or for a file with no `namespace` that file's own
+    // (SemaBuilder.symbolNs, fly-lang/fly#262): two such files may define the same
+    // function or class.
+    public string fnSymbolNs(const SemaFunctionBase fn) {
+        string ns = fn.getNamespaceName()
+        if str.isEmpty(ns) == false {
+            return ns
+        }
+        SemaClassMethod cm = fn.asClassMethod()
+        if cm != null {
+            SemaClassType cls = cm.getClass()
+            if cls != null {
+                string cns = SemaBuilder.classSymbolNs(cls)
+                return cns
+            }
+            return ""
+        }
+        SemaFunction f = fn.asFunction()
+        if f != null {
+            string fns = SemaBuilder.symbolNs(f.getModule())
+            return fns
+        }
+        return ""
+    }
+
     // mangleMethod — like mangle but EXCLUDES the trailing synthetic out param:
     // the reference does not mangle it for class METHODS (archive symbol
     // `FileWriter_F9fly_os_io5write_CBuf_ul` for `long write(Buf, ulong)`), while
     // free functions DO carry it (`_F8fly_math3sin_d_d`).
     public string mangleMethod(const SemaFunctionBase fn) {
         string nm = fn.getName()
-        string ns = fn.getNamespaceName()
+        string ns = this.fnSymbolNs(fn)
         string r1 = str.concat("_F", str.convert(str.len(ns)))
         string r2 = str.concat(r1, ns)
         string r3 = str.concat(r2, str.convert(str.len(nm)))
@@ -1977,7 +2003,7 @@ public class CodeGenModule {
     // Built with the vtable, so `delete` through a base or interface type reaches
     // the fields of the dynamic class.
     public pointer destroyFn(const SemaClassType cls) {
-        string qual = str.concat(SemaBuilder.classNsFlat(cls), str.concat(".", cls.getName()))
+        string qual = this.classHelperQual(cls)
         string name = str.concat("__fly_destroy.", qual)
         LLVM llvm = this.cg.getLLVM()
         pointer fn
@@ -2637,10 +2663,20 @@ public class CodeGenModule {
         return this.classFn("__fly_release.", cls, true)
     }
 
+    // classHelperQual — `<ns>.<Class>` in the names of the per-class helpers
+    // (`@__fly_drop.`, `@__fly_release.`, `@__fly_destroy.`). The class part is the
+    // one the vtable and the methods use (CodeGenClass.className): a generic
+    // specialization carries its type arguments (`Pair_intstring`). With the bare
+    // name every specialization shared the helpers of the first one built, so
+    // `Box<string>` was released with the fields of `Box<int>` (fly-lang/fly#262).
+    public string classHelperQual(const SemaClassType cls) {
+        return str.concat(SemaBuilder.classSymbolNs(cls), str.concat(".", CodeGenClass.className(cls)))
+    }
+
     // classFn — the per-class helper `<prefix><ns>.<Class>`, built once: the delete
     // body, or (release) the release body of a shared holder.
     public pointer classFn(const string prefix, const SemaClassType cls, const bool release) {
-        string qual = str.concat(SemaBuilder.classNsFlat(cls), str.concat(".", cls.getName()))
+        string qual = this.classHelperQual(cls)
         string name = str.concat(prefix, qual)
         int i = 0
         while i < this.dropNames.size() {
@@ -3130,7 +3166,10 @@ public class CodeGenModule {
     // literal entry's .name folds to a constant instead).
     public pointer enumNamesTable(const SemaEnumType en) {
         LLVM llvm = this.cg.getLLVM()
-        string tname = str.concat("enum.names.", en.getName())
+        // the enum's namespace in the name: two enums of one name (two namespaces,
+        // or two files without one, fly-lang/fly#262) must not share a table
+        string tq = str.concat(SemaBuilder.symbolNs(en.getModule()), str.concat(".", en.getName()))
+        string tname = str.concat("enum.names.", tq)
         pointer existing
         llvm.getNamedGlobal(this.module, tname, existing)
         if existing != 0 {

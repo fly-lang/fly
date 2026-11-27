@@ -39,8 +39,8 @@ suite CodeGenClassSuite {
                     fail s
                 }
             ")
-            assert.assertTrue(str.contains(ir, "%.Point = type { ptr, i32, i32 }"), 11)
-            assert.assertTrue(str.contains(ir, "@vtable..Point"), 12)
+            assert.assertTrue(str.contains(ir, "%__f_t.Point = type { ptr, i32, i32 }"), 11)
+            assert.assertTrue(str.contains(ir, "@vtable.__f_t.Point"), 12)
         }
     }
 
@@ -63,8 +63,8 @@ suite CodeGenClassSuite {
             assert.assertTrue(str.contains(ir, "@obj_alloc"), 21)
             // the object points at the vtable's address point, past the magic word,
             // the type info and the release entry (fly-lang/fly#202, #235)
-            assert.assertTrue(str.contains(ir, "ptr @vtable..Point, i64 0, i64 3)"), 22)
-            assert.assertTrue(str.contains(ir, "call void @Point_F0"), 23)
+            assert.assertTrue(str.contains(ir, "ptr @vtable.__f_t.Point, i64 0, i64 3)"), 22)
+            assert.assertTrue(str.contains(ir, "call void @Point_F5__f_t"), 23)
         }
     }
 
@@ -83,7 +83,7 @@ suite CodeGenClassSuite {
                     fail s
                 }
             ")
-            assert.assertTrue(str.contains(ir, "getelementptr inbounds nuw %.Point"), 31)
+            assert.assertTrue(str.contains(ir, "getelementptr inbounds nuw %__f_t.Point"), 31)
             assert.assertTrue(str.contains(ir, "getelementptr ptr"), 32)  // vtable slot
         }
     }

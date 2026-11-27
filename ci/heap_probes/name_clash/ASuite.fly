@@ -1,0 +1,57 @@
+import fly.assert
+import fly.str
+
+// Two files with no `namespace` are two namespaces (fly-lang/fly#262): each
+// may declare a class, a function and an enum of the same name as the other
+// (BSuite.fly), and each gets its own. Their symbols used to carry an empty
+// namespace: the two files shared one vtable, one initializer, one release
+// helper and one enum name table, so an object was released as the other
+// file's class. This file's Pair is a plain class whose free() counts.
+
+class ClashLog {
+    public static string order = ""
+}
+
+class Pair {
+
+    string tag = "a"
+
+    public Pair() {
+    }
+
+    public string get() {
+        return this.tag
+    }
+
+    public void free() {
+        ClashLog.order = str.concat(ClashLog.order, this.tag)
+    }
+}
+
+enum Shade {
+    LIGHT, DARK
+}
+
+int clashValue() {
+    return 1
+}
+
+suite ASuite {
+
+    void ownTest() {
+        case "its own class, initializer and free()": {
+            if true {
+                Pair p = new unique Pair()
+                assert.assertStr(p.get(), "a", 1)
+            }
+            assert.assertStr(ClashLog.order, "a", 2)
+        }
+        case "its own function": {
+            assert.assertEqI(clashValue(), 1, 3)
+        }
+        case "its own enum": {
+            Shade s = Shade.DARK
+            assert.assertStr(s.name, "DARK", 4)
+        }
+    }
+}

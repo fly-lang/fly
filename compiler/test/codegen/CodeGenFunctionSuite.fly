@@ -39,8 +39,8 @@ suite CodeGenFunctionSuite {
                     fail s
                 }
             ")
-            assert.assertTrue(str.contains(ir, "call void @_F03add"), 21)
-            assert.assertTrue(str.contains(ir, "call void @_F04fact"), 22)  // recursion
+            assert.assertTrue(str.contains(ir, "call void @_F5__f_t3add"), 21)
+            assert.assertTrue(str.contains(ir, "call void @_F5__f_t4fact"), 22)  // recursion
             assert.assertTrue(str.contains(ir, "define i32 @main(i32"), 23)
         }
     }

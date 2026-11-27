@@ -117,13 +117,14 @@ public class CodeGenClass {
     // helpers like `<Id>.init_ctor` for header classes.
     public static string refClassId(const SemaClassType cls) {
         SemaModule mod = cls.getModule()
-        string nsn = ""
+        string leaf = ""
         if mod != null {
             SemaNameSpace ns = mod.getNameSpace()
             if ns != null {
-                nsn = ns.getName()
+                leaf = ns.getName()
             }
         }
+        string nsn = defaultNsFor(cls, leaf)
         int dot = str.lastIndexOf(nsn, ".")
         if dot >= 0 {
             int L = str.len(nsn)
@@ -183,7 +184,7 @@ public class CodeGenClass {
     // fieldInitName — the routine's symbol: the FULL namespace (fly_os_io), as a
     // last segment alone could name two types the same.
     public static string fieldInitName(const SemaClassType cls) {
-        string ns = SemaBuilder.classNsFlat(cls)
+        string ns = SemaBuilder.classSymbolNs(cls)
         string a = str.concat("fieldinit.", ns)
         string b2 = str.concat(a, ".")
         return str.concat(b2, className(cls))
@@ -780,7 +781,7 @@ public class CodeGenClass {
     // of a global, so it is the same in every object and every DLL without any
     // linker cooperation. Never 0: (0, null) terminates a directory.
     public static long ifaceId(const SemaClassType iface) {
-        string key = str.concat(SemaBuilder.classNsFlat(iface), str.concat(".", iface.getName()))
+        string key = str.concat(SemaBuilder.classSymbolNs(iface), str.concat(".", iface.getName()))
         long h = 1469598103934665603
         int n = str.len(key)
         int i = 0
@@ -1932,15 +1933,35 @@ public class CodeGenClass {
 
     public static string structName(const SemaClassType cls) {
         SemaModule mod = cls.getModule()
-        string nsn = ""
+        string leaf = ""
         if mod != null {
             SemaNameSpace ns = mod.getNameSpace()
             if ns != null {
-                nsn = ns.getName()
+                leaf = ns.getName()
             }
         }
+        string nsn = defaultNsFor(cls, leaf)
         string a = str.concat(nsn, ".")
         return str.concat(a, className(cls))
+    }
+
+    // defaultNsFor — `nsn` (the last namespace segment), or for a class of a file
+    // with no `namespace` that file's own default namespace (SemaBuilder.symbolNs,
+    // fly-lang/fly#262): two such files may declare the same class name.
+    public static string defaultNsFor(const SemaClassType cls, const string nsn) {
+        SemaModule mod = cls.getModule()
+        if mod == null {
+            return nsn
+        }
+        ASTModule am = mod.getAST()
+        if am == null {
+            return nsn
+        }
+        if am.getNameSpace() != null {
+            return nsn
+        }
+        string fileNs = SemaBuilder.symbolNs(mod)
+        return fileNs
     }
 
     public static string vtableName(const SemaClassType cls) {

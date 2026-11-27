@@ -13,8 +13,9 @@
 #   expect.txt   line 1: the exit code it must end with;
 #   stderr.txt   what stderr must be, exactly (absent: nothing at all);
 #   stdout.txt   what stdout must be, exactly (absent: nothing at all);
-#   suite.txt    optional: line 1 names a suite in the probe's sources; the probe
-#                is then built and run by `fly --suite=<name>` (its output: the
+#   suite.txt    optional: line 1 names a suite in the probe's sources (`*`: all
+#                of them, in one program); the probe is then built and run by
+#                `fly --suite=<name>` (`fly --suite`) (its output: the
 #                case results on stdout, the per-case leak warnings on stderr)
 #                instead of as a program with a main.
 # Line endings are ignored.
@@ -60,7 +61,11 @@ foreach ($probe in Get-ChildItem 'ci/heap_probes' -Directory | Sort-Object Name)
     $suiteFile = Join-Path $probe.FullName 'suite.txt'
     if (Test-Path $suiteFile) {
         $suite = (@(Get-Content $suiteFile)[0]).Trim()
-        & $FLY @FLY_TARGET_ARGS "--suite=$suite" --src-dir $probe.FullName --out-dir $dir > "$dir/stdout.log" 2> "$dir/stderr.log"
+        if ($suite -eq '*') {
+            & $FLY @FLY_TARGET_ARGS --suite --src-dir $probe.FullName -o $name --out-dir $dir > "$dir/stdout.log" 2> "$dir/stderr.log"
+        } else {
+            & $FLY @FLY_TARGET_ARGS "--suite=$suite" --src-dir $probe.FullName --out-dir $dir > "$dir/stdout.log" 2> "$dir/stderr.log"
+        }
         $rc = $LASTEXITCODE
     } else {
         & $FLY @FLY_TARGET_ARGS --src-dir $probe.FullName -o "$name.exe" --out-dir $dir *> "$dir/compile.log"

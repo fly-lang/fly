@@ -36,7 +36,7 @@ suite CodeGenAllocSuite {
             assert.assertTrue(str.contains(ir, "@obj_alloc"), 11)
             // no delete of the Box at scope exit (obj_free itself appears: the error
             // object drop that main emits)
-            assert.assertFalse(str.contains(ir, "@__fly_drop..Box"), 12)
+            assert.assertFalse(str.contains(ir, "@__fly_drop.__f_t.Box"), 12)
         }
         case "a new unique owner is freed via @obj_free at scope exit": {
             string ir = cgIR("

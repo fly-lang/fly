@@ -1,0 +1,13 @@
+suite ASuite
+  ownTest
+    its own class, initializer and free() ... ok
+    its own function ... ok
+    its own enum ... ok
+suite ASuite: 3 cases, 3 passed, 0 failed
+suite BSuite
+  ownTest
+    its own generic class, released with its fields ... ok
+    two specializations, each released as itself ... ok
+    its own function ... ok
+    its own enum ... ok
+suite BSuite: 4 cases, 4 passed, 0 failed

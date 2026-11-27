@@ -42,11 +42,11 @@ suite CodeGenInheritanceSuite {
                     fail s + l
                 }
             ")
-            assert.assertTrue(str.contains(ir, "@vtable..Animal"), 11)
-            assert.assertTrue(str.contains(ir, "@vtable..Dog"), 12)
+            assert.assertTrue(str.contains(ir, "@vtable.__f_t.Animal"), 11)
+            assert.assertTrue(str.contains(ir, "@vtable.__f_t.Dog"), 12)
             // Dog's vtable holds the overriding Dog sound + the inherited Animal getLegs
-            assert.assertTrue(str.contains(ir, "@Dog_F05sound"), 13)
-            assert.assertTrue(str.contains(ir, "@Animal_F07getLegs"), 14)
+            assert.assertTrue(str.contains(ir, "@Dog_F5__f_t5sound"), 13)
+            assert.assertTrue(str.contains(ir, "@Animal_F5__f_t7getLegs"), 14)
         }
         case "base-typed receiver dispatches through the loaded vtable": {
             string ir = cgIR("
@@ -93,11 +93,11 @@ suite CodeGenInheritanceSuite {
                 void main() { Derived d = new Derived()  fail d.total() }
             ")
             // vtable(0) + a(1) + b(2)  — base itself.
-            assert.assertTrue(str.contains(ir, "%.Base = type { ptr, i32, i32 }"), 31)
+            assert.assertTrue(str.contains(ir, "%__f_t.Base = type { ptr, i32, i32 }"), 31)
             // vtable(0) + INLINED base a(1),b(2) + own c(3) — one vtable, NO nested
-            // %.Base subobject. A regression to a nested/Itanium source layout would
-            // make this `{ ptr, %.Base, i32 }` and break the flat header consumers.
-            assert.assertTrue(str.contains(ir, "%.Derived = type { ptr, i32, i32, i32 }"), 32)
+            // %__f_t.Base subobject. A regression to a nested/Itanium source layout would
+            // make this `{ ptr, %__f_t.Base, i32 }` and break the flat header consumers.
+            assert.assertTrue(str.contains(ir, "%__f_t.Derived = type { ptr, i32, i32, i32 }"), 32)
         }
         case "a derived method reads INHERITED + own fields inline on the derived struct": {
             string ir = cgIR("
@@ -111,10 +111,10 @@ suite CodeGenInheritanceSuite {
                 }
                 void main() { Derived d = new Derived()  fail d.total() }
             ")
-            // total() GEPs the inherited a/b AND own c directly on %.Derived at the
+            // total() GEPs the inherited a/b AND own c directly on %__f_t.Derived at the
             // flat slots 1/2/3 — no base-subobject indirection. If fieldIndex regressed
             // for inherited fields the slots (or the type GEP'd) would change.
-            assert.assertTrue(str.contains(ir, "getelementptr inbounds nuw %.Derived, ptr"), 41)
+            assert.assertTrue(str.contains(ir, "getelementptr inbounds nuw %__f_t.Derived, ptr"), 41)
             assert.assertTrue(str.contains(ir, ", i32 0, i32 1"), 42)   // inherited a @ slot 1
             assert.assertTrue(str.contains(ir, ", i32 0, i32 2"), 43)   // inherited b @ slot 2
             assert.assertTrue(str.contains(ir, ", i32 0, i32 3"), 44)   // own c @ slot 3
@@ -139,15 +139,15 @@ suite CodeGenInheritanceSuite {
                     delete a
                 }
             ")
-            assert.assertTrue(str.contains(ir, "define linkonce_odr void @__fly_destroy..Dog(ptr"), 51)
-            assert.assertTrue(str.contains(ir, "@typeinfo..Dog = constant { ptr, i64 }"), 52)
+            assert.assertTrue(str.contains(ir, "define linkonce_odr void @__fly_destroy.__f_t.Dog(ptr"), 51)
+            assert.assertTrue(str.contains(ir, "@typeinfo.__f_t.Dog = constant { ptr, i64 }"), 52)
             // -3 the magic word, -2 the type info, -1 the release entry
             string head = "[ptr inttoptr (i64 3561329519710792774 to ptr), "
-            assert.assertTrue(str.contains(ir, str.concat(head, "ptr @typeinfo..Dog, ptr @__fly_destroy..Dog, ptr null")), 53)
+            assert.assertTrue(str.contains(ir, str.concat(head, "ptr @typeinfo.__f_t.Dog, ptr @__fly_destroy.__f_t.Dog, ptr null")), 53)
             // the drop of an Animal reads the entry at -1 of the object's vtable
             assert.assertTrue(str.contains(ir, "getelementptr ptr, ptr %vt, i64 -1"), 54)
             // Dog's entry releases the field only Dog declares
-            assert.assertTrue(str.contains(ir, "@__fly_drop..Res"), 55)
+            assert.assertTrue(str.contains(ir, "@__fly_drop.__f_t.Res"), 55)
         }
     }
 }

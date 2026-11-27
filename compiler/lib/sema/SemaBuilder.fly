@@ -182,6 +182,91 @@ public class SemaBuilder {
         return r
     }
 
+    // symbolNs — the namespace part of the symbols generated for what module `m`
+    // declares: its `namespace` flattened with '_' (classNsFlat's rule), or, for a
+    // file with no `namespace`, the file's own default namespace, `__f_` + the
+    // file's base name (`ASuite.fly` → `__f_ASuite`, a header `x.fly.h` the same as
+    // its `x.fly`). Each such file is a namespace of its own for the resolver; its
+    // symbols used to carry an empty namespace, so two files declaring the same
+    // class or function shared one vtable, one release helper, one initializer
+    // (fly-lang/fly#262). Only symbol names: diagnostics, the trace and the
+    // end-of-main report keep showing the bare name.
+    public static string symbolNs(const SemaModule m) {
+        if m == null {
+            return ""
+        }
+        ASTModule am = m.getAST()
+        if am == null {
+            return ""
+        }
+        if am.getNameSpace() != null {
+            string flat = SemaBuilder.moduleNsFlat(am)
+            return flat
+        }
+        string path = am.getName()
+        int start = 0
+        int k = 0
+        int n = str.len(path)
+        while k < n {
+            byte c = str.byteAt(path, k)
+            if c == 47 || c == 92 {         // '/' or '\'
+                start = k + 1
+            }
+            k = k + 1
+        }
+        string base = str.substring(path, start, n)
+        if str.endsWith(base, ".fly.h") {
+            string b1 = str.substring(base, 0, str.len(base) - 6)
+            base = b1
+        } elsif str.endsWith(base, ".fly") {
+            string b2 = str.substring(base, 0, str.len(base) - 4)
+            base = b2
+        }
+        // a symbol-safe spelling: letters, digits and '_' kept, anything else '_'
+        string r = "__f_"
+        int i = 0
+        int bl = str.len(base)
+        while i < bl {
+            byte b = str.byteAt(base, i)
+            bool keep = (b >= 48 && b <= 57) || (b >= 65 && b <= 90) || (b >= 97 && b <= 122) || b == 95
+            string piece = "_"
+            if keep {
+                piece = str.substring(base, i, i + 1)
+            }
+            string t = str.concat(r, piece)
+            r = t
+            i = i + 1
+        }
+        return r
+    }
+
+    // moduleNsFlat — a module's declared namespace flattened with '_' ("" when none).
+    public static string moduleNsFlat(const ASTModule am) {
+        ASTNameSpace ns = am.getNameSpace()
+        if ns == null {
+            return ""
+        }
+        List<ASTName> names = ns.getNames()
+        string r = ""
+        int i = 0
+        while i < names.size() {
+            if i == 0 {
+                r = names.get(i).getName()
+            } else {
+                string t = str.concat(r, "_")
+                r = str.concat(t, names.get(i).getName())
+            }
+            i = i + 1
+        }
+        return r
+    }
+
+    // classSymbolNs — symbolNs of the module that declares `cls`.
+    public static string classSymbolNs(const SemaClassType cls) {
+        string r = SemaBuilder.symbolNs(cls.getModule())
+        return r
+    }
+
     public static SemaClassMethod CreateDefaultConstructor(const SemaClassType cls, const SymbolTable scope) {
         ASTClass ac = cls.getAST()
         ASTMethod ast = ASTBuilder.CreateDefaultConstructor(ac)

@@ -14,8 +14,9 @@
 #   expect.txt   line 1: the exit code it must end with;
 #   stderr.txt   what stderr must be, exactly (absent: nothing at all);
 #   stdout.txt   what stdout must be, exactly (absent: nothing at all);
-#   suite.txt    optional: line 1 names a suite in the probe's sources; the probe
-#                is then built and run by `fly --suite=<name>` (its output: the
+#   suite.txt    optional: line 1 names a suite in the probe's sources (`*`: all
+#                of them, in one program); the probe is then built and run by
+#                `fly --suite=<name>` (`fly --suite`) (its output: the
 #                case results on stdout, the per-case leak warnings on stderr)
 #                instead of as a program with a main.
 # Line endings are ignored.
@@ -53,7 +54,11 @@ for probe in ci/heap_probes/*/; do
     mkdir -p "$dir"
     if [ -f "$probe/suite.txt" ]; then
         suite="$(sed -n 1p "$probe/suite.txt" | tr -d '\r')"
-        "$FLY" --suite="$suite" --src-dir "$probe" --out-dir "$dir" > "$dir/stdout.log" 2> "$dir/stderr.log"
+        if [ "$suite" = "*" ]; then
+            "$FLY" --suite --src-dir "$probe" -o "$name" --out-dir "$dir" > "$dir/stdout.log" 2> "$dir/stderr.log"
+        else
+            "$FLY" --suite="$suite" --src-dir "$probe" --out-dir "$dir" > "$dir/stdout.log" 2> "$dir/stderr.log"
+        fi
         rc=$?
     else
         if ! "$FLY" --src-dir "$probe" -o "$name" --out-dir "$dir" > "$dir/compile.log" 2>&1 \

@@ -1,0 +1,74 @@
+import fly.assert
+
+// The other file of the probe (see ASuite.fly): here Pair is a generic class
+// owning a field, and two of its specializations, which also used to share one
+// release helper (`Box<string>` released with the fields of `Box<int>`).
+
+class ClashTally {
+    public static int freed = 0
+}
+
+class Part {
+
+    public Part() {
+    }
+
+    public void free() {
+        ClashTally.freed = ClashTally.freed + 1
+    }
+}
+
+class Pair<A, B> {
+
+    A a
+    B b
+    Part part
+
+    public Pair(A a, B b) {
+        this.a = a
+        this.b = b
+        this.part = new unique Part()
+    }
+
+    public B second() {
+        return this.b
+    }
+}
+
+enum Shade {
+    RED
+}
+
+int clashValue() {
+    return 2
+}
+
+suite BSuite {
+
+    void ownTest() {
+        case "its own generic class, released with its fields": {
+            if true {
+                Pair<int, string> p = new unique Pair<int, string>(7, "hi")
+                assert.assertStr(p.second(), "hi", 11)
+            }
+            assert.assertEqI(ClashTally.freed, 1, 12)
+        }
+        case "two specializations, each released as itself": {
+            ClashTally.freed = 0
+            if true {
+                Pair<string, int> x = new unique Pair<string, int>("k", 9)
+                Pair<long, string> y = new unique Pair<long, string>(42, "v")
+                assert.assertEqI(x.second(), 9, 13)
+                assert.assertStr(y.second(), "v", 14)
+            }
+            assert.assertEqI(ClashTally.freed, 2, 15)
+        }
+        case "its own function": {
+            assert.assertEqI(clashValue(), 2, 16)
+        }
+        case "its own enum": {
+            Shade s = Shade.RED
+            assert.assertStr(s.name, "RED", 17)
+        }
+    }
+}
