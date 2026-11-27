@@ -104,6 +104,16 @@ public int navModeCalls() { // every call site with arg positions
     return 4
 }
 
+// argExpr — the expression an argument holds, or null. ASTArg keeps an ASTNode:
+// asExpr() narrows it (an ASTNode is not an ASTExpr, fly-lang/fly#267).
+public ASTExpr argExpr(const ASTArg a) {
+    ASTNode n = a.getExpr()
+    if n == null {
+        return null
+    }
+    return n.asExpr()
+}
+
 public class LspNavVisitor : ASTVisitor {
     public SourceManager sm
     public int mode
@@ -234,7 +244,7 @@ public class LspNavVisitor : ASTVisitor {
                         int ai = 0
                         while ai < cargs.size() {
                             ASTArg a = cargs.get(ai)
-                            ASTExpr ae = a.getExpr()
+                            ASTExpr ae = argExpr(a)
                             if ae != null {
                                 SourceLocation al = ae.getLoc()
                                 if al != null {
@@ -274,7 +284,7 @@ public class LspNavVisitor : ASTVisitor {
                     int mi = 0
                     while mi < margs.size() {
                         ASTArg ma = margs.get(mi)
-                        ASTExpr me = ma.getExpr()
+                        ASTExpr me = argExpr(ma)
                         if me != null {
                             SourceLocation al = me.getLoc()
                             if al != null {
@@ -299,7 +309,7 @@ public class LspNavVisitor : ASTVisitor {
         int i = 0
         while i < args.size() {
             ASTArg a = args.get(i)
-            ASTExpr e = a.getExpr()
+            ASTExpr e = argExpr(a)
             if e != null {
                 e.accept(this)
             }

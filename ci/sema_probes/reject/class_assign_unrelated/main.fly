@@ -1,0 +1,12 @@
+class Dog {
+    public int a = 1
+}
+
+class Cat {
+    public string s = "x"
+}
+
+void main() {
+    Dog d = new Cat()
+    d.a = 2
+}

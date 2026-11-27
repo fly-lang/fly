@@ -1,0 +1,9 @@
+namespace probe.right
+
+public class P {
+    public int tag = 2
+}
+
+public P make() {
+    return new P()
+}

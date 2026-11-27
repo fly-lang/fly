@@ -1,0 +1,7 @@
+import fly.data.List
+
+void main() {
+    List<int> a = new List<int>()
+    List<string> b = a
+    b.add("x")
+}

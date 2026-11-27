@@ -1,0 +1,12 @@
+enum Color {
+    RED
+}
+
+enum Size {
+    SMALL
+}
+
+void main() {
+    Color c = Size.SMALL
+    c = Color.RED
+}

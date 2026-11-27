@@ -1,0 +1,9 @@
+namespace probe.twons
+
+import probe.left
+import probe.right
+
+void main() {
+    probe.left.P x = probe.right.make()
+    x.tag = 1
+}

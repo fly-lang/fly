@@ -46,7 +46,7 @@ suite SemaExprSuite {
             ASTNumberValue an = new ASTNumberValue(loc, "1")
             SemaIntValue e = new SemaIntValue(an, it, "1")
             sav.addValue(e)
-            List<SemaValue> vs = sav.getValues()
+            List<SemaExpr> vs = sav.getValues()
             assert.assertEqI((int)vs.size(), 1, 7)
         }
     }

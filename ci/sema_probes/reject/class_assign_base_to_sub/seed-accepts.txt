@@ -1,0 +1,1 @@
+The v0.15.2 seed checks only the kind of an assigned value (class, number, string, enum), so any class goes into any class variable and any enum into any enum variable. From 0.16 (fly-lang/fly#267) a class value goes only where its class, a base or an interface of it is expected, and an enum value only where its own enum is.

@@ -1,0 +1,13 @@
+class Animal {
+    public int legs = 4
+}
+
+class Dog : Animal {
+    public int barks = 1
+}
+
+void main() {
+    Animal a = new Dog()
+    Dog d = a
+    d.barks = 2
+}

@@ -1,0 +1,41 @@
+// A class value goes where its class, a base or an interface of it is expected
+// (fly-lang/fly#267): a declaration, an assignment, a return and a field take a
+// Dog as an Animal and as a Pet. Up to 0.15.x any class went into any class
+// variable.
+interface Pet {
+    int name()
+}
+
+class Animal {
+    public int legs = 4
+}
+
+class Dog : Animal, Pet {
+    public int name() {
+        return 7
+    }
+}
+
+class Kennel {
+    public Animal guest
+}
+
+Animal adopt() {
+    return new Dog()
+}
+
+void main() {
+    Dog d = new Dog()
+    Animal a = d
+    Pet p = d
+    Animal b = adopt()
+    Kennel k = new Kennel()
+    k.guest = d
+    a = b
+    if a.legs != 4 || p.name() != 7 || k.guest.legs != 4 {
+        fail 1
+    }
+    delete k
+    delete b
+    delete d
+}

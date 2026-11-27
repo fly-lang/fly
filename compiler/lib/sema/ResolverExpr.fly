@@ -804,14 +804,15 @@ public SemaType promoteNumberTypes(const SemaType left, const SemaType right) {
     }
 }
 
-// checkAssignTypes — kind-level assignment compatibility, the reference
-// SemaValidator::CheckAssignment minus its refinements (constant narrowing,
-// array element equality, class inheritance): those need value/subtype walks
-// the self-host will grow later; the KIND mismatches (string↔number etc.) are
-// the silent-miscompile class this guards. Used by the binary-assign resolution
-// and the decl-initializer check. A null side is skipped — an unresolved expr
-// (already diagnosed), or a null/unset literal, which carries no type — as are
-// generic type variables (substituted at monomorphization).
+// checkAssignTypes — assignment compatibility: the KIND (string↔number etc.,
+// the silent-miscompile class), and for a class the hierarchy (the value's
+// class is the target or derives from it, fly-lang/fly#267) and for an enum the
+// same enum. Constant narrowing and array element equality are checked
+// elsewhere or not yet. Used by the binary-assign resolution (a `return` is one),
+// the decl-initializer, field-initializer and struct-literal checks. A null
+// side is skipped — an unresolved expr (already diagnosed), or a null/unset
+// literal, which carries no type — as are generic type variables (substituted
+// at monomorphization).
 public void checkAssignTypes(const Resolver r, const SourceLocation loc, const SemaType lhs, const SemaType rhs) {
     if lhs == null {
         return
@@ -836,12 +837,95 @@ public void checkAssignTypes(const Resolver r, const SourceLocation loc, const S
     } elsif lhs.isClass() {
         // integer → class is legal (pointer-sized slots, reference long→class)
         ok = rhs.isClass() || rhs.isInteger()
+        // a class value goes only where its class, or a base or an interface of
+        // it, is expected (fly-lang/fly#267): the kind alone let any
+        // class into any class variable
+        SemaClassType lc = lhs.asClass()
+        SemaClassType rc = rhs.asClass()
+        if ok && lc != null && rc != null {
+            ok = rc.isDerivedOrEquals(lc)
+        }
     } elsif lhs.isEnum() {
         ok = rhs.isEnum() || rhs.isInteger()
+        if ok && rhs.isEnum() {
+            ok = lhs.isEquals(rhs)
+        }
     }
     if ok == false {
-        r.diagStr2(loc, DiagID.err_sema_type_mismatch, rhs.getName(), lhs.getName())
+        r.diagStr2(loc, DiagID.err_sema_type_mismatch, typeLabel(rhs, lhs), typeLabel(lhs, rhs))
     }
+}
+
+// typeLabel — how a diagnostic names type `t` next to type `other`: its short
+// name, qualified with its namespace (`probe.left.P`) for a class or an enum
+// whose short name `other` shares while being another type, and followed by
+// its type arguments for a specialization (`List<SemaExpr>`).
+public string typeLabel(const SemaType t, const SemaType other) {
+    string label = t.getName()
+    if str.equals(label, other.getName()) && str.equals(t.home(), other.home()) == false {
+        label = qualifiedName(t)
+    }
+    SemaClassType c = t.asClass()
+    if c == null {
+        return label
+    }
+    List<SemaType> args = c.getTypeArgs()
+    if args == null {
+        return label
+    }
+    if args.size() == 0 {
+        return label
+    }
+    label = str.concat(label, "<")
+    int i = 0
+    while i < args.size() {
+        SemaType a = args.get(i)
+        if i > 0 {
+            label = str.concat(label, ", ")
+        }
+        if a != null {
+            label = str.concat(label, typeLabel(a, a))
+        }
+        i = i + 1
+    }
+    return str.concat(label, ">")
+}
+
+// qualifiedName — a class or an enum named with its full namespace
+// (`probe.left.P`); the short name for a file without a namespace or any
+// other type.
+public string qualifiedName(const SemaType t) {
+    string name = t.getName()
+    SemaModule m = null
+    SemaClassType c = t.asClass()
+    if c != null {
+        m = c.getModule()
+    } else {
+        SemaEnumType e = t.asEnum()
+        if e != null {
+            m = e.getModule()
+        }
+    }
+    if m == null {
+        return name
+    }
+    ASTModule am = m.getAST()
+    if am == null {
+        return name
+    }
+    ASTNameSpace ns = am.getNameSpace()
+    if ns == null {
+        return name                         // a file without a namespace
+    }
+    string label = name
+    List<ASTName> parts = ns.getNames()
+    int i = (int)parts.size() - 1
+    while i >= 0 {
+        ASTName part = parts.get(i)
+        label = str.concat(part.getName(), str.concat(".", label))
+        i = i - 1
+    }
+    return label
 }
 
 // checkNarrowing — the VALUE-level half of assignment compatibility, a port of

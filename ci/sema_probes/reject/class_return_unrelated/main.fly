@@ -1,0 +1,16 @@
+class Dog {
+    public int a = 1
+}
+
+class Cat {
+    public string s = "x"
+}
+
+Dog make() {
+    return new Cat()
+}
+
+void main() {
+    Dog d = make()
+    d.a = 2
+}
