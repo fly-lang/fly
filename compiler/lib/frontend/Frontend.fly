@@ -591,6 +591,27 @@ public class Frontend {
         int bi = 0
         while bi < mods.size() {
             ASTModule cur = mods.get(bi)
+            // A namespace is one scope spread over files (fly-lang/fly#246): the
+            // other files of a module's OWN namespace are pulled like an implicit
+            // import of exactly that namespace (no parent, no descendants), so
+            // their classes, functions and enums resolve without an `import`.
+            // Not for a header (its namespace links from its archive) nor for a
+            // file with no namespace (a namespace of its own, fly-lang/fly#262).
+            ASTNameSpace curNs = cur.getNameSpace()
+            if cur.isHeader() == false && curNs != null {
+                string own = this.joinNames(curNs.getNames())
+                if this.listHas(headerNs, own) == false && this.listHas(doneNs, own) == false {
+                    if scanned == false {
+                        scanned = true
+                        this.scanSrcDirs(fo, mapNs, mapPath, known)
+                    }
+                    doneNs.add(own)
+                    bool ownOk = this.pullNamespace(own, mapNs, mapPath, known, mods)
+                    if ownOk == false {
+                        return false
+                    }
+                }
+            }
             List<ASTImport> imps = cur.getImports()
             int ii = 0
             while ii < imps.size() {
@@ -617,19 +638,7 @@ public class Frontend {
                     // First import that needs project sources: build the map now.
                     if scanned == false {
                         scanned = true
-                        int sd = fo.srcDirCount()
-                        if sd == 0 {
-                            this.scanSrcDir(".", mapNs, mapPath, known)
-                        } else {
-                            int di = 0
-                            while di < sd {
-                                string d = fo.srcDirAt(di)
-                                if str.isEmpty(d) == false {
-                                    this.scanSrcDir(d, mapNs, mapPath, known)
-                                }
-                                di = di + 1
-                            }
-                        }
+                        this.scanSrcDirs(fo, mapNs, mapPath, known)
                     }
                     // A plain/alias import is `Namespace.Symbol`: its last component
                     // is the symbol, not a namespace segment. Fall back to the
@@ -692,6 +701,25 @@ public class Frontend {
             bi = bi + 1
         }
         return true
+    }
+
+    // scanSrcDirs — map the project's sources by namespace: the current directory,
+    // or every --src-dir.
+    public void scanSrcDirs(const FrontendOptions fo, List<string> mapNs, List<string> mapPath,
+            const List<string> known) {
+        int sd = fo.srcDirCount()
+        if sd == 0 {
+            this.scanSrcDir(".", mapNs, mapPath, known)
+            return
+        }
+        int di = 0
+        while di < sd {
+            string d = fo.srcDirAt(di)
+            if str.isEmpty(d) == false {
+                this.scanSrcDir(d, mapNs, mapPath, known)
+            }
+            di = di + 1
+        }
     }
 
     // pullNamespace — parse every mapped source file of `ns` and append it to mods.

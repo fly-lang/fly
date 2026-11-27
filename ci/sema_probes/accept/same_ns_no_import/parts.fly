@@ -1,0 +1,17 @@
+namespace probe.samens
+
+public class Counter {
+
+    public int total = 0
+
+    public Counter() {
+    }
+
+    public void add(const int n) {
+        this.total = this.total + n
+    }
+}
+
+public int twice(const int n) {
+    return n * 2
+}

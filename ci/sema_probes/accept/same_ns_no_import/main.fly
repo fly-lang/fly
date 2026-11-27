@@ -1,0 +1,17 @@
+// A namespace is one scope spread over files (fly-lang/fly#246): main uses a
+// class, a function and an enum of its own namespace declared in other files
+// (parts.fly, more/shapes.fly) with no `import`, and a fully qualified call.
+// Up to 0.15.x the other files were not even read unless something imported
+// the namespace.
+namespace probe.samens
+
+void main() {
+    Counter c = new unique Counter()
+    c.add(twice(3))
+    Shape s = Shape.SQUARE
+    int sides = sidesOf(s)
+    int q = probe.samens.twice(sides)
+    if c.total != 6 || q != 8 {
+        fail 1
+    }
+}

@@ -1,0 +1,13 @@
+namespace probe.samens
+
+public enum Shape {
+    TRIANGLE, SQUARE
+}
+
+// sidesOf uses twice() from parts.fly, also with no import
+public int sidesOf(const Shape s) {
+    if s == Shape.TRIANGLE {
+        return 3
+    }
+    return twice(2)
+}
