@@ -1,0 +1,1 @@
+a type named 'Color' is already defined in this file

@@ -7,23 +7,8 @@ import fly.os.env
 import fly.assert
 import fly.llvm
 
-// skipSockets — see NetSuite; gates every case that opens a socket.
-bool skipSockets() {
-    return str.isEmpty(env.get("FLY_SKIP_NET_TESTS")) == false
-}
-
-// blob — n bytes cycling 'a'..'z'.
-string blob(const int n) {
-    string res
-    pointer buf = mem.alloc(n)
-    int i = 0
-    while i < n {
-        mem.writeByte(buf, i, (byte)(97 + (i % 26)))
-        i = i + 1
-    }
-    res = str.fromBytes(buf, n)
-    return res
-}
+// skipSockets() and blob(n) are NetSuite's: one namespace has one definition
+// of each (fly-lang/fly#239).
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UdpSuite — datagrams in fly.net (std/lib/net/net.fly): socketUdp, sendTo,

@@ -1,0 +1,11 @@
+void main() {
+    Color c = Color.RED
+    c = Color.RED
+}
+
+enum Color {
+    RED
+}
+
+interface Color {
+}

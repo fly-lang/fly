@@ -1,0 +1,10 @@
+namespace app
+
+void main() {
+    int x = f()
+    x = x + 1
+}
+
+int f() {
+    return 1
+}

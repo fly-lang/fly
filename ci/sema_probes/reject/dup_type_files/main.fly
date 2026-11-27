@@ -1,0 +1,10 @@
+namespace app
+
+void main() {
+    Point p = new Point()
+    p.x = 1
+}
+
+class Point {
+    public int x
+}

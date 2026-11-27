@@ -110,6 +110,8 @@ public enum DiagID {
     err_sema_unreachable_code,
     err_sema_condition_not_bool,
     err_sema_duplicate_function,
+    err_sema_duplicate_type,
+    note_sema_previous_definition,
     err_sema_delete_target,
     err_sema_unique_move,
     err_sema_shared_ref,
@@ -157,6 +159,9 @@ public DiagClass getDiagClass(const DiagID id) {
     }
     if id == DiagID.warn_sema_non_exhaustive_switch {
         return DiagClass.CLASS_WARNING
+    }
+    if id == DiagID.note_sema_previous_definition {
+        return DiagClass.CLASS_NOTE
     }
     // every other id in this subset is a hard error
     return DiagClass.CLASS_ERROR
@@ -493,7 +498,13 @@ public string getDescription(const DiagID id) {
         return "'delete' frees an object: %0"
     }
     if id == DiagID.err_sema_duplicate_function {
-        return "'%0' is already defined in this file with the same parameter types; overloads must differ in their parameters"
+        return "'%0' is already defined in %1 with the same parameter types; overloads must differ in their parameters"
+    }
+    if id == DiagID.err_sema_duplicate_type {
+        return "a type named '%0' is already defined in %1: classes, structs, interfaces and enums of one namespace need distinct names"
+    }
+    if id == DiagID.note_sema_previous_definition {
+        return "the previous definition of '%0' is here"
     }
     return "unknown diagnostic"
 }

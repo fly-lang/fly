@@ -102,9 +102,9 @@ public class Resolver : ASTVisitor {
     string litRaw
     bool litNeg
 
-    // Signatures of the free functions DEFINED so far, keyed per source file
-    // (namespace | module | name | parameter types) — see noteSignature.
-    Map<string, int> seenSigs
+    // The free functions DEFINED so far, grouped by namespace (by file in the
+    // default namespace) and name — see noteSignature.
+    Map<string, List<SemaFunctionBase>> seenSigs
 
     // `this` in a constructor or an instance field initializer (fly-lang/fly#260)
     // may only be a receiver: the object is not complete, and a constructor that
@@ -137,7 +137,7 @@ public class Resolver : ASTVisitor {
         this.litExpr = null
         this.litRaw = ""
         this.litNeg = false
-        this.seenSigs = new Map<string, int>()
+        this.seenSigs = new Map<string, List<SemaFunctionBase>>()
         this.thisWatch = false
         this.thisValues = new List<ASTIdentifier>()
     }
@@ -440,12 +440,13 @@ public class Resolver : ASTVisitor {
         return this.currentScope.insert(sym)
     }
 
-    // noteSignature — two functions of one file with the same name and the same
-    // parameter types are one definition written twice: no call can choose
-    // between them, and which body ran used to depend on declaration order.
-    // Scoped to a FILE on purpose: a header and the source it describes declare
-    // the same function legitimately, as do unrelated files that are compiled
-    // into one binary. Header declarations and generic templates are skipped.
+    // noteSignature — two functions of one namespace with the same name and the
+    // same parameter types are one definition written twice, in one file or in
+    // two (fly-lang/fly#239): no call can choose between them, and which body ran
+    // depended on the declaration or the link order. The default namespace is
+    // scoped to a FILE: files without a namespace keep their symbols apart
+    // (fly-lang/fly#262). Header declarations (a header and the source it
+    // describes declare the same function) and generic templates are skipped.
     public void noteSignature(const SemaFunctionBase fb) {
         if fb.isFromHeader() {
             return
@@ -462,28 +463,108 @@ public class Resolver : ASTVisitor {
         if ff == null {
             return
         }
-        string key = str.concat(fb.getNamespaceName(), "|")
+        string nsName = fb.getNamespaceName()
+        string key = str.concat(nsName, "|")
+        string where = "this file"
         SemaModule fm = ff.getModule()
-        if fm != null {
-            key = str.concat(key, fm.getName())
+        if str.isEmpty(nsName) {
+            if fm != null {
+                key = str.concat(key, fm.getName())
+            }
+        } elsif fm != null {
+            SemaNameSpace fns = fm.getNameSpace()
+            if fns != null {
+                where = str.concat("namespace '", str.concat(fns.getName(), "'"))
+            }
         }
         key = str.concat(key, "|")
         key = str.concat(key, fb.getName())
+        List<SemaFunctionBase> same = null
+        if this.seenSigs.has(key) {
+            same = this.seenSigs.get(key)
+        } else {
+            same = new List<SemaFunctionBase>()
+            this.seenSigs.put(key, same)
+        }
         List<SemaType> pts = fb.getParamTypes()
+        SemaFunctionBase prev = null
         int i = 0
-        while i < pts.size() {
-            SemaType pt = pts.get(i)
-            key = str.concat(key, ",")
-            if pt != null {
-                key = str.concat(key, pt.getName())
+        while i < same.size() && prev == null {
+            SemaFunctionBase other = same.get(i)
+            if signaturesEqual(other.getParamTypes(), pts) {
+                prev = other
             }
             i = i + 1
         }
-        if this.seenSigs.has(key) {
-            this.diagStr(af.getLoc(), DiagID.err_sema_duplicate_function, fb.getName())
+        if prev == null {
+            same.add(fb)
         } else {
-            this.seenSigs.put(key, 1)
+            if this.sameFile(prev, fb) {
+                where = "this file"
+            }
+            this.diagStr2(af.getLoc(), DiagID.err_sema_duplicate_function, fb.getName(), where)
+            ASTFunction pa = prev.getAST()
+            this.diagStr(pa.getLoc(), DiagID.note_sema_previous_definition, fb.getName())
         }
+    }
+
+    // sameFile — were two functions defined in one source file?
+    public bool sameFile(const SemaFunctionBase a, const SemaFunctionBase b) {
+        SemaFunction fa = a.asFunction()
+        SemaFunction fb = b.asFunction()
+        if fa == null || fb == null {
+            return false
+        }
+        return fa.getModule() == fb.getModule()
+    }
+
+    // declareType — register a top-level type (class, struct, interface, enum) in
+    // its file and in its namespace. A second type of the same name in one
+    // namespace, in this file or in another, is an error that points at both
+    // definitions (fly-lang/fly#239); the default namespace is scoped to a file.
+    // A header is skipped: it describes types that its source defines.
+    public void declareType(const Symbol sym, const SourceLocation loc) {
+        sym.setDeclLoc(loc)
+        string name = sym.getName()
+        string where = "this file"
+        Symbol prev = this.typeNamed(this.currentScope, name)
+        SemaNameSpace ns = this.currentNameSpace
+        bool named = ns != null && this.reg.isDefaultNameSpace(ns) == false
+        if prev == null && named {
+            prev = this.typeNamed(ns.getSymbols(), name)
+            where = str.concat("namespace '", str.concat(ns.getName(), "'"))
+        }
+        bool _ok = this.currentScope.insert(sym)
+        this.registerInNamespace(sym)
+        if prev == null || this.currentModuleIsHeader {
+            return
+        }
+        DiagnosticsEngine d = this.reg.getDiags()
+        if d != null {
+            if d.inHeader(prev.getDeclLoc()) {
+                return
+            }
+        }
+        this.diagStr2(loc, DiagID.err_sema_duplicate_type, name, where)
+        this.diagStr(prev.getDeclLoc(), DiagID.note_sema_previous_definition, name)
+    }
+
+    // typeNamed — the type symbol `name` defined in `table` by declareType, or null.
+    public Symbol typeNamed(const SymbolTable table, const string name) {
+        List<Symbol> syms = table.lookup(name)
+        Symbol found = null
+        if syms != null {
+            int i = 0
+            while i < syms.size() && found == null {
+                Symbol s = syms.get(i)
+                bool isType = s.getKind() == SymbolKind.CLASS || s.getKind() == SymbolKind.ENUM
+                if isType && s.getDeclLoc() != null {
+                    found = s
+                }
+                i = i + 1
+            }
+        }
+        return found
     }
 
     // registerInNamespace — also publish a top-level symbol in the file's namespace
