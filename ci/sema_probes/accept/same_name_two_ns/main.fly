@@ -1,0 +1,46 @@
+// Two classes with one short name in two namespaces are two types
+// (fly-lang/fly#264): h(probe.left.P) and h(probe.right.P) are two overloads,
+// and so are k(Box<probe.left.P>) and k(Box<probe.right.P>); each call picks its
+// own. Up to 0.15.x types were compared by their short name: the second h and
+// the second k were "already defined".
+namespace probe.twons
+
+import probe.left
+import probe.right
+
+class Box<T> {
+    public T v
+}
+
+int h(probe.left.P p) {
+    return 10 + p.tag
+}
+
+int h(probe.right.P p) {
+    return 20 + p.tag
+}
+
+int k(Box<probe.left.P> b) {
+    return 1
+}
+
+int k(Box<probe.right.P> b) {
+    return 2
+}
+
+void main() {
+    probe.left.P x = probe.left.make()
+    probe.right.P y = probe.right.make()
+    if h(x) != 11 || h(y) != 22 {
+        fail 1
+    }
+    Box<probe.left.P> bx = new Box<probe.left.P>()
+    Box<probe.right.P> by = new Box<probe.right.P>()
+    if k(bx) != 1 || k(by) != 2 {
+        fail 2
+    }
+    delete bx
+    delete by
+    delete x
+    delete y
+}

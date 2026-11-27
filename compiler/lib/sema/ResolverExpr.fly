@@ -1096,8 +1096,8 @@ public void checkCondition(const Resolver r, const SourceLocation loc, const Sem
 
 // classMayAccess — may the code being resolved touch a PRIVATE member of
 // `owner`? Only from inside `owner` itself (the reference rule:
-// CurrentClass != &Attr->getClass()). Compared by identity first and by name
-// second: a generic specialization resolves its methods against its own member
+// CurrentClass != &Attr->getClass()). Compared by identity first and by isEquals
+// (name and namespace) second: a generic specialization resolves its methods against its own member
 // copies, but a member inherited into one may still name the template.
 public bool classMayAccess(const Resolver r, const SemaClassType owner) {
     SemaClassType here = r.getCurrentClass()
@@ -1110,7 +1110,7 @@ public bool classMayAccess(const Resolver r, const SemaClassType owner) {
     if here == owner {
         return true
     }
-    return str.equals(here.getName(), owner.getName())
+    return here.isEquals(owner)            // same name, same namespace (fly-lang/fly#264)
 }
 
 // classMayAccessProtected — may the code being resolved touch a PROTECTED
@@ -1130,7 +1130,7 @@ public bool classMayAccessProtected(const Resolver r, const SemaClassType owner)
 }
 
 // derivesFrom — `cls` is `owner` or one of its descendants, compared like
-// classMayAccess (identity, then name). `depth` stops a malformed cyclic
+// classMayAccess (identity, then name and namespace). `depth` stops a malformed cyclic
 // hierarchy, which Sema reports elsewhere, from recursing forever.
 public bool derivesFrom(const SemaClassType cls, const SemaClassType owner, const int depth) {
     if cls == null {
@@ -1139,7 +1139,7 @@ public bool derivesFrom(const SemaClassType cls, const SemaClassType owner, cons
     if cls == owner {
         return true
     }
-    if str.equals(cls.getName(), owner.getName()) {
+    if cls.isEquals(owner) {
         return true
     }
     if depth > 64 {

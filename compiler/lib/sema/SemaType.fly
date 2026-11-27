@@ -4,6 +4,8 @@ import fly.compiler.sema.SemaKind
 import fly.compiler.sema.SemaNode
 import fly.compiler.sema.SemaClassType
 import fly.compiler.sema.SemaEnumType
+import fly.compiler.sema.SemaModule
+import fly.compiler.sema.SemaBuilder
 import fly.compiler.sema.semaIntRank
 import fly.compiler.sema.semaFloatRank
 import fly.str as s   // aliased: this class defines a str() method
@@ -16,8 +18,8 @@ import fly.str as s   // aliased: this class defines a str() method
 //
 // Adaptations from C++: the CodeGenType back-pointer is dropped (no self-hosted
 // CodeGen yet); type identity (`isEquals`) compares the type Name directly rather
-// than the std::hash-of-name Id the C++ uses — equivalent for the unique names the
-// compiler assigns (builtins + mangled specializations).
+// than the std::hash-of-name Id the C++ uses, plus, for a class or an enum, the
+// namespace it is declared in (fly-lang/fly#264).
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Bit widths used as numeric promotion ranks. The parity also encodes signedness
@@ -116,15 +118,65 @@ public class SemaType : SemaNode {
         return this.getKind() == SemaKind.TYPE_VOID
     }
 
-    // isEquals — two types are equal iff they carry the same name. (Historical
-    // note: this used to guard with a nested `if` under the belief that `&&`
-    // does not short-circuit — B017 established that it DOES, on every
-    // compiler; the nested shape stays only because it is already written.)
+    // isEquals — two types are equal iff they carry the same name and, for a
+    // class, struct, interface or enum, are declared in the same namespace (the
+    // file, for a file without one): `a.P` and `b.P` are two types
+    // (fly-lang/fly#264). An array compares its element type the same way. A
+    // header and the source it describes declare one type: symbolNs gives them
+    // the same home.
     public bool isEquals(const SemaType other) {
         bool r = false
         if other != null {
             r = s.equals(this.typeName, other.getName())
         }
+        if r {
+            r = s.equals(this.home(), other.home())
+        }
+        if r {
+            // two specializations of one template (Box<left.P>, Box<right.P>)
+            // share name and home: their mangle keys tell their arguments
+            // apart. A specialization still equals its template (no key there).
+            SemaClassType cx = this.asClass()
+            SemaClassType cy = other.asClass()
+            if cx != null && cy != null {
+                string kx = cx.getMangledName()
+                string ky = cy.getMangledName()
+                if s.isEmpty(kx) == false && s.isEmpty(ky) == false {
+                    r = s.equals(kx, ky)
+                }
+            }
+        }
+        if r {
+            SemaArrayType ax = this.asArray()
+            SemaArrayType ay = other.asArray()
+            if ax != null && ay != null {
+                SemaType ex = ax.getElementType()
+                SemaType ey = ay.getElementType()
+                if ex != null && ey != null {
+                    r = ex.isEquals(ey)
+                }
+            }
+        }
+        return r
+    }
+
+    // home — where a class or an enum type is declared (SemaBuilder.symbolNs of
+    // its module), "" for every other type.
+    public string home() {
+        SemaModule m = null
+        SemaClassType c = this.asClass()
+        if c != null {
+            m = c.getModule()
+        } else {
+            SemaEnumType e = this.asEnum()
+            if e != null {
+                m = e.getModule()
+            }
+        }
+        if m == null {
+            return ""
+        }
+        string r = SemaBuilder.symbolNs(m)
         return r
     }
 
