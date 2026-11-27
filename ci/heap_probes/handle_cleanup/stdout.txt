@@ -1,0 +1,8 @@
+free owner, failing call
+free nested owner, fail
+free holder, fail
+free owner, failing initializer
+free owner, failing new
+free owner, index out of range
+free owner, failure by return
+end

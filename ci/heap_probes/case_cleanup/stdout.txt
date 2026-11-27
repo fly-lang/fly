@@ -1,0 +1,7 @@
+suite CaseCleanupSuite
+  cleanupTest
+    a failing call ... FAIL(7): boom
+    a failure in a nested scope ... FAIL(7): boom
+    a failing new ... FAIL(4): bad
+    the failed cases released their locals ... ok
+suite CaseCleanupSuite: 4 cases, 1 passed, 3 failed

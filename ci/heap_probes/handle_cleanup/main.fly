@@ -1,0 +1,79 @@
+// A failure that leaves a `handle` block releases the locals of the scopes it
+// leaves, as a return does (fly-lang/fly#258): a `new unique` owner is deleted
+// (its free() runs), a `new shared` holder lets go of the object, innermost
+// scope first. That holds for a failing call, a `fail`, a failing `new` and an
+// index out of range, and a local whose initializer failed holds nothing. A
+// failure that leaves by a return frees the same way, and free() runs in full
+// (it used to run with the failure pending and stop at its first call).
+// free() prints, so the output shows what ran; nothing is left for the
+// end-of-main report (before the fix the objects of the handle blocks were).
+import fly.os.io
+import fly.str
+
+public class Res {
+
+    string name
+
+    public Res(const string name) {
+        this.name = name
+    }
+
+    public void free() {
+        io.printLn(str.concat("free ", this.name))
+    }
+}
+
+public class Bad {
+
+    public Bad() {
+        fail 4, "bad"
+    }
+}
+
+int boom() {
+    fail 7, "boom"
+}
+
+Res boomRes() {
+    fail 8, "boom res"
+}
+
+void leaveByReturn() {
+    Res r = new unique Res("owner, failure by return")
+    int v = boom()
+    io.printLn(str.convert(v))
+}
+
+void main() {
+    handle {
+        Res r = new unique Res("owner, failing call")
+        int v = boom()
+        io.printLn(str.convert(v))
+    }
+    handle {
+        Res s = new shared Res("holder, fail")
+        if true {
+            Res q = new unique Res("nested owner, fail")
+            fail 3
+        }
+    }
+    handle {
+        Res t = new unique Res("owner, failing initializer")
+        Res u = boomRes()
+        io.printLn(u.name)
+    }
+    handle {
+        Res w = new unique Res("owner, failing new")
+        Bad b = new unique Bad()
+    }
+    int[] xs = {1, 2}
+    int k = 2
+    handle {
+        Res x = new unique Res("owner, index out of range")
+        io.printLn(str.convert(xs[k]))
+    }
+    handle {
+        leaveByReturn()
+    }
+    io.printLn("end")
+}

@@ -47,8 +47,11 @@ public class CodeGenExpr : SemaVisitor {
     pointer continueDepth  // frames.size() when the innermost continue target was set
     pointer caseEndBB      // inside a suite `case`: the end block a fail jumps to
                            // after any statement (fail-fast per case). 0 = not in a case.
+    pointer caseDepth      // frames.size() when caseEndBB was set: the frames a jump to it leaves
     pointer lastErrPtr     // alloca i32: code of the LAST handle block (implicit `error` var)
     pointer handleSafe     // innermost handle's continuation block (0 = not in a handle)
+    pointer handleDepth    // frames.size() when handleSafe was set: the frames above it
+                           // are the ones a failure leaves on its way to handleSafe
     string lastStrLit      // text of the last string LITERAL gen'd (bridge symbol capture)
     string traceName       // --trace-calls: this function's pretty name; "" = not traced
                            // (set by CodeGenTrace.emitEnter, read by the exit hooks)
@@ -70,8 +73,10 @@ public class CodeGenExpr : SemaVisitor {
         this.continueDepth = 0
         this.errPtr = 0
         this.caseEndBB = 0
+        this.caseDepth = 0
         this.lastErrPtr = 0
         this.handleSafe = 0
+        this.handleDepth = 0
         this.lastStrLit = ""
         this.curStmt = null
         this.traceName = ""
@@ -107,6 +112,14 @@ public class CodeGenExpr : SemaVisitor {
     }
     public void setHandleSafe(const pointer b) {
         this.handleSafe = b
+    }
+    // Scope depth that goes with handleSafe, saved and restored next to it like the
+    // break/continue depths: whoever installs a new handleSafe records getFrameDepth().
+    public pointer getHandleDepth() {
+        return this.handleDepth
+    }
+    public void setHandleDepth(const pointer d) {
+        this.handleDepth = d
     }
     // getCaseEnd — inside a suite `case`, the block a failure jumps to (0 outside).
     public pointer getCaseEnd() {
@@ -456,19 +469,118 @@ public class CodeGenExpr : SemaVisitor {
         this.emitCleanup(this.frames.size())
     }
 
+    // emitHandleCleanup — free the locals of the scopes a failure leaves on its way
+    // to handleSafe: those opened since it was installed (fly-lang/fly#258). Emitted
+    // at each failure exit, so only the locals declared before that exit count.
+    public void emitHandleCleanup() {
+        this.emitFailCleanup(this.frames.size() - this.handleDepth)
+    }
+    public bool handleNeedsCleanup() {
+        return this.needsCleanup(this.frames.size() - this.handleDepth)
+    }
+
+    // emitCaseCleanup — the same for a failure that jumps to the end of a suite
+    // `case`: free the scopes opened since the case began.
+    public void emitCaseCleanup() {
+        this.emitFailCleanup(this.frames.size() - this.caseDepth)
+    }
+    public bool caseNeedsCleanup() {
+        return this.needsCleanup(this.frames.size() - this.caseDepth)
+    }
+
+    // emitFailReturnCleanup — emitReturnCleanup for a failure that returns from
+    // the function.
+    public void emitFailReturnCleanup() {
+        this.emitFailCleanup(this.frames.size())
+    }
+
+    // emitFailCleanup — emitCleanup(n) on the way out of a failure. The failure is
+    // still in the error struct, so the cleanup runs over a fresh, empty one: a
+    // free() that runs with the failure pending would take its first call for a
+    // failure of its own and stop there. What the cleanup itself fails with is
+    // dropped, as in emitFailedNew; the pending failure goes on unchanged.
+    public void emitFailCleanup(const pointer n) {
+        if this.needsCleanup(n) == false {
+            return
+        }
+        pointer errPtr = this.errPtr
+        if errPtr == 0 {
+            this.emitCleanup(n)
+            return
+        }
+        pointer errTy = this.cgm.getErrorTy()
+        pointer cleanErr
+        this.llvm.buildAlloca(this.builder, errTy, "clerr", cleanErr)
+        pointer zeroErr
+        this.llvm.constNull(errTy, zeroErr)
+        this.llvm.buildStore(this.builder, zeroErr, cleanErr)
+        this.errPtr = cleanErr
+        this.emitCleanup(n)
+        this.errPtr = errPtr
+    }
+
+    // needsCleanup — does emitCleanup(n) have anything to release here? Lets a
+    // failure check with nothing to free branch straight to its exit.
+    public bool needsCleanup(const pointer n) {
+        pointer depth = this.frames.size()
+        pointer limit = 0
+        if n < depth {
+            limit = depth - n
+        }
+        pointer i = depth
+        while i > limit {
+            i = i - 1
+            SemaBlockStmt f = this.frames.get(i)
+            if f != null {
+                List<SemaLocalVar> allocs = f.getAllocs()
+                int j = 0
+                while j < allocs.size() {
+                    if this.releasesAtExit(allocs.get(j)) {
+                        return true
+                    }
+                    j = j + 1
+                }
+            }
+        }
+        return false
+    }
+
+    // releasesAtExit — does leaving its scope release something of `v`: a local
+    // already declared (it has storage) that is an owner, a holder, a weak
+    // reference, or a string or array that did not escape. What emitFrameCleanup frees.
+    public bool releasesAtExit(const SemaLocalVar v) {
+        if v.getLlvmAlloca() == 0 {
+            return false
+        }
+        if v.isUniqueOwner() || v.isSharedHolder() || v.isWeakRef() {
+            return true
+        }
+        if v.isEscaped() {
+            return false
+        }
+        SemaType vty = v.getType()
+        if vty == null {
+            return false
+        }
+        return vty.isString() || vty.isArray()
+    }
+
     // emitFrameCleanup — release one scope's owned locals: a string's buffer, one
     // reference to an array, a `new unique` owner, a `new shared` holder, a weak
     // reference. An object made with a plain `new` is never released here: that
     // takes an explicit `delete`. A local with no storage yet is declared further
     // down than the exit being emitted, so it holds nothing and is skipped.
+    // Last declared first (fly-lang/fly#258): a local may lean on one declared
+    // before it (an object holding a plain reference to an earlier owner's, used
+    // by its free()), so the earlier one must still be there when it goes.
     public void emitFrameCleanup(const SemaBlockStmt node) {
         if node != null {
             List<SemaLocalVar> allocs = node.getAllocs()
-            int j = 0
-            while j < allocs.size() {
+            pointer j = allocs.size()
+            while j > 0 {
+                j = j - 1
                 SemaLocalVar v = allocs.get(j)
                 if v.getLlvmAlloca() == 0 {
-                    j = j + 1
                     continue
                 }
                 // A `new unique` OWNER is deleted whatever happened to it: passing
@@ -477,7 +589,6 @@ public class CodeGenExpr : SemaVisitor {
                 if v.isUniqueOwner() {
                     SemaType uty = v.getType()
                     CodeGenStmt.emitDeleteSlot(this, uty.asClass(), v.getLlvmAlloca())
-                    j = j + 1
                     continue
                 }
                 // A `new shared` HOLDER lets go of its reference: one count less,
@@ -486,13 +597,11 @@ public class CodeGenExpr : SemaVisitor {
                 if v.isSharedHolder() {
                     SemaType sty = v.getType()
                     CodeGenStmt.emitReleaseSlot(this, sty.asClass(), v.getLlvmAlloca())
-                    j = j + 1
                     continue
                 }
                 // A WEAK local lets go of its weak reference.
                 if v.isWeakRef() {
                     CodeGenStmt.emitWeakReleaseSlot(this, v.getLlvmAlloca())
-                    j = j + 1
                     continue
                 }
                 // Strings and arrays: an ESCAPED local (see the escape marking in
@@ -516,7 +625,6 @@ public class CodeGenExpr : SemaVisitor {
                         pointer sptr2
                         this.llvm.buildExtractValue(this.builder, sval2, 0, "sfreep", sptr2)
                         this.cgm.freeHandle(sptr2)
-                        j = j + 1
                         continue
                     }
                     // Array local: drop ONE reference to its buffer. The block goes
@@ -533,7 +641,6 @@ public class CodeGenExpr : SemaVisitor {
                         CodeGenArray.emitRelease(this, v.getLlvmAlloca(), vty.asArray())
                     }
                 }
-                j = j + 1
             }
         }
     }
@@ -895,7 +1002,17 @@ public class CodeGenExpr : SemaVisitor {
         this.llvm.buildICmp(this.builder, 33, code, zero, "ffhas", hasErr)   // NE
         pointer cont = this.newBlock("case.ffcont")
         pointer cbr
-        this.llvm.buildCondBr(this.builder, hasErr, this.caseEndBB, cont, cbr)
+        if this.caseNeedsCleanup() {
+            // the scopes the jump leaves hold something: free it first (fly-lang/fly#258)
+            pointer ffail = this.newBlock("case.fffail")
+            this.llvm.buildCondBr(this.builder, hasErr, ffail, cont, cbr)
+            this.terminated = true
+            this.position(ffail)
+            this.emitCaseCleanup()
+            this.br(this.caseEndBB)
+        } else {
+            this.llvm.buildCondBr(this.builder, hasErr, this.caseEndBB, cont, cbr)
+        }
         this.terminated = true
         this.position(cont)
     }
@@ -942,12 +1059,15 @@ public class CodeGenExpr : SemaVisitor {
         // Run the body under the fail-fast target (this.errPtr stays the method slot).
         pointer endBB = this.newBlock(str.concat("case.end.", label))
         pointer savedEnd = this.caseEndBB
+        pointer savedCaseDepth = this.caseDepth
         this.caseEndBB = endBB
+        this.caseDepth = this.frames.size()
         SemaBlockStmt body = node.getBody()
         if body != null {
             body.accept(this)
         }
         this.caseEndBB = savedEnd
+        this.caseDepth = savedCaseDepth
         this.br(endBB)
         this.position(endBB)
 

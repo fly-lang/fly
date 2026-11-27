@@ -12,7 +12,11 @@
 #   main.fly     the program;
 #   expect.txt   line 1: the exit code it must end with;
 #   stderr.txt   what stderr must be, exactly (absent: nothing at all);
-#   stdout.txt   what stdout must be, exactly (absent: nothing at all).
+#   stdout.txt   what stdout must be, exactly (absent: nothing at all);
+#   suite.txt    optional: line 1 names a suite in the probe's sources; the probe
+#                is then built and run by `fly --suite=<name>` (its output: the
+#                case results on stdout, the per-case leak warnings on stderr)
+#                instead of as a program with a main.
 # Line endings are ignored.
 #
 # STAGE selects the compiler under test (default 2, the one that ships).
@@ -53,16 +57,23 @@ foreach ($probe in Get-ChildItem 'ci/heap_probes' -Directory | Sort-Object Name)
     $dir = Join-Path $OUT $name
     Remove-Item $dir -Recurse -Force -ErrorAction SilentlyContinue
     New-Item -ItemType Directory -Force $dir | Out-Null
-    & $FLY @FLY_TARGET_ARGS --src-dir $probe.FullName -o "$name.exe" --out-dir $dir *> "$dir/compile.log"
-    $exe = Join-Path $dir "$name.exe"
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path $exe)) {
-        Write-Host "  FAIL  $name - does not compile"
-        Get-Content "$dir/compile.log" | Select-Object -Last 5 | ForEach-Object { Write-Host "        $_" }
-        $failed++
-        continue
+    $suiteFile = Join-Path $probe.FullName 'suite.txt'
+    if (Test-Path $suiteFile) {
+        $suite = (@(Get-Content $suiteFile)[0]).Trim()
+        & $FLY @FLY_TARGET_ARGS "--suite=$suite" --src-dir $probe.FullName --out-dir $dir > "$dir/stdout.log" 2> "$dir/stderr.log"
+        $rc = $LASTEXITCODE
+    } else {
+        & $FLY @FLY_TARGET_ARGS --src-dir $probe.FullName -o "$name.exe" --out-dir $dir *> "$dir/compile.log"
+        $exe = Join-Path $dir "$name.exe"
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $exe)) {
+            Write-Host "  FAIL  $name - does not compile"
+            Get-Content "$dir/compile.log" | Select-Object -Last 5 | ForEach-Object { Write-Host "        $_" }
+            $failed++
+            continue
+        }
+        & $exe > "$dir/stdout.log" 2> "$dir/stderr.log"
+        $rc = $LASTEXITCODE
     }
-    & $exe > "$dir/stdout.log" 2> "$dir/stderr.log"
-    $rc = $LASTEXITCODE
     $gotErr = Get-Norm "$dir/stderr.log"
     $gotOut = Get-Norm "$dir/stdout.log"
     if ($rc -ne $wantCode) {

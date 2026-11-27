@@ -1,0 +1,25 @@
+// A failure that leaves a `handle` block releases the strings and arrays of the
+// scopes it leaves (fly-lang/fly#258): before, each iteration below leaked a
+// string buffer and an array block, tens of MB over the run.
+import fly.str
+
+int boom(const int i) {
+    fail i + 1, "boom"
+}
+
+void main() {
+    int i = 0
+    int total = 0
+    while i < 1000000 {
+        handle {
+            string m = str.concat("handle block message ", "abcdefghijklmnopqrstuvwxyz")
+            int[] xs = {i, i + 1, i + 2, i + 3, i + 4, i + 5, i + 6, i + 7}
+            if xs[0] >= 0 {
+                string inner = str.concat(m, "0123456789")
+                total = total + boom(i) + str.len(inner)
+            }
+            total = total + str.len(m)
+        }
+        i = i + 1
+    }
+}

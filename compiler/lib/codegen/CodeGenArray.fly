@@ -278,11 +278,14 @@ public class CodeGenArray {
         llvm.buildCondBr(b, cmp, bodyBB, endBB, cbr)
         cge.setTerminated(true)
 
+        // anew.fail leaves no scope: the exit it then takes frees what that exit leaves
         pointer savedSafe = cge.getHandleSafe()
+        pointer savedDepth = cge.getHandleDepth()
         pointer failBB = 0
         if cge.getErrPtr() != 0 {
             failBB = cge.newBlock("anew.fail")
             cge.setHandleSafe(failBB)
+            cge.setHandleDepth(cge.getFrameDepth())
         }
 
         cge.position(bodyBB)
@@ -308,6 +311,7 @@ public class CodeGenArray {
         cge.br(condBB)
 
         cge.setHandleSafe(savedSafe)
+        cge.setHandleDepth(savedDepth)
         if failBB != 0 {
             CodeGenArray.emitFailedFill(cge, dataPtr, idxA, elemLL, cls, failBB)
         }

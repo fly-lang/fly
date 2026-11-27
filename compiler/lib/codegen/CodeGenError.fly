@@ -83,10 +83,12 @@ public class CodeGenError {
 
         pointer safe = cge.getHandleSafe()
         if safe != 0 {
-            // fail inside the handle's own frame: skip the rest of the block
+            // fail inside the handle's own frame: skip the rest of the block,
+            // freeing the locals of the scopes it leaves
+            cge.emitHandleCleanup()
             cge.br(safe)
         } else {
-            cge.emitReturnCleanup()
+            cge.emitFailReturnCleanup()
             CodeGenTrace.emitExitFail(cge)
             pointer r
             llvm.buildRetVoid(b, r)
@@ -141,9 +143,10 @@ public class CodeGenError {
 
         pointer safe = cge.getHandleSafe()
         if safe != 0 {
+            cge.emitHandleCleanup()
             cge.br(safe)
         } else {
-            cge.emitReturnCleanup()
+            cge.emitFailReturnCleanup()
             CodeGenTrace.emitExitFail(cge)
             pointer r
             llvm.buildRetVoid(b, r)
@@ -154,7 +157,8 @@ public class CodeGenError {
     // propagate — emitted right after every call to a Fly function (plain, method,
     // interface, constructor): a failure is not ignorable. If the callee left a
     // code in the shared %error, the caller stops where it is and takes the same
-    // exit a `fail` of its own would take: the enclosing handle's safe block, the
+    // exit a `fail` of its own would take: the enclosing handle's safe block (after
+    // freeing the locals of the scopes it leaves, fly-lang/fly#258), the
     // enclosing suite case's end, or a return (scope cleanup + trace hook). The
     // error is NOT cleared: it travels on to whoever handles it, or to main.
     //
@@ -188,15 +192,34 @@ public class CodeGenError {
         pointer caseEnd = cge.getCaseEnd()
         pointer cbr
         if safe != 0 {
-            llvm.buildCondBr(b, hasErr, safe, okBB, cbr)
+            if cge.handleNeedsCleanup() {
+                // the scopes this failure leaves hold something: free it first
+                pointer hfailBB = cge.newBlock("call.hfail")
+                llvm.buildCondBr(b, hasErr, hfailBB, okBB, cbr)
+                cge.setTerminated(true)
+                cge.position(hfailBB)
+                cge.emitHandleCleanup()
+                cge.br(safe)
+            } else {
+                llvm.buildCondBr(b, hasErr, safe, okBB, cbr)
+            }
         } elsif caseEnd != 0 {
-            llvm.buildCondBr(b, hasErr, caseEnd, okBB, cbr)
+            if cge.caseNeedsCleanup() {
+                pointer cfailBB = cge.newBlock("call.cfail")
+                llvm.buildCondBr(b, hasErr, cfailBB, okBB, cbr)
+                cge.setTerminated(true)
+                cge.position(cfailBB)
+                cge.emitCaseCleanup()
+                cge.br(caseEnd)
+            } else {
+                llvm.buildCondBr(b, hasErr, caseEnd, okBB, cbr)
+            }
         } else {
             pointer failBB = cge.newBlock("call.fail")
             llvm.buildCondBr(b, hasErr, failBB, okBB, cbr)
             cge.setTerminated(true)
             cge.position(failBB)
-            cge.emitReturnCleanup()
+            cge.emitFailReturnCleanup()
             CodeGenTrace.emitExitFail(cge)
             pointer r
             llvm.buildRetVoid(b, r)
@@ -212,11 +235,13 @@ public class CodeGenError {
         pointer safe = cge.getHandleSafe()
         pointer caseEnd = cge.getCaseEnd()
         if safe != 0 {
+            cge.emitHandleCleanup()
             cge.br(safe)
         } elsif caseEnd != 0 {
+            cge.emitCaseCleanup()
             cge.br(caseEnd)
         } else {
-            cge.emitReturnCleanup()
+            cge.emitFailReturnCleanup()
             CodeGenTrace.emitExitFail(cge)
             pointer r
             cge.getLLVM().buildRetVoid(cge.getBuilder(), r)
@@ -320,13 +345,18 @@ public class CodeGenError {
 
         // 2) run the block; direct fails jump to `handle.safe`
         pointer safeBB = cge.newBlock("handle.safe")
+        // A failure in the block frees the locals of the scopes it leaves (the
+        // block's and those nested in it) before it jumps there (fly-lang/fly#258).
         pointer savedSafe = cge.getHandleSafe()
+        pointer savedDepth = cge.getHandleDepth()
         cge.setHandleSafe(safeBB)
+        cge.setHandleDepth(cge.getFrameDepth())
         SemaBlockStmt block = node.getHandle()
         if block != null {
             block.accept(cge)
         }
         cge.setHandleSafe(savedSafe)
+        cge.setHandleDepth(savedDepth)
         cge.br(safeBB)
         cge.position(safeBB)
 

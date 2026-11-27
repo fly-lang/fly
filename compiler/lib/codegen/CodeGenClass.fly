@@ -1019,11 +1019,13 @@ public class CodeGenClass {
         // (fly-lang/fly#257).
         bool initFields = needsFieldInit(cls)
         pointer savedSafe = cge.getHandleSafe()
+        pointer savedDepth = cge.getHandleDepth()
         pointer failBB = 0
         if initFields || ctor != null {
             if cge.getErrPtr() != 0 {
                 failBB = cge.newBlock("anew.efail")
                 cge.setHandleSafe(failBB)
+                cge.setHandleDepth(cge.getFrameDepth())
             }
         }
 
@@ -1044,6 +1046,7 @@ public class CodeGenClass {
             }
         }
         cge.setHandleSafe(savedSafe)
+        cge.setHandleDepth(savedDepth)
         if failBB != 0 {
             emitFailedNew(cge, cls, obj, 0, failBB)
         }
@@ -1144,12 +1147,15 @@ public class CodeGenClass {
         // jumps to `new.fail`, which releases it before taking the exit the
         // check would have taken (fly-lang/fly#254).
         bool initFields = needsFieldInit(cls)
+        // new.fail leaves no scope: the exit it then takes frees what that exit leaves
         pointer savedSafe = cge.getHandleSafe()
+        pointer savedDepth = cge.getHandleDepth()
         pointer failBB = 0
         if initFields || ctor != null {
             if cge.getErrPtr() != 0 {
                 failBB = cge.newBlock("new.fail")
                 cge.setHandleSafe(failBB)
+                cge.setHandleDepth(cge.getFrameDepth())
             }
         }
 
@@ -1223,6 +1229,7 @@ public class CodeGenClass {
             CodeGenError.propagate(cge)
         }
         cge.setHandleSafe(savedSafe)
+        cge.setHandleDepth(savedDepth)
         if failBB != 0 {
             int kind = 0
             if isStruct {

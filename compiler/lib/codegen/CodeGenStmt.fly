@@ -42,7 +42,6 @@ public class CodeGenStmt {
             if vt.isArray() {
                 pointer aalloca
                 llvm.buildAlloca(b, ty, "arr", aalloca)
-                v.setLlvmAlloca(aalloca)
                 SemaExpr ainit = node.getExpr()
                 if ainit != null {
                     pointer av = cge.gen(ainit)
@@ -55,7 +54,10 @@ public class CodeGenStmt {
                     // shape of all.
                     CodeGenArray.retainValueIfLValue(cge, av, ainit)
                     llvm.buildStore(b, av, aalloca)
+                    // declared only now: see the scalar branch below
+                    v.setLlvmAlloca(aalloca)
                 } else {
+                    v.setLlvmAlloca(aalloca)
                     CodeGenArray.storeDefault(cge, aalloca, vt.asArray())
                 }
                 return
@@ -144,7 +146,6 @@ public class CodeGenStmt {
 
             pointer alloca
             llvm.buildAlloca(b, ty, "lv", alloca)
-            v.setLlvmAlloca(alloca)
             SemaExpr init = node.getExpr()
             if init != null {
                 pointer iv = cge.gen(init)
@@ -161,7 +162,12 @@ public class CodeGenStmt {
                 // initializer's storage. cloneIfStruct no-ops for everything else.
                 iv = CodeGenIntrinsics.cloneIfStruct(cge, iv, v.getType())
                 llvm.buildStore(b, iv, alloca)
+                // The local is declared only once its value is stored: a failure in
+                // the initializer leaves by an exit whose cleanup must skip it, since
+                // the slot still holds stack garbage (fly-lang/fly#258).
+                v.setLlvmAlloca(alloca)
             } else {
+                v.setLlvmAlloca(alloca)
                 // A STRUCT variable is a POINTER CELL, so it needs STORAGE to point
                 // at: a second alloca of the struct body, zeroed, installed in the
                 // cell. Nulling the cell instead (what every other type wants, see

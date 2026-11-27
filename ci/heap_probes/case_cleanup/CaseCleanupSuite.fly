@@ -1,0 +1,66 @@
+import fly.assert
+import fly.str
+
+// A failure that jumps to the end of a suite `case` releases the locals of the
+// scopes it leaves, as a return does (fly-lang/fly#258): the owners of the
+// three failing cases below are deleted, last declared first, and their free()
+// runs in full; the last case checks what ran. No case leaves an object for
+// its leak warning (before the fix each failing case got one) nor for the
+// report at the end.
+
+class Tally {
+    public static int freed = 0
+    public static string order = ""
+}
+
+class Res {
+
+    string tag
+
+    public Res(const string tag) {
+        this.tag = tag
+    }
+
+    public void free() {
+        Tally.freed = Tally.freed + 1
+        Tally.order = str.concat(Tally.order, this.tag)
+    }
+}
+
+class Bad {
+
+    public Bad() {
+        fail 4, "bad"
+    }
+}
+
+int caseCleanupBoom() {
+    fail 7, "boom"
+}
+
+suite CaseCleanupSuite {
+
+    void cleanupTest() {
+        case "a failing call": {
+            Res a = new unique Res("a")
+            Res b = new unique Res("b")
+            int v = caseCleanupBoom()
+            assert.assertEqI(v, 0, 1)
+        }
+        case "a failure in a nested scope": {
+            Res c = new unique Res("c")
+            if true {
+                Res d = new shared Res("d")
+                caseCleanupBoom()
+            }
+        }
+        case "a failing new": {
+            Res e = new unique Res("e")
+            Bad x = new unique Bad()
+        }
+        case "the failed cases released their locals": {
+            assert.assertEqI(Tally.freed, 5, 2)
+            assert.assertStr(Tally.order, "badce", 3)
+        }
+    }
+}

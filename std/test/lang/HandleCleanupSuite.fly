@@ -1,0 +1,328 @@
+import fly.assert
+import fly.str
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HandleCleanupSuite — a failure that leaves a `handle` block releases the
+// locals of the scopes it leaves (fly-lang/fly#258).
+//
+// A `fail`, a failing call, a failing `new` or an index out of range inside a
+// handle jumps to the handle's end; on the way, the scopes it leaves free what
+// they own, innermost scope first, as a return does: a `new unique` owner is
+// deleted (free() runs), a `new shared` holder lets go of its reference, strings
+// and arrays are released. Locals declared after the failure hold nothing yet
+// and are skipped, and so is a local whose own initializer failed. Within a
+// scope the last declared goes first, on every exit.
+//
+// Assert codes: 1xx failing call, 2xx fail statement, 3xx nested scopes,
+// 4xx failing initializer, 5xx nested handles, 6xx loops, 7xx other failures,
+// 8xx release order.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class Freed {
+    public static int count = 0
+    public static string order = ""
+}
+
+class Res {
+
+    string tag
+
+    public Res(const string tag) {
+        this.tag = tag
+    }
+
+    public void free() {
+        Freed.count = Freed.count + 1
+        Freed.order = str.concat(Freed.order, this.tag)
+    }
+}
+
+// Leaner holds a plain reference to an earlier local's object and reads it in
+// its free(): that object must still be alive when the Leaner goes.
+class Leaner {
+
+    Res res
+
+    public Leaner(Res r) {
+        this.res = r
+    }
+
+    public void free() {
+        Freed.order = str.concat(Freed.order, str.concat("u", this.res.tag))
+    }
+}
+
+class BadRes {
+
+    public BadRes() {
+        fail 41, "bad"
+    }
+
+    public void free() {
+        Freed.count = Freed.count + 100
+    }
+}
+
+int handleCleanupBoom() {
+    fail 7, "boom"
+}
+
+string handleCleanupBoomStr() {
+    fail 8, "boom string"
+}
+
+Res handleCleanupBoomRes() {
+    fail 9, "boom res"
+}
+
+void handleCleanupReset() {
+    Freed.count = 0
+    Freed.order = ""
+}
+
+suite HandleCleanupSuite {
+
+    void callTest() {
+        case "a failing call deletes the owner declared before it": {
+            handleCleanupReset()
+            handle {
+                Res r = new unique Res("a")
+                int v = handleCleanupBoom()
+                Freed.order = str.convert(v)
+            }
+            bool caught = error
+            assert.assertTrue(caught, 101)
+            assert.assertEqI(Freed.count, 1, 102)
+            assert.assertStr(Freed.order, "a", 103)
+        }
+        case "a failing call releases a shared holder, the last one": {
+            handleCleanupReset()
+            handle {
+                Res s = new shared Res("s")
+                handleCleanupBoom()
+            }
+            bool caught = error
+            assert.assertTrue(caught, 111)
+            assert.assertEqI(Freed.count, 1, 112)
+        }
+        case "a holder that is not the last keeps the object alive": {
+            handleCleanupReset()
+            Res keep = new shared Res("k")
+            handle {
+                Res other = keep
+                handleCleanupBoom()
+            }
+            bool caught = error
+            assert.assertTrue(caught, 121)
+            assert.assertEqI(Freed.count, 0, 122)
+            assert.assertStr(keep.tag, "k", 123)
+        }
+        case "strings and arrays declared before the failure go too": {
+            handleCleanupReset()
+            handle {
+                string m = str.concat("message ", "text")
+                int[] xs = {1, 2, 3}
+                Res r = new unique Res("r")
+                handleCleanupBoom()
+                Freed.order = str.concat(m, str.convert(xs[0]))
+            }
+            bool caught = error
+            assert.assertTrue(caught, 131)
+            assert.assertStr(Freed.order, "r", 132)
+        }
+    }
+
+    void failTest() {
+        case "a fail statement deletes the owners declared before it, last first": {
+            handleCleanupReset()
+            handle {
+                Res a = new unique Res("a")
+                Res b = new unique Res("b")
+                fail 3
+            }
+            bool caught = error
+            assert.assertTrue(caught, 201)
+            assert.assertEqI(Freed.count, 2, 202)
+            assert.assertStr(Freed.order, "ba", 203)
+        }
+        case "an owner declared after the failure is never made": {
+            handleCleanupReset()
+            handle {
+                Res a = new unique Res("a")
+                fail 3
+                Res late = new unique Res("late")
+            }
+            bool caught = error
+            assert.assertTrue(caught, 211)
+            assert.assertStr(Freed.order, "a", 212)
+        }
+    }
+
+    void nestedTest() {
+        case "the nested scopes a failure leaves are freed, innermost scope first": {
+            handleCleanupReset()
+            handle {
+                Res outer = new unique Res("o")
+                if true {
+                    Res inner = new unique Res("i")
+                    handleCleanupBoom()
+                }
+            }
+            bool caught = error
+            assert.assertTrue(caught, 301)
+            assert.assertEqI(Freed.count, 2, 302)
+            assert.assertStr(Freed.order, "io", 303)
+        }
+        case "a scope already closed is not freed again": {
+            handleCleanupReset()
+            handle {
+                if true {
+                    Res done = new unique Res("d")
+                }
+                Res after = new unique Res("x")
+                fail 3
+            }
+            bool caught = error
+            assert.assertTrue(caught, 311)
+            assert.assertEqI(Freed.count, 2, 312)
+            assert.assertStr(Freed.order, "dx", 313)
+        }
+    }
+
+    void initTest() {
+        case "a local whose initializer fails holds nothing": {
+            handleCleanupReset()
+            handle {
+                Res before = new unique Res("b")
+                Res r = handleCleanupBoomRes()
+                Freed.order = r.tag
+            }
+            bool caught = error
+            assert.assertTrue(caught, 401)
+            assert.assertStr(Freed.order, "b", 402)
+        }
+        case "a string whose initializer fails holds nothing": {
+            handleCleanupReset()
+            handle {
+                Res before = new unique Res("b")
+                string s = handleCleanupBoomStr()
+                Freed.order = s
+            }
+            bool caught = error
+            assert.assertTrue(caught, 411)
+            assert.assertStr(Freed.order, "b", 412)
+        }
+        case "an owner whose new fails holds nothing": {
+            handleCleanupReset()
+            handle {
+                Res before = new unique Res("b")
+                BadRes bad = new unique BadRes()
+            }
+            bool caught = error
+            assert.assertTrue(caught, 421)
+            assert.assertEqI(Freed.count, 1, 422)
+            assert.assertStr(Freed.order, "b", 423)
+        }
+    }
+
+    void nestedHandleTest() {
+        case "an inner handle frees only its own block": {
+            handleCleanupReset()
+            string seen = ""
+            handle {
+                Res outer = new unique Res("o")
+                handle {
+                    Res inner = new unique Res("i")
+                    handleCleanupBoom()
+                }
+                seen = str.concat(Freed.order, outer.tag)
+            }
+            bool caught = error
+            assert.assertFalse(caught, 501)
+            assert.assertStr(seen, "io", 502)
+            assert.assertStr(Freed.order, "io", 503)
+        }
+        case "a failure after an inner handle frees the outer block": {
+            handleCleanupReset()
+            handle {
+                Res outer = new unique Res("o")
+                handle {
+                    Res inner = new unique Res("i")
+                }
+                handleCleanupBoom()
+            }
+            bool caught = error
+            assert.assertTrue(caught, 511)
+            assert.assertStr(Freed.order, "io", 512)
+        }
+    }
+
+    void loopTest() {
+        case "a failure in a loop frees the iteration's locals and the block's": {
+            handleCleanupReset()
+            int i = 0
+            handle {
+                Res outer = new unique Res("o")
+                while i < 5 {
+                    Res step = new unique Res(str.convert(i))
+                    if i == 2 {
+                        handleCleanupBoom()
+                    }
+                    i = i + 1
+                }
+            }
+            bool caught = error
+            assert.assertTrue(caught, 601)
+            assert.assertEqI(i, 2, 602)
+            assert.assertEqI(Freed.count, 4, 603)
+            assert.assertStr(Freed.order, "012o", 604)
+        }
+    }
+
+    void otherTest() {
+        case "an index out of range frees the block": {
+            handleCleanupReset()
+            int[] xs = {1, 2}
+            int k = 5
+            handle {
+                Res r = new unique Res("r")
+                int v = xs[k]
+                Freed.order = str.convert(v)
+            }
+            bool caught = error
+            assert.assertTrue(caught, 701)
+            assert.assertStr(Freed.order, "r", 702)
+        }
+        case "a block that does not fail frees as usual": {
+            handleCleanupReset()
+            handle {
+                Res r = new unique Res("r")
+            }
+            bool caught = error
+            assert.assertFalse(caught, 711)
+            assert.assertStr(Freed.order, "r", 712)
+        }
+    }
+
+    void orderTest() {
+        case "a local that leans on an earlier one goes first, on a failure": {
+            handleCleanupReset()
+            handle {
+                Res a = new unique Res("a")
+                Leaner l = new unique Leaner(a)
+                handleCleanupBoom()
+            }
+            bool caught = error
+            assert.assertTrue(caught, 801)
+            assert.assertStr(Freed.order, "uaa", 802)
+        }
+        case "and at the end of its scope": {
+            handleCleanupReset()
+            if true {
+                Res a = new unique Res("a")
+                Leaner l = new unique Leaner(a)
+            }
+            assert.assertStr(Freed.order, "uaa", 811)
+        }
+    }
+}
