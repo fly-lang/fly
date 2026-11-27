@@ -1,0 +1,56 @@
+// A local array whose element type is a dotted name is a declaration
+// (fly-lang/fly#269): by full path and through the import prefix, sized and
+// unsized, with type arguments, and in a `for` header. Up to 0.15.x the
+// statement was read as an expression that indexes a member (`'probe' is a
+// namespace, not a value`). An index into a member stays an expression: what
+// tells the two apart is the name after the brackets.
+namespace probe.arrays
+
+import probe.left
+
+class Shelf {
+    public int[] slots = {0, 0, 0}
+}
+
+int sum(left.P[] ps, const int count) {
+    int total = 0
+    for int i = 0; i < count; i++ {
+        total = total + ps[i].tag
+    }
+    return total
+}
+
+void main() {
+    probe.left.Cell[2] all
+    left.Cell[3] three
+    if all[1].tag != 1 || three[2].tag != 1 {
+        fail 1
+    }
+    left.P first = new left.P()
+    left.P second = new left.P()
+    left.P[] ps = {first, second}
+    probe.left.P[] none = {}
+    if ps[1].tag != 2 || sum(ps, 2) != 4 || sum(none, 0) != 0 {
+        fail 2
+    }
+    left.Box<int> box = new left.Box<int>()
+    left.Box<int>[] boxes = {box}
+    probe.left.Box<int>[] more = {box}
+    boxes[0].item = 7
+    if more[0].item != 7 {
+        fail 3
+    }
+    Shelf shelf = new Shelf()
+    shelf.slots[2] = 5
+    int n = 0
+    for left.Cell[1] one, int i = 0; i < 1; i++ {
+        n = n + one[0].tag
+    }
+    if shelf.slots[2] != 5 || n != 1 {
+        fail 4
+    }
+    delete shelf
+    delete box
+    delete second
+    delete first
+}

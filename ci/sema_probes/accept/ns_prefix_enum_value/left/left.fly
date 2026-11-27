@@ -1,0 +1,15 @@
+namespace probe.left
+
+public enum Mode {
+    ON,
+    OFF
+}
+
+public class P {
+    public static int count = 3
+    public static const int LIMIT = 9
+
+    public static int twice(const int n) {
+        return n * 2
+    }
+}

@@ -5,6 +5,7 @@ import fly.compiler.ast.*
 import fly.compiler.parser.*
 import fly.compiler.sema.*
 import fly.data.*
+import fly.str
 import fly.assert
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -41,6 +42,14 @@ bool resolveErr(const string libSrc, const string mainSrc) {
 
 string libSrc() {
     return "namespace my.utils  public int foo(const int x) { return x + 1 }"
+}
+
+// typesSrc — a namespace with an enum and a class with static members, for the
+// values reached through a namespace prefix (fly-lang/fly#270).
+string typesSrc() {
+    string e = "namespace my.utils  public enum Mode { ON, OFF }  "
+    string c = "public class K { public static int count = 0  public static int twice(const int n) { return n * 2 } }"
+    return str.concat(e, c)
 }
 
 suite ImportStyleSuite {
@@ -86,6 +95,54 @@ suite ImportStyleSuite {
             string m2 = "namespace app  import my.utils as u  public int useF(const int y) { return utils.foo(y) }"
             bool err2 = resolveErr(lib, m2)
             assert.assertTrue(err2, 6)
+        }
+    }
+
+    // An enum value and a static member take the namespace of their type: the
+    // full path, or the prefix a plain import binds (fly-lang/fly#270). Before,
+    // only the imported name worked (`import my.utils.Mode`, then `Mode.ON`).
+    void prefixValueTest() {
+        case "enum value by full path, no import": {
+            string m = "namespace app  public bool on(const int y) { return my.utils.Mode.ON == my.utils.Mode.OFF }"
+            assert.assertFalse(resolveErr(typesSrc(), m), 7)
+        }
+        case "enum value through the import prefix": {
+            string m = "namespace app  import my.utils  public utils.Mode pick() { return utils.Mode.OFF }"
+            assert.assertFalse(resolveErr(typesSrc(), m), 8)
+        }
+        case "enum value through an alias": {
+            string m = "namespace app  import my.utils as u  public u.Mode pick() { return u.Mode.ON }"
+            assert.assertFalse(resolveErr(typesSrc(), m), 9)
+            string m2 = "namespace app  import my.utils as u  public u.Mode pick() { return utils.Mode.ON }"
+            assert.assertTrue(resolveErr(typesSrc(), m2), 10)
+        }
+        case "enum value in a case label": {
+            string h = "namespace app  import my.utils  public int rank(const utils.Mode m) { "
+            string b = "switch m { case utils.Mode.ON: return 1  case my.utils.Mode.OFF: return 2 }  return 0 }"
+            assert.assertFalse(resolveErr(typesSrc(), str.concat(h, b)), 11)
+        }
+        case "a wildcard import does not bind the prefix of a value": {
+            string m = "namespace app  import my.utils.*  public Mode pick() { return utils.Mode.ON }"
+            assert.assertTrue(resolveErr(typesSrc(), m), 12)
+        }
+        case "an unknown prefix is an error, not the bare name": {
+            string m = "namespace app  import my.utils.Mode  public Mode pick() { return zzz.Mode.ON }"
+            assert.assertTrue(resolveErr(typesSrc(), m), 13)
+        }
+        case "an unknown entry through a prefix is an error": {
+            string m = "namespace app  import my.utils  public utils.Mode pick() { return utils.Mode.MAYBE }"
+            assert.assertTrue(resolveErr(typesSrc(), m), 14)
+        }
+        case "static field and static method through a prefix": {
+            string m = "namespace app  import my.utils  public int use() { return utils.K.count + my.utils.K.twice(2) }"
+            assert.assertFalse(resolveErr(typesSrc(), m), 15)
+            string w = "namespace app  import my.utils  public void set() { utils.K.count = my.utils.K.count + 1 }"
+            assert.assertFalse(resolveErr(typesSrc(), w), 16)
+        }
+        case "a local named like the prefix shadows it": {
+            string h = "namespace app  import my.utils  class Box { public int Mode = 1 }  "
+            string b = "public int use() { Box utils = new unique Box()  return utils.Mode }"
+            assert.assertFalse(resolveErr(typesSrc(), str.concat(h, b)), 17)
         }
     }
 }

@@ -137,6 +137,55 @@ public class ResolverType {
         return firstOf(nst.lookup(last.getName()))
     }
 
+    // pathType — the type a dotted path of an EXPRESSION names, as in
+    // `probe.left.Mode.ON` or `left.P.count` (fly-lang/fly#270): the last name is
+    // the type, the names before it its namespace, written in full or through an
+    // import (its last segment or its alias, ResolverCall.expandNsPath). Null
+    // when the path is no type: a single name, a first name that is a value in
+    // scope (a local shadows a prefix), a prefix that is no namespace.
+    public static Symbol pathType(const Resolver r, const List<string> path) {
+        if path == null {
+            return null
+        }
+        if path.size() < 2 {
+            return null
+        }
+        Registry reg = r.getReg()
+        Symbol head = reg.LookupName(path.get(0), r.getCurrentScope())
+        if head != null {
+            SymbolKind hk = head.getKind()
+            if hk == SymbolKind.VAR || hk == SymbolKind.LOCAL_VAR || hk == SymbolKind.PARAM ||
+                    hk == SymbolKind.ATTRIBUTE {
+                return null
+            }
+        }
+        List<string> prefix = new List<string>()
+        int i = 0
+        while i < path.size() - 1 {
+            prefix.add(path.get(i))
+            i = i + 1
+        }
+        SemaNameSpace ns = reg.lookupNameSpaceByStrings(prefix)
+        if ns == null {
+            List<string> full = ResolverCall.expandNsPath(r, prefix)
+            if full != null {
+                ns = reg.lookupNameSpaceByStrings(full)
+            }
+        }
+        if ns == null {
+            return null
+        }
+        SymbolTable nst = ns.getSymbols()
+        Symbol sym = firstOf(nst.lookup(path.get(path.size() - 1)))
+        if sym == null {
+            return null
+        }
+        if sym.getTypeRef() == null {
+            return null
+        }
+        return sym
+    }
+
     public static SemaClassType instantiate(const Resolver r, const SemaType t, const List<ASTType> targs) {
         if t == null {
             return null

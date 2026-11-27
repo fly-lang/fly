@@ -505,63 +505,26 @@ public class ResolverExpr {
             }
         }
 
-        // Enum entry access `EnumName.ENTRY`: the parent is a bare identifier naming
-        // an enum TYPE (not a value), so resolve it as a named type first — this also
-        // avoids the spurious "unresolved identifier" diagnostic that resolving the
-        // type name as a value expression would emit.
+        // Enum entry access `EnumName.ENTRY` and static field access
+        // `ClassName.field`: the parent names a TYPE (not a value), so resolve it
+        // as a type first — this also avoids the spurious "unresolved identifier"
+        // diagnostic that resolving the type name as a value expression would
+        // emit. The type is a bare name in scope, or a name with its namespace,
+        // in full or through an import: `probe.left.Mode.ON`, `left.Mode.ON`,
+        // `left.P.count` (fly-lang/fly#270).
+        Symbol tsym = null
         ASTIdentifier pid = parent.asIdentifier()
-        if pid != null {
+        if pid != null && parent.getParent() == null {
             Registry ereg = r.getReg()
-            Symbol tsym = ereg.LookupNamedType(pid.getName(), r.getCurrentScope())
-            if tsym != null {
-                SemaType tt = tsym.getTypeRef()
-                if tt != null {
-                    SemaEnumType et = tt.asEnum()
-                    if et != null {
-                        SemaEnumEntry entry = et.LookupEntry(node.getName())
-                        if entry != null {
-                            r.setCurrentExpr(entry)
-                            return
-                        }
-                        r.diagStr(node.getLoc(), DiagID.err_sema_unknown_member, node.getName())
-                        r.setCurrentExpr(null)
-                        return
-                    }
-                    // STATIC field access `ClassName.field` (B030): the parent
-                    // names a class TYPE and the member is a static attribute —
-                    // build a receiver-less SemaMember carrying the attribute
-                    // (codegen reads/writes its module global). A NON-static
-                    // attribute through a type name falls through to the normal
-                    // path and its "type name, not a value" diagnostic.
-                    SemaClassType stc = tt.asClass()
-                    if stc != null {
-                        SemaClassAttribute sattr2 = stc.LookupAttribute(node.getName())
-                        if sattr2 != null {
-                            if sattr2.isStatic() {
-                                if checkMemberAccess(r, node.getLoc(), node.getName(), sattr2.getVisibility(),
-                                        sattr2.getClass()) == false {
-                                    r.setCurrentExpr(null)
-                                    return
-                                }
-                                SemaClassType sowner = sattr2.getClass()
-                                if sowner != null {
-                                    sowner.markUsed()
-                                }
-                                SemaMember sm2 = SemaBuilder.CreateMemberVar(node, sattr2, null)
-                                sm2.setStaticAttr(sattr2)
-                                // a static const is set by its initializer only
-                                if sattr2.isConstant() {
-                                    sm2.setConstVar(true)
-                                }
-                                r.setCurrentExpr(sm2)
-                                return
-                            }
-                        }
-                    }
-                }
+            tsym = ereg.LookupNamedType(pid.getName(), r.getCurrentScope())
+        } else {
+            tsym = ResolverType.pathType(r, ResolverCall.flattenNsPath(parent))
+        }
+        if tsym != null {
+            if ResolverExpr.typeMember(r, node, tsym.getTypeRef()) {
+                return
             }
         }
-
         parent.accept(r)
         r.takeThisReceiver(parent)
         SemaExpr pe = r.getCurrentExpr()
@@ -643,6 +606,57 @@ public class ResolverExpr {
         r.setCurrentExpr(mem)
     }
 
+    // typeMember — `node` is a member read through the TYPE `tt`: an entry of an
+    // enum, or a static attribute of a class. True when it was resolved or
+    // diagnosed here (the current expression is set). A NON-static attribute
+    // through a type name is left to the caller's normal path and its "type
+    // name, not a value" diagnostic.
+    public static bool typeMember(const Resolver r, const ASTMember node, const SemaType tt) {
+        if tt == null {
+            return false
+        }
+        SemaEnumType et = tt.asEnum()
+        if et != null {
+            SemaEnumEntry entry = et.LookupEntry(node.getName())
+            if entry != null {
+                r.setCurrentExpr(entry)
+                return true
+            }
+            r.diagStr(node.getLoc(), DiagID.err_sema_unknown_member, node.getName())
+            r.setCurrentExpr(null)
+            return true
+        }
+        // STATIC field access `ClassName.field` (B030): build a receiver-less
+        // SemaMember carrying the attribute (codegen reads/writes its module
+        // global).
+        SemaClassType stc = tt.asClass()
+        if stc == null {
+            return false
+        }
+        SemaClassAttribute sattr = stc.LookupAttribute(node.getName())
+        if sattr == null {
+            return false
+        }
+        if sattr.isStatic() == false {
+            return false
+        }
+        if checkMemberAccess(r, node.getLoc(), node.getName(), sattr.getVisibility(), sattr.getClass()) == false {
+            r.setCurrentExpr(null)
+            return true
+        }
+        SemaClassType sowner = sattr.getClass()
+        if sowner != null {
+            sowner.markUsed()
+        }
+        SemaMember sm = SemaBuilder.CreateMemberVar(node, sattr, null)
+        sm.setStaticAttr(sattr)
+        // a static const is set by its initializer only
+        if sattr.isConstant() {
+            sm.setConstVar(true)
+        }
+        r.setCurrentExpr(sm)
+        return true
+    }
     // constFieldLocked — is a write to `attr` rejected at this point? Only a
     // `const` field is ever locked. A static const is set by its initializer
     // alone. An instance const is set once, by a constructor of the class that

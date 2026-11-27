@@ -1,0 +1,14 @@
+// A value written through a prefix that is neither a namespace nor an import
+// stays an error now that a namespace prefix resolves (fly-lang/fly#270):
+// `zzz.Mode.ON` is not the `Mode` in scope, whatever comes before it.
+enum Mode {
+    ON,
+    OFF
+}
+
+void main() {
+    Mode m = zzz.Mode.ON
+    if m != Mode.ON {
+        fail 1
+    }
+}

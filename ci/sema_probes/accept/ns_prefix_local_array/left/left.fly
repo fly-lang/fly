@@ -1,0 +1,13 @@
+namespace probe.left
+
+public struct Cell {
+    public int tag = 1
+}
+
+public class P {
+    public int tag = 2
+}
+
+public class Box<T> {
+    public T item
+}

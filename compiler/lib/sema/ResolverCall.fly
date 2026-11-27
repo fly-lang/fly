@@ -78,13 +78,19 @@ public class ResolverCall {
                     // segment names a class/type in scope. Resolved before the
                     // namespace/value paths (a class name is not a value; without
                     // this branch it dies with err_sema_type_not_a_value).
+                    // The class may be written with its namespace, in full or
+                    // through an import: `probe.left.P.m()`, `left.P.m()`
+                    // (fly-lang/fly#270).
+                    Symbol ts = null
                     if cand.size() == 1 {
-                        Symbol ts = r.getReg().LookupNamedType(cand.get(0), r.getCurrentScope())
-                        if ts != null {
-                            SemaType tt = ts.getTypeRef()
-                            if tt != null {
-                                staticCls = tt.asClass()
-                            }
+                        ts = r.getReg().LookupNamedType(cand.get(0), r.getCurrentScope())
+                    } else {
+                        ts = ResolverType.pathType(r, cand)
+                    }
+                    if ts != null {
+                        SemaType tt = ts.getTypeRef()
+                        if tt != null {
+                            staticCls = tt.asClass()
                         }
                     }
                     if staticCls == null {

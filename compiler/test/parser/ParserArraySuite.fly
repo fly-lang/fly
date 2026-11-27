@@ -13,6 +13,23 @@ import fly.assert
 // are acceptance-only (`isSuccess`), mirroring the sibling parser suites. Mirrors
 // the reference ParserValueTest / ParserLocalVarTest coverage.
 
+// declaredLocals — parse `src` and count the locals its LAST function declares:
+// what tells a statement read as a declaration from one read as an expression
+// (both may parse). -1 when the source does not parse.
+int declaredLocals(const string src) {
+    Parser p = new unique Parser(src)
+    ASTModule mod = p.parseModule("t")
+    if p.isSuccess() == false {
+        return -1
+    }
+    List<ASTNode> nodes = mod.getNodes()
+    ASTFunction f = nodes.get(nodes.size() - 1).asFunction()
+    if f == null {
+        return -1
+    }
+    return (int)f.getLocalNames().size()
+}
+
 suite ParserArraySuite {
 
     void literalTest() {
@@ -206,6 +223,50 @@ suite ParserArraySuite {
             Parser p = new unique Parser("void f() { int[] k = {1}  k[0 }")
             ASTModule mod = p.parseModule("t")
             assert.assertFalse(p.isSuccess(), 53)
+        }
+    }
+
+    // The element type may be a dotted name (fly-lang/fly#269): `a.b.C[2] cs`
+    // was read as an expression indexing a member, and `a.C[] cs = {}` did not
+    // parse. The name after the bracket run is what makes it a declaration; an
+    // index into a member (`o.items[2] = v`) stays an expression.
+    void dottedElementTest() {
+        case "a.b.C[2] cs is a declaration": {
+            assert.assertEqI(declaredLocals("void f() { a.b.C[2] cs }"), 1, 71)
+        }
+        case "a.C[] cs = {} is a declaration": {
+            assert.assertEqI(declaredLocals("void f() { a.C[] cs = {} }"), 1, 72)
+        }
+        case "a.b.C[2][3] grid — consecutive groups are one run": {
+            assert.assertEqI(declaredLocals("void f() { a.b.C[2][3] grid }"), 1, 73)
+        }
+        case "a.b.C<int>[2] bs — brackets after type arguments": {
+            assert.assertEqI(declaredLocals("void f() { a.b.C<int>[2] bs }"), 1, 74)
+            assert.assertEqI(declaredLocals("void f() { a.C<List<int>>[] bs = {} }"), 1, 75)
+        }
+        case "C<int>[2] bs — a single name with type arguments": {
+            assert.assertEqI(declaredLocals("void f() { C<int>[2] bs }"), 1, 76)
+            assert.assertEqI(declaredLocals("void f() { C<int>[] bs = {} }"), 1, 77)
+        }
+        case "o.items[2] = v stays an expression statement": {
+            assert.assertEqI(declaredLocals("void f() { o.items[2] = 1 }"), 0, 78)
+            assert.assertEqI(declaredLocals("void f() { a.b.items[k[0]] = 1 }"), 0, 79)
+        }
+        case "o.rows[0].use() is an expression, not a declaration": {
+            assert.assertEqI(declaredLocals("void f() { o.rows[0].use() }"), 0, 80)
+            assert.assertEqI(declaredLocals("void f() { o.grid[0][1] = 2 }"), 0, 81)
+        }
+        case "a dotted array declaration in a for header": {
+            assert.assertEqI(declaredLocals("void f() { for a.b.C[1] one, int i = 0; i < 1; i++ { } }"), 2, 82)
+        }
+        case "statements after a dotted decl fork are intact": {
+            assert.assertEqI(declaredLocals("void f() { a.b.C[2] cs  int x = 1  int y = x + 1  return }"), 3, 83)
+        }
+        case "statements after a dotted expression fork are intact": {
+            assert.assertEqI(declaredLocals("void f() { o.items[0] = 9  int x = 1  int y = x + 1  return }"), 2, 84)
+        }
+        case "an unterminated dotted bracket run still reports, not hangs": {
+            assert.assertEqI(declaredLocals("void f() { o.items[0 }"), -1, 85)
         }
     }
 

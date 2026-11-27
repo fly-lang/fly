@@ -1,0 +1,46 @@
+// An enum value takes a namespace prefix (fly-lang/fly#270): the full path
+// (`probe.left.Mode.ON`) or the prefix of an import (`left.Mode.ON`), wherever
+// a value is written: an initializer, an assignment, a comparison, a `case`
+// label, an argument, a `return`. A static member of a class is reached the
+// same way (`left.P.count`, `left.P.twice(2)`). Up to 0.15.x only the imported
+// name worked (`import probe.left.Mode`, then `Mode.ON`): the path was
+// `'probe' is a namespace, not a value`.
+namespace probe.values
+
+import probe.left
+import probe.left as side
+
+int rank(const left.Mode m) {
+    switch m {
+        case left.Mode.ON:
+            return 1
+        case probe.left.Mode.OFF:
+            return 2
+    }
+    return 0
+}
+
+left.Mode flip(const left.Mode m) {
+    if m == left.Mode.ON {
+        return probe.left.Mode.OFF
+    }
+    return left.Mode.ON
+}
+
+void main() {
+    left.Mode m = probe.left.Mode.ON
+    if rank(m) != 1 || rank(left.Mode.OFF) != 2 || rank(side.Mode.OFF) != 2 {
+        fail 1
+    }
+    m = left.Mode.OFF
+    if m != probe.left.Mode.OFF || flip(m) != left.Mode.ON {
+        fail 2
+    }
+    if left.Mode.OFF.value != 1 || probe.left.Mode.ON.name != "ON" {
+        fail 3
+    }
+    left.P.count = left.P.count + probe.left.P.LIMIT
+    if probe.left.P.count != 12 || left.P.twice(2) != 4 || probe.left.P.twice(3) != 6 {
+        fail 4
+    }
+}
