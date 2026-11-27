@@ -74,6 +74,12 @@ public class ResolverClass {
         ResolverClass.resolveBaseClasses(r, cls)
         r.setCurrentScope(cls.getSymbols())
         r.setCurrentClass(cls)
+        // the members' types read the imports of the module that declares the
+        // class (`public left.P item`, fly-lang/fly#268)
+        SemaModule ownMod = cls.getModule()
+        if ownMod != null {
+            r.setCurrentModule(ownMod)
+        }
 
         ASTClass ac = cls.getAST()
         List<ASTNode> nodes = ac.getNodes()
@@ -330,6 +336,7 @@ public class ResolverClass {
         SemaFunctionBase savedFn = r.getCurrentFunction()
         SemaBlockStmt savedBlock = r.getCurrentSemaBlock()
         SemaError savedEH = r.getCurrentErrorHandler()
+        SemaModule savedMod = r.getCurrentModule()
 
         ResolverClass.resolveClassType(r, spec)
 
@@ -339,6 +346,7 @@ public class ResolverClass {
         r.setCurrentFunctionBase(savedFn)
         r.setCurrentSemaBlock(savedBlock)
         r.setCurrentErrorHandler(savedEH)
+        r.setCurrentModule(savedMod)
     }
 
     // isTemplateClass — a generic class as written (Box<T>), not one of its

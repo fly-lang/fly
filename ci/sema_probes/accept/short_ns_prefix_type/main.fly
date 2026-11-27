@@ -1,0 +1,44 @@
+// After `import probe.left` the last segment names the namespace's types as
+// well as its functions (fly-lang/fly#268): left.P in a declaration, a
+// parameter, a return, a field, a `new` (also `new probe.left.P()`), an array
+// parameter and a type argument, and left.Mode as an enum type. Up to 0.15.x a
+// type with a short prefix of a namespace of more than one segment was
+// "unknown type", and `new` took no dotted name.
+namespace probe.prefix
+
+import probe.left
+import probe.left.Mode
+import fly.data.List
+
+class Holder {
+    public left.P item
+}
+
+left.P pick(left.P p) {
+    return p
+}
+
+int count(left.P[] ps) {
+    return 0
+}
+
+void main() {
+    left.P p = new left.P()
+    left.P q = pick(p)
+    Holder h = new Holder()
+    h.item = q
+    List<left.P> list = new List<left.P>()
+    list.add(p)
+    left.Mode m = Mode.ON
+    if h.item.tag != 1 || list.size() != 1 || m != Mode.ON {
+        fail 1
+    }
+    probe.left.P full = new probe.left.P()
+    if full.tag != 1 {
+        fail 2
+    }
+    delete full
+    delete list
+    delete h
+    delete p
+}

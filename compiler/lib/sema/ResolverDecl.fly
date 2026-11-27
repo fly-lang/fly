@@ -62,10 +62,38 @@ public class ResolverDecl {
     // 'out' param, then publish the param types on its symbol for overload lookup.
     // Runs in the signature phase (after every module is visited + imports resolved),
     // so qualified cross-namespace signature types resolve regardless of visit order.
+    // enterOwnerModule — make the module that declares `fb` the current one:
+    // currentModule otherwise still points at the LAST visited module (a
+    // discovery-pulled one), so expandNsPath would read the wrong module's
+    // imports, and an import prefix in a body (`assert.f(…)`) or in a signature
+    // (`left.P p`, fly-lang/fly#268) would not resolve. Methods reach it via
+    // their class.
+    public static void enterOwnerModule(const Resolver r, const SemaFunctionBase fb) {
+        SemaClassMethod m = fb.asClassMethod()
+        if m != null {
+            SemaClassType mc = m.getClass()
+            if mc != null {
+                SemaModule cm = mc.getModule()
+                if cm != null {
+                    r.setCurrentModule(cm)
+                }
+            }
+            return
+        }
+        SemaFunction ff = fb.asFunction()
+        if ff != null {
+            SemaModule fm = ff.getModule()
+            if fm != null {
+                r.setCurrentModule(fm)
+            }
+        }
+    }
+
     public static void resolveSignature(const Resolver r, const SemaFunctionBase fb) {
         r.resetCurrents()
         r.setCurrentFunctionBase(fb)
         r.setCurrentScope(fb.getSymbols())
+        ResolverDecl.enterOwnerModule(r, fb)
         ASTFunction node = fb.getAST()
 
         // Generic FUNCTION type params (`T identity<T>(T v)`): register each as a
@@ -281,29 +309,12 @@ public class ResolverDecl {
     public static void resolveBody(const Resolver r, const SemaFunctionBase fb) {
         r.setCurrentFunctionBase(fb)
         r.setCurrentScope(fb.getSymbols())
-        // Restore the body's OWNER module: currentModule otherwise still points at
-        // the LAST visited module (a discovery-pulled one), so expandNsPath would
-        // read the wrong module's imports and `assert.f(…)`-style alias prefixes
-        // in the entry would not resolve. Methods reach it via their class.
+        ResolverDecl.enterOwnerModule(r, fb)
         SemaClassMethod m = fb.asClassMethod()
         if m != null {
             r.setCurrentClass(m.getClass())
-            SemaClassType mc = m.getClass()
-            if mc != null {
-                SemaModule cm = mc.getModule()
-                if cm != null {
-                    r.setCurrentModule(cm)
-                }
-            }
         } else {
             r.setCurrentClass(null)
-            SemaFunction ff = fb.asFunction()
-            if ff != null {
-                SemaModule fm = ff.getModule()
-                if fm != null {
-                    r.setCurrentModule(fm)
-                }
-            }
         }
         ASTFunction af = fb.getAST()
         ASTBlockStmt body = af.getBody()

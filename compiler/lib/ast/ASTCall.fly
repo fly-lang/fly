@@ -6,6 +6,7 @@ import fly.compiler.ast.ASTExprKind
 import fly.compiler.ast.ASTType
 import fly.data.List
 import fly.compiler.ast.ASTArg
+import fly.compiler.ast.ASTName
 import fly.compiler.ast.ASTVisitor
 
 public enum ASTCallKind {
@@ -26,6 +27,8 @@ public class ASTCall : ASTExpr {
                              // receiver vars as trailing args (full call form)
                              // and records N here so the resolver can verify
                              // they match the callee's out slots. 0 = plain call.
+    List<ASTName> qualifier  // `new left.P()`: the segments before the class name
+                             // (fly-lang/fly#268); empty for `new P()`
 
     public ASTCall(const SourceLocation loc, const string name, const ASTCallKind callKind) {
         super(loc, ASTExprKind.EXPR_CALL)
@@ -34,6 +37,7 @@ public class ASTCall : ASTExpr {
         this.args = new List<ASTArg>()
         this.typeArgs = new List<ASTType>()
         this.multiRecvCount = 0
+        this.qualifier = new List<ASTName>()
     }
 
     public string getName() {
@@ -47,6 +51,12 @@ public class ASTCall : ASTExpr {
     }
     public void addTypeArg(const ASTType ta) {
         this.typeArgs.add(ta)
+    }
+    public List<ASTName> getQualifier() {
+        return this.qualifier
+    }
+    public void addQualifier(const ASTName n) {
+        this.qualifier.add(n)
     }
     public ASTCallKind getCallKind() {
         return this.callKind

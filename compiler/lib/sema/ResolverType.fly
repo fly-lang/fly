@@ -62,8 +62,13 @@ public class ResolverType {
             Symbol sym = null
             if names.size() > 1 {
                 sym = reg.LookupQualifiedType(names)
-            }
-            if sym == null {
+                // a prefix that is the last segment (or the alias) of an imported
+                // namespace — `left.P` after `import probe.left` — expands through
+                // the module's imports, as a call's prefix does (fly-lang/fly#268)
+                if sym == null {
+                    sym = ResolverType.importedType(r, names)
+                }
+            } else {
                 sym = reg.LookupNamedType(last.getName(), r.getCurrentScope())
             }
             if sym != null {
@@ -106,6 +111,32 @@ public class ResolverType {
 
     // instantiate — build (or fetch) the specialization of generic `t` for `targs`;
     // null if `t` is not an instantiable generic class or a type arg fails to resolve.
+    // importedType — a dotted type name whose first segment names an import: the
+    // last segment of the imported namespace or its alias. The prefix expands to
+    // the full namespace path (ResolverCall.expandNsPath) and the last name is
+    // looked up there. Null when the prefix is no import.
+    public static Symbol importedType(const Resolver r, const List<ASTName> names) {
+        List<string> prefix = new List<string>()
+        int i = 0
+        while i < names.size() - 1 {
+            ASTName n = names.get(i)
+            prefix.add(n.getName())
+            i = i + 1
+        }
+        List<string> full = ResolverCall.expandNsPath(r, prefix)
+        if full == null {
+            return null
+        }
+        Registry reg = r.getReg()
+        SemaNameSpace ns = reg.lookupNameSpaceByStrings(full)
+        if ns == null {
+            return null
+        }
+        ASTName last = names.get(names.size() - 1)
+        SymbolTable nst = ns.getSymbols()
+        return firstOf(nst.lookup(last.getName()))
+    }
+
     public static SemaClassType instantiate(const Resolver r, const SemaType t, const List<ASTType> targs) {
         if t == null {
             return null

@@ -442,9 +442,19 @@ public class ParserExpr {
         // where the name actually is, four columns further.
         SourceLocation nloc = p.curLoc()
         string nm = ""
+        // `new left.P()`, `new probe.left.P()`: the segments before the class
+        // name are kept apart, the name stays the last one (fly-lang/fly#268)
+        List<ASTName> qual = new unique List<ASTName>()
         if p.curIsNamePart() {
             nm = p.curText()
             p.bump()
+            while p.curIsPunct(".") && p.nxtIsIdent() {
+                qual.add(new ASTName(nloc, nm))
+                p.bump()
+                nloc = p.curLoc()
+                nm = p.curText()
+                p.bump()
+            }
         } else {
             p.reportErr(DiagID.err_parser_new_instance)
         }
@@ -470,6 +480,11 @@ public class ParserExpr {
         while i < targs.size() {
             call.addTypeArg(targs.get(i))
             i = i + 1
+        }
+        int qi = 0
+        while qi < qual.size() {
+            call.addQualifier(qual.get(qi))
+            qi = qi + 1
         }
         return call
     }

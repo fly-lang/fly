@@ -885,7 +885,25 @@ public class ResolverCall {
     public static SemaCall resolveNew(const Resolver r, const ASTCall node, const SymbolTable scope,
             const List<SemaType> argTypes) {
         Registry reg = r.getReg()
-        Symbol tsym = reg.LookupNamedType(node.getName(), scope)
+        Symbol tsym = null
+        List<ASTName> qual = node.getQualifier()
+        if qual.size() > 0 {
+            // `new probe.left.P()` by its namespace path, `new left.P()` through
+            // the import of probe.left (fly-lang/fly#268)
+            List<ASTName> names = new List<ASTName>()
+            int qi = 0
+            while qi < qual.size() {
+                names.add(qual.get(qi))
+                qi = qi + 1
+            }
+            names.add(new ASTName(node.getLoc(), node.getName()))
+            tsym = reg.LookupQualifiedType(names)
+            if tsym == null {
+                tsym = ResolverType.importedType(r, names)
+            }
+        } else {
+            tsym = reg.LookupNamedType(node.getName(), scope)
+        }
         if tsym == null {
             return null
         }

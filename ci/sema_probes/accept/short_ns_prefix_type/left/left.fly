@@ -1,0 +1,10 @@
+namespace probe.left
+
+public class P {
+    public int tag = 1
+}
+
+public enum Mode {
+    ON,
+    OFF
+}
