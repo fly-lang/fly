@@ -68,7 +68,7 @@ public class CodeGenArray {
                 idxs.add(idxC)
                 pointer elemPtr
                 cg.buildGEP2N(b, elemLL, dataPtr, idxs, "arrelem", elemPtr)
-                llvm.buildStore(b, ev, elemPtr)
+                CodeGenArray.storeElement(cge, elemPtr, ev, at.getElementType())
                 i = i + 1
             }
             llvm.constInt(i64t, (long)n, false, lenV)
@@ -81,6 +81,38 @@ public class CodeGenArray {
         pointer sv
         llvm.buildInsertValue(b, s1, lenV, 1, "arr.l", sv)
         node.setLlvmValue(sv)
+    }
+
+    // storeElement — write a value into the element slot at `elemPtr`.
+    //
+    // A STRUCT lives on the stack (a class instance lives on the heap), so an
+    // array cannot keep its address: the element sits INLINE in the buffer. A
+    // struct value is the address of its storage, so its fields are copied into
+    // the slot, as an assignment of a struct copies them. A plain store would write that address over the first
+    // field and leave the rest as it was (fly-lang/fly#272). Every other element
+    // is one value and is stored as it comes.
+    public static void storeElement(const CodeGenExpr cge, const pointer elemPtr, const pointer val,
+            const SemaType elemT) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        pointer sty = 0
+        if elemT != null {
+            SemaClassType ec = elemT.asClass()
+            if ec != null {
+                if ec.getClassKind() == SemaClassKind.STRUCT {
+                    sty = ec.getLlvmStructType()
+                }
+            }
+        }
+        if sty == 0 {
+            llvm.buildStore(b, val, elemPtr)
+            return
+        }
+        // memmove: `xs[i] = xs[i]` copies an element onto itself.
+        pointer szV
+        llvm.sizeOf(sty, szV)
+        pointer mcv
+        llvm.buildMemMove(b, elemPtr, val, szV, mcv)
     }
 
     // storeDefault — an array local with no initializer.
@@ -1032,9 +1064,27 @@ public class CodeGenArray {
         gidx.add(iBody)
         pointer elemPtr
         cg.buildGEP2N(b, elemLL, dataPtr, gidx, "forin.elemp", elemPtr)
-        pointer elemVal
-        llvm.buildLoad2(b, elemLL, elemPtr, "forin.ev", elemVal)
-        llvm.buildStore(b, elemVal, itemAddr)
+        // A STRUCT item is a copy of the element, as `Cell c = xs[i]` is: the item
+        // slot holds the address of a struct, so the element's fields go to a
+        // clone and the slot takes the clone's address. Loading the element by
+        // value would store a whole struct over that one address.
+        SemaType itemT = at.getElementType()
+        bool structItem = false
+        if itemT != null {
+            SemaClassType ic = itemT.asClass()
+            if ic != null {
+                if ic.getClassKind() == SemaClassKind.STRUCT {
+                    structItem = true
+                }
+            }
+        }
+        if structItem {
+            llvm.buildStore(b, CodeGenIntrinsics.cloneIfStruct(cge, elemPtr, itemT), itemAddr)
+        } else {
+            pointer elemVal
+            llvm.buildLoad2(b, elemLL, elemPtr, "forin.ev", elemVal)
+            llvm.buildStore(b, elemVal, itemAddr)
+        }
         node.getBody().accept(cge)
         cge.br(incBB)
         cge.position(incBB)

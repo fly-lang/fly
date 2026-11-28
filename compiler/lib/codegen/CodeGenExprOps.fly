@@ -76,10 +76,11 @@ public class CodeGenExprOps {
         // its release never walks the elements. Cloning a string into a slot would
         // therefore hand the array a buffer nobody ever frees — so the value is
         // stored as it comes. genAddr runs the bounds check and yields the element
-        // address, so a write is range-checked exactly like a read.
+        // address, so a write is range-checked exactly like a read. A struct
+        // element is inline, so its fields are copied (CodeGenArray.storeElement).
         if left.getKind() == SemaKind.ARRAY_ACCESS {
             pointer eaddr = cge.genAddr(left)
-            cge.getLLVM().buildStore(cge.getBuilder(), rhs, eaddr)
+            CodeGenArray.storeElement(cge, eaddr, rhs, left.getType())
             node.setLlvmValue(rhs)
             return
         }

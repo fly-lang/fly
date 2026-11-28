@@ -1,0 +1,97 @@
+// A struct value written as an element of an array literal is copied into the
+// array, as an assignment of a struct copies it (fly-lang/fly#272), and so is a
+// struct written into an element (`some[0] = c`). Up to 0.15.x the element kept
+// the address of the value instead of its fields, so reading it back gave
+// something else.
+struct Cell {
+    public int tag = 1
+    public long wide = 2
+}
+
+Cell make(int tag) {
+    Cell c = new Cell()
+    c.tag = tag
+    c.wide = tag * 100
+    return c
+}
+
+void main() {
+    Cell a = new Cell()
+    a.tag = 5
+    a.wide = 50
+    Cell b = new Cell()
+    b.tag = 6
+
+    // struct locals
+    Cell[] some = {a, b}
+    if some[0].tag != 5 || some[0].wide != 50 || some[1].tag != 6 || some[1].wide != 2 {
+        fail 1
+    }
+    Cell d = some[0]
+    if d.tag != 5 || d.wide != 50 {
+        fail 2
+    }
+
+    // the elements are copies: the local and the element change apart
+    a.tag = 9
+    if some[0].tag != 5 {
+        fail 3
+    }
+    some[1].tag = 7
+    if b.tag != 6 {
+        fail 4
+    }
+
+    // call results
+    Cell[] made = {make(3), make(4)}
+    if made[0].tag != 3 || made[0].wide != 300 || made[1].tag != 4 || made[1].wide != 400 {
+        fail 5
+    }
+
+    // struct literals
+    Cell[] lit = {{tag = 2}, {tag = 3, wide = 9}}
+    if lit[0].tag != 2 || lit[0].wide != 2 || lit[1].tag != 3 || lit[1].wide != 9 {
+        fail 13
+    }
+
+    // elements of another array
+    Cell[] again = {made[1], some[0]}
+    if again[0].tag != 4 || again[0].wide != 400 || again[1].tag != 5 {
+        fail 6
+    }
+    again[0].tag = 8
+    if made[1].tag != 4 {
+        fail 7
+    }
+
+    // a struct written into an element
+    Cell[2] all
+    all[0] = a
+    all[1] = make(11)
+    if all[0].tag != 9 || all[0].wide != 50 || all[1].tag != 11 || all[1].wide != 1100 {
+        fail 8
+    }
+    a.tag = 1
+    if all[0].tag != 9 {
+        fail 9
+    }
+    all[1] = all[0]
+    all[0].tag = 2
+    if all[1].tag != 9 || all[1].wide != 50 {
+        fail 10
+    }
+
+    // through a loop
+    int sum = 0
+    for each in some {
+        sum = sum + each.tag
+        each.tag = 0
+    }
+    if sum != 12 {
+        fail 11
+    }
+    // the item of the loop is a copy too
+    if some[0].tag != 5 || some[1].tag != 7 {
+        fail 12
+    }
+}
