@@ -16,6 +16,18 @@ int byteOfFile(const string s, const int i) {
     return v & 255
 }
 
+// entryNameAt — a copy of the name of the i-th entry of a directory listing.
+// str.fromBytes takes the buffer it is given, and the entry keeps its own
+// (dirEntriesFree releases it), so the string is built on a copy.
+string entryNameAt(const fly.os.fs.DirEntries es, const int i) {
+    int off = i * 56
+    pointer name = mem.readPtr(es.items, off)
+    int len = mem.readInt(es.items, off + 8)
+    pointer own = mem.alloc(len)
+    mem.copy(own, name, len)
+    return str.fromBytes(own, len)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // OsFsSuite — fly.os.fs (std/lib/os/fs.fly): files, directories, metadata,
 // copy/move, truncation, symlinks and temp directories.
@@ -301,6 +313,56 @@ suite OsFsSuite {
             fly.os.fs.DirEntries es = fs.dirRead(dir)
             assert.assertEqL((long)es.len, 2, 510)          // exactly the two files
             assert.assertNotNull(es.items, 511)
+            fs.dirDeleteAll(dir)
+        }
+        case "dirRead returns the entries sorted by name": {
+            // The operating system lists a directory in no promised order
+            // (fly-lang/fly#273): names come back byte by byte, an upper-case
+            // letter before a lower-case one, a name before the names it starts.
+            string dir = "fly_fs_sorted_dir"
+            fs.dirDeleteAll(dir)
+            fs.dirCreateAll(dir, 493)
+            fs.writeStr(path.join(dir, "z.txt"), "x", 420)
+            fs.writeStr(path.join(dir, "m.txt"), "x", 420)
+            fs.writeStr(path.join(dir, "ab"), "x", 420)
+            fs.writeStr(path.join(dir, "a.txt"), "x", 420)
+            fs.dirCreate(path.join(dir, "a"), 493)
+            fs.writeStr(path.join(dir, "B.txt"), "x", 420)
+            fly.os.fs.DirEntries es = fs.dirRead(dir)
+            assert.assertEqL((long)es.len, 6, 514)
+            assert.assertStr(entryNameAt(es, 0), "B.txt", 515)
+            assert.assertStr(entryNameAt(es, 1), "a", 516)
+            assert.assertStr(entryNameAt(es, 2), "a.txt", 517)
+            assert.assertStr(entryNameAt(es, 3), "ab", 518)
+            assert.assertStr(entryNameAt(es, 4), "m.txt", 519)
+            assert.assertStr(entryNameAt(es, 5), "z.txt", 520)
+            fs.dirEntriesFree(es)
+            fs.dirDeleteAll(dir)
+        }
+        case "dirRead sorts a directory of many entries": {
+            // 40 files created last name first: more than the first block of
+            // the listing, so the sort also runs on a grown array.
+            string dir = "fly_fs_sorted_many"
+            string digits = "0123456789"
+            fs.dirDeleteAll(dir)
+            fs.dirCreateAll(dir, 493)
+            for int i = 39; i >= 0; i-- {
+                string tens = str.substring(digits, i / 10, i / 10 + 1)
+                string units = str.substring(digits, i % 10, i % 10 + 1)
+                fs.writeStr(path.join(dir, str.concat("f", str.concat(tens, units))), "x", 420)
+            }
+            fly.os.fs.DirEntries es = fs.dirRead(dir)
+            assert.assertEqL((long)es.len, 40, 521)
+            bool sorted = true
+            for int k = 0; k < 40; k++ {
+                string tens = str.substring(digits, k / 10, k / 10 + 1)
+                string units = str.substring(digits, k % 10, k % 10 + 1)
+                if entryNameAt(es, k) != str.concat("f", str.concat(tens, units)) {
+                    sorted = false
+                }
+            }
+            assert.assertTrue(sorted, 522)
+            fs.dirEntriesFree(es)
             fs.dirDeleteAll(dir)
         }
         case "long entry names are listed and deleted": {

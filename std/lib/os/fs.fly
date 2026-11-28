@@ -623,7 +623,91 @@ public void dirEntriesFree(DirEntries d) {
     d.cap = 0
 }
 
-// dirRead lists the entries in path (excluding "." and "..") and fills out.
+// dirEntryLess — does the entry at a come before the entry at b? Names are
+// compared byte by byte; a name that is the start of the other comes first.
+bool dirEntryLess(const pointer a, const pointer b) {
+    pointer aName = mem.readPtr(a, 0)
+    pointer bName = mem.readPtr(b, 0)
+    int aLen = mem.readInt(a, 8)
+    int bLen = mem.readInt(b, 8)
+    int common = aLen
+    if bLen < common {
+        common = bLen
+    }
+    int c = 0
+    if common > 0 {
+        c = mem.compare(aName, bName, common)
+    }
+    if c != 0 {
+        return c < 0
+    }
+    return aLen < bLen
+}
+
+// dirEntriesSift — heap step of dirEntriesSort: sink the entry at index start
+// to its place among the first count entries. tmp holds one entry for a swap.
+void dirEntriesSift(const pointer items, const ulong start, const ulong count, const pointer tmp) {
+    ulong root = start
+    bool go = true
+    while go {
+        ulong child = root * 2 + 1
+        if child >= count {
+            go = false
+        } else {
+            ulong next = child + 1
+            if next < count {
+                ulong childOff = child * 56
+                ulong nextOff = next * 56
+                if dirEntryLess(items + childOff, items + nextOff) {
+                    child = next
+                }
+            }
+            ulong rootOff = root * 56
+            ulong bigOff = child * 56
+            pointer rootSlot = items + rootOff
+            pointer bigSlot = items + bigOff
+            if dirEntryLess(rootSlot, bigSlot) {
+                mem.copy(tmp, rootSlot, 56)
+                mem.copy(rootSlot, bigSlot, 56)
+                mem.copy(bigSlot, tmp, 56)
+                root = child
+            } else {
+                go = false
+            }
+        }
+    }
+}
+
+// dirEntriesSort — put the count entries at items in the order of their
+// names (dirEntryLess). The operating system lists a directory in no promised
+// order, and the same directory may come back in another one; a heap sort
+// keeps a directory of tens of thousands of entries cheap.
+void dirEntriesSort(const pointer items, const ulong count) {
+    if count < 2 {
+        return
+    }
+    pointer tmp = 0
+    fly.runtime.mem_alloc(56, tmp)
+    ulong i = count / 2
+    while i > 0 {
+        i = i - 1
+        dirEntriesSift(items, i, count, tmp)
+    }
+    ulong end = count
+    while end > 1 {
+        end = end - 1
+        ulong endOff = end * 56
+        pointer last = items + endOff
+        mem.copy(tmp, items, 56)
+        mem.copy(items, last, 56)
+        mem.copy(last, tmp, 56)
+        dirEntriesSift(items, 0, end, tmp)
+    }
+    fly.runtime.mem_free(tmp, 56)
+}
+// dirRead lists the entries in path (excluding "." and ".."), sorted by name
+// byte by byte: the same directory always comes back in the same order, on every
+// operating system (fly-lang/fly#273).
 // DirEntry layout in raw heap memory (56 bytes, little-endian):
 //   0: string.ptr   (i64)   8 bytes
 //   8: string.size  (i32)   4 bytes
@@ -799,6 +883,7 @@ public DirEntries dirRead(const string path) {
 
     fly.runtime.dir_close(dh)
     fly.runtime.mem_free(dbuf, (ulong)bufsize)
+    dirEntriesSort(items, count)
     res.items = items
     res.len = count
     res.cap = cap

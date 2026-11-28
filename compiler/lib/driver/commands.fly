@@ -179,8 +179,9 @@ public int cmdTest(const string profile, const bool force) {
     // The walk is Driver.collectFlySources, reused rather than reimplemented: it
     // is ITERATIVE on purpose (a string-returning recursion self-aliases, and a
     // List<string> accumulator drops entries past its growth boundary), and it
-    // already skips dot-dirs and build/. Entries come back in per-directory
-    // order rather than lexicographic; the order only affects the report.
+    // already skips dot-dirs and build/. Entries come back one directory at a
+    // time, each sorted by name (fs.dirRead), so the suites run in the same
+    // order on every machine (fly-lang/fly#273).
     Driver walker = new unique Driver()
     string all = walker.collectFlySources(".")
     string nl = "\n"

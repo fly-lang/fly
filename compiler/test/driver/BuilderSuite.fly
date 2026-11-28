@@ -441,4 +441,40 @@ suite BuilderSuite {
             assert.assertStr(b.outDir(), path.absolute("fly_out_probe"), 565)
         }
     }
+
+    // The source walk lists each directory by name (fly-lang/fly#273): the
+    // suites of `fly test` and `fly --suite` run in the same order on every
+    // machine, whatever order the files were created in.
+    void walkOrderTest() {
+        case "collectFlySources returns each directory sorted by name": {
+            string tmp = env.get("TMPDIR")
+            if str.isEmpty(tmp) {
+                tmp = env.get("TEMP")
+            }
+            if str.isEmpty(tmp) {
+                tmp = "/tmp"
+            }
+            string proj = path.join(tmp, "bld_suite_walk")
+            fs.dirDeleteAll(proj)     // stale leftover from a previous failed run
+            fs.dirCreateAll(path.join(proj, "zeta"), 493)
+            fs.dirCreateAll(path.join(proj, "alpha"), 493)
+            fs.writeStr(path.join(proj, "zeta/OnlySuite.fly"), "", 420)
+            fs.writeStr(path.join(proj, "CSuite.fly"), "", 420)
+            fs.writeStr(path.join(proj, "BSuite.fly"), "", 420)
+            fs.writeStr(path.join(proj, "notes.txt"), "", 420)
+            fs.writeStr(path.join(proj, "ASuite.fly"), "", 420)
+            fs.writeStr(path.join(proj, "alpha/LastSuite.fly"), "", 420)
+            fs.writeStr(path.join(proj, "alpha/FirstSuite.fly"), "", 420)
+            Driver walker = new unique Driver()
+            string all = walker.collectFlySources(proj)
+            fs.dirDeleteAll(proj)     // before the asserts: a failure must not leave it behind
+            assert.assertEqI(segCount(all), 6, 566)
+            assert.assertTrue(str.endsWith(segAt(all, 0), "ASuite.fly"), 567)
+            assert.assertTrue(str.endsWith(segAt(all, 1), "BSuite.fly"), 568)
+            assert.assertTrue(str.endsWith(segAt(all, 2), "CSuite.fly"), 569)
+            assert.assertTrue(str.endsWith(segAt(all, 3), "FirstSuite.fly"), 570)
+            assert.assertTrue(str.endsWith(segAt(all, 4), "LastSuite.fly"), 571)
+            assert.assertTrue(str.endsWith(segAt(all, 5), "OnlySuite.fly"), 572)
+        }
+    }
 }
