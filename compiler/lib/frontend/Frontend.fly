@@ -322,9 +322,13 @@ public class Frontend {
         // resolution has run (return/field/param types are known). Ports the reference
         // Frontend GenerateHeader; the archive is built by the ci script over the object.
         if fo.getCreateHeader() {
+            List<string> hpaths = new List<string>()
+            if this.headerPaths(entryMods, fo.getOutDir(), hpaths) == false {
+                return 1
+            }
             int hgi = 0
             while hgi < entryMods.size() {
-                HeaderGen.generate(entryMods.get(hgi), fo.getOutDir(), diags)
+                HeaderGen.generateAt(entryMods.get(hgi), hpaths.get(hgi), diags)
                 hgi = hgi + 1
             }
         }
@@ -561,20 +565,19 @@ public class Frontend {
         // that a linear scan beats hauling in a Map here)
         List<string> mapNs = new List<string>()
         List<string> mapPath = new List<string>()
-        // basenames of modules already parsed (entry + headers + pulled): never twice
+        // files already parsed (entry + pulled), by path (fileKey): never twice.
+        // By path, not by base name: `a/p.fly` and `b/p.fly` are two files
+        // (fly-lang/fly#266).
         List<string> known = new List<string>()
         // namespaces provided by header modules: never pulled from source
         List<string> headerNs = new List<string>()
         int mi = 0
         while mi < mods.size() {
             ASTModule mm = mods.get(mi)
-            // Only PROJECT modules claim a basename. A toolchain module does not:
-            // its namespace already bars a source pull (headerNs, just below), while
-            // its basename belongs to the lib dir, not to this project. Counting it
-            // meant a lib shipping `list.fly` silently swallowed a project file of
-            // the same name — no diagnostic, just a namespace that would not resolve.
+            // Only PROJECT modules are listed. A toolchain module is not: its
+            // namespace already bars a source pull (headerNs, just below).
             if mm.isHeader() == false {
-                known.add(path.basename(mm.getName()))
+                known.add(this.fileKey(mm.getName()))
             }
             if mm.isHeader() {
                 ASTNameSpace hns = mm.getNameSpace()
@@ -729,9 +732,9 @@ public class Frontend {
         while k < mapNs.size() {
             if str.equals(mapNs.get(k), ns) {
                 string p = mapPath.get(k)
-                string base = path.basename(p)
-                if this.listHas(known, base) == false {
-                    known.add(base)
+                string key = this.fileKey(p)
+                if this.listHas(known, key) == false {
+                    known.add(key)
                     this.trace(str.concat("resolved import → ", p))
                     // Cache first: a hit skips BOTH the read and the parse,
                     // which together are where a language-server compile spends
@@ -762,8 +765,8 @@ public class Frontend {
     }
 
     // scanSrcDir — recursive walk: map every `*.fly` (never `*.fly.h`) under dir by
-    // its declared namespace. Files whose basename is already a parsed module (the
-    // entry itself, typically) are skipped. Same DirEntry-stride read pattern as
+    // its declared namespace. A file that is already a parsed module (the entry
+    // itself, typically) is skipped. Same DirEntry-stride read pattern as
     // loadHeadersFromDir.
     public void scanSrcDir(const string dir, List<string> mapNs, List<string> mapPath, const List<string> known) {
         if path.isDir(dir) == false {
@@ -799,7 +802,7 @@ public class Frontend {
                     this.scanSrcDir(full, mapNs, mapPath, known)
                 }
             } elsif str.endsWith(entry, ".fly") {
-                if this.listHas(known, entry) == false {
+                if this.listHas(known, this.fileKey(full)) == false {
                     string ns = this.extractNs(full)
                     if str.isEmpty(ns) == false {
                         mapNs.add(ns)
@@ -889,6 +892,70 @@ public class Frontend {
             i = i + 1
         }
         return false
+    }
+
+    // headerPaths — where the `.fly.h` of each module of `mods` goes, in order.
+    // Headers land flat in outDir under the file's base name, so two files with
+    // one base name in two directories would write one header twice, the first
+    // lost without a word (fly-lang/fly#266): the modules that share a base name
+    // put their namespace in the file name (`a.p.fly.h`, `b.p.fly.h`); every other
+    // header keeps `<name>.fly.h`. Two that still meet (one namespace, or none)
+    // are an error: false, after the message.
+    public bool headerPaths(const List<ASTModule> mods, const string outDir, List<string> res) {
+        List<string> plain = new List<string>()
+        int i = 0
+        while i < mods.size() {
+            string stem = HeaderGen.stripFlySuffix(mods.get(i).getName())
+            plain.add(HeaderGen.headerPath(stem, outDir))
+            i = i + 1
+        }
+        i = 0
+        while i < mods.size() {
+            bool shared = false
+            int j = 0
+            while j < mods.size() {
+                if j != i && str.equals(plain.get(j), plain.get(i)) {
+                    shared = true
+                }
+                j = j + 1
+            }
+            if shared {
+                res.add(HeaderGen.qualifiedHeaderPath(mods.get(i), outDir))
+            } else {
+                res.add(plain.get(i))
+            }
+            i = i + 1
+        }
+        i = 0
+        while i < res.size() {
+            int k = i + 1
+            while k < res.size() {
+                if str.equals(res.get(k), res.get(i)) {
+                    string msg = str.concat("error: ", mods.get(i).getName())
+                    string msg2 = str.concat(msg, str.concat(" and ", mods.get(k).getName()))
+                    string msg3 = str.concat(msg2, str.concat(" would both write ", res.get(i)))
+                    io.printErrLn(str.concat(msg3, ": give them different namespaces or file names"))
+                    return false
+                }
+                k = k + 1
+            }
+            i = i + 1
+        }
+        return true
+    }
+
+    // fileKey — what identifies a source file in the discovery tables: its
+    // absolute, normalized path with '/' separators, so `main.fly`, `./main.fly`
+    // and the path a directory walk builds for it are one file, while two files
+    // of the same base name in two directories are two.
+    public string fileKey(const string file) {
+        string fwd = str.replace(file, "\\", "/")
+        if path.isAbsolute(fwd) {
+            return path.normalize(fwd)
+        }
+        // the current directory comes with the host's separators
+        string cwd = str.replace(path.absolute("."), "\\", "/")
+        return path.normalize(path.join(cwd, fwd))
     }
 
     // listHas — linear membership test over a List<string>.

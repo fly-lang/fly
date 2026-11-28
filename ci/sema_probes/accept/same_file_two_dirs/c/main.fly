@@ -1,0 +1,5 @@
+namespace probe.c
+
+public int three() {
+    return 3
+}

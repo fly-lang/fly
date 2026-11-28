@@ -1,0 +1,9 @@
+namespace probe.a
+
+public class P {
+    public int tag = 1
+}
+
+public P make() {
+    return new P()
+}

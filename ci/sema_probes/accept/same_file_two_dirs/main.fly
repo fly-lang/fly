@@ -1,0 +1,24 @@
+// Two source files with one base name in two directories are two files
+// (fly-lang/fly#266): a/p.fly (namespace probe.a) and b/p.fly (namespace
+// probe.b) are both read, and so is c/main.fly, named like this entry file.
+// Source discovery used to list the files it had read by base name: the second
+// p.fly was taken for the first and skipped ("unknown type 'P'", "cannot find
+// 'b' in this scope"), and no file named like the entry was ever read.
+namespace probe.twodirs
+
+import probe.a
+import probe.b
+import probe.c
+
+void main() {
+    a.P x = a.make()
+    b.P y = b.make()
+    if x.tag != 1 || y.tag != 2 {
+        fail 1
+    }
+    if c.three() != 3 {
+        fail 2
+    }
+    delete x
+    delete y
+}

@@ -260,8 +260,37 @@ public class HeaderGen {
     // would be silently first-wins, since nothing in the compiler reports one.
     public static string generate(const ASTModule m, const string outDir, const DiagnosticsEngine diags) {
         string stem = HeaderGen.stripFlySuffix(m.getName())
-        string lf = "\n"
         string hpath = HeaderGen.headerPath(stem, outDir)
+        return HeaderGen.generateAt(m, hpath, diags)
+    }
+
+    // qualifiedHeaderPath — the header of a module whose base name another module
+    // of the same build shares: the namespace goes in the file name, so `a/p.fly`
+    // (namespace a) and `b/p.fly` (namespace b) write `a.p.fly.h` and `b.p.fly.h`
+    // into the flat outDir instead of one `p.fly.h` twice (fly-lang/fly#266). A
+    // module with no namespace keeps the plain name.
+    public static string qualifiedHeaderPath(const ASTModule m, const string outDir) {
+        string stem = HeaderGen.stripFlySuffix(m.getName())
+        ASTNameSpace ns = m.getNameSpace()
+        if ns == null || str.isEmpty(outDir) {
+            return HeaderGen.headerPath(stem, outDir)
+        }
+        string name = ""
+        List<ASTName> nn = ns.getNames()
+        int i = 0
+        while i < nn.size() {
+            string part = str.concat(name, str.concat(nn.get(i).getName(), "."))
+            name = part
+            i = i + 1
+        }
+        string file = str.concat(name, str.concat(path.basename(stem), ".fly.h"))
+        return path.join(outDir, file)
+    }
+
+    // generateAt — generate(), with the header's path chosen by the caller.
+    public static string generateAt(const ASTModule m, const string hpath, const DiagnosticsEngine diags) {
+        string stem = HeaderGen.stripFlySuffix(m.getName())
+        string lf = "\n"
         string h = HeaderGen.emitPrelude(m, lf, true)
 
         List<ASTNode> nodes = m.getNodes()

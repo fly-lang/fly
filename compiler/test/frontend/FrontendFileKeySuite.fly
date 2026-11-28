@@ -1,0 +1,83 @@
+namespace fly.compiler.frontend.test.filekey
+
+import fly.compiler.frontend.*
+import fly.compiler.ast.*
+import fly.compiler.parser.*
+import fly.data.*
+import fly.assert
+import fly.str
+
+// Source discovery identifies a file by its path, not by its base name
+// (fly-lang/fly#266): `a/p.fly` and `b/p.fly` are two files, while two spellings
+// of one path are one. The end-to-end proof is the accept probe
+// ci/sema_probes/accept/same_file_two_dirs; here the key itself is pinned, and
+// the names of the headers a library writes for such files.
+
+// parsed — a module of one function in namespace `ns`, named as the file `file`.
+ASTModule parsed(const string ns, const string file) {
+    Parser p = new unique Parser(str.concat(ns, "\n\npublic int one() {\n    return 1\n}\n"))
+    return p.parseModule(file)
+}
+
+suite FrontendFileKeySuite {
+
+    void fileKeyTest() {
+        case "one base name in two directories gives two keys": {
+            Frontend fe = new unique Frontend(null)
+            assert.assertFalse(str.equals(fe.fileKey("a/p.fly"), fe.fileKey("b/p.fly")), 1)
+            assert.assertFalse(str.equals(fe.fileKey("main.fly"), fe.fileKey("c/main.fly")), 2)
+        }
+        case "two spellings of one path give one key": {
+            Frontend fe = new unique Frontend(null)
+            string key = fe.fileKey("a/p.fly")
+            assert.assertStr(fe.fileKey("./a/p.fly"), key, 10)
+            assert.assertStr(fe.fileKey("a/./p.fly"), key, 11)
+            assert.assertStr(fe.fileKey("a/b/../p.fly"), key, 12)
+            assert.assertStr(fe.fileKey("a\\p.fly"), key, 13)
+            assert.assertStr(fe.fileKey(".\\a\\p.fly"), key, 14)
+        }
+        case "the key is an absolute path with forward slashes": {
+            Frontend fe = new unique Frontend(null)
+            string key = fe.fileKey("a\\p.fly")
+            assert.assertTrue(str.endsWith(key, "/a/p.fly"), 20)
+            assert.assertFalse(str.contains(key, "\\"), 21)
+            assert.assertStr(fe.fileKey(key), key, 22)
+        }
+    }
+
+    // Headers of a library land flat in the output directory: the modules that
+    // share a base name put their namespace in the header's name.
+    void headerPathsTest() {
+        case "files with one base name get their namespace in the header name": {
+            Frontend fe = new unique Frontend(null)
+            List<ASTModule> mods = new List<ASTModule>()
+            mods.add(parsed("namespace a", "src/a/p.fly"))
+            mods.add(parsed("namespace x.y", "src/b/p.fly"))
+            mods.add(parsed("namespace c", "src/c/q.fly"))
+            List<string> res = new List<string>()
+            assert.assertTrue(fe.headerPaths(mods, "out", res), 30)
+            assert.assertEqI((int)res.size(), 3, 31)
+            assert.assertStr(res.get(0), "out/a.p.fly.h", 32)
+            assert.assertStr(res.get(1), "out/x.y.p.fly.h", 33)
+            assert.assertStr(res.get(2), "out/q.fly.h", 34)
+        }
+        case "headers written next to their sources keep the plain name": {
+            Frontend fe = new unique Frontend(null)
+            List<ASTModule> mods = new List<ASTModule>()
+            mods.add(parsed("namespace a", "src/a/p.fly"))
+            mods.add(parsed("namespace b", "src/b/p.fly"))
+            List<string> res = new List<string>()
+            assert.assertTrue(fe.headerPaths(mods, "", res), 40)
+            assert.assertStr(res.get(0), "src/a/p.fly.h", 41)
+            assert.assertStr(res.get(1), "src/b/p.fly.h", 42)
+        }
+        case "one base name and one namespace is refused": {
+            Frontend fe = new unique Frontend(null)
+            List<ASTModule> mods = new List<ASTModule>()
+            mods.add(parsed("namespace a", "src/a/p.fly"))
+            mods.add(parsed("namespace a", "src/b/p.fly"))
+            List<string> res = new List<string>()
+            assert.assertFalse(fe.headerPaths(mods, "out", res), 50)
+        }
+    }
+}
