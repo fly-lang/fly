@@ -88,25 +88,40 @@ public class HeaderGen {
         // a literal. Without this case an array-typed parameter, field or return
         // came out as the EMPTY STRING and the generated .fly.h was unparseable —
         // the same defect the reference carried until its own typeStr grew a
-        // TYPE_ARRAY case. The recursion covers `int[][]`.
+        // TYPE_ARRAY case. The dimensions are written outermost first, the order
+        // the parser reads them in (`int[2][3]` is 2 rows of 3), so the walk
+        // goes down the element types and appends one group per level.
         if t.getTypeKind() == ASTTypeKind.TYPE_ARRAY {
-            ASTArrayType at = t.asArrayType()
-            if at == null {
-                return ""
+            string dims = ""
+            ASTType leaf = t
+            bool down = true
+            while down {
+                ASTArrayType at = null
+                if leaf != null {
+                    if leaf.getTypeKind() == ASTTypeKind.TYPE_ARRAY {
+                        at = leaf.asArrayType()
+                    }
+                }
+                if at == null {
+                    down = false
+                } else {
+                    string sz = ""
+                    ASTExpr se = at.getSizeExpr()
+                    if se != null {
+                        ASTNumberValue nv = se.asNumberValue()
+                        if nv != null {
+                            sz = nv.getValue()
+                        }
+                    }
+                    dims = str.concat(dims, str.concat("[", str.concat(sz, "]")))
+                    leaf = at.getElementType()
+                }
             }
-            string elem = HeaderGen.typeStr(at.getElementType())
+            string elem = HeaderGen.typeStr(leaf)
             if str.len(elem) == 0 {
                 return ""
             }
-            string sz = ""
-            ASTExpr se = at.getSizeExpr()
-            if se != null {
-                ASTNumberValue nv = se.asNumberValue()
-                if nv != null {
-                    sz = nv.getValue()
-                }
-            }
-            return str.concat(elem, str.concat("[", str.concat(sz, "]")))
+            return str.concat(elem, dims)
         }
         if t.getTypeKind() == ASTTypeKind.TYPE_NAMED {
             ASTNamedType nt = t.asNamedType()

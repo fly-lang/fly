@@ -1,0 +1,111 @@
+// A sized array of more than one dimension whose element fails to build stops
+// the declaration and leaves nothing behind (fly-lang/fly#271), as a sized
+// array of one dimension does (fly-lang/fly#257): the failing element is
+// released as a failed `new` is, the elements of its row built before it are
+// deleted last first, then the rows before it, each from its last element,
+// then every buffer. free() prints, so the output shows what ran and in which
+// order; nothing is left for the end-of-main report.
+import fly.os.io
+import fly.str
+
+public class Count {
+    public static int made = 0
+    public static int failAt = 0
+}
+
+int nextIndex() {
+    int k = Count.made
+    Count.made = Count.made + 1
+    if k == Count.failAt {
+        fail 41, "element"
+    }
+    return k
+}
+
+public class Part {
+
+    string name
+
+    public Part(const string name) {
+        this.name = name
+    }
+
+    public void free() {
+        io.printLn(this.name)
+    }
+}
+
+// Flaky — the constructor of the element `Count.failAt` fails, after it set
+// its owned part
+public class Flaky {
+
+    public int idx
+    Part part
+
+    public Flaky() {
+        this.idx = Count.made
+        this.part = new unique Part(str.concat("part ", str.convert(this.idx)))
+        this.idx = nextIndex()
+    }
+
+    public void free() {
+        io.printLn(str.concat("flaky free ", str.convert(this.idx)))
+    }
+}
+
+// Cell — a struct element: the initializer of element `Count.failAt` fails
+struct Cell {
+    int seven = 7
+    int idx = nextIndex()
+}
+
+void start(const int failAt) {
+    Count.made = 0
+    Count.failAt = failAt
+}
+
+void buildGrid() {
+    Flaky[2][2] grid
+    io.printLn(str.concat("not reached ", str.convert(grid[0][0].idx)))
+}
+
+void main() {
+    io.printLn("second row, second element")
+    start(3)
+    handle {
+        Flaky[2][2] grid
+        io.printLn(str.concat("not reached ", str.convert(grid[0][0].idx)))
+    }
+    io.printLn("second row, first element, by a return")
+    start(2)
+    handle {
+        buildGrid()
+    }
+    io.printLn("first element")
+    start(0)
+    handle {
+        Flaky[2][2] grid
+        io.printLn(str.concat("not reached ", str.convert(grid[0][0].idx)))
+    }
+    io.printLn("three dimensions")
+    start(5)
+    handle {
+        Flaky[2][2][2] cube
+        io.printLn(str.concat("not reached ", str.convert(cube[0][0][0].idx)))
+    }
+    io.printLn("struct rows")
+    start(3)
+    handle {
+        Cell[2][2] cells
+        io.printLn(str.concat("not reached ", str.convert(cells[0][0].idx)))
+    }
+    io.printLn("built")
+    start(99)
+    Flaky[2][2] ok
+    for int i = 1; i >= 0; i-- {
+        for int j = 1; j >= 0; j-- {
+            Flaky f = ok[i][j]
+            delete f
+        }
+    }
+}

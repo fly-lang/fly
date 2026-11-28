@@ -1229,21 +1229,32 @@ public class Parser {
             this.reportErr(DiagID.err_parser_invalid_type)
             return null
         }
-        // Array suffix: T[ size? ]
+        // Array suffix: T[ size? ], once per dimension. The dimensions read in
+        // the order of the subscripts: `int[2][3] g` is 2 rows of 3, indexed
+        // `g[i][j]` with i < 2 and j < 3 (fly-lang/fly#271). So the FIRST
+        // bracket group is the outermost array and the last one wraps the
+        // element type: the groups are collected, then nested last to first.
+        List<SourceLocation> dimLocs = new unique List<SourceLocation>()
+        List<ASTExpr> dimSizes = new unique List<ASTExpr>()
         bool ga = true
         while ga {
             if this.curIsPunct("[") {
-                SourceLocation aloc = this.curLoc()
+                dimLocs.add(this.curLoc())
                 this.bump()
                 ASTExpr size = null
                 if this.curIsPunct("]") == false {
                     size = this.parseExpr()
                 }
                 this.expectPunct("]")
-                t = ASTBuilder.CreateArrayType(aloc, t, size)
+                dimSizes.add(size)
             } else {
                 ga = false
             }
+        }
+        int di = (int)dimSizes.size()
+        while di > 0 {
+            di = di - 1
+            t = ASTBuilder.CreateArrayType(dimLocs.get(di), t, dimSizes.get(di))
         }
         return t
     }

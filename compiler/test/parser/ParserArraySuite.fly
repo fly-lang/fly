@@ -30,6 +30,42 @@ int declaredLocals(const string src) {
     return (int)f.getLocalNames().size()
 }
 
+// sizeAt — parse `src` as a type and give the literal size of its dimension
+// `depth`, counted from the outermost array (0); "" for a dimension without a
+// size, "?" when the type has no such dimension.
+string sizeAt(const string src, const int depth) {
+    Parser p = new unique Parser(src)
+    ASTType t = p.parseType()
+    int d = 0
+    while d < depth {
+        if t == null {
+            return "?"
+        }
+        ASTArrayType outer = t.asArrayType()
+        if outer == null {
+            return "?"
+        }
+        t = outer.getElementType()
+        d = d + 1
+    }
+    if t == null {
+        return "?"
+    }
+    ASTArrayType at = t.asArrayType()
+    if at == null {
+        return "?"
+    }
+    ASTExpr se = at.getSizeExpr()
+    if se == null {
+        return ""
+    }
+    ASTNumberValue nv = se.asNumberValue()
+    if nv == null {
+        return "?"
+    }
+    return nv.getValue()
+}
+
 suite ParserArraySuite {
 
     void literalTest() {
@@ -267,6 +303,32 @@ suite ParserArraySuite {
         }
         case "an unterminated dotted bracket run still reports, not hangs": {
             assert.assertEqI(declaredLocals("void f() { o.items[0 }"), -1, 85)
+        }
+    }
+
+    // The dimensions of an array type read in the order of the subscripts
+    // (fly-lang/fly#271): in `int[2][3]` the FIRST group is the outermost
+    // array — 2 rows — and the last one holds the elements — 3 per row.
+    void dimensionOrderTest() {
+        case "int[2][3]: the first size is the outer array": {
+            assert.assertStr(sizeAt("int[2][3]", 0), "2", 91)
+            assert.assertStr(sizeAt("int[2][3]", 1), "3", 92)
+            assert.assertStr(sizeAt("int[2][3]", 2), "?", 93)
+        }
+        case "three dimensions nest in the same order": {
+            assert.assertStr(sizeAt("C[4][5][6]", 0), "4", 94)
+            assert.assertStr(sizeAt("C[4][5][6]", 1), "5", 95)
+            assert.assertStr(sizeAt("C[4][5][6]", 2), "6", 96)
+        }
+        case "a dimension without a size keeps its place": {
+            assert.assertStr(sizeAt("int[2][]", 0), "2", 97)
+            assert.assertStr(sizeAt("int[2][]", 1), "", 98)
+            assert.assertStr(sizeAt("int[][3]", 0), "", 99)
+            assert.assertStr(sizeAt("int[][3]", 1), "3", 100)
+        }
+        case "one dimension is unchanged": {
+            assert.assertStr(sizeAt("int[7]", 0), "7", 101)
+            assert.assertStr(sizeAt("int[7]", 1), "?", 102)
         }
     }
 

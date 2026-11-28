@@ -97,19 +97,14 @@ public class CodeGenArray {
     public static void storeDefault(const CodeGenExpr cge, const pointer alloca, const SemaArrayType at) {
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
-        CodeGenModule cgm = cge.getCgm()
-        pointer ctx = cgm.getCtx()
-        pointer arrTy = cge.lowerType(at)
-        pointer i64t
-        llvm.int64TypeInContext(ctx, i64t)
-
-        pointer zero
-        llvm.constNull(arrTy, zero)
 
         SemaExpr se = at.getSizeExpr()
         if se == null {
             // `T[]` with no initializer — rejected in Sema; {null, 0} keeps codegen
             // total if one ever gets here.
+            pointer arrTy = cge.lowerType(at)
+            pointer zero
+            llvm.constNull(arrTy, zero)
             llvm.buildStore(b, zero, alloca)
             return
         }
@@ -120,11 +115,49 @@ public class CodeGenArray {
         // zero bytes is observably the same empty array — len is 0, so a for-in runs
         // zero times — it just differs from the reference in IR shape, not meaning.
 
-        // The length literal resolves as `int` (i32) but the fat pointer's len field
-        // and the byte-count arithmetic are both i64 — widen before either is used,
-        // or the multiply and the insertvalue get mismatched operand types.
-        pointer lenV = cge.gen(se)
-        lenV = cge.coerce(lenV, se.getType(), SemaBuiltin.getLongType())
+        // `T[N][M] x` has one size per dimension, outermost first (fly-lang/fly#271).
+        // Every size is evaluated ONCE, before anything is allocated: a size that is
+        // a call runs one time, not once per row, and one that fails has nothing to
+        // release. The walk stops at the first dimension without a size (`T[2][]`:
+        // two rows, each an empty array).
+        //
+        // A length resolves as `int` (i32) but the fat pointer's len field and the
+        // byte-count arithmetic are both i64 — widen before either is used, or the
+        // multiply and the insertvalue get mismatched operand types.
+        List<pointer> lens = new List<pointer>()
+        SemaArrayType cur = at
+        while cur != null {
+            SemaExpr ce = cur.getSizeExpr()
+            if ce == null {
+                cur = null
+            } else {
+                pointer lv = cge.gen(ce)
+                lv = cge.coerce(lv, ce.getType(), SemaBuiltin.getLongType())
+                lens.add(lv)
+                SemaType et = cur.getElementType()
+                cur = null
+                if et != null {
+                    cur = et.asArray()
+                }
+            }
+        }
+        CodeGenArray.buildSized(cge, alloca, at, lens, 0)
+    }
+
+    // buildSized — allocate and fill the array of dimension `level` of a sized
+    // declaration into `slot`: the local's alloca for level 0, a row's place
+    // inside the outer buffer below it. lens holds the length of every sized
+    // dimension, outermost first.
+    public static void buildSized(const CodeGenExpr cge, const pointer slot, const SemaArrayType at,
+            const List<pointer> lens, const int level) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        pointer arrTy = cge.lowerType(at)
+        pointer zero
+        llvm.constNull(arrTy, zero)
+
+        pointer lenV = lens.get(level)
         pointer elemLL = CodeGenArray.elementLlvmType(cge, at.getElementType())
         pointer elemSz
         llvm.sizeOf(elemLL, elemSz)
@@ -148,13 +181,19 @@ public class CodeGenArray {
         // An array of STRUCTS gets, per element, what `P p` gets: the zero value,
         // then the struct's field initializers (fly-lang/fly#255).
         //
+        // An array of sized ARRAYS builds each row the same way, one level down:
+        // the zeroed buffer alone would be a column of empty arrays, and every
+        // subscript into a row would be out of range.
+        //
         // Until the elements are all built the slot holds {null, 0}: a failure
         // in the fill releases the buffer itself (emitFailedFill), and a scope
         // cleanup that loads the slot on the way out must find nothing to release.
         SemaType elemT = at.getElementType()
         SemaClassType elemCls = null
+        SemaArrayType rowT = null
         if elemT != null {
             elemCls = elemT.asClass()
+            rowT = elemT.asArray()
         }
         if elemCls != null {
             bool fill = true
@@ -162,8 +201,13 @@ public class CodeGenArray {
                 fill = CodeGenClass.needsFieldInit(elemCls)
             }
             if fill {
-                llvm.buildStore(b, zero, alloca)
+                llvm.buildStore(b, zero, slot)
                 CodeGenArray.fillElements(cge, dataPtr, lenV, elemLL, elemCls)
+            }
+        } elsif rowT != null {
+            if level + 1 < (int)lens.size() {
+                llvm.buildStore(b, zero, slot)
+                CodeGenArray.fillRows(cge, dataPtr, lenV, rowT, lens, level + 1)
             }
         }
 
@@ -171,7 +215,108 @@ public class CodeGenArray {
         llvm.buildInsertValue(b, zero, dataPtr, 0, "arr.d", s1)
         pointer sv
         llvm.buildInsertValue(b, s1, lenV, 1, "arr.l", sv)
-        llvm.buildStore(b, sv, alloca)
+        llvm.buildStore(b, sv, slot)
+    }
+
+    // rowsCanFail — can building a row of type `rowT` fail? Only when the
+    // elements at the bottom are built by code: a class (its constructor) or a
+    // struct with field initializers. Rows of numbers need no failure exit.
+    public static bool rowsCanFail(const SemaArrayType rowT) {
+        SemaType leaf = rowT.getElementType()
+        bool down = true
+        while down {
+            SemaArrayType inner = null
+            if leaf != null {
+                inner = leaf.asArray()
+            }
+            if inner == null {
+                down = false
+            } else {
+                leaf = inner.getElementType()
+            }
+        }
+        if leaf == null {
+            return false
+        }
+        SemaClassType cls = leaf.asClass()
+        if cls == null {
+            return false
+        }
+        if cls.getClassKind() == SemaClassKind.STRUCT {
+            return CodeGenClass.needsFieldInit(cls)
+        }
+        return true
+    }
+
+    // fillRows — build every row of a fresh buffer of arrays: row i is the sized
+    // array of dimension `level`, built in its place inside the buffer
+    // (buildSized). The loop and its failure exit are those of fillElements: a
+    // failure while building row i lands in `arow.fail` after that row has
+    // released itself, the rows before it are released last first with their
+    // elements, then the buffer goes and the failure goes on.
+    public static void fillRows(const CodeGenExpr cge, const pointer dataPtr, const pointer lenV,
+            const SemaArrayType rowT, const List<pointer> lens, const int level) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        CodeGenLLVM cg = cgm.getCg()
+        pointer i64t
+        llvm.int64TypeInContext(cgm.getCtx(), i64t)
+        pointer arrTy = cgm.getArrayTy()
+
+        pointer idxA
+        llvm.buildAlloca(b, i64t, "arow.idx", idxA)
+        pointer zero64
+        llvm.constInt(i64t, 0, false, zero64)
+        llvm.buildStore(b, zero64, idxA)
+
+        pointer condBB = cge.newBlock("arow.cond")
+        pointer bodyBB = cge.newBlock("arow.body")
+        pointer endBB = cge.newBlock("arow.end")
+        cge.br(condBB)
+
+        cge.position(condBB)
+        pointer iCur
+        llvm.buildLoad2(b, i64t, idxA, "arow.i", iCur)
+        pointer cmp
+        llvm.buildICmp(b, 40, iCur, lenV, "arow.cmp", cmp)   // 40 = LLVMIntSLT
+        pointer cbr
+        llvm.buildCondBr(b, cmp, bodyBB, endBB, cbr)
+        cge.setTerminated(true)
+
+        // arow.fail leaves no scope: the exit it then takes frees what that exit leaves
+        pointer savedSafe = cge.getHandleSafe()
+        pointer savedDepth = cge.getHandleDepth()
+        pointer failBB = 0
+        if cge.getErrPtr() != 0 {
+            if CodeGenArray.rowsCanFail(rowT) {
+                failBB = cge.newBlock("arow.fail")
+                cge.setHandleSafe(failBB)
+                cge.setHandleDepth(cge.getFrameDepth())
+            }
+        }
+
+        cge.position(bodyBB)
+        pointer iBody
+        llvm.buildLoad2(b, i64t, idxA, "arow.ib", iBody)
+        List<pointer> gi = new List<pointer>()
+        gi.add(iBody)
+        pointer slot
+        cg.buildGEP2N(b, arrTy, dataPtr, gi, "arow.slot", slot)
+        CodeGenArray.buildSized(cge, slot, rowT, lens, level)
+        pointer one
+        llvm.constInt(i64t, 1, false, one)
+        pointer iNext
+        llvm.buildAdd(b, iBody, one, "arow.in", iNext)
+        llvm.buildStore(b, iNext, idxA)
+        cge.br(condBB)
+
+        cge.setHandleSafe(savedSafe)
+        cge.setHandleDepth(savedDepth)
+        if failBB != 0 {
+            CodeGenArray.emitFailedFill(cge, dataPtr, idxA, rowT, failBB)
+        }
+        cge.position(endBB)
     }
 
     // slotOf — the ADDRESS of the %array fat pointer behind an array-typed
@@ -313,29 +458,25 @@ public class CodeGenArray {
         cge.setHandleSafe(savedSafe)
         cge.setHandleDepth(savedDepth)
         if failBB != 0 {
-            CodeGenArray.emitFailedFill(cge, dataPtr, idxA, elemLL, cls, failBB)
+            CodeGenArray.emitFailedFill(cge, dataPtr, idxA, cls, failBB)
         }
         cge.position(endBB)
     }
 
-    // emitFailedFill — the body of `anew.fail`, where a failure building element
-    // i of a fresh buffer lands (fillElements). Elements i down to 0 are released,
-    // the last built first, as `delete` releases them: a class element's free()
-    // runs (element i's slot is still null — it released itself as a failed
-    // `new` does), a struct element gives back the fields it owns, holds or
-    // observes. Then the buffer goes and the failure takes the exit the check
-    // would have taken. The releases run with an error slot of their own, so the
-    // pending failure neither stops nor is overwritten by them: what they fail
-    // with is attached to it (fly-lang/fly#260).
+    // emitFailedFill — the body of `anew.fail` / `arow.fail`, where a failure
+    // building element i of a fresh buffer lands (fillElements, fillRows).
+    // Elements i down to 0 are released, the last built first (emitDestroyBuilt),
+    // then the buffer goes and the failure takes the exit the check would have
+    // taken. The releases run with an error slot of their own, so the pending
+    // failure neither stops nor is overwritten by them: what they fail with is
+    // attached to it (fly-lang/fly#260).
     public static void emitFailedFill(const CodeGenExpr cge, const pointer dataPtr, const pointer idxA,
-            const pointer elemLL, const SemaClassType cls, const pointer failBB) {
+            const SemaType elemT, const pointer failBB) {
         LLVM llvm = cge.getLLVM()
         pointer b = cge.getBuilder()
         CodeGenModule cgm = cge.getCgm()
-        CodeGenLLVM cg = cgm.getCg()
         pointer i64t
         llvm.int64TypeInContext(cgm.getCtx(), i64t)
-        bool isStruct = cls.getClassKind() == SemaClassKind.STRUCT
         pointer contBB
         llvm.getInsertBlock(b, contBB)
         bool wasTerminated = cge.isTerminated()
@@ -350,11 +491,47 @@ public class CodeGenArray {
         llvm.buildStore(b, zeroErr, relErr)
         cge.setErrPtr(relErr)
 
-        pointer jA
-        llvm.buildAlloca(b, i64t, "afail.idx", jA)
         pointer iFail
         llvm.buildLoad2(b, i64t, idxA, "afail.i", iFail)
-        llvm.buildStore(b, iFail, jA)
+        CodeGenArray.emitDestroyBuilt(cge, dataPtr, iFail, elemT)
+
+        cge.setErrPtr(errPtr)
+        cgm.errMerge(errPtr, relErr)
+        cgm.freeHandle(CodeGenArray.headerOf(cge, dataPtr, "afail.hdr"))
+        CodeGenError.takeFailExit(cge)
+
+        cge.position(contBB)
+        cge.setTerminated(wasTerminated)
+    }
+
+    // emitDestroyBuilt — release the elements `start` down to 0 of a buffer whose
+    // declaration failed, the last built first, as `delete` releases them: a
+    // class element's free() runs (the slot of the element that failed is still
+    // null — it released itself as a failed `new` does), a struct element gives
+    // back the fields it owns, holds or observes, a row releases its own
+    // elements and then its buffer (emitDestroyRow). Elements of any other type
+    // hold nothing, and no loop is emitted for them.
+    public static void emitDestroyBuilt(const CodeGenExpr cge, const pointer dataPtr, const pointer start,
+            const SemaType elemT) {
+        if elemT == null {
+            return
+        }
+        SemaClassType cls = elemT.asClass()
+        SemaArrayType rowT = elemT.asArray()
+        if cls == null && rowT == null {
+            return
+        }
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        CodeGenLLVM cg = cgm.getCg()
+        pointer i64t
+        llvm.int64TypeInContext(cgm.getCtx(), i64t)
+        pointer elemLL = CodeGenArray.elementLlvmType(cge, elemT)
+
+        pointer jA
+        llvm.buildAlloca(b, i64t, "afail.idx", jA)
+        llvm.buildStore(b, start, jA)
         pointer condBB = cge.newBlock("afail.cond")
         pointer bodyBB = cge.newBlock("afail.body")
         pointer doneBB = cge.newBlock("afail.done")
@@ -378,7 +555,9 @@ public class CodeGenArray {
         gi.add(jBody)
         pointer slot
         cg.buildGEP2N(b, elemLL, dataPtr, gi, "afail.slot", slot)
-        if isStruct {
+        if rowT != null {
+            CodeGenArray.emitDestroyRow(cge, slot, rowT)
+        } elsif cls.getClassKind() == SemaClassKind.STRUCT {
             CodeGenStmt.emitDeleteOwnedFields(cge, cls, slot)
         } else {
             CodeGenStmt.emitDeleteSlot(cge, cls, slot)
@@ -391,13 +570,50 @@ public class CodeGenArray {
         cge.br(condBB)
 
         cge.position(doneBB)
-        cge.setErrPtr(errPtr)
-        cgm.errMerge(errPtr, relErr)
-        cgm.freeHandle(CodeGenArray.headerOf(cge, dataPtr, "afail.hdr"))
-        CodeGenError.takeFailExit(cge)
+    }
 
-        cge.position(contBB)
-        cge.setTerminated(wasTerminated)
+    // emitDestroyRow — release a row of a declaration that failed: every element
+    // it holds (emitDestroyBuilt), then its buffer. Nothing else can hold the
+    // row yet, so the buffer is freed, not just let go. A row that never got its
+    // buffer — the one whose own fill failed has already released itself — holds
+    // {null, 0} and is skipped.
+    public static void emitDestroyRow(const CodeGenExpr cge, const pointer slot, const SemaArrayType rowT) {
+        LLVM llvm = cge.getLLVM()
+        pointer b = cge.getBuilder()
+        CodeGenModule cgm = cge.getCgm()
+        pointer i64t
+        llvm.int64TypeInContext(cgm.getCtx(), i64t)
+        pointer ptrTy = cge.ptrType()
+        pointer arrTy = cgm.getArrayTy()
+
+        pointer f0
+        llvm.buildStructGEP2(b, arrTy, slot, 0, "arow.data.p", f0)
+        pointer dataPtr
+        llvm.buildLoad2(b, ptrTy, f0, "arow.data", dataPtr)
+        pointer nullp
+        llvm.constNull(ptrTy, nullp)
+        pointer isNull
+        llvm.buildICmp(b, 32, dataPtr, nullp, "arow.null", isNull)   // 32 = LLVMIntEQ
+        pointer liveBB = cge.newBlock("arow.live")
+        pointer doneBB = cge.newBlock("arow.done")
+        pointer cbr
+        llvm.buildCondBr(b, isNull, doneBB, liveBB, cbr)
+        cge.setTerminated(true)
+
+        cge.position(liveBB)
+        pointer f1
+        llvm.buildStructGEP2(b, arrTy, slot, 1, "arow.len.p", f1)
+        pointer lenV
+        llvm.buildLoad2(b, i64t, f1, "arow.len", lenV)
+        pointer one
+        llvm.constInt(i64t, 1, false, one)
+        pointer last
+        llvm.buildSub(b, lenV, one, "arow.last", last)
+        CodeGenArray.emitDestroyBuilt(cge, dataPtr, last, rowT.getElementType())
+        cgm.freeHandle(CodeGenArray.headerOf(cge, dataPtr, "arow.hdr"))
+        cge.br(doneBB)
+
+        cge.position(doneBB)
     }
 
     // emitRetain — take one more reference to a buffer, given its DATA pointer.

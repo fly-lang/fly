@@ -1,0 +1,38 @@
+second row, second element
+part 3
+flaky free 2
+part 2
+flaky free 1
+part 1
+flaky free 0
+part 0
+second row, first element, by a return
+part 2
+flaky free 1
+part 1
+flaky free 0
+part 0
+first element
+part 0
+three dimensions
+part 5
+flaky free 4
+part 4
+flaky free 3
+part 3
+flaky free 2
+part 2
+flaky free 1
+part 1
+flaky free 0
+part 0
+struct rows
+built
+flaky free 3
+part 3
+flaky free 2
+part 2
+flaky free 1
+part 1
+flaky free 0
+part 0
